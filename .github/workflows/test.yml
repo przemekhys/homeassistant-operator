@@ -33,6 +33,20 @@ jobs:
           local-prefix: github.com/przemekhys/homeassistant-operator
           threshold-file: 80
           threshold-package: 80
+          threshold-total: 80
+          # Exclude packages that cannot be reasonably unit tested:
+          # - api/v1alpha1: auto-generated deepcopy code and type definitions
+          # - cmd: main.go with os.Exit() calls, requires integration testing
+          # - test/utils: test utilities used only by e2e tests
+          # - internal/version: simple version vars set via ldflags
+          exclude-files: |
+            ^api/v1alpha1/zz_generated\.deepcopy\.go$
+            ^cmd/main\.go$
+          exclude-packages: |
+            ^api/v1alpha1$
+            ^cmd$
+            ^test/utils$
+            ^internal/version$
           # Generate coverage badge
           git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
           git-branch: badges
