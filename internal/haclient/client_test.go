@@ -3,6 +3,7 @@ package haclient
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +11,199 @@ import (
 
 	"github.com/gorilla/websocket"
 )
+
+// =============================================================================
+// Error type tests
+// =============================================================================
+
+func TestError_Error(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      *Error
+		expected string
+	}{
+		{
+			name: "error without wrapped error",
+			err: &Error{
+				Type:    ErrorTypeNotReady,
+				Message: "service unavailable",
+			},
+			expected: "NotReady: service unavailable",
+		},
+		{
+			name: "error with wrapped error",
+			err: &Error{
+				Type:    ErrorTypeHTTP,
+				Message: "request failed",
+				Err:     errors.New("connection refused"),
+			},
+			expected: "HTTP: request failed: connection refused",
+		},
+		{
+			name: "error with status code",
+			err: &Error{
+				Type:       ErrorTypeHTTP,
+				Message:    "bad request",
+				StatusCode: 400,
+			},
+			expected: "HTTP: bad request",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.err.Error()
+			if result != tt.expected {
+				t.Errorf("Error() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestError_Unwrap(t *testing.T) {
+	tests := []struct {
+		name        string
+		err         *Error
+		expectNil   bool
+		expectedErr string
+	}{
+		{
+			name: "unwrap with underlying error",
+			err: &Error{
+				Type:    ErrorTypeHTTP,
+				Message: "failed",
+				Err:     errors.New("underlying error"),
+			},
+			expectNil:   false,
+			expectedErr: "underlying error",
+		},
+		{
+			name: "unwrap without underlying error",
+			err: &Error{
+				Type:    ErrorTypeNotReady,
+				Message: "not ready",
+			},
+			expectNil: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.err.Unwrap()
+			if tt.expectNil {
+				if result != nil {
+					t.Errorf("Unwrap() = %v, want nil", result)
+				}
+			} else {
+				if result == nil {
+					t.Error("Unwrap() = nil, want error")
+				} else if result.Error() != tt.expectedErr {
+					t.Errorf("Unwrap() = %q, want %q", result.Error(), tt.expectedErr)
+				}
+			}
+		})
+	}
+}
+
+func TestIsNotReady(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name: "NotReady error type",
+			err: &Error{
+				Type:    ErrorTypeNotReady,
+				Message: "service unavailable",
+			},
+			expected: true,
+		},
+		{
+			name: "HTTP error type",
+			err: &Error{
+				Type:    ErrorTypeHTTP,
+				Message: "bad request",
+			},
+			expected: false,
+		},
+		{
+			name: "OnboardingDone error type",
+			err: &Error{
+				Type:    ErrorTypeOnboardingDone,
+				Message: "already done",
+			},
+			expected: false,
+		},
+		{
+			name:     "non-Error type",
+			err:      errors.New("some other error"),
+			expected: false,
+		},
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsNotReady(tt.err)
+			if result != tt.expected {
+				t.Errorf("IsNotReady() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsOnboardingDone(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name: "OnboardingDone error type",
+			err: &Error{
+				Type:    ErrorTypeOnboardingDone,
+				Message: "already completed",
+			},
+			expected: true,
+		},
+		{
+			name: "NotReady error type",
+			err: &Error{
+				Type:    ErrorTypeNotReady,
+				Message: "service unavailable",
+			},
+			expected: false,
+		},
+		{
+			name:     "non-Error type",
+			err:      errors.New("some other error"),
+			expected: false,
+		},
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsOnboardingDone(tt.err)
+			if result != tt.expected {
+				t.Errorf("IsOnboardingDone() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// Client tests
+// =============================================================================
 
 const (
 	testAPIPath                  = "/api/"
@@ -566,6 +760,242 @@ func TestSetAnalytics(t *testing.T) {
 			err := client.SetAnalytics(ctx, "test-access-token", tt.enabled)
 			if err != nil {
 				t.Fatalf("SetAnalytics() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestCreateUser_ErrorPaths(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		response   string
+		wantErr    bool
+		errType    ErrorType
+	}{
+		{
+			name:       "non-200 response",
+			statusCode: http.StatusBadRequest,
+			response:   `{"error": "bad request"}`,
+			wantErr:    true,
+			errType:    ErrorTypeHTTP,
+		},
+		{
+			name:       "missing auth_code in response",
+			statusCode: http.StatusOK,
+			response:   `{"some_field": "value"}`,
+			wantErr:    true,
+			errType:    ErrorTypeInvalidResponse,
+		},
+		{
+			name:       "invalid JSON response",
+			statusCode: http.StatusOK,
+			response:   `not valid json`,
+			wantErr:    true,
+			errType:    ErrorTypeInvalidResponse,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tt.statusCode)
+				_, _ = w.Write([]byte(tt.response))
+			}))
+			defer server.Close()
+
+			client := NewClient(server.URL)
+			ctx := context.Background()
+
+			_, err := client.CreateUser(ctx, &CreateUserRequest{
+				ClientID: server.URL + "/",
+				Name:     "Admin",
+				Username: "admin",
+				Password: "secret",
+				Language: "en",
+			})
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CreateUser() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr {
+				if haErr, ok := err.(*Error); ok {
+					if haErr.Type != tt.errType {
+						t.Errorf("CreateUser() errorType = %v, want %v", haErr.Type, tt.errType)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestExchangeAuthCode_ErrorPaths(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		response   string
+		wantErr    bool
+		errType    ErrorType
+	}{
+		{
+			name:       "non-200 response",
+			statusCode: http.StatusBadRequest,
+			response:   `{"error": "invalid_grant"}`,
+			wantErr:    true,
+			errType:    ErrorTypeAuth,
+		},
+		{
+			name:       "missing access_token in response",
+			statusCode: http.StatusOK,
+			response:   `{"token_type": "Bearer"}`,
+			wantErr:    true,
+			errType:    ErrorTypeInvalidResponse,
+		},
+		{
+			name:       "invalid JSON response",
+			statusCode: http.StatusOK,
+			response:   `invalid json`,
+			wantErr:    true,
+			errType:    ErrorTypeInvalidResponse,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tt.statusCode)
+				_, _ = w.Write([]byte(tt.response))
+			}))
+			defer server.Close()
+
+			client := NewClient(server.URL)
+			ctx := context.Background()
+
+			_, err := client.ExchangeAuthCode(ctx, "test-auth-code", server.URL+"/")
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ExchangeAuthCode() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr {
+				if haErr, ok := err.(*Error); ok {
+					if haErr.Type != tt.errType {
+						t.Errorf("ExchangeAuthCode() errorType = %v, want %v", haErr.Type, tt.errType)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestSetCoreConfig_ErrorPaths(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		wantErr    bool
+	}{
+		{
+			name:       "non-200 response",
+			statusCode: http.StatusBadRequest,
+			wantErr:    true,
+		},
+		{
+			name:       "server error",
+			statusCode: http.StatusInternalServerError,
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.statusCode)
+			}))
+			defer server.Close()
+
+			client := NewClient(server.URL)
+			ctx := context.Background()
+
+			err := client.SetCoreConfig(ctx, "test-token", &CoreConfigRequest{
+				LocationName: "Home",
+			})
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SetCoreConfig() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSetAnalytics_ErrorPaths(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL)
+	ctx := context.Background()
+
+	err := client.SetAnalytics(ctx, "test-token", true)
+	if err == nil {
+		t.Error("SetAnalytics() expected error, got nil")
+	}
+}
+
+func TestCheckOnboardingStatus_ErrorPaths(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		response   string
+		wantErr    bool
+		errType    ErrorType
+	}{
+		{
+			name:       "non-200 response",
+			statusCode: http.StatusServiceUnavailable,
+			response:   ``,
+			wantErr:    true,
+			errType:    ErrorTypeHTTP,
+		},
+		{
+			name:       "invalid JSON response",
+			statusCode: http.StatusOK,
+			response:   `not valid json`,
+			wantErr:    true,
+			errType:    ErrorTypeInvalidResponse,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tt.statusCode)
+				_, _ = w.Write([]byte(tt.response))
+			}))
+			defer server.Close()
+
+			client := NewClient(server.URL)
+			ctx := context.Background()
+
+			err := client.CheckOnboardingStatus(ctx)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CheckOnboardingStatus() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr {
+				if haErr, ok := err.(*Error); ok {
+					if haErr.Type != tt.errType {
+						t.Errorf("CheckOnboardingStatus() errorType = %v, want %v", haErr.Type, tt.errType)
+					}
+				}
 			}
 		})
 	}
