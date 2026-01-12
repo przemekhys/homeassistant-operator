@@ -56,10 +56,10 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
-            const output = fs.readFileSync('cover.out', 'utf8');
+            const { execSync } = require('child_process');
+            const output = execSync('go tool cover -func=cover.out').toString();
             const lines = output.split('\n');
-            const totalLine = lines.find(l => l.startsWith('total:'));
+            const totalLine = lines.find(l => l.includes('total:'));
             let coverage = 'N/A';
             if (totalLine) {
               const match = totalLine.match(/(\d+\.\d+)%/);
