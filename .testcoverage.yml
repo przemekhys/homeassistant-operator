@@ -20,3 +20,9 @@ exclude:
     - ^cmd
     - ^test/utils
     - ^internal/version
+
+# Override thresholds for specific files
+# SetupWithManager functions require full manager for testing (integration test)
+override:
+  - threshold: 75
+    path: ^internal/controller/homeassistantsecrets_controller\.go$

@@ -978,5 +978,117 @@ var _ = Describe("HomeAssistantSecrets Controller", func() {
 				return newHash != initialHash && newHash != ""
 			}, timeout, interval).Should(BeTrue())
 		})
+
+		It("should handle missing StatefulSet gracefully when autoRestart is enabled", func() {
+			By("Creating HomeAssistantSecrets without StatefulSet")
+			haSecretsNoSts := &hav1alpha1.HomeAssistantSecrets{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secrets-no-sts",
+					Namespace: namespace,
+				},
+				Spec: hav1alpha1.HomeAssistantSecretsSpec{
+					HomeAssistantRef: hav1alpha1.HomeAssistantReference{
+						Name: "non-existent-sts-ha",
+					},
+					SecretRefs: []hav1alpha1.SecretKeyReference{
+						{
+							Name: "test-secret-restart",
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, haSecretsNoSts)).To(Succeed())
+			defer func() {
+				_ = k8sClient.Delete(ctx, haSecretsNoSts)
+			}()
+
+			By("Creating HomeAssistant CR for reference")
+			haNoSts := &hav1alpha1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "non-existent-sts-ha",
+					Namespace: namespace,
+				},
+				Spec: hav1alpha1.HomeAssistantSpec{
+					Version: "2024.1",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haNoSts)).To(Succeed())
+			defer func() {
+				_ = k8sClient.Delete(ctx, haNoSts)
+			}()
+
+			By("Reconciling - should succeed even without StatefulSet")
+			controllerReconciler := &HomeAssistantSecretsReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "secrets-no-sts",
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying status is Ready")
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      "secrets-no-sts",
+					Namespace: namespace,
+				}, haSecretsNoSts)
+				if err != nil {
+					return false
+				}
+				return meta.IsStatusConditionTrue(haSecretsNoSts.Status.Conditions, conditionTypeReady)
+			}, timeout, interval).Should(BeTrue())
+		})
+
+		It("should skip annotation update when hash is already up to date", func() {
+			By("Initial reconciliation")
+			controllerReconciler := &HomeAssistantSecretsReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      secretsName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Getting hash from StatefulSet")
+			var initialHash string
+			Eventually(func() string {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      homeAssistantName,
+					Namespace: namespace,
+				}, statefulSet)
+				if err != nil || statefulSet.Spec.Template.Annotations == nil {
+					return ""
+				}
+				initialHash = statefulSet.Spec.Template.Annotations[secretsHashAnnotationKey]
+				return initialHash
+			}, timeout, interval).ShouldNot(BeEmpty())
+
+			By("Reconciling again without changes")
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      secretsName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying hash is unchanged")
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      homeAssistantName,
+				Namespace: namespace,
+			}, statefulSet)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(statefulSet.Spec.Template.Annotations[secretsHashAnnotationKey]).To(Equal(initialHash))
+		})
 	})
 })
