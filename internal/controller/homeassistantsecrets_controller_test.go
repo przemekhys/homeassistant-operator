@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -376,6 +377,252 @@ var _ = Describe("HomeAssistantSecrets Controller", func() {
 			Expect(secretsYaml).To(ContainSubstring("mqtt_user:"))
 			Expect(secretsYaml).To(ContainSubstring("mqtt_password:"))
 		})
+
+		It("should skip missing keys from secret but continue processing", func() {
+			By("Creating HomeAssistantSecrets with a non-existent key")
+			missingKeySecrets := &hav1alpha1.HomeAssistantSecrets{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "missing-key-secrets",
+					Namespace: namespace,
+				},
+				Spec: hav1alpha1.HomeAssistantSecretsSpec{
+					HomeAssistantRef: hav1alpha1.HomeAssistantReference{
+						Name: homeAssistantName,
+					},
+					SecretRefs: []hav1alpha1.SecretKeyReference{
+						{
+							Name: "test-secret-1",
+							Keys: []string{"mqtt_user", "non_existent_key"},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, missingKeySecrets)).To(Succeed())
+			defer func() {
+				_ = k8sClient.Delete(ctx, missingKeySecrets)
+			}()
+
+			By("Reconciling")
+			controllerReconciler := &HomeAssistantSecretsReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "missing-key-secrets",
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying only existing key is included")
+			generatedSecretName := homeAssistantName + generatedSecretSuffix
+			generatedSecret := &corev1.Secret{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{
+					Name:      generatedSecretName,
+					Namespace: namespace,
+				}, generatedSecret)
+			}, timeout, interval).Should(Succeed())
+
+			secretsYaml := string(generatedSecret.Data[secretsYamlKey])
+			Expect(secretsYaml).To(ContainSubstring("mqtt_user:"))
+			Expect(secretsYaml).NotTo(ContainSubstring("non_existent_key:"))
+		})
+
+		It("should set owner reference on generated secret", func() {
+			// This test uses the homeAssistantSecrets created in BeforeEach
+			By("Reconciling the resource")
+			controllerReconciler := &HomeAssistantSecretsReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      secretsName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying owner reference is set")
+			generatedSecretName := homeAssistantName + generatedSecretSuffix
+			generatedSecret := &corev1.Secret{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{
+					Name:      generatedSecretName,
+					Namespace: namespace,
+				}, generatedSecret)
+			}, timeout, interval).Should(Succeed())
+
+			Expect(generatedSecret.OwnerReferences).To(HaveLen(1))
+			Expect(generatedSecret.OwnerReferences[0].Kind).To(Equal("HomeAssistantSecrets"))
+			Expect(generatedSecret.OwnerReferences[0].Name).To(Equal(secretsName))
+		})
+
+		It("should handle secret with empty data", func() {
+			By("Creating an empty secret")
+			emptySecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "empty-secret",
+					Namespace: namespace,
+				},
+				Data: map[string][]byte{},
+			}
+			Expect(k8sClient.Create(ctx, emptySecret)).To(Succeed())
+			defer func() {
+				_ = k8sClient.Delete(ctx, emptySecret)
+			}()
+
+			By("Creating HomeAssistantSecrets referencing empty secret")
+			emptyDataSecrets := &hav1alpha1.HomeAssistantSecrets{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "empty-data-secrets",
+					Namespace: namespace,
+				},
+				Spec: hav1alpha1.HomeAssistantSecretsSpec{
+					HomeAssistantRef: hav1alpha1.HomeAssistantReference{
+						Name: homeAssistantName,
+					},
+					SecretRefs: []hav1alpha1.SecretKeyReference{
+						{
+							Name: "empty-secret",
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, emptyDataSecrets)).To(Succeed())
+			defer func() {
+				_ = k8sClient.Delete(ctx, emptyDataSecrets)
+			}()
+
+			By("Reconciling")
+			controllerReconciler := &HomeAssistantSecretsReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "empty-data-secrets",
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying generated secret has empty secrets comment")
+			generatedSecretName := homeAssistantName + generatedSecretSuffix
+			generatedSecret := &corev1.Secret{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{
+					Name:      generatedSecretName,
+					Namespace: namespace,
+				}, generatedSecret)
+			}, timeout, interval).Should(Succeed())
+
+			secretsYaml := string(generatedSecret.Data[secretsYamlKey])
+			Expect(secretsYaml).To(Equal("# No secrets configured\n"))
+		})
+	})
+
+	Context("findHomeAssistantSecretsForSecret", func() {
+		const namespace = "default"
+		ctx := context.Background()
+
+		It("should return requests for HomeAssistantSecrets that reference the secret", func() {
+			By("Creating HomeAssistant")
+			ha := &hav1alpha1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-ha-find",
+					Namespace: namespace,
+				},
+				Spec: hav1alpha1.HomeAssistantSpec{
+					Version: "2024.1",
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+			defer func() {
+				_ = k8sClient.Delete(ctx, ha)
+			}()
+
+			By("Creating a secret")
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "find-test-secret",
+					Namespace: namespace,
+				},
+				Data: map[string][]byte{
+					"key": []byte("value"),
+				},
+			}
+			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+			defer func() {
+				_ = k8sClient.Delete(ctx, secret)
+			}()
+
+			By("Creating HomeAssistantSecrets referencing the secret")
+			haSecrets := &hav1alpha1.HomeAssistantSecrets{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "find-test-hasecrets",
+					Namespace: namespace,
+				},
+				Spec: hav1alpha1.HomeAssistantSecretsSpec{
+					HomeAssistantRef: hav1alpha1.HomeAssistantReference{
+						Name: "test-ha-find",
+					},
+					SecretRefs: []hav1alpha1.SecretKeyReference{
+						{
+							Name: "find-test-secret",
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, haSecrets)).To(Succeed())
+			defer func() {
+				_ = k8sClient.Delete(ctx, haSecrets)
+			}()
+
+			By("Calling findHomeAssistantSecretsForSecret")
+			reconciler := &HomeAssistantSecretsReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			requests := reconciler.findHomeAssistantSecretsForSecret(ctx, secret)
+
+			Expect(requests).To(HaveLen(1))
+			Expect(requests[0].Name).To(Equal("find-test-hasecrets"))
+			Expect(requests[0].Namespace).To(Equal(namespace))
+		})
+
+		It("should return empty list when no HomeAssistantSecrets reference the secret", func() {
+			By("Creating a secret not referenced by any HomeAssistantSecrets")
+			unrefSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "unreferenced-secret",
+					Namespace: namespace,
+				},
+				Data: map[string][]byte{
+					"key": []byte("value"),
+				},
+			}
+			Expect(k8sClient.Create(ctx, unrefSecret)).To(Succeed())
+			defer func() {
+				_ = k8sClient.Delete(ctx, unrefSecret)
+			}()
+
+			By("Calling findHomeAssistantSecretsForSecret")
+			reconciler := &HomeAssistantSecretsReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			requests := reconciler.findHomeAssistantSecretsForSecret(ctx, unrefSecret)
+
+			Expect(requests).To(BeEmpty())
+		})
 	})
 
 	Context("Helper function tests", func() {
@@ -449,6 +696,37 @@ var _ = Describe("HomeAssistantSecrets Controller", func() {
 				},
 			}
 			Expect(reconciler.isAutoRestartEnabled(haSecrets)).To(BeFalse())
+		})
+
+		It("should generate empty secrets comment when no secrets data", func() {
+			reconciler := &HomeAssistantSecretsReconciler{}
+			secretsData := map[string]string{}
+
+			yaml := reconciler.generateSecretsYaml(secretsData)
+			Expect(yaml).To(Equal("# No secrets configured\n"))
+		})
+
+		It("should sort keys alphabetically in generated YAML", func() {
+			reconciler := &HomeAssistantSecretsReconciler{}
+			secretsData := map[string]string{
+				"zebra":  "last",
+				"alpha":  "first",
+				"middle": "mid",
+				"beta":   "second",
+			}
+
+			yaml := reconciler.generateSecretsYaml(secretsData)
+
+			// Find positions of each key in the output
+			alphaPos := strings.Index(yaml, "alpha:")
+			betaPos := strings.Index(yaml, "beta:")
+			middlePos := strings.Index(yaml, "middle:")
+			zebraPos := strings.Index(yaml, "zebra:")
+
+			Expect(alphaPos).To(BeNumerically(">", -1))
+			Expect(alphaPos).To(BeNumerically("<", betaPos))
+			Expect(betaPos).To(BeNumerically("<", middlePos))
+			Expect(middlePos).To(BeNumerically("<", zebraPos))
 		})
 	})
 
@@ -699,6 +977,118 @@ var _ = Describe("HomeAssistantSecrets Controller", func() {
 				newHash := statefulSet.Spec.Template.Annotations[secretsHashAnnotationKey]
 				return newHash != initialHash && newHash != ""
 			}, timeout, interval).Should(BeTrue())
+		})
+
+		It("should handle missing StatefulSet gracefully when autoRestart is enabled", func() {
+			By("Creating HomeAssistantSecrets without StatefulSet")
+			haSecretsNoSts := &hav1alpha1.HomeAssistantSecrets{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secrets-no-sts",
+					Namespace: namespace,
+				},
+				Spec: hav1alpha1.HomeAssistantSecretsSpec{
+					HomeAssistantRef: hav1alpha1.HomeAssistantReference{
+						Name: "non-existent-sts-ha",
+					},
+					SecretRefs: []hav1alpha1.SecretKeyReference{
+						{
+							Name: "test-secret-restart",
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, haSecretsNoSts)).To(Succeed())
+			defer func() {
+				_ = k8sClient.Delete(ctx, haSecretsNoSts)
+			}()
+
+			By("Creating HomeAssistant CR for reference")
+			haNoSts := &hav1alpha1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "non-existent-sts-ha",
+					Namespace: namespace,
+				},
+				Spec: hav1alpha1.HomeAssistantSpec{
+					Version: "2024.1",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haNoSts)).To(Succeed())
+			defer func() {
+				_ = k8sClient.Delete(ctx, haNoSts)
+			}()
+
+			By("Reconciling - should succeed even without StatefulSet")
+			controllerReconciler := &HomeAssistantSecretsReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "secrets-no-sts",
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying status is Ready")
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      "secrets-no-sts",
+					Namespace: namespace,
+				}, haSecretsNoSts)
+				if err != nil {
+					return false
+				}
+				return meta.IsStatusConditionTrue(haSecretsNoSts.Status.Conditions, conditionTypeReady)
+			}, timeout, interval).Should(BeTrue())
+		})
+
+		It("should skip annotation update when hash is already up to date", func() {
+			By("Initial reconciliation")
+			controllerReconciler := &HomeAssistantSecretsReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      secretsName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Getting hash from StatefulSet")
+			var initialHash string
+			Eventually(func() string {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      homeAssistantName,
+					Namespace: namespace,
+				}, statefulSet)
+				if err != nil || statefulSet.Spec.Template.Annotations == nil {
+					return ""
+				}
+				initialHash = statefulSet.Spec.Template.Annotations[secretsHashAnnotationKey]
+				return initialHash
+			}, timeout, interval).ShouldNot(BeEmpty())
+
+			By("Reconciling again without changes")
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      secretsName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying hash is unchanged")
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      homeAssistantName,
+				Namespace: namespace,
+			}, statefulSet)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(statefulSet.Spec.Template.Annotations[secretsHashAnnotationKey]).To(Equal(initialHash))
 		})
 	})
 })

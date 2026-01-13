@@ -3,7 +3,7 @@
 [![Lint](https://github.com/przemekhys/homeassistant-operator/actions/workflows/lint.yml/badge.svg)](https://github.com/przemekhys/homeassistant-operator/actions/workflows/lint.yml)
 [![Tests](https://github.com/przemekhys/homeassistant-operator/actions/workflows/test.yml/badge.svg)](https://github.com/przemekhys/homeassistant-operator/actions/workflows/test.yml)
 [![E2E Tests](https://github.com/przemekhys/homeassistant-operator/actions/workflows/test-e2e.yml/badge.svg)](https://github.com/przemekhys/homeassistant-operator/actions/workflows/test-e2e.yml)
-[![Coverage Status](https://img.shields.io/badge/coverage-17.2%25-red)](https://github.com/przemekhys/homeassistant-operator/actions/workflows/test.yml)
+[![Coverage](https://raw.githubusercontent.com/przemekhys/homeassistant-operator/badges/.badges/main/coverage.svg)](https://github.com/przemekhys/homeassistant-operator/actions/workflows/test.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/przemekhys/homeassistant-operator)](https://goreportcard.com/report/github.com/przemekhys/homeassistant-operator)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 

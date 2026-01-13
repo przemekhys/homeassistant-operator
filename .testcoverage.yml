@@ -1,0 +1,28 @@
+# Configuration for vladopajic/go-test-coverage
+# https://github.com/vladopajic/go-test-coverage
+
+profile: cover.out
+local-prefix: github.com/przemekhys/homeassistant-operator
+
+threshold:
+  file: 80
+  package: 80
+  total: 80
+
+# Exclude packages/files that cannot be reasonably unit tested:
+# - api/v1alpha1: auto-generated deepcopy code and type definitions
+# - cmd: main.go with os.Exit() calls, requires integration testing
+# - test/utils: test utilities used only by e2e tests
+# - internal/version: simple version vars set via ldflags
+exclude:
+  paths:
+    - ^api/v1alpha1
+    - ^cmd
+    - ^test/utils
+    - ^internal/version
+
+# Override thresholds for specific files
+# SetupWithManager functions require full manager for testing (integration test)
+override:
+  - threshold: 75
+    path: ^internal/controller/homeassistantsecrets_controller\.go$
