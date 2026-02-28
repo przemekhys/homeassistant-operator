@@ -29,7 +29,7 @@ jobs:
         run: docker save operator:e2e -o operator-e2e.tar
 
       - name: Upload image artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: operator-image
           path: operator-e2e.tar
