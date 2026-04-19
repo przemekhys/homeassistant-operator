@@ -1,0 +1,5969 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Kubernetes operator for deploying and managing Home Assistant instances">
+      
+      
+      
+        <link rel="canonical" href="https://przemekhys.github.io/homeassistant-operator/reference/api/">
+      
+      
+        <link rel="prev" href="../../user-guide/backup/">
+      
+      
+        <link rel="next" href="../troubleshooting/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>CRD API Reference - Home Assistant Operator</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="light-blue" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Home Assistant Operator" class="md-header__button md-logo" aria-label="Home Assistant Operator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Home Assistant Operator
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              CRD API Reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="light-blue" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="light-blue" data-md-color-accent="cyan"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/przemekhys/homeassistant-operator" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    przemekhys/homeassistant-operator
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/installation/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../user-guide/homeassistant/" class="md-tabs__link">
+          
+  
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../development/contributing/" class="md-tabs__link">
+          
+  
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Home Assistant Operator" class="md-nav__button md-logo" aria-label="Home Assistant Operator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Home Assistant Operator
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/przemekhys/homeassistant-operator" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    przemekhys/homeassistant-operator
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quick-start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/homeassistant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home Assistant CR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/bootstrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bootstrap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/secrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Secrets Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/automations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Automations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/scenes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/scripts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scripts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/infrastructure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Infrastructure (Floor/Label/Area)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRD API Reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CRD API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Packages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hahomeassistantiov1alpha1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ha.homeassistant.io/v1alpha1
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ha.homeassistant.io/v1alpha1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resource-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource Types
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Resource Types">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#automationaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AutomationAction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automationcondition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AutomationCondition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automationmode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AutomationMode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automationtrigger" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AutomationTrigger
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backupspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BackupSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bootstrapcredentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BootstrapCredentials
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bootstrapspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BootstrapSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bootstrapstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BootstrapStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configurationreloadstrategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConfigurationReloadStrategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#credentialssecretref" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CredentialsSecretRef
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistant
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantarea" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantArea
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantarealist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantAreaList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantareaspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantAreaSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantareastatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantAreaStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantautomation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantAutomation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantautomationlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantAutomationList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantautomationspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantAutomationSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantautomationstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantAutomationStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantconfiguration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantConfiguration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantconfigurationlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantConfigurationList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantconfigurationspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantConfigurationSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantconfigurationstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantConfigurationStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantfloor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantFloor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantfloorlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantFloorList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantfloorspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantFloorSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantfloorstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantFloorStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantintegration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantIntegration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantintegrationlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantIntegrationList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantintegrationspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantIntegrationSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantintegrationstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantIntegrationStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantlabel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantLabel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantlabellist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantLabelList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantlabelspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantLabelSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantlabelstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantLabelStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantphase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantPhase
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantreference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantReference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscene" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantScene
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscenelist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSceneList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscenespec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSceneSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscenestatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSceneStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscript" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantScript
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscriptlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantScriptList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscriptspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantScriptSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscriptstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantScriptStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantsecrets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSecrets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantsecretslist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSecretsList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantsecretsspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSecretsSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantsecretsstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSecretsStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httpconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HttpConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ingressspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IngressSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ingresstlsspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IngressTLSSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#initcontainerspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        InitContainerSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integrationsecretkeyref" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IntegrationSecretKeyRef
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integrationvalue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IntegrationValue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#locationconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LocationConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#loggerconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LoggerConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mqttconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MqttConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recorderconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RecorderConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sceneentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SceneEntity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scriptaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ScriptAction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scriptfield" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ScriptField
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scriptmode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ScriptMode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#secretkeyreference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SecretKeyReference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#secretkeyselector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SecretKeySelector
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#secretreference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SecretReference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#servicespec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ServiceSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#storagespec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StorageSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Packages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hahomeassistantiov1alpha1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ha.homeassistant.io/v1alpha1
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ha.homeassistant.io/v1alpha1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resource-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource Types
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Resource Types">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#automationaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AutomationAction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automationcondition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AutomationCondition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automationmode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AutomationMode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automationtrigger" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AutomationTrigger
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backupspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BackupSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bootstrapcredentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BootstrapCredentials
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bootstrapspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BootstrapSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bootstrapstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BootstrapStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configurationreloadstrategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConfigurationReloadStrategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#credentialssecretref" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CredentialsSecretRef
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistant
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantarea" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantArea
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantarealist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantAreaList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantareaspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantAreaSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantareastatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantAreaStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantautomation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantAutomation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantautomationlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantAutomationList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantautomationspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantAutomationSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantautomationstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantAutomationStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantconfiguration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantConfiguration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantconfigurationlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantConfigurationList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantconfigurationspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantConfigurationSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantconfigurationstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantConfigurationStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantfloor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantFloor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantfloorlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantFloorList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantfloorspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantFloorSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantfloorstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantFloorStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantintegration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantIntegration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantintegrationlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantIntegrationList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantintegrationspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantIntegrationSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantintegrationstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantIntegrationStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantlabel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantLabel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantlabellist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantLabelList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantlabelspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantLabelSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantlabelstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantLabelStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantphase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantPhase
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantreference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantReference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscene" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantScene
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscenelist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSceneList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscenespec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSceneSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscenestatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSceneStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscript" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantScript
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscriptlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantScriptList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscriptspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantScriptSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantscriptstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantScriptStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantsecrets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSecrets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantsecretslist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSecretsList
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantsecretsspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSecretsSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantsecretsstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSecretsStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantStatus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httpconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HttpConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ingressspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IngressSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ingresstlsspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IngressTLSSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#initcontainerspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        InitContainerSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integrationsecretkeyref" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IntegrationSecretKeyRef
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integrationvalue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IntegrationValue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#locationconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LocationConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#loggerconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LoggerConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mqttconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MqttConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recorderconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RecorderConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sceneentity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SceneEntity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scriptaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ScriptAction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scriptfield" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ScriptField
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scriptmode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ScriptMode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#secretkeyreference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SecretKeyReference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#secretkeyselector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SecretKeySelector
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#secretreference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SecretReference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#servicespec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ServiceSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#storagespec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StorageSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="./" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Reference
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/przemekhys/homeassistant-operator/edit/main/docs/reference/api.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h1>
+<h2 id="packages">Packages<a class="headerlink" href="#packages" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="#hahomeassistantiov1alpha1">ha.homeassistant.io/v1alpha1</a></li>
+</ul>
+<h2 id="hahomeassistantiov1alpha1">ha.homeassistant.io/v1alpha1<a class="headerlink" href="#hahomeassistantiov1alpha1" title="Permanent link">&para;</a></h2>
+<p>Package v1alpha1 contains API Schema definitions for the ha v1alpha1 API group.</p>
+<h3 id="resource-types">Resource Types<a class="headerlink" href="#resource-types" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="#homeassistant">HomeAssistant</a></li>
+<li><a href="#homeassistantarea">HomeAssistantArea</a></li>
+<li><a href="#homeassistantarealist">HomeAssistantAreaList</a></li>
+<li><a href="#homeassistantautomation">HomeAssistantAutomation</a></li>
+<li><a href="#homeassistantautomationlist">HomeAssistantAutomationList</a></li>
+<li><a href="#homeassistantconfiguration">HomeAssistantConfiguration</a></li>
+<li><a href="#homeassistantconfigurationlist">HomeAssistantConfigurationList</a></li>
+<li><a href="#homeassistantfloor">HomeAssistantFloor</a></li>
+<li><a href="#homeassistantfloorlist">HomeAssistantFloorList</a></li>
+<li><a href="#homeassistantintegration">HomeAssistantIntegration</a></li>
+<li><a href="#homeassistantintegrationlist">HomeAssistantIntegrationList</a></li>
+<li><a href="#homeassistantlabel">HomeAssistantLabel</a></li>
+<li><a href="#homeassistantlabellist">HomeAssistantLabelList</a></li>
+<li><a href="#homeassistantlist">HomeAssistantList</a></li>
+<li><a href="#homeassistantscene">HomeAssistantScene</a></li>
+<li><a href="#homeassistantscenelist">HomeAssistantSceneList</a></li>
+<li><a href="#homeassistantscript">HomeAssistantScript</a></li>
+<li><a href="#homeassistantscriptlist">HomeAssistantScriptList</a></li>
+<li><a href="#homeassistantsecrets">HomeAssistantSecrets</a></li>
+<li><a href="#homeassistantsecretslist">HomeAssistantSecretsList</a></li>
+</ul>
+<h4 id="automationaction">AutomationAction<a class="headerlink" href="#automationaction" title="Permanent link">&para;</a></h4>
+<p>AutomationAction defines an action to be executed by the automation
+This is a flexible structure that accepts any valid Home Assistant action configuration</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantautomationspec">HomeAssistantAutomationSpec</a></p>
+<h4 id="automationcondition">AutomationCondition<a class="headerlink" href="#automationcondition" title="Permanent link">&para;</a></h4>
+<p>AutomationCondition defines a condition that must be met for the automation to execute
+This is a flexible structure that accepts any valid Home Assistant condition configuration</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantautomationspec">HomeAssistantAutomationSpec</a></p>
+<h4 id="automationmode">AutomationMode<a class="headerlink" href="#automationmode" title="Permanent link">&para;</a></h4>
+<p><em>Underlying type:</em> <em>string</em></p>
+<p>AutomationMode defines how the automation should behave when triggered again while already running</p>
+<p><em>Validation:</em>
+- Enum: [single restart queued parallel]</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantautomationspec">HomeAssistantAutomationSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>single</code></td>
+<td>AutomationModeSingle - Do not start a new run, issue a warning<br /></td>
+</tr>
+<tr>
+<td><code>restart</code></td>
+<td>AutomationModeRestart - Stop previous runs and start a new one<br /></td>
+</tr>
+<tr>
+<td><code>queued</code></td>
+<td>AutomationModeQueued - Queue runs in order, sequential execution guaranteed<br /></td>
+</tr>
+<tr>
+<td><code>parallel</code></td>
+<td>AutomationModeParallel - Launch independent concurrent runs<br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="automationtrigger">AutomationTrigger<a class="headerlink" href="#automationtrigger" title="Permanent link">&para;</a></h4>
+<p>AutomationTrigger defines an event that will trigger the automation
+This is a flexible structure that accepts any valid Home Assistant trigger configuration</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantautomationspec">HomeAssistantAutomationSpec</a></p>
+<h4 id="backupspec">BackupSpec<a class="headerlink" href="#backupspec" title="Permanent link">&para;</a></h4>
+<p>BackupSpec configures Home Assistant's built-in backup system via WebSocket API.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantspec">HomeAssistantSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code> <em>boolean</em></td>
+<td>Enabled controls whether automatic backups are configured in HA</td>
+<td>false</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>recurrence</code> <em>string</em></td>
+<td>Recurrence defines how often to create a backup</td>
+<td>daily</td>
+<td>Enum: [daily mon tue wed thu fri sat sun never] <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>time</code> <em>string</em></td>
+<td>Time is the time of day to create the backup in HH:MM:SS 24-hour format (e.g. "03:00:00").<br />If empty, Home Assistant picks automatically.</td>
+<td></td>
+<td>Pattern: <code>^([01]\d\|2[0-3]):[0-5]\d:[0-5]\d$</code> <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>retentionCopies</code> <em>integer</em></td>
+<td>RetentionCopies is the number of backup copies to keep. Nil means unlimited.</td>
+<td></td>
+<td>Minimum: 1 <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>retentionDays</code> <em>integer</em></td>
+<td>RetentionDays is the number of days to keep backups. Nil means unlimited.</td>
+<td></td>
+<td>Minimum: 1 <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>includeDatabase</code> <em>boolean</em></td>
+<td>IncludeDatabase controls whether the database is included in the backup.</td>
+<td>true</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>agentIDs</code> <em>string array</em></td>
+<td>AgentIDs is the list of backup agent IDs to use<br />(e.g. "backup.local", "google_drive.my_drive").<br />Defaults to ["backup.local"] if not specified.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="bootstrapcredentials">BootstrapCredentials<a class="headerlink" href="#bootstrapcredentials" title="Permanent link">&para;</a></h4>
+<p>BootstrapCredentials references a Secret containing admin credentials</p>
+<p><em>Appears in:</em>
+- <a href="#bootstrapspec">BootstrapSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>secretRef</code> <em><a href="#credentialssecretref">CredentialsSecretRef</a></em></td>
+<td>SecretRef references a Secret containing username and password</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="bootstrapspec">BootstrapSpec<a class="headerlink" href="#bootstrapspec" title="Permanent link">&para;</a></h4>
+<p>BootstrapSpec configures automatic Home Assistant onboarding and API token creation</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantspec">HomeAssistantSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code> <em>boolean</em></td>
+<td>Enabled controls whether automatic bootstrap is performed</td>
+<td>false</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>credentials</code> <em><a href="#bootstrapcredentials">BootstrapCredentials</a></em></td>
+<td>Credentials references a Secret containing username and password for the admin user<br />The Secret must have "username" and "password" keys</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>createApiToken</code> <em>boolean</em></td>
+<td>CreateApiToken controls whether a long-lived access token is created after onboarding<br />The token is valid for 10 years and stored in a Secret</td>
+<td>true</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>apiTokenSecretName</code> <em>string</em></td>
+<td>ApiTokenSecretName is the name of the Secret where the API token will be stored<br />The Secret will have a "token" key containing the long-lived access token<br />If not specified, defaults to "{homeassistant-name}-homeassistant-api-token"</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>ownerName</code> <em>string</em></td>
+<td>OwnerName is the display name for the owner user created during onboarding</td>
+<td>Admin</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>language</code> <em>string</em></td>
+<td>Language is the language code for Home Assistant (e.g., "en", "pl")</td>
+<td>en</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>location</code> <em><a href="#locationconfig">LocationConfig</a></em></td>
+<td>Location configures the location settings during onboarding<br />If not specified, location configuration step is skipped</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>analytics</code> <em>boolean</em></td>
+<td>Analytics controls whether to enable analytics during onboarding<br />If not specified, analytics is disabled by default</td>
+<td>false</td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="bootstrapstatus">BootstrapStatus<a class="headerlink" href="#bootstrapstatus" title="Permanent link">&para;</a></h4>
+<p>BootstrapStatus contains the status of the automatic bootstrap process</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantstatus">HomeAssistantStatus</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>completed</code> <em>boolean</em></td>
+<td>Completed indicates whether the bootstrap process has finished successfully</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>apiTokenReady</code> <em>boolean</em></td>
+<td>ApiTokenReady indicates whether the API token has been created and stored</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>apiTokenSecretName</code> <em>string</em></td>
+<td>ApiTokenSecretName is the name of the Secret containing the API token</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastAttempt</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta">Time</a></em></td>
+<td>LastAttempt is the timestamp of the last bootstrap attempt</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>message</code> <em>string</em></td>
+<td>Message provides additional information about the bootstrap status</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>onboardingDoneFirstSeen</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta">Time</a></em></td>
+<td>OnboardingDoneFirstSeen is the timestamp when /api/onboarding first returned 404.<br />Used to implement confirmation delay without relying on condition LastTransitionTime<br />(which does not update when only the Reason changes).</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>loginRecoveryAttempts</code> <em>integer</em></td>
+<td>LoginRecoveryAttempts tracks how many times login recovery was attempted.<br />Reset to zero when onboarding is confirmed fresh or bootstrap succeeds.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="configurationreloadstrategy">ConfigurationReloadStrategy<a class="headerlink" href="#configurationreloadstrategy" title="Permanent link">&para;</a></h4>
+<p><em>Underlying type:</em> <em>string</em></p>
+<p>ConfigurationReloadStrategy defines how configuration changes should be handled</p>
+<p><em>Validation:</em>
+- Enum: [auto hot-reload restart]</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantconfigurationspec">HomeAssistantConfigurationSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>auto</code></td>
+<td>ConfigurationReloadStrategyAuto - automatically choose best strategy based on config changes<br /></td>
+</tr>
+<tr>
+<td><code>hot-reload</code></td>
+<td>ConfigurationReloadStrategyHotReload - attempt to hot-reload via HA REST API<br /></td>
+</tr>
+<tr>
+<td><code>restart</code></td>
+<td>ConfigurationReloadStrategyRestart - force full pod restart<br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="credentialssecretref">CredentialsSecretRef<a class="headerlink" href="#credentialssecretref" title="Permanent link">&para;</a></h4>
+<p>CredentialsSecretRef references a Secret containing username and password credentials</p>
+<p><em>Appears in:</em>
+- <a href="#bootstrapcredentials">BootstrapCredentials</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code> <em>string</em></td>
+<td>Name of the Secret</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>usernameKey</code> <em>string</em></td>
+<td>UsernameKey is the key in the Secret containing the username</td>
+<td>username</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>passwordKey</code> <em>string</em></td>
+<td>PasswordKey is the key in the Secret containing the password</td>
+<td>password</td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistant">HomeAssistant<a class="headerlink" href="#homeassistant" title="Permanent link">&para;</a></h4>
+<p>HomeAssistant is the Schema for the homeassistants API.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantlist">HomeAssistantList</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistant</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta">ObjectMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>spec</code> <em><a href="#homeassistantspec">HomeAssistantSpec</a></em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>status</code> <em><a href="#homeassistantstatus">HomeAssistantStatus</a></em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantarea">HomeAssistantArea<a class="headerlink" href="#homeassistantarea" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantArea is the Schema for the homeassistantareas API</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantarealist">HomeAssistantAreaList</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantArea</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta">ObjectMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>spec</code> <em><a href="#homeassistantareaspec">HomeAssistantAreaSpec</a></em></td>
+<td></td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>status</code> <em><a href="#homeassistantareastatus">HomeAssistantAreaStatus</a></em></td>
+<td></td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantarealist">HomeAssistantAreaList<a class="headerlink" href="#homeassistantarealist" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantAreaList contains a list of HomeAssistantArea</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantAreaList</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta">ListMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>items</code> <em><a href="#homeassistantarea">HomeAssistantArea</a> array</em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantareaspec">HomeAssistantAreaSpec<a class="headerlink" href="#homeassistantareaspec" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantAreaSpec defines the desired state of HomeAssistantArea</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantarea">HomeAssistantArea</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>homeAssistantRef</code> <em><a href="#homeassistantreference">HomeAssistantReference</a></em></td>
+<td>homeAssistantRef is a reference to the HomeAssistant CR this area belongs to</td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>name</code> <em>string</em></td>
+<td>name is the display name of the area in Home Assistant</td>
+<td></td>
+<td>MinLength: 1 <br />Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>floorName</code> <em>string</em></td>
+<td>floorName is the name of the HomeAssistantFloor CR to assign this area to (resolved at reconcile time)</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>icon</code> <em>string</em></td>
+<td>icon is the Material Design Icon for the area (e.g. "mdi:sofa")</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>labels</code> <em>string array</em></td>
+<td>labels is a list of HomeAssistantLabel CR names to assign to this area (resolved at reconcile time)</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantareastatus">HomeAssistantAreaStatus<a class="headerlink" href="#homeassistantareastatus" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantAreaStatus defines the observed state of HomeAssistantArea</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantarea">HomeAssistantArea</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>areaID</code> <em>string</em></td>
+<td>areaID is the ID assigned by Home Assistant after creation</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>observedGeneration</code> <em>integer</em></td>
+<td>observedGeneration is the most recent generation observed</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>conditions</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta">Condition</a> array</em></td>
+<td>conditions represent the current state of the HomeAssistantArea resource</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantautomation">HomeAssistantAutomation<a class="headerlink" href="#homeassistantautomation" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantAutomation is the Schema for the homeassistantautomations API</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantautomationlist">HomeAssistantAutomationList</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantAutomation</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta">ObjectMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>spec</code> <em><a href="#homeassistantautomationspec">HomeAssistantAutomationSpec</a></em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>status</code> <em><a href="#homeassistantautomationstatus">HomeAssistantAutomationStatus</a></em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantautomationlist">HomeAssistantAutomationList<a class="headerlink" href="#homeassistantautomationlist" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantAutomationList contains a list of HomeAssistantAutomation</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantAutomationList</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta">ListMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>items</code> <em><a href="#homeassistantautomation">HomeAssistantAutomation</a> array</em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantautomationspec">HomeAssistantAutomationSpec<a class="headerlink" href="#homeassistantautomationspec" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantAutomationSpec defines the desired state of HomeAssistantAutomation</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantautomation">HomeAssistantAutomation</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>homeAssistantRef</code> <em><a href="#homeassistantreference">HomeAssistantReference</a></em></td>
+<td>HomeAssistantRef references the HomeAssistant CR that will use this automation</td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>id</code> <em>string</em></td>
+<td>ID is a unique identifier for the automation (used by Home Assistant)<br />If not specified, will be auto-generated from the CR name</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>alias</code> <em>string</em></td>
+<td>Alias is a user-friendly name for the automation</td>
+<td></td>
+<td>MinLength: 1 <br />Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>description</code> <em>string</em></td>
+<td>Description provides details about what the automation does</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>triggers</code> <em><a href="#automationtrigger">AutomationTrigger</a> array</em></td>
+<td>Triggers define the events that will trigger this automation<br />At least one trigger is required</td>
+<td></td>
+<td>MinItems: 1 <br />Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>conditions</code> <em><a href="#automationcondition">AutomationCondition</a> array</em></td>
+<td>Conditions define requirements that must be met for the automation to execute<br />All conditions must evaluate to true for the automation to run</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>actions</code> <em><a href="#automationaction">AutomationAction</a> array</em></td>
+<td>Actions define the sequence of tasks to execute when triggered<br />At least one action is required</td>
+<td></td>
+<td>MinItems: 1 <br />Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>mode</code> <em><a href="#automationmode">AutomationMode</a></em></td>
+<td>Mode defines how the automation should behave when triggered again while already running</td>
+<td>single</td>
+<td>Enum: [single restart queued parallel] <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>max</code> <em>integer</em></td>
+<td>Max defines the maximum number of concurrent or queued runs (for queued/parallel modes)</td>
+<td>10</td>
+<td>Minimum: 1 <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>maxExceeded</code> <em>string</em></td>
+<td>MaxExceeded defines the log severity level when max is exceeded (silent, info, warning, error)</td>
+<td>warning</td>
+<td>Enum: [silent info warning error] <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>initialState</code> <em>boolean</em></td>
+<td>InitialState defines whether the automation should be enabled at startup<br />If not specified, the last state is restored</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>autoReload</code> <em>boolean</em></td>
+<td>AutoReload enables automatic hot-reload when automation changes<br />If false, requires manual reload or pod restart</td>
+<td>true</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>enabled</code> <em>boolean</em></td>
+<td>Enabled controls whether this automation is active<br />Can be used to temporarily disable without deleting the CR</td>
+<td>true</td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantautomationstatus">HomeAssistantAutomationStatus<a class="headerlink" href="#homeassistantautomationstatus" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantAutomationStatus defines the observed state of HomeAssistantAutomation</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantautomation">HomeAssistantAutomation</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>conditions</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta">Condition</a> array</em></td>
+<td>Conditions represent the latest available observations of the HomeAssistantAutomation state</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>automationHash</code> <em>string</em></td>
+<td>AutomationHash is the SHA256 hash of the current automation configuration<br />Used to detect changes and determine if reload is needed</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastReloadTime</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta">Time</a></em></td>
+<td>LastReloadTime is the timestamp of the last successful reload</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastTriggeredTime</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta">Time</a></em></td>
+<td>LastTriggeredTime is the timestamp when the automation was last triggered (if available from HA)</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastError</code> <em>string</em></td>
+<td>LastError contains the error message from the last failed operation<br />Cleared when operation succeeds</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastReloadMethod</code> <em>string</em></td>
+<td>LastReloadMethod indicates how the last reload was performed<br />Possible values: "hot-reload", "restart", "none"</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>observedGeneration</code> <em>integer</em></td>
+<td>ObservedGeneration reflects the generation of the most recently observed HomeAssistantAutomation</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantconfiguration">HomeAssistantConfiguration<a class="headerlink" href="#homeassistantconfiguration" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantConfiguration is the Schema for the homeassistantconfigurations API.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantconfigurationlist">HomeAssistantConfigurationList</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantConfiguration</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta">ObjectMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>spec</code> <em><a href="#homeassistantconfigurationspec">HomeAssistantConfigurationSpec</a></em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>status</code> <em><a href="#homeassistantconfigurationstatus">HomeAssistantConfigurationStatus</a></em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantconfigurationlist">HomeAssistantConfigurationList<a class="headerlink" href="#homeassistantconfigurationlist" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantConfigurationList contains a list of HomeAssistantConfiguration.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantConfigurationList</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta">ListMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>items</code> <em><a href="#homeassistantconfiguration">HomeAssistantConfiguration</a> array</em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantconfigurationspec">HomeAssistantConfigurationSpec<a class="headerlink" href="#homeassistantconfigurationspec" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantConfigurationSpec defines the desired state of HomeAssistantConfiguration</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantconfiguration">HomeAssistantConfiguration</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>homeAssistantRef</code> <em><a href="#homeassistantreference">HomeAssistantReference</a></em></td>
+<td>HomeAssistantRef references the HomeAssistant CR that will use this configuration</td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>configuration</code> <em>string</em></td>
+<td>Configuration contains the full configuration.yaml content as a string<br />This is the raw YAML configuration for Home Assistant</td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>reloadStrategy</code> <em><a href="#configurationreloadstrategy">ConfigurationReloadStrategy</a></em></td>
+<td>ReloadStrategy defines how configuration changes should be applied</td>
+<td>auto</td>
+<td>Enum: [auto hot-reload restart] <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>autoReload</code> <em>boolean</em></td>
+<td>AutoReload enables automatic reloading/restart when configuration changes</td>
+<td>true</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>http</code> <em><a href="#httpconfig">HttpConfig</a></em></td>
+<td>Http component configuration (optional typed section)</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>logger</code> <em><a href="#loggerconfig">LoggerConfig</a></em></td>
+<td>Logger component configuration (optional typed section)</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>recorder</code> <em><a href="#recorderconfig">RecorderConfig</a></em></td>
+<td>Recorder component configuration (optional typed section)</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>mqtt</code> <em><a href="#mqttconfig">MqttConfig</a></em></td>
+<td>Mqtt component configuration (optional typed section)</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantconfigurationstatus">HomeAssistantConfigurationStatus<a class="headerlink" href="#homeassistantconfigurationstatus" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantConfigurationStatus defines the observed state of HomeAssistantConfiguration</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantconfiguration">HomeAssistantConfiguration</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>conditions</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta">Condition</a> array</em></td>
+<td>Conditions represent the latest available observations of the HomeAssistantConfiguration state</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>configHash</code> <em>string</em></td>
+<td>ConfigHash is the SHA256 hash of the current configuration<br />Used to detect changes and determine if reload is needed</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastReloadTime</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta">Time</a></em></td>
+<td>LastReloadTime is the timestamp of the last successful reload/restart</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastReloadMethod</code> <em>string</em></td>
+<td>LastReloadMethod indicates how the last reload was performed (hot-reload or restart)</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastError</code> <em>string</em></td>
+<td>LastError contains the error message from the last failed reload attempt<br />Cleared when reload succeeds</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>observedGeneration</code> <em>integer</em></td>
+<td>Generation tracks the generation of the spec that the status reflects</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantfloor">HomeAssistantFloor<a class="headerlink" href="#homeassistantfloor" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantFloor is the Schema for the homeassistantfloors API</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantfloorlist">HomeAssistantFloorList</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantFloor</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta">ObjectMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>spec</code> <em><a href="#homeassistantfloorspec">HomeAssistantFloorSpec</a></em></td>
+<td></td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>status</code> <em><a href="#homeassistantfloorstatus">HomeAssistantFloorStatus</a></em></td>
+<td></td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantfloorlist">HomeAssistantFloorList<a class="headerlink" href="#homeassistantfloorlist" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantFloorList contains a list of HomeAssistantFloor</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantFloorList</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta">ListMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>items</code> <em><a href="#homeassistantfloor">HomeAssistantFloor</a> array</em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantfloorspec">HomeAssistantFloorSpec<a class="headerlink" href="#homeassistantfloorspec" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantFloorSpec defines the desired state of HomeAssistantFloor</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantfloor">HomeAssistantFloor</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>homeAssistantRef</code> <em><a href="#homeassistantreference">HomeAssistantReference</a></em></td>
+<td>homeAssistantRef is a reference to the HomeAssistant CR this floor belongs to</td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>name</code> <em>string</em></td>
+<td>name is the display name of the floor in Home Assistant</td>
+<td></td>
+<td>MinLength: 1 <br />Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>level</code> <em>integer</em></td>
+<td>level is the floor level (e.g. 0 for ground, 1 for first, -1 for basement)</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>icon</code> <em>string</em></td>
+<td>icon is the Material Design Icon for the floor (e.g. "mdi:home-floor-1")</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantfloorstatus">HomeAssistantFloorStatus<a class="headerlink" href="#homeassistantfloorstatus" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantFloorStatus defines the observed state of HomeAssistantFloor</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantfloor">HomeAssistantFloor</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>floorID</code> <em>string</em></td>
+<td>floorID is the ID assigned by Home Assistant after creation</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>observedGeneration</code> <em>integer</em></td>
+<td>observedGeneration is the most recent generation observed</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>conditions</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta">Condition</a> array</em></td>
+<td>conditions represent the current state of the HomeAssistantFloor resource</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantintegration">HomeAssistantIntegration<a class="headerlink" href="#homeassistantintegration" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantIntegration manages a Home Assistant integration (config entry) via the Config Flow API.
+It supports create, adopt, reconfigure (delete+re-create on spec change), and cleanup via finalizer.
+Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantintegrationlist">HomeAssistantIntegrationList</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantIntegration</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta">ObjectMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>spec</code> <em><a href="#homeassistantintegrationspec">HomeAssistantIntegrationSpec</a></em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>status</code> <em><a href="#homeassistantintegrationstatus">HomeAssistantIntegrationStatus</a></em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantintegrationlist">HomeAssistantIntegrationList<a class="headerlink" href="#homeassistantintegrationlist" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantIntegrationList contains a list of HomeAssistantIntegration</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantIntegrationList</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta">ListMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>items</code> <em><a href="#homeassistantintegration">HomeAssistantIntegration</a> array</em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantintegrationspec">HomeAssistantIntegrationSpec<a class="headerlink" href="#homeassistantintegrationspec" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantIntegrationSpec defines the desired state of HomeAssistantIntegration</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantintegration">HomeAssistantIntegration</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>homeAssistantRef</code> <em><a href="#homeassistantreference">HomeAssistantReference</a></em></td>
+<td>HomeAssistantRef references the HomeAssistant instance to configure</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>domain</code> <em>string</em></td>
+<td>Domain is the integration name in Home Assistant (e.g. "mqtt", "esphome", "recorder")</td>
+<td></td>
+<td>MinLength: 1 <br />Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>configuration</code> <em>object (keys:string, values:<a href="#integrationvalue">IntegrationValue</a>)</em></td>
+<td>Configuration contains fields submitted to the Config Flow (single-step flows only).<br />Keys are field names from the data_schema; values are plain text or Secret references.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantintegrationstatus">HomeAssistantIntegrationStatus<a class="headerlink" href="#homeassistantintegrationstatus" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantIntegrationStatus defines the observed state of HomeAssistantIntegration</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantintegration">HomeAssistantIntegration</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>entryID</code> <em>string</em></td>
+<td>EntryID is the Home Assistant config entry ID created or adopted by the Config Flow</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>configHash</code> <em>string</em></td>
+<td>ConfigHash is the SHA256 hash of the resolved configuration values.<br />Used to detect spec changes and trigger reconfiguration (delete + re-create).</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>conditions</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta">Condition</a> array</em></td>
+<td>Conditions represent the latest available observations of the integration state</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>observedGeneration</code> <em>integer</em></td>
+<td>ObservedGeneration reflects the generation of the most recently observed CR</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantlabel">HomeAssistantLabel<a class="headerlink" href="#homeassistantlabel" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantLabel is the Schema for the homeassistantlabels API</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantlabellist">HomeAssistantLabelList</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantLabel</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta">ObjectMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>spec</code> <em><a href="#homeassistantlabelspec">HomeAssistantLabelSpec</a></em></td>
+<td></td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>status</code> <em><a href="#homeassistantlabelstatus">HomeAssistantLabelStatus</a></em></td>
+<td></td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantlabellist">HomeAssistantLabelList<a class="headerlink" href="#homeassistantlabellist" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantLabelList contains a list of HomeAssistantLabel</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantLabelList</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta">ListMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>items</code> <em><a href="#homeassistantlabel">HomeAssistantLabel</a> array</em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantlabelspec">HomeAssistantLabelSpec<a class="headerlink" href="#homeassistantlabelspec" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantLabelSpec defines the desired state of HomeAssistantLabel</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantlabel">HomeAssistantLabel</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>homeAssistantRef</code> <em><a href="#homeassistantreference">HomeAssistantReference</a></em></td>
+<td>homeAssistantRef is a reference to the HomeAssistant CR this label belongs to</td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>name</code> <em>string</em></td>
+<td>name is the display name of the label in Home Assistant</td>
+<td></td>
+<td>MinLength: 1 <br />Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>icon</code> <em>string</em></td>
+<td>icon is the Material Design Icon for the label (e.g. "mdi:tag")</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>color</code> <em>string</em></td>
+<td>color is the label color (e.g. "red", "blue", "green")</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantlabelstatus">HomeAssistantLabelStatus<a class="headerlink" href="#homeassistantlabelstatus" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantLabelStatus defines the observed state of HomeAssistantLabel</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantlabel">HomeAssistantLabel</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>labelID</code> <em>string</em></td>
+<td>labelID is the ID assigned by Home Assistant after creation</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>observedGeneration</code> <em>integer</em></td>
+<td>observedGeneration is the most recent generation observed</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>conditions</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta">Condition</a> array</em></td>
+<td>conditions represent the current state of the HomeAssistantLabel resource</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantlist">HomeAssistantList<a class="headerlink" href="#homeassistantlist" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantList contains a list of HomeAssistant.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantList</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta">ListMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>items</code> <em><a href="#homeassistant">HomeAssistant</a> array</em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantphase">HomeAssistantPhase<a class="headerlink" href="#homeassistantphase" title="Permanent link">&para;</a></h4>
+<p><em>Underlying type:</em> <em>string</em></p>
+<p>HomeAssistantPhase represents the current phase of the HomeAssistant instance.</p>
+<p><em>Validation:</em>
+- Enum: [Pending Running Failed Unknown]</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantstatus">HomeAssistantStatus</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Pending</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>Running</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>Failed</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>Unknown</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantreference">HomeAssistantReference<a class="headerlink" href="#homeassistantreference" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantReference references a HomeAssistant CR.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantareaspec">HomeAssistantAreaSpec</a>
+- <a href="#homeassistantautomationspec">HomeAssistantAutomationSpec</a>
+- <a href="#homeassistantconfigurationspec">HomeAssistantConfigurationSpec</a>
+- <a href="#homeassistantfloorspec">HomeAssistantFloorSpec</a>
+- <a href="#homeassistantintegrationspec">HomeAssistantIntegrationSpec</a>
+- <a href="#homeassistantlabelspec">HomeAssistantLabelSpec</a>
+- <a href="#homeassistantscenespec">HomeAssistantSceneSpec</a>
+- <a href="#homeassistantscriptspec">HomeAssistantScriptSpec</a>
+- <a href="#homeassistantsecretsspec">HomeAssistantSecretsSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code> <em>string</em></td>
+<td>Name of the HomeAssistant resource</td>
+<td></td>
+<td>MinLength: 1 <br />Required: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantscene">HomeAssistantScene<a class="headerlink" href="#homeassistantscene" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantScene is the Schema for the homeassistantscenes API</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantscenelist">HomeAssistantSceneList</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantScene</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta">ObjectMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>spec</code> <em><a href="#homeassistantscenespec">HomeAssistantSceneSpec</a></em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>status</code> <em><a href="#homeassistantscenestatus">HomeAssistantSceneStatus</a></em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantscenelist">HomeAssistantSceneList<a class="headerlink" href="#homeassistantscenelist" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantSceneList contains a list of HomeAssistantScene</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantSceneList</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta">ListMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>items</code> <em><a href="#homeassistantscene">HomeAssistantScene</a> array</em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantscenespec">HomeAssistantSceneSpec<a class="headerlink" href="#homeassistantscenespec" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantSceneSpec defines the desired state of HomeAssistantScene</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantscene">HomeAssistantScene</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>homeAssistantRef</code> <em><a href="#homeassistantreference">HomeAssistantReference</a></em></td>
+<td>HomeAssistantRef references the HomeAssistant CR that will use this scene</td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>id</code> <em>string</em></td>
+<td>ID is a unique identifier for the scene (used by Home Assistant)<br />If not specified, will be auto-generated from the CR name</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>name</code> <em>string</em></td>
+<td>Name is a user-friendly name for the scene (displayed in Home Assistant UI)<br />If not specified, the CR name will be used</td>
+<td></td>
+<td>MinLength: 1 <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>icon</code> <em>string</em></td>
+<td>Icon is a Material Design icon for the scene (e.g., "mdi:movie", "mdi:candle")<br />See https://mdi.bessarabov.com/ for available icons</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>entities</code> <em><a href="#sceneentity">SceneEntity</a> array</em></td>
+<td>Entities define the list of devices and their states to set when scene is activated<br />At least one entity is required</td>
+<td></td>
+<td>MinItems: 1 <br />Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>autoReload</code> <em>boolean</em></td>
+<td>AutoReload enables automatic hot-reload when scene configuration changes<br />If false, requires manual reload or pod restart</td>
+<td>true</td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantscenestatus">HomeAssistantSceneStatus<a class="headerlink" href="#homeassistantscenestatus" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantSceneStatus defines the observed state of HomeAssistantScene</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantscene">HomeAssistantScene</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>conditions</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta">Condition</a> array</em></td>
+<td>Conditions represent the latest available observations of the HomeAssistantScene state</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>sceneHash</code> <em>string</em></td>
+<td>SceneHash is the SHA256 hash of the current scene configuration<br />Used to detect changes and determine if reload is needed</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastReloadTime</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta">Time</a></em></td>
+<td>LastReloadTime is the timestamp of the last successful reload</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastActivated</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta">Time</a></em></td>
+<td>LastActivated is the timestamp when the scene was last activated (if available from HA)</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastError</code> <em>string</em></td>
+<td>LastError contains the error message from the last failed operation<br />Cleared when operation succeeds</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>entityCount</code> <em>integer</em></td>
+<td>EntityCount is the number of entities defined in the scene<br />Updated by the controller for display in kubectl output</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>observedGeneration</code> <em>integer</em></td>
+<td>ObservedGeneration reflects the generation of the most recently observed HomeAssistantScene</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantscript">HomeAssistantScript<a class="headerlink" href="#homeassistantscript" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantScript is the Schema for the homeassistantscripts API</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantscriptlist">HomeAssistantScriptList</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantScript</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta">ObjectMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>spec</code> <em><a href="#homeassistantscriptspec">HomeAssistantScriptSpec</a></em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>status</code> <em><a href="#homeassistantscriptstatus">HomeAssistantScriptStatus</a></em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantscriptlist">HomeAssistantScriptList<a class="headerlink" href="#homeassistantscriptlist" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantScriptList contains a list of HomeAssistantScript</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantScriptList</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta">ListMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>items</code> <em><a href="#homeassistantscript">HomeAssistantScript</a> array</em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantscriptspec">HomeAssistantScriptSpec<a class="headerlink" href="#homeassistantscriptspec" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantScriptSpec defines the desired state of HomeAssistantScript</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantscript">HomeAssistantScript</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>homeAssistantRef</code> <em><a href="#homeassistantreference">HomeAssistantReference</a></em></td>
+<td>HomeAssistantRef references the HomeAssistant CR that will use this script</td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>id</code> <em>string</em></td>
+<td>ID is a unique identifier for the script (used by Home Assistant)<br />If not specified, will be auto-generated from the CR name<br />Must contain only lowercase letters, digits, and underscores</td>
+<td></td>
+<td>Pattern: <code>^[a-z][a-z0-9_]*$</code> <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>alias</code> <em>string</em></td>
+<td>Alias is a user-friendly name for the script</td>
+<td></td>
+<td>MinLength: 1 <br />Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>description</code> <em>string</em></td>
+<td>Description provides details about what the script does</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>icon</code> <em>string</em></td>
+<td>Icon is a Material Design icon for the script (e.g., "mdi:script", "mdi:play")<br />See https://mdi.bessarabov.com/ for available icons</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>sequence</code> <em><a href="#scriptaction">ScriptAction</a> array</em></td>
+<td>Sequence defines the list of actions to execute when the script is called<br />At least one action is required</td>
+<td></td>
+<td>MinItems: 1 <br />Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>fields</code> <em>object (keys:string, values:<a href="#scriptfield">ScriptField</a>)</em></td>
+<td>Fields define input parameters for the script<br />These allow the script to accept arguments when called</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>mode</code> <em><a href="#scriptmode">ScriptMode</a></em></td>
+<td>Mode defines how the script should behave when called again while already running</td>
+<td>single</td>
+<td>Enum: [single restart queued parallel] <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>max</code> <em>integer</em></td>
+<td>Max defines the maximum number of concurrent or queued runs (for queued/parallel modes)</td>
+<td>10</td>
+<td>Minimum: 1 <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>maxExceeded</code> <em>string</em></td>
+<td>MaxExceeded defines the log severity level when max is exceeded (silent, info, warning, error)</td>
+<td>warning</td>
+<td>Enum: [silent info warning error] <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>autoReload</code> <em>boolean</em></td>
+<td>AutoReload enables automatic hot-reload when script changes<br />If false, requires manual reload or pod restart</td>
+<td>true</td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantscriptstatus">HomeAssistantScriptStatus<a class="headerlink" href="#homeassistantscriptstatus" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantScriptStatus defines the observed state of HomeAssistantScript</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantscript">HomeAssistantScript</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>conditions</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta">Condition</a> array</em></td>
+<td>Conditions represent the latest available observations of the HomeAssistantScript state</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>scriptHash</code> <em>string</em></td>
+<td>ScriptHash is the SHA256 hash of the current script configuration<br />Used to detect changes and determine if reload is needed</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastReloadTime</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta">Time</a></em></td>
+<td>LastReloadTime is the timestamp of the last successful reload</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastRunTime</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta">Time</a></em></td>
+<td>LastRunTime is the timestamp when the script was last executed (if available from HA)</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastError</code> <em>string</em></td>
+<td>LastError contains the error message from the last failed operation<br />Cleared when operation succeeds</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastReloadMethod</code> <em>string</em></td>
+<td>LastReloadMethod indicates how the last reload was performed<br />Possible values: "hot-reload" (success), "failed" (all retries exhausted), "none" (skipped/initial)</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>observedGeneration</code> <em>integer</em></td>
+<td>ObservedGeneration reflects the generation of the most recently observed HomeAssistantScript</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantsecrets">HomeAssistantSecrets<a class="headerlink" href="#homeassistantsecrets" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantSecrets is the Schema for the homeassistantsecrets API.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantsecretslist">HomeAssistantSecretsList</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantSecrets</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta">ObjectMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>spec</code> <em><a href="#homeassistantsecretsspec">HomeAssistantSecretsSpec</a></em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>status</code> <em><a href="#homeassistantsecretsstatus">HomeAssistantSecretsStatus</a></em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantsecretslist">HomeAssistantSecretsList<a class="headerlink" href="#homeassistantsecretslist" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantSecretsList contains a list of HomeAssistantSecrets.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code> <em>string</em></td>
+<td><code>ha.homeassistant.io/v1alpha1</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td><code>HomeAssistantSecretsList</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>metadata</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta">ListMeta</a></em></td>
+<td>Refer to Kubernetes API documentation for fields of <code>metadata</code>.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>items</code> <em><a href="#homeassistantsecrets">HomeAssistantSecrets</a> array</em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantsecretsspec">HomeAssistantSecretsSpec<a class="headerlink" href="#homeassistantsecretsspec" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantSecretsSpec defines the desired state of HomeAssistantSecrets.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantsecrets">HomeAssistantSecrets</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>homeAssistantRef</code> <em><a href="#homeassistantreference">HomeAssistantReference</a></em></td>
+<td>HomeAssistantRef references the HomeAssistant CR that will use these secrets</td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>secretRefs</code> <em><a href="#secretkeyreference">SecretKeyReference</a> array</em></td>
+<td>SecretRefs is a list of references to Kubernetes Secrets.<br />Keys from these Secrets will be merged into the generated secrets.yaml</td>
+<td></td>
+<td>MinItems: 1 <br />Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>autoRestart</code> <em>boolean</em></td>
+<td>AutoRestart controls whether the Home Assistant pod should be automatically<br />restarted when secrets change. When enabled, the controller updates an annotation<br />on the StatefulSet to trigger a rolling restart.</td>
+<td>true</td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantsecretsstatus">HomeAssistantSecretsStatus<a class="headerlink" href="#homeassistantsecretsstatus" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantSecretsStatus defines the observed state of HomeAssistantSecrets.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantsecrets">HomeAssistantSecrets</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>conditions</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta">Condition</a> array</em></td>
+<td>Conditions represent the latest available observations of the HomeAssistantSecrets state</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>secretsHash</code> <em>string</em></td>
+<td>SecretsHash is the SHA256 hash of the generated secrets.yaml content.<br />Used to detect changes and trigger pod restarts.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastUpdated</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta">Time</a></em></td>
+<td>LastUpdated is the timestamp when the secrets were last updated</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantspec">HomeAssistantSpec<a class="headerlink" href="#homeassistantspec" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantSpec defines the desired state of HomeAssistant.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistant">HomeAssistant</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>version</code> <em>string</em></td>
+<td>Version is the Home Assistant version/tag to deploy (e.g., "2024.1.0", "stable", "latest")</td>
+<td>stable</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>image</code> <em>string</em></td>
+<td>Image allows overriding the default Home Assistant image</td>
+<td>ghcr.io/home-assistant/home-assistant</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>storage</code> <em><a href="#storagespec">StorageSpec</a></em></td>
+<td>Storage configuration for Home Assistant data</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>resources</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#resourcerequirements-v1-core">ResourceRequirements</a></em></td>
+<td>Resources defines CPU and memory requests/limits</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>service</code> <em><a href="#servicespec">ServiceSpec</a></em></td>
+<td>Service configuration for exposing Home Assistant</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>ingress</code> <em><a href="#ingressspec">IngressSpec</a></em></td>
+<td>Ingress configuration for external access</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>timezone</code> <em>string</em></td>
+<td>Timezone for the Home Assistant instance (e.g., "Europe/Warsaw")</td>
+<td>UTC</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>secretsFrom</code> <em><a href="#secretreference">SecretReference</a></em></td>
+<td>SecretsFrom references a Secret containing secrets.yaml<br />The Secret should have a key "secrets.yaml" with the HA secrets</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>hostNetwork</code> <em>boolean</em></td>
+<td>HostNetwork enables host networking for the Home Assistant pod.<br />When true, the pod uses the host's network namespace, enabling discovery<br />of IoT devices via mDNS, SSDP, and DHCP on the local network.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>bootstrap</code> <em><a href="#bootstrapspec">BootstrapSpec</a></em></td>
+<td>Bootstrap configures automatic onboarding and API token creation<br />When enabled, the operator will automatically complete the Home Assistant<br />onboarding process and create a long-lived access token for API access</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>backup</code> <em><a href="#backupspec">BackupSpec</a></em></td>
+<td>Backup configures automatic backups using Home Assistant's built-in backup system.<br />Requires bootstrap with API token enabled.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="homeassistantstatus">HomeAssistantStatus<a class="headerlink" href="#homeassistantstatus" title="Permanent link">&para;</a></h4>
+<p>HomeAssistantStatus defines the observed state of HomeAssistant.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistant">HomeAssistant</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>phase</code> <em><a href="#homeassistantphase">HomeAssistantPhase</a></em></td>
+<td>Phase represents the current lifecycle phase of the HomeAssistant instance</td>
+<td></td>
+<td>Enum: [Pending Running Failed Unknown] <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>conditions</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta">Condition</a> array</em></td>
+<td>Conditions represent the latest available observations of the HomeAssistant state</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>version</code> <em>string</em></td>
+<td>Version is the currently deployed Home Assistant version</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>url</code> <em>string</em></td>
+<td>URL is the access URL for Home Assistant (if Ingress is enabled)</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>ready</code> <em>boolean</em></td>
+<td>Ready indicates if the Home Assistant instance is ready to serve traffic</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>bootstrap</code> <em><a href="#bootstrapstatus">BootstrapStatus</a></em></td>
+<td>BootstrapStatus contains the status of the automatic bootstrap process</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>selfUnbanCount</code> <em>integer</em></td>
+<td>SelfUnbanCount is the number of times the operator has removed its own IP<br />from HA's ip_bans.yaml and restarted the pod to clear in-memory bans.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastSelfUnban</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta">Time</a></em></td>
+<td>LastSelfUnban is the timestamp of the most recent self-unban operation.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="httpconfig">HttpConfig<a class="headerlink" href="#httpconfig" title="Permanent link">&para;</a></h4>
+<p>HttpConfig defines HTTP component configuration</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantconfigurationspec">HomeAssistantConfigurationSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>corsDomains</code> <em>string array</em></td>
+<td>CorsDomains is a list of allowed CORS origins</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>trustProxy</code> <em>boolean</em></td>
+<td>TrustProxy enables trust in X-Forwarded-For header</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>useXForwardedFor</code> <em>boolean</em></td>
+<td>UseXForwardedFor enables usage of X-Forwarded-For header</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="ingressspec">IngressSpec<a class="headerlink" href="#ingressspec" title="Permanent link">&para;</a></h4>
+<p>IngressSpec defines external access configuration.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantspec">HomeAssistantSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code> <em>boolean</em></td>
+<td>Enabled controls whether an Ingress resource is created</td>
+<td>false</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>host</code> <em>string</em></td>
+<td>Host is the hostname for the Ingress (e.g., "ha.example.com")</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>ingressClassName</code> <em>string</em></td>
+<td>IngressClassName specifies the Ingress controller to use</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>tls</code> <em><a href="#ingresstlsspec">IngressTLSSpec</a></em></td>
+<td>TLS configuration</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>annotations</code> <em>object (keys:string, values:string)</em></td>
+<td>Annotations to add to the Ingress resource</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="ingresstlsspec">IngressTLSSpec<a class="headerlink" href="#ingresstlsspec" title="Permanent link">&para;</a></h4>
+<p>IngressTLSSpec defines TLS configuration for Ingress.</p>
+<p><em>Appears in:</em>
+- <a href="#ingressspec">IngressSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code> <em>boolean</em></td>
+<td>Enabled controls whether TLS is enabled</td>
+<td>false</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>secretName</code> <em>string</em></td>
+<td>SecretName containing the TLS certificate. If empty, cert-manager annotation should be used.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="initcontainerspec">InitContainerSpec<a class="headerlink" href="#initcontainerspec" title="Permanent link">&para;</a></h4>
+<p>InitContainerSpec configures the image used for the config-init init container.</p>
+<p><em>Appears in:</em>
+- <a href="#storagespec">StorageSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>repository</code> <em>string</em></td>
+<td>Repository is the container image repository (e.g. "docker.io/library")</td>
+<td>docker.io/library</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>image</code> <em>string</em></td>
+<td>Image is the container image name (e.g. "busybox")</td>
+<td>busybox</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>tag</code> <em>string</em></td>
+<td>Tag is the container image tag (e.g. "1.36", "latest")</td>
+<td>1.36</td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="integrationsecretkeyref">IntegrationSecretKeyRef<a class="headerlink" href="#integrationsecretkeyref" title="Permanent link">&para;</a></h4>
+<p>IntegrationSecretKeyRef references a specific key within a Kubernetes Secret</p>
+<p><em>Appears in:</em>
+- <a href="#integrationvalue">IntegrationValue</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code> <em>string</em></td>
+<td>Name of the Secret</td>
+<td></td>
+<td>MinLength: 1 <br /></td>
+</tr>
+<tr>
+<td><code>key</code> <em>string</em></td>
+<td>Key within the Secret</td>
+<td></td>
+<td>MinLength: 1 <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="integrationvalue">IntegrationValue<a class="headerlink" href="#integrationvalue" title="Permanent link">&para;</a></h4>
+<p>IntegrationValue holds either a plain text value or a reference to a Kubernetes Secret key.
+Exactly one of Value or SecretKeyRef must be set.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantintegrationspec">HomeAssistantIntegrationSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>value</code> <em>string</em></td>
+<td>Value is a plain text configuration value</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>secretKeyRef</code> <em><a href="#integrationsecretkeyref">IntegrationSecretKeyRef</a></em></td>
+<td>SecretKeyRef references a key in a Kubernetes Secret</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="locationconfig">LocationConfig<a class="headerlink" href="#locationconfig" title="Permanent link">&para;</a></h4>
+<p>LocationConfig defines location settings for Home Assistant onboarding</p>
+<p><em>Appears in:</em>
+- <a href="#bootstrapspec">BootstrapSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code> <em>string</em></td>
+<td>Name is the location name (e.g., "Home", "Warsaw")</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>latitude</code> <em>string</em></td>
+<td>Latitude in decimal degrees (e.g., "52.2297")</td>
+<td></td>
+<td>Pattern: <code>^-?([0-8]?[0-9](\.[0-9]+)?\|90(\.0+)?)$</code> <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>longitude</code> <em>string</em></td>
+<td>Longitude in decimal degrees (e.g., "21.0122")</td>
+<td></td>
+<td>Pattern: <code>^-?(1[0-7][0-9](\.[0-9]+)?\|[0-9]\{1,2\}(\.[0-9]+)?\|180(\.0+)?)$</code> <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>elevation</code> <em>integer</em></td>
+<td>Elevation in meters</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>unitSystem</code> <em>string</em></td>
+<td>UnitSystem defines the unit system ("metric" or "us_customary")</td>
+<td>metric</td>
+<td>Enum: [metric us_customary] <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>currency</code> <em>string</em></td>
+<td>Currency is the ISO 4217 currency code (e.g., "USD", "EUR", "PLN")</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>timeZone</code> <em>string</em></td>
+<td>TimeZone is the IANA timezone (e.g., "Europe/Warsaw", "America/New_York")<br />If not specified, uses spec.timezone</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="loggerconfig">LoggerConfig<a class="headerlink" href="#loggerconfig" title="Permanent link">&para;</a></h4>
+<p>LoggerConfig defines logging component configuration</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantconfigurationspec">HomeAssistantConfigurationSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>defaultLevel</code> <em>string</em></td>
+<td>DefaultLevel is the default logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)</td>
+<td>INFO</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>logs</code> <em>object (keys:string, values:string)</em></td>
+<td>Logs is a map of component names to their logging levels<br />Example: {"homeassistant.core": "DEBUG", "homeassistant.components.mqtt": "DEBUG"}</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mqttconfig">MqttConfig<a class="headerlink" href="#mqttconfig" title="Permanent link">&para;</a></h4>
+<p>MqttConfig defines MQTT component configuration</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantconfigurationspec">HomeAssistantConfigurationSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>broker</code> <em>string</em></td>
+<td>Broker is the MQTT broker address (e.g., "mqtt://localhost:1883")</td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>username</code> <em>string</em></td>
+<td>Username for MQTT authentication</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>passwordRef</code> <em><a href="#secretkeyselector">SecretKeySelector</a></em></td>
+<td>PasswordRef references a Secret containing the MQTT password<br />The Secret should have a "password" key</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>clientID</code> <em>string</em></td>
+<td>ClientID for MQTT connection</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>keepAlive</code> <em>integer</em></td>
+<td>KeepAlive defines MQTT keep-alive interval in seconds</td>
+<td>60</td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="recorderconfig">RecorderConfig<a class="headerlink" href="#recorderconfig" title="Permanent link">&para;</a></h4>
+<p>RecorderConfig defines recorder (database) component configuration</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantconfigurationspec">HomeAssistantConfigurationSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code> <em>boolean</em></td>
+<td>Enabled controls if the recorder is enabled</td>
+<td>true</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>database</code> <em>string</em></td>
+<td>Database URL for the recorder (e.g., "postgresql://user:pass@host/db")<br />If not specified, uses SQLite with default path.<br />Mutually exclusive with DatabaseSecretRef; DatabaseSecretRef takes precedence.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>databaseSecretRef</code> <em><a href="#secretkeyselector">SecretKeySelector</a></em></td>
+<td>DatabaseSecretRef references a Secret containing the database URL.<br />The resolved value is written as plain text into configuration.yaml,<br />avoiding the !secret tag which is stripped by the YAML round-trip.<br />Takes precedence over Database if both are set.<br />The Secret must be in the same namespace as the HomeAssistant CR.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>purgeKeepDays</code> <em>integer</em></td>
+<td>PurgeKeepDays specifies how many days of history to keep</td>
+<td>30</td>
+<td>Minimum: 1 <br />Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="sceneentity">SceneEntity<a class="headerlink" href="#sceneentity" title="Permanent link">&para;</a></h4>
+<p>SceneEntity represents a single entity (device) in a scene with its desired state</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantscenespec">HomeAssistantSceneSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>entity_id</code> <em>string</em></td>
+<td>EntityID is the Home Assistant entity identifier in format domain.object_id<br />Examples: light.living_room, switch.fan, climate.bedroom</td>
+<td></td>
+<td>Pattern: <code>^[a-z_]+\.[a-z0-9_]+$</code> <br />Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>state</code> <em>string</em></td>
+<td>State is the desired state for this entity<br />Examples: "on", "off", numeric values</td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>attributes</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#rawextension-runtime-pkg">RawExtension</a></em></td>
+<td>Attributes contains additional entity-specific attributes<br />Examples: brightness, color_temp, rgb_color for lights<br />This is a flexible structure that accepts any valid Home Assistant entity attributes</td>
+<td></td>
+<td>Type: object <br />Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="scriptaction">ScriptAction<a class="headerlink" href="#scriptaction" title="Permanent link">&para;</a></h4>
+<p>ScriptAction defines an action to be executed by the script
+This is a flexible structure that accepts any valid Home Assistant action configuration</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantscriptspec">HomeAssistantScriptSpec</a></p>
+<h4 id="scriptfield">ScriptField<a class="headerlink" href="#scriptfield" title="Permanent link">&para;</a></h4>
+<p>ScriptField defines an input parameter for the script
+This is a flexible structure that accepts any valid Home Assistant field configuration</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantscriptspec">HomeAssistantScriptSpec</a></p>
+<h4 id="scriptmode">ScriptMode<a class="headerlink" href="#scriptmode" title="Permanent link">&para;</a></h4>
+<p><em>Underlying type:</em> <em>string</em></p>
+<p>ScriptMode defines how the script should behave when called again while already running</p>
+<p><em>Validation:</em>
+- Enum: [single restart queued parallel]</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantscriptspec">HomeAssistantScriptSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>single</code></td>
+<td>ScriptModeSingle - Do not start a new run, issue a warning<br /></td>
+</tr>
+<tr>
+<td><code>restart</code></td>
+<td>ScriptModeRestart - Stop previous runs and start a new one<br /></td>
+</tr>
+<tr>
+<td><code>queued</code></td>
+<td>ScriptModeQueued - Queue runs in order, sequential execution guaranteed<br /></td>
+</tr>
+<tr>
+<td><code>parallel</code></td>
+<td>ScriptModeParallel - Launch independent concurrent runs<br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="secretkeyreference">SecretKeyReference<a class="headerlink" href="#secretkeyreference" title="Permanent link">&para;</a></h4>
+<p>SecretKeyReference defines a reference to a specific key in a Kubernetes Secret.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantsecretsspec">HomeAssistantSecretsSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code> <em>string</em></td>
+<td>Name of the Secret</td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>keys</code> <em>string array</em></td>
+<td>Keys to extract from the Secret. If empty, all keys will be included.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="secretkeyselector">SecretKeySelector<a class="headerlink" href="#secretkeyselector" title="Permanent link">&para;</a></h4>
+<p>SecretKeySelector selects a Secret and an optional key</p>
+<p><em>Appears in:</em>
+- <a href="#mqttconfig">MqttConfig</a>
+- <a href="#recorderconfig">RecorderConfig</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code> <em>string</em></td>
+<td>Name of the Secret</td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>key</code> <em>string</em></td>
+<td>Key in the Secret (if not specified, defaults to "password" or "value")</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="secretreference">SecretReference<a class="headerlink" href="#secretreference" title="Permanent link">&para;</a></h4>
+<p>SecretReference references a Secret for sensitive data</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantspec">HomeAssistantSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code> <em>string</em></td>
+<td>Name of the Secret</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="servicespec">ServiceSpec<a class="headerlink" href="#servicespec" title="Permanent link">&para;</a></h4>
+<p>ServiceSpec defines how Home Assistant is exposed within the cluster.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantspec">HomeAssistantSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#servicetype-v1-core">ServiceType</a></em></td>
+<td>Type of Kubernetes Service (ClusterIP, NodePort, LoadBalancer)</td>
+<td>ClusterIP</td>
+<td>Enum: [ClusterIP NodePort LoadBalancer] <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>port</code> <em>integer</em></td>
+<td>Port for the Home Assistant web UI</td>
+<td>8123</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>nodePort</code> <em>integer</em></td>
+<td>NodePort for NodePort service type (optional, auto-assigned if not set)</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="storagespec">StorageSpec<a class="headerlink" href="#storagespec" title="Permanent link">&para;</a></h4>
+<p>StorageSpec defines storage configuration for Home Assistant.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantspec">HomeAssistantSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>size</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#quantity-resource-api">Quantity</a></em></td>
+<td>Size of the persistent volume (e.g., "5Gi", "10Gi")</td>
+<td>5Gi</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>storageClassName</code> <em>string</em></td>
+<td>StorageClassName for the PVC. If empty, uses cluster default.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>accessMode</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#persistentvolumeaccessmode-v1-core">PersistentVolumeAccessMode</a></em></td>
+<td>AccessMode for the PVC</td>
+<td>ReadWriteOnce</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>retainPVC</code> <em>boolean</em></td>
+<td>RetainPVC controls whether the PVC survives deletion of the HomeAssistant CR.<br />When true, no ownerReference is set on the PVC — it will not be garbage-collected<br />when the CR is deleted (e.g. by FluxCD reconciliation), preventing accidental data loss.<br />When false (default), the PVC is owned by the CR and deleted together with it.</td>
+<td>false</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>initContainer</code> <em><a href="#initcontainerspec">InitContainerSpec</a></em></td>
+<td>InitContainer configures the init container that pre-creates required YAML files<br />(automations.yaml, scenes.yaml, scripts.yaml) on the PVC before Home Assistant starts.<br />This prevents HA from entering recovery mode when the !include directives are present<br />but the files do not yet exist.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/przemekhys/homeassistant-operator" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.code.annotate", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
