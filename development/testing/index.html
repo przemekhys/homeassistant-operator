@@ -1180,6 +1180,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1196,6 +1214,125 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#philosophy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Philosophy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-pyramid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Pyramid
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unit-tests-envtest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Tests (envtest)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unit Tests (envtest)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mock-ha-api-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mock HA API pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#e2e-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E2E Tests
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="E2E Tests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#running-e2e" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running E2E
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#critical-path-tests-11-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Critical path tests (11 tests)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1228,6 +1365,114 @@
   
     
   
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#philosophy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Philosophy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-pyramid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Pyramid
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unit-tests-envtest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Tests (envtest)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unit Tests (envtest)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mock-ha-api-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mock HA API pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#e2e-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E2E Tests
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="E2E Tests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#running-e2e" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running E2E
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#critical-path-tests-11-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Critical path tests (11 tests)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -1301,10 +1546,165 @@
 
 
 <h1 id="testing">Testing<a class="headerlink" href="#testing" title="Permanent link">&para;</a></h1>
-<div class="admonition note">
-<p class="admonition-title">Work in progress</p>
-<p>This page is being written.</p>
+<h2 id="philosophy">Philosophy<a class="headerlink" href="#philosophy" title="Permanent link">&para;</a></h2>
+<p><strong>Test behavior, not implementation.</strong> Focus on what the code does, not how it does it.
+Quality over coverage — 50% coverage with meaningful tests beats 90% coverage with trivial tests.
+Every reconciliation test should verify idempotent behavior.</p>
+<p><strong>What NOT to test:</strong></p>
+<ul>
+<li>Kubernetes API behaviors (tested by k8s upstream)</li>
+<li>controller-runtime internals (tested by upstream)</li>
+<li>Simple getters/setters without logic</li>
+<li>Generated code (<code>zz_generated.deepcopy.go</code>)</li>
+</ul>
+<h2 id="test-pyramid">Test Pyramid<a class="headerlink" href="#test-pyramid" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>              ┌─────────────┐
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>              │    E2E      │  ← One critical path (all CRDs, sequential)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>              ├─────────────┤
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>              │    Unit     │  ← Controller logic + pure functions (envtest)
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>              └─────────────┘
+</code></pre></div>
+<p><strong>Golden rule</strong>: if you can test it with envtest, don't use E2E.</p>
+<hr />
+<h2 id="unit-tests-envtest">Unit Tests (envtest)<a class="headerlink" href="#unit-tests-envtest" title="Permanent link">&para;</a></h2>
+<p><strong>Location</strong>: <code>internal/controller/*_test.go</code>
+<strong>Framework</strong>: Ginkgo v2 + Gomega + envtest (fake API server, no real cluster)</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>make<span class="w"> </span><span class="nb">test</span><span class="w">                                          </span><span class="c1"># All unit tests</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>./internal/controller<span class="w"> </span>-run<span class="w"> </span>TestName<span class="w"> </span>-v<span class="w">    </span><span class="c1"># Specific test</span>
+</code></pre></div>
+<h3 id="mock-ha-api-pattern">Mock HA API pattern<a class="headerlink" href="#mock-ha-api-pattern" title="Permanent link">&para;</a></h3>
+<p>Controllers for Automation/Scene/Script/Integration have a <code>NewHAClient</code> field for dependency injection. Tests replace it with an <code>httptest.Server</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nx">mockServer</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">httptest</span><span class="p">.</span><span class="nx">NewServer</span><span class="p">(</span><span class="nx">http</span><span class="p">.</span><span class="nx">HandlerFunc</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">w</span><span class="w"> </span><span class="nx">http</span><span class="p">.</span><span class="nx">ResponseWriter</span><span class="p">,</span><span class="w"> </span><span class="nx">r</span><span class="w"> </span><span class="o">*</span><span class="nx">http</span><span class="p">.</span><span class="nx">Request</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="c1">// handle PUT /api/config/automation/config/...</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nx">w</span><span class="p">.</span><span class="nx">WriteHeader</span><span class="p">(</span><span class="nx">http</span><span class="p">.</span><span class="nx">StatusOK</span><span class="p">)</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">}))</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="nx">reconciler</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">HomeAssistantAutomationReconciler</span><span class="p">{</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="nx">NewHAClient</span><span class="p">:</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">_</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="nx">haclient</span><span class="p">.</span><span class="nx">Client</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">haclient</span><span class="p">.</span><span class="nx">NewClient</span><span class="p">(</span><span class="nx">mockServer</span><span class="p">.</span><span class="nx">URL</span><span class="p">)</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="key-patterns">Key patterns<a class="headerlink" href="#key-patterns" title="Permanent link">&para;</a></h3>
+<p><strong>Eventually</strong> — async state assertions:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nx">Eventually</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">g</span><span class="w"> </span><span class="nx">Gomega</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="nx">resource</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">hav1alpha1</span><span class="p">.</span><span class="nx">HomeAssistantAutomation</span><span class="p">{}</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nx">g</span><span class="p">.</span><span class="nx">Expect</span><span class="p">(</span><span class="nx">k8sClient</span><span class="p">.</span><span class="nx">Get</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">key</span><span class="p">,</span><span class="w"> </span><span class="nx">resource</span><span class="p">)).</span><span class="nx">To</span><span class="p">(</span><span class="nx">Succeed</span><span class="p">())</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nx">g</span><span class="p">.</span><span class="nx">Expect</span><span class="p">(</span><span class="nx">resource</span><span class="p">.</span><span class="nx">Status</span><span class="p">.</span><span class="nx">Ready</span><span class="p">).</span><span class="nx">To</span><span class="p">(</span><span class="nx">BeTrue</span><span class="p">())</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">},</span><span class="w"> </span><span class="nx">timeout</span><span class="p">,</span><span class="w"> </span><span class="nx">interval</span><span class="p">).</span><span class="nx">Should</span><span class="p">(</span><span class="nx">Succeed</span><span class="p">())</span>
+</code></pre></div></p>
+<p><strong>Consistently</strong> — assert nothing changed:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nx">Consistently</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">g</span><span class="w"> </span><span class="nx">Gomega</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="nx">sts</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">appsv1</span><span class="p">.</span><span class="nx">StatefulSet</span><span class="p">{}</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nx">g</span><span class="p">.</span><span class="nx">Expect</span><span class="p">(</span><span class="nx">k8sClient</span><span class="p">.</span><span class="nx">Get</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">stsKey</span><span class="p">,</span><span class="w"> </span><span class="nx">sts</span><span class="p">)).</span><span class="nx">To</span><span class="p">(</span><span class="nx">Succeed</span><span class="p">())</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">hasHash</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">sts</span><span class="p">.</span><span class="nx">Spec</span><span class="p">.</span><span class="nx">Template</span><span class="p">.</span><span class="nx">Annotations</span><span class="p">[</span><span class="s">&quot;ha.homeassistant.io/secrets-hash&quot;</span><span class="p">]</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nx">g</span><span class="p">.</span><span class="nx">Expect</span><span class="p">(</span><span class="nx">hasHash</span><span class="p">).</span><span class="nx">To</span><span class="p">(</span><span class="nx">BeFalse</span><span class="p">())</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="p">},</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="o">*</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nx">interval</span><span class="p">).</span><span class="nx">Should</span><span class="p">(</span><span class="nx">Succeed</span><span class="p">())</span>
+</code></pre></div></p>
+<p><strong>Two-phase</strong> — detect changes across reconcile calls:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1">// Phase 1: create, capture initial hash</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nx">reconciler</span><span class="p">.</span><span class="nx">Reconcile</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">req</span><span class="p">)</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="kd">var</span><span class="w"> </span><span class="nx">initialHash</span><span class="w"> </span><span class="kt">string</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="nx">Eventually</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">g</span><span class="w"> </span><span class="nx">Gomega</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="nx">g</span><span class="p">.</span><span class="nx">Expect</span><span class="p">(</span><span class="nx">k8sClient</span><span class="p">.</span><span class="nx">Get</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">key</span><span class="p">,</span><span class="w"> </span><span class="nx">resource</span><span class="p">)).</span><span class="nx">To</span><span class="p">(</span><span class="nx">Succeed</span><span class="p">())</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="nx">initialHash</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">resource</span><span class="p">.</span><span class="nx">Status</span><span class="p">.</span><span class="nx">ConfigHash</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="nx">g</span><span class="p">.</span><span class="nx">Expect</span><span class="p">(</span><span class="nx">initialHash</span><span class="p">).</span><span class="nx">NotTo</span><span class="p">(</span><span class="nx">BeEmpty</span><span class="p">())</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="p">},</span><span class="w"> </span><span class="nx">timeout</span><span class="p">,</span><span class="w"> </span><span class="nx">interval</span><span class="p">).</span><span class="nx">Should</span><span class="p">(</span><span class="nx">Succeed</span><span class="p">())</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c1">// Phase 2: update, verify hash changed</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="nx">Eventually</span><span class="p">(</span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="nx">Expect</span><span class="p">(</span><span class="nx">k8sClient</span><span class="p">.</span><span class="nx">Get</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">key</span><span class="p">,</span><span class="w"> </span><span class="nx">resource</span><span class="p">)).</span><span class="nx">To</span><span class="p">(</span><span class="nx">Succeed</span><span class="p">())</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span><span class="nx">resource</span><span class="p">.</span><span class="nx">Spec</span><span class="p">.</span><span class="nx">Configuration</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;updated: true&quot;</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">k8sClient</span><span class="p">.</span><span class="nx">Update</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">resource</span><span class="p">)</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="p">},</span><span class="w"> </span><span class="nx">timeout</span><span class="p">,</span><span class="w"> </span><span class="nx">interval</span><span class="p">).</span><span class="nx">Should</span><span class="p">(</span><span class="nx">Succeed</span><span class="p">())</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="nx">reconciler</span><span class="p">.</span><span class="nx">Reconcile</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">req</span><span class="p">)</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="nx">Eventually</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">g</span><span class="w"> </span><span class="nx">Gomega</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="w">    </span><span class="nx">g</span><span class="p">.</span><span class="nx">Expect</span><span class="p">(</span><span class="nx">k8sClient</span><span class="p">.</span><span class="nx">Get</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">key</span><span class="p">,</span><span class="w"> </span><span class="nx">resource</span><span class="p">)).</span><span class="nx">To</span><span class="p">(</span><span class="nx">Succeed</span><span class="p">())</span>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">    </span><span class="nx">g</span><span class="p">.</span><span class="nx">Expect</span><span class="p">(</span><span class="nx">resource</span><span class="p">.</span><span class="nx">Status</span><span class="p">.</span><span class="nx">ConfigHash</span><span class="p">).</span><span class="nx">NotTo</span><span class="p">(</span><span class="nx">Equal</span><span class="p">(</span><span class="nx">initialHash</span><span class="p">))</span>
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="p">},</span><span class="w"> </span><span class="nx">timeout</span><span class="p">,</span><span class="w"> </span><span class="nx">interval</span><span class="p">).</span><span class="nx">Should</span><span class="p">(</span><span class="nx">Succeed</span><span class="p">())</span>
+</code></pre></div></p>
+<hr />
+<h2 id="e2e-tests">E2E Tests<a class="headerlink" href="#e2e-tests" title="Permanent link">&para;</a></h2>
+<p><strong>Location</strong>: <code>test/e2e/e2e_critical_path_test.go</code>
+<strong>Framework</strong>: Ginkgo v2 + real k3d cluster
+<strong>Strategy</strong>: One ordered suite, one bootstrap, one <code>It</code> block per CRD</p>
+<p>The entire E2E suite shares a single Home Assistant bootstrap (~30 min). Tests run sequentially (<code>Ordered</code>) and continue even if one fails (<code>ContinueOnFailure</code>) so later CRDs are still exercised.</p>
+<h3 id="running-e2e">Running E2E<a class="headerlink" href="#running-e2e" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>make<span class="w"> </span>test-e2e<span class="w">    </span><span class="c1"># Creates fresh k3d cluster (12 GB RAM), runs all tests, tears down (~40-50 min)</span>
+</code></pre></div>
+<p>Under the hood:
+1. <code>make setup-test-e2e</code> — deletes any existing cluster, creates a fresh one, imports HA image
+2. Ginkgo runs the suite with <code>--timeout=60m</code>
+3. <code>make cleanup-test-e2e</code> — tears down the cluster regardless of result</p>
+<div class="admonition warning">
+<p class="admonition-title">Memory requirement</p>
+<p><code>make test-e2e</code> requires <strong>12 GB RAM</strong> for the k3d cluster. On machines with less memory:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nv">K3D_MEMORY_E2E</span><span class="o">=</span>4g<span class="w"> </span>make<span class="w"> </span>test-e2e
+</code></pre></div></p>
 </div>
+<h3 id="critical-path-tests-11-tests">Critical path tests (11 tests)<a class="headerlink" href="#critical-path-tests-11-tests" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>CRD</th>
+<th>What is verified</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>HomeAssistant</code></td>
+<td>Pod running, Service created, bootstrap completed</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>HomeAssistantConfiguration</code></td>
+<td>ConfigMap generated, hot-reload on config change</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>HomeAssistantSecrets</code></td>
+<td>Secret aggregated, hash annotation set</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>HomeAssistantAutomation</code></td>
+<td>PUT to REST API, reload, DELETE via finalizer</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>HomeAssistantScene</code></td>
+<td>PUT to REST API, reload, DELETE via finalizer</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>HomeAssistantScript</code></td>
+<td>PUT to REST API, reload, DELETE via finalizer</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>HomeAssistantIntegration</code></td>
+<td>Config Flow started, <code>entryID</code> stored in status</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>HomeAssistantFloor</code></td>
+<td>Created via WebSocket registry API, deleted</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>HomeAssistantLabel</code></td>
+<td>Created via WebSocket registry API, deleted</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>HomeAssistantArea</code></td>
+<td>Created via WebSocket registry API, deleted</td>
+</tr>
+</tbody>
+</table>
 
 
 
