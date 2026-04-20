@@ -5452,8 +5452,8 @@ Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
 </tbody>
 </table>
 <h4 id="integrationvalue">IntegrationValue<a class="headerlink" href="#integrationvalue" title="Permanent link">&para;</a></h4>
-<p>IntegrationValue holds either a plain text value or a reference to a Kubernetes Secret key.
-Exactly one of Value or SecretKeyRef must be set.</p>
+<p>IntegrationValue holds a plain text value, a JSON value, or a reference to a Kubernetes Secret key.
+Exactly one of Value, JSONValue, or SecretKeyRef must be set.</p>
 <p><em>Appears in:</em>
 - <a href="#homeassistantintegrationspec">HomeAssistantIntegrationSpec</a></p>
 <table>
@@ -5468,7 +5468,13 @@ Exactly one of Value or SecretKeyRef must be set.</p>
 <tbody>
 <tr>
 <td><code>value</code> <em>string</em></td>
-<td>Value is a plain text configuration value</td>
+<td>Value is a plain text configuration value sent as a string to the Config Flow API.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>jsonValue</code> <em>string</em></td>
+<td>JSONValue is a JSON-encoded value that will be parsed and sent as a native JSON<br />object to the Config Flow API. Use this for fields that expect a dictionary or<br />array (e.g. location: '{"latitude": 54.17, "longitude": 18.55}').</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>

@@ -2274,6 +2274,9 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
 <li>
+<p><strong><code>jsonValue</code> field for <code>HomeAssistantIntegration</code></strong> — new field in <code>IntegrationValue</code> that accepts a JSON-encoded string and submits it as a native JSON object to the Config Flow API. Fixes integrations like <code>openweathermap</code> that require dict-type fields (e.g. <code>location: {"latitude": 54.17, "longitude": 18.55}</code>). Example: <code>location: { jsonValue: '{"latitude": 54.17, "longitude": 18.55}' }</code>.</p>
+</li>
+<li>
 <p><strong>Documentation site</strong> — MkDocs Material documentation deployed to GitHub Pages (<code>https://przemekhys.github.io/homeassistant-operator/</code>). Includes getting started guides, CRD API reference auto-generated from Go type comments (<code>make docs-api</code>), and changelog auto-included from <code>CHANGELOG.md</code>. New Makefile targets: <code>make docs-serve</code>, <code>make docs-build</code>, <code>make docs-api</code>.</p>
 </li>
 <li>
