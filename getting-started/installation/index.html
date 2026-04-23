@@ -529,6 +529,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#install-via-helm-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install via Helm (recommended)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Install via Helm (recommended)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#customise-the-installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Customise the installation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#upgrade" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrade
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uninstall-helm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uninstall (Helm)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#install-via-manifest" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -537,16 +587,22 @@
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#uninstall" class="md-nav__link">
+    <nav class="md-nav" aria-label="Install via manifest">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#uninstall-manifest" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Uninstall
+        Uninstall (manifest)
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1319,6 +1375,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#install-via-helm-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install via Helm (recommended)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Install via Helm (recommended)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#customise-the-installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Customise the installation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#upgrade" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrade
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uninstall-helm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uninstall (Helm)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#install-via-manifest" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1327,16 +1433,22 @@
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#uninstall" class="md-nav__link">
+    <nav class="md-nav" aria-label="Install via manifest">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#uninstall-manifest" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Uninstall
+        Uninstall (manifest)
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1419,8 +1531,50 @@
 <li>Kubernetes cluster v1.24+</li>
 <li><code>kubectl</code> configured to access your cluster</li>
 </ul>
+<h2 id="install-via-helm-recommended">Install via Helm (recommended)<a class="headerlink" href="#install-via-helm-recommended" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>helm<span class="w"> </span>install<span class="w"> </span>homeassistant-operator<span class="w"> </span>oci://ghcr.io/przemekhys/homeassistant-operator<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span>--version<span class="w"> </span><span class="m">0</span>.10.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>--namespace<span class="w"> </span>homeassistant-operator-system<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>--create-namespace
+</code></pre></div>
+<p>Verify the operator is running:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>pods<span class="w"> </span>-n<span class="w"> </span>homeassistant-operator-system
+</code></pre></div>
+<h3 id="customise-the-installation">Customise the installation<a class="headerlink" href="#customise-the-installation" title="Permanent link">&para;</a></h3>
+<p>Download the default values and override what you need:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>helm<span class="w"> </span>show<span class="w"> </span>values<span class="w"> </span>oci://ghcr.io/przemekhys/homeassistant-operator<span class="w"> </span>--version<span class="w"> </span><span class="m">0</span>.10.0<span class="w"> </span>&gt;<span class="w"> </span>values.yaml
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="c1"># edit values.yaml, then:</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>helm<span class="w"> </span>install<span class="w"> </span>homeassistant-operator<span class="w"> </span>oci://ghcr.io/przemekhys/homeassistant-operator<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>--version<span class="w"> </span><span class="m">0</span>.10.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span>--namespace<span class="w"> </span>homeassistant-operator-system<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span>--create-namespace<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span>-f<span class="w"> </span>values.yaml
+</code></pre></div>
+<h3 id="upgrade">Upgrade<a class="headerlink" href="#upgrade" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>homeassistant-operator<span class="w"> </span>oci://ghcr.io/przemekhys/homeassistant-operator<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>--version<span class="w"> </span>&lt;new-version&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>--namespace<span class="w"> </span>homeassistant-operator-system
+</code></pre></div>
+<h3 id="uninstall-helm">Uninstall (Helm)<a class="headerlink" href="#uninstall-helm" title="Permanent link">&para;</a></h3>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Delete all custom resources <strong>before</strong> removing the operator. The operator must be running to process finalizers (automation/scene/script/integration cleanup). Deleting the operator first causes CRs with finalizers to hang indefinitely.</p>
+</div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># 1. Delete all custom resources (keep operator running to process finalizers)</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistants<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantconfigurations<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantsecrets<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantautomations<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantscenes<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantscripts<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantintegrations<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1"># 2. Uninstall the Helm release (removes the operator and CRDs)</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>helm<span class="w"> </span>uninstall<span class="w"> </span>homeassistant-operator<span class="w"> </span>-n<span class="w"> </span>homeassistant-operator-system
+</code></pre></div>
 <h2 id="install-via-manifest">Install via manifest<a class="headerlink" href="#install-via-manifest" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/przemekhys/homeassistant-operator/v0.9.0/dist/install.yaml
+<p>If you prefer a plain <code>kubectl apply</code> without Helm:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/przemekhys/homeassistant-operator/v0.10.0/dist/install.yaml
 </code></pre></div>
 <p>This installs:</p>
 <ul>
@@ -1428,28 +1582,22 @@
 <li>The operator <code>Deployment</code> in namespace <code>homeassistant-operator-system</code></li>
 <li>RBAC (<code>ClusterRole</code>, <code>ClusterRoleBinding</code>, <code>ServiceAccount</code>)</li>
 </ul>
-<p>Verify the operator is running:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>pods<span class="w"> </span>-n<span class="w"> </span>homeassistant-operator-system
-</code></pre></div>
-<h2 id="uninstall">Uninstall<a class="headerlink" href="#uninstall" title="Permanent link">&para;</a></h2>
+<h3 id="uninstall-manifest">Uninstall (manifest)<a class="headerlink" href="#uninstall-manifest" title="Permanent link">&para;</a></h3>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Delete all custom resources <strong>before</strong> removing the operator. The operator must be running to process finalizers (automation/scene/script/integration/floor/label/area cleanup). Deleting the operator first causes CRs with finalizers to hang indefinitely.</p>
+<p>Delete all custom resources <strong>before</strong> removing the operator (same reason as above).</p>
 </div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># 1. Delete all custom resources (keep operator running to process finalizers)</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistants<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantconfigurations<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantsecrets<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantautomations<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantscenes<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantscripts<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantintegrations<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantfloors<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantlabels<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantareas<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="c1"># 2. Remove the operator and CRDs</span>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/przemekhys/homeassistant-operator/v0.9.0/dist/install.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># 1. Delete all custom resources</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistants<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantconfigurations<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantsecrets<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantautomations<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantscenes<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantscripts<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantintegrations<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># 2. Remove the operator and CRDs</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/przemekhys/homeassistant-operator/v0.10.0/dist/install.yaml
 </code></pre></div>
 
 
