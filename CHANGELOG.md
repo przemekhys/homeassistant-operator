@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Helm chart: `nodeSelector` and `affinity` examples** — `values.yaml` now includes commented examples for ARM64 node pinning (`kubernetes.io/arch: arm64`) and pod anti-affinity across nodes.
 
+### Dependencies
+
+- `actions/checkout` v4 → v6
+- `actions/setup-go` v5 → v6
+- `actions/setup-python` v5 → v6
+
 ## [v0.10.0] - 2026-04-22
 
 ### Security
