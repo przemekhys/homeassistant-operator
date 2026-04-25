@@ -118,4 +118,4 @@ jobs:
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           mkdir -p dist
           helm package charts/homeassistant-operator --destination dist/
-          helm push dist/homeassistant-operator-${{ steps.version.outputs.VERSION }}.tgz oci://${{ env.REGISTRY }}/${OWNER}
+          helm push dist/homeassistant-operator-${{ steps.version.outputs.VERSION }}.tgz oci://${{ env.REGISTRY }}/${OWNER}/charts

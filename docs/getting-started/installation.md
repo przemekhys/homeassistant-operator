@@ -8,7 +8,7 @@
 ## Install via Helm (recommended)
 
 ```sh
-helm install homeassistant-operator oci://ghcr.io/przemekhys/homeassistant-operator \
+helm install homeassistant-operator oci://ghcr.io/przemekhys/charts/homeassistant-operator \
   --version 0.10.0 \
   --namespace homeassistant-operator-system \
   --create-namespace
@@ -25,9 +25,9 @@ kubectl get pods -n homeassistant-operator-system
 Download the default values and override what you need:
 
 ```sh
-helm show values oci://ghcr.io/przemekhys/homeassistant-operator --version 0.10.0 > values.yaml
+helm show values oci://ghcr.io/przemekhys/charts/homeassistant-operator --version 0.10.0 > values.yaml
 # edit values.yaml, then:
-helm install homeassistant-operator oci://ghcr.io/przemekhys/homeassistant-operator \
+helm install homeassistant-operator oci://ghcr.io/przemekhys/charts/homeassistant-operator \
   --version 0.10.0 \
   --namespace homeassistant-operator-system \
   --create-namespace \
@@ -37,7 +37,7 @@ helm install homeassistant-operator oci://ghcr.io/przemekhys/homeassistant-opera
 ### Upgrade
 
 ```sh
-helm upgrade homeassistant-operator oci://ghcr.io/przemekhys/homeassistant-operator \
+helm upgrade homeassistant-operator oci://ghcr.io/przemekhys/charts/homeassistant-operator \
   --version <new-version> \
   --namespace homeassistant-operator-system
 ```

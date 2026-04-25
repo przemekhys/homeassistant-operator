@@ -27,6 +27,9 @@ podSecurityContext:
 securityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
   capabilities:
     drop:
       - ALL
@@ -39,8 +42,33 @@ resources:
     cpu: 10m
     memory: 64Mi
 
+priorityClassName: ""
+
 nodeSelector: {}
+# Example — pin to ARM64 nodes:
+# nodeSelector:
+#   kubernetes.io/arch: arm64
 
 tolerations: []
 
 affinity: {}
+# Example — pod anti-affinity (spread across nodes):
+# affinity:
+#   podAntiAffinity:
+#     preferredDuringSchedulingIgnoredDuringExecution:
+#       - weight: 100
+#         podAffinityTerm:
+#           labelSelector:
+#             matchLabels:
+#               app.kubernetes.io/name: homeassistant-operator
+#           topologyKey: kubernetes.io/hostname
+
+topologySpreadConstraints: []
+# Example — spread across zones:
+# topologySpreadConstraints:
+#   - maxSkew: 1
+#     topologyKey: topology.kubernetes.io/zone
+#     whenUnsatisfiable: DoNotSchedule
+#     labelSelector:
+#       matchLabels:
+#         app.kubernetes.io/name: homeassistant-operator

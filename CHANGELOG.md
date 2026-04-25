@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Helm chart OCI path collision** — `helm push` was publishing the chart to `oci://ghcr.io/przemekhys/homeassistant-operator`, overwriting the Docker image tag. Chart is now published to `oci://ghcr.io/przemekhys/charts/homeassistant-operator`. Install command updated accordingly.
+
+- **`runAsNonRoot` admission failure** — container `securityContext` now explicitly sets `runAsUser: 65532` and `runAsGroup: 65532`, eliminating reliance on image manifest UID resolution which failed on some k3s versions.
+
+### Added
+
+- **Helm chart: `priorityClassName`** — new `values.yaml` field (default `""`) sets `priorityClassName` on the operator Deployment. Previously required a `postRenderers` JSON patch workaround in Flux HelmRelease.
+
+- **Helm chart: `topologySpreadConstraints`** — new `values.yaml` field (default `[]`) for spreading operator pods across failure domains. Includes commented example for zone-based spreading.
+
+- **Helm chart: `nodeSelector` and `affinity` examples** — `values.yaml` now includes commented examples for ARM64 node pinning (`kubernetes.io/arch: arm64`) and pod anti-affinity across nodes.
+
 ## [v0.10.0] - 2026-04-22
 
 ### Security
@@ -21,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation site** — MkDocs Material documentation deployed to GitHub Pages (`https://przemekhys.github.io/homeassistant-operator/`). Includes getting started guides, CRD API reference auto-generated from Go type comments (`make docs-api`), changelog auto-included from `CHANGELOG.md`, Contributing and Testing developer guides. New Makefile targets: `make docs-serve`, `make docs-build`, `make docs-api`. `README.md` simplified to a short landing page pointing to the full docs.
 
-- **Helm chart** — `charts/homeassistant-operator/` provides a Helm chart for installing the operator. CRDs are bundled in `crds/` (installed automatically by Helm). Configurable via `values.yaml`: image, replicas, resources, nodeSelector, tolerations, affinity, serviceAccount. Published to OCI registry on each release: `helm install homeassistant-operator oci://ghcr.io/przemekhys/homeassistant-operator --version <version>`. New Makefile targets: `make helm-lint`, `make helm-package`, `make helm-push`.
+- **Helm chart** — `charts/homeassistant-operator/` provides a Helm chart for installing the operator. CRDs are bundled in `crds/` (installed automatically by Helm). Configurable via `values.yaml`: image, replicas, resources, nodeSelector, tolerations, affinity, serviceAccount. Published to OCI registry on each release: `helm install homeassistant-operator oci://ghcr.io/przemekhys/charts/homeassistant-operator --version <version>`. New Makefile targets: `make helm-lint`, `make helm-package`, `make helm-push`.
 
 - **Auto-unban operator IP from HA `ip_bans.yaml`** — when HA returns 403/429 (operator IP banned after too many failed login attempts), the operator automatically execs into the HA pod, removes its IP from `/config/ip_bans.yaml`, and deletes the pod so StatefulSet recreates it (clears in-memory bans). Limits: at most 5 unbans total, 5-minute cooldown between each. Once the limit is reached a `SelfUnbanLimitReached` warning event is emitted and manual intervention is required. New status fields: `selfUnbanCount`, `lastSelfUnban`. New event reasons: `SelfUnbanned`, `SelfUnbanFailed`, `SelfUnbanLimitReached`. Requires `POD_IP` env var (injected via downward API) and new RBAC `pods/exec create`.
 
