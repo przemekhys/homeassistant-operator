@@ -8,11 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.10.1] - 2026-04-26
+
 ### Fixed
 
 - **Helm chart OCI path collision** — `helm push` was publishing the chart to `oci://ghcr.io/przemekhys/homeassistant-operator`, overwriting the Docker image tag. Chart is now published to `oci://ghcr.io/przemekhys/charts/homeassistant-operator`. Install command updated accordingly.
 
 - **`runAsNonRoot` admission failure** — container `securityContext` now explicitly sets `runAsUser: 65532` and `runAsGroup: 65532`, eliminating reliance on image manifest UID resolution which failed on some k3s versions.
+
+- **Go stdlib CVEs** — upgraded Go 1.26.0 → 1.26.2, fixing 10 vulnerabilities in `crypto/x509` (GO-2026-4947, GO-2026-4946, GO-2026-4866, GO-2026-4600, GO-2026-4599), `crypto/tls` (GO-2026-4870), `html/template` (GO-2026-4865, GO-2026-4603), `os` (GO-2026-4602), and `net/url` (GO-2026-4601).
 
 ### Added
 
@@ -24,11 +28,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 
+- `k8s.io/apimachinery` 0.35.4 → 0.36.0
+- `k8s.io/streaming` 0.36.0 (new transitive dependency of apimachinery 0.36.0)
 - `actions/checkout` v4 → v6
 - `actions/setup-go` v5 → v6
 - `actions/setup-python` v5 → v6
 
-## [v0.10.0] - 2026-04-22
+## [v0.10.0] - 2026-04-22 [YANKED]
+
+> **This release is yanked.** The Helm chart OCI artifact overwrote the Docker image tag — installing via `helm install` pulled a Helm chart manifest instead of a runnable container image, causing pods to fail with `/manager: no such file or directory`. Use v0.10.1 instead.
+
+
 
 ### Security
 
@@ -291,7 +301,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Primary: k3s on Raspberry Pi 4/5 (ARM64)
 - Also supported: Any Kubernetes cluster (AMD64/ARM64)
 
-[Unreleased]: https://github.com/przemekhys/homeassistant-operator/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/przemekhys/homeassistant-operator/compare/v0.10.1...HEAD
+[v0.10.1]: https://github.com/przemekhys/homeassistant-operator/compare/v0.10.0...v0.10.1
 [v0.10.0]: https://github.com/przemekhys/homeassistant-operator/compare/v0.9.0...v0.10.0
 [v0.9.0]: https://github.com/przemekhys/homeassistant-operator/compare/v0.8.0...v0.9.0
 [v0.8.0]: https://github.com/przemekhys/homeassistant-operator/compare/v0.7.1...v0.8.0

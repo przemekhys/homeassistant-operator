@@ -4,8 +4,8 @@ description: A Kubernetes operator for deploying and managing Home Assistant ins
 type: application
 # version and appVersion are updated automatically by the release pipeline (sed in release.yml).
 # The values committed here reflect the latest released version; do not edit manually.
-version: 0.9.0
-appVersion: "0.9.0"
+version: 0.10.1
+appVersion: "0.10.1"
 kubeVersion: ">=1.24-0"
 icon: https://www.home-assistant.io/images/home-assistant-logo.png
 home: https://przemekhys.github.io/homeassistant-operator/
