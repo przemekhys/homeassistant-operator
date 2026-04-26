@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	defaultTimeout = 30 * time.Second
-	userAgent      = "homeassistant-operator/1.0"
+	defaultTimeout  = 30 * time.Second
+	userAgent       = "homeassistant-operator/1.0"
+	flowTypeSuccess = "create_entry"
 )
 
 // Client is a client for Home Assistant API
@@ -390,7 +391,7 @@ func (c *Client) LoginWithCredentials(
 	if err := json.NewDecoder(credResp.Body).Decode(&credData); err != nil {
 		return nil, &Error{Type: ErrorTypeInvalidResponse, Message: "failed to parse credential response", Err: err}
 	}
-	if credData.Type != "create_entry" || credData.Result == "" {
+	if credData.Type != flowTypeSuccess || credData.Result == "" {
 		// type=form means HA rejected the credentials because no user exists yet —
 		// onboarding was not completed. Use a distinct error type so the controller
 		// can reset the onboarding confirmation window instead of giving up.
@@ -1290,9 +1291,9 @@ func (c *Client) SubmitConfigFlow(
 }
 
 // SubmitConfigFlowUntilDone submits config flow steps until the flow reaches
-// "create_entry" (success) or "abort" (failure), or until stepsData is exhausted.
+// flowTypeSuccess (success) or "abort" (failure), or until stepsData is exhausted.
 // Each element in stepsData is submitted as one form step in sequence.
-// Returns the final FlowResponse when type becomes "create_entry".
+// Returns the final FlowResponse when type becomes flowTypeSuccess.
 func (c *Client) SubmitConfigFlowUntilDone(
 	ctx context.Context, token, flowID string, stepsData []map[string]interface{},
 ) (*FlowResponse, error) {
@@ -1302,7 +1303,7 @@ func (c *Client) SubmitConfigFlowUntilDone(
 			return nil, err
 		}
 		switch resp.Type {
-		case "create_entry":
+		case flowTypeSuccess:
 			return resp, nil
 		case "abort":
 			return nil, &Error{
@@ -1321,7 +1322,7 @@ func (c *Client) SubmitConfigFlowUntilDone(
 // ParseConfigEntryResult parses the Result field of a FlowResponse after a successful create_entry.
 // Returns ConfigEntryResult with the entry_id, domain and title of the created config entry.
 func ParseConfigEntryResult(resp *FlowResponse) (*ConfigEntryResult, error) {
-	if resp.Type != "create_entry" {
+	if resp.Type != flowTypeSuccess {
 		return nil, &Error{
 			Type:    ErrorTypeInvalidResponse,
 			Message: fmt.Sprintf("expected flow type create_entry, got %s", resp.Type),
