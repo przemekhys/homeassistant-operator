@@ -115,7 +115,7 @@ func (r *HomeAssistantAutomationReconciler) Reconcile(ctx context.Context, req c
 				Namespace: automation.Namespace,
 			}
 			if ha, haErr := r.validateHomeAssistantRef(ctx, haRef, automation); haErr == nil {
-				if token, tokenErr := getApiToken(ctx, r.Client, ha); tokenErr == nil {
+				if token, tokenErr := getAPIToken(ctx, r.Client, ha); tokenErr == nil {
 					haClient := r.haClientFor(ha)
 					id := automation.Spec.ID
 					if id == "" {
@@ -172,7 +172,7 @@ func (r *HomeAssistantAutomationReconciler) Reconcile(ctx context.Context, req c
 	}
 
 	// Get API token — requeue if not available yet (bootstrap may still be running)
-	token, tokenErr := getApiToken(ctx, r.Client, ha)
+	token, tokenErr := getAPIToken(ctx, r.Client, ha)
 	if tokenErr != nil {
 		log.Info("API token not available, requeueing")
 		meta.SetStatusCondition(&automation.Status.Conditions, metav1.Condition{

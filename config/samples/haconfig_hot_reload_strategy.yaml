@@ -26,7 +26,7 @@ spec:
     credentials:
       secretRef:
         name: ha-bootstrap-credentials
-    createApiToken: true
+    createAPIToken: true
     apiTokenSecretName: my-home-hot-reload-api-token
 
   resources:

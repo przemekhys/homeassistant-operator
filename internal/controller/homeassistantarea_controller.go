@@ -104,7 +104,7 @@ func (r *HomeAssistantAreaReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	// --- API TOKEN ---
-	token, tokenErr := getApiToken(ctx, r.Client, ha)
+	token, tokenErr := getAPIToken(ctx, r.Client, ha)
 	if tokenErr != nil {
 		log.Info("API token not available, requeueing")
 		return r.setCondition(ctx, area, metav1.ConditionFalse, reasonAreaTokenNotAvail,
@@ -231,7 +231,7 @@ func (r *HomeAssistantAreaReconciler) handleDeletion(ctx context.Context, area *
 		return
 	}
 
-	token, err := getApiToken(ctx, r.Client, ha)
+	token, err := getAPIToken(ctx, r.Client, ha)
 	if err != nil {
 		log.Info("API token not available during area deletion, skipping cleanup")
 		return

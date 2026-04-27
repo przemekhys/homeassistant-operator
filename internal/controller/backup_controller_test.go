@@ -116,7 +116,7 @@ var _ = Describe("Backup Controller", func() {
 				Version: "2025.3",
 				Bootstrap: &hav1alpha1.BootstrapSpec{
 					Enabled:        true,
-					CreateApiToken: true,
+					CreateAPIToken: true,
 				},
 				Backup: backup,
 			},
@@ -131,8 +131,8 @@ var _ = Describe("Backup Controller", func() {
 			}
 			updated.Status.Bootstrap = &hav1alpha1.BootstrapStatus{
 				Completed:          true,
-				ApiTokenReady:      true,
-				ApiTokenSecretName: haName + "-api-token",
+				APITokenReady:      true,
+				APITokenSecretName: haName + "-api-token",
 			}
 			return k8sClient.Status().Update(ctx, updated)
 		}, timeout, interval).Should(Succeed())

@@ -373,8 +373,8 @@ func (r *HomeAssistantConfigurationReconciler) SetupWithManager(mgr ctrl.Manager
 		Complete(r)
 }
 
-// getApiToken retrieves the API token from the bootstrap-created Secret
-func (r *HomeAssistantConfigurationReconciler) getApiToken(
+// getAPIToken retrieves the API token from the bootstrap-created Secret
+func (r *HomeAssistantConfigurationReconciler) getAPIToken(
 	ctx context.Context,
 	ha *hav1alpha1.HomeAssistant,
 ) (string, error) {
@@ -382,8 +382,8 @@ func (r *HomeAssistantConfigurationReconciler) getApiToken(
 
 	// Determine token secret name
 	tokenSecretName := ha.Name + "-homeassistant-api-token"
-	if ha.Status.Bootstrap != nil && ha.Status.Bootstrap.ApiTokenSecretName != "" {
-		tokenSecretName = ha.Status.Bootstrap.ApiTokenSecretName
+	if ha.Status.Bootstrap != nil && ha.Status.Bootstrap.APITokenSecretName != "" {
+		tokenSecretName = ha.Status.Bootstrap.APITokenSecretName
 	}
 
 	tokenSecret := &corev1.Secret{}
@@ -672,7 +672,7 @@ func (r *HomeAssistantConfigurationReconciler) performConfigReload(
 	}
 
 	// Get API token for hot-reload attempts
-	token, tokenErr := r.getApiToken(ctx, ha)
+	token, tokenErr := r.getAPIToken(ctx, ha)
 
 	// Build Home Assistant URL
 	haURL := r.buildHomeAssistantURL(ha)

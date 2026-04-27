@@ -66,7 +66,7 @@ var _ = Describe("HomeAssistantLabel Controller", func() {
 
 		ha.Status.Phase = "Running"
 		ha.Status.Bootstrap = &hav1alpha1.BootstrapStatus{
-			ApiTokenSecretName: haName + "-api-token",
+			APITokenSecretName: haName + "-api-token",
 		}
 		Expect(k8sClient.Status().Update(ctx, ha)).To(Succeed())
 

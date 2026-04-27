@@ -23,6 +23,7 @@ import (
 // HomeAssistantIntegrationSpec defines the desired state of HomeAssistantIntegration
 type HomeAssistantIntegrationSpec struct {
 	// HomeAssistantRef references the HomeAssistant instance to configure
+	// +kubebuilder:validation:Required
 	HomeAssistantRef HomeAssistantReference `json:"homeAssistantRef"`
 
 	// Domain is the integration name in Home Assistant (e.g. "mqtt", "esphome", "recorder")
@@ -83,6 +84,11 @@ type HomeAssistantIntegrationStatus struct {
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
+	// LastError contains the error message from the last failed operation
+	// Cleared when operation succeeds
+	// +optional
+	LastError string `json:"lastError,omitempty"`
+
 	// ObservedGeneration reflects the generation of the most recently observed CR
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -93,7 +99,7 @@ type HomeAssistantIntegrationStatus struct {
 // +kubebuilder:resource:shortName=haint;haintegration,categories=homeassistant
 // +kubebuilder:printcolumn:name="HomeAssistant",type=string,JSONPath=`.spec.homeAssistantRef.name`
 // +kubebuilder:printcolumn:name="Domain",type=string,JSONPath=`.spec.domain`
-// +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="IntegrationReady")].status`
+// +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || self.spec.homeAssistantRef == oldSelf.spec.homeAssistantRef",message="spec.homeAssistantRef is immutable after creation"
 

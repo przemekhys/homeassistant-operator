@@ -130,17 +130,17 @@ type BootstrapSpec struct {
 	// The Secret must have "username" and "password" keys
 	Credentials *BootstrapCredentials `json:"credentials,omitempty"`
 
-	// CreateApiToken controls whether a long-lived access token is created after onboarding
+	// CreateAPIToken controls whether a long-lived access token is created after onboarding
 	// The token is valid for 10 years and stored in a Secret
 	// +kubebuilder:default=true
 	// +optional
-	CreateApiToken bool `json:"createApiToken,omitempty"`
+	CreateAPIToken bool `json:"createAPIToken,omitempty"`
 
-	// ApiTokenSecretName is the name of the Secret where the API token will be stored
+	// APITokenSecretName is the name of the Secret where the API token will be stored
 	// The Secret will have a "token" key containing the long-lived access token
 	// If not specified, defaults to "{homeassistant-name}-homeassistant-api-token"
 	// +optional
-	ApiTokenSecretName string `json:"apiTokenSecretName,omitempty"`
+	APITokenSecretName string `json:"apiTokenSecretName,omitempty"`
 
 	// OwnerName is the display name for the owner user created during onboarding
 	// +kubebuilder:default="Admin"
@@ -354,6 +354,10 @@ type HomeAssistantStatus struct {
 	// +optional
 	Ready bool `json:"ready,omitempty"`
 
+	// ObservedGeneration reflects the generation of the most recently observed HomeAssistant
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
 	// BootstrapStatus contains the status of the automatic bootstrap process
 	// +optional
 	Bootstrap *BootstrapStatus `json:"bootstrap,omitempty"`
@@ -374,13 +378,13 @@ type BootstrapStatus struct {
 	// +optional
 	Completed bool `json:"completed,omitempty"`
 
-	// ApiTokenReady indicates whether the API token has been created and stored
+	// APITokenReady indicates whether the API token has been created and stored
 	// +optional
-	ApiTokenReady bool `json:"apiTokenReady,omitempty"`
+	APITokenReady bool `json:"apiTokenReady,omitempty"`
 
-	// ApiTokenSecretName is the name of the Secret containing the API token
+	// APITokenSecretName is the name of the Secret containing the API token
 	// +optional
-	ApiTokenSecretName string `json:"apiTokenSecretName,omitempty"`
+	APITokenSecretName string `json:"apiTokenSecretName,omitempty"`
 
 	// LastAttempt is the timestamp of the last bootstrap attempt
 	// +optional

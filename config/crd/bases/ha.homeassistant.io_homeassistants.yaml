@@ -122,14 +122,14 @@ spec:
                     type: boolean
                   apiTokenSecretName:
                     description: |-
-                      ApiTokenSecretName is the name of the Secret where the API token will be stored
+                      APITokenSecretName is the name of the Secret where the API token will be stored
                       The Secret will have a "token" key containing the long-lived access token
                       If not specified, defaults to "{homeassistant-name}-homeassistant-api-token"
                     type: string
-                  createApiToken:
+                  createAPIToken:
                     default: true
                     description: |-
-                      CreateApiToken controls whether a long-lived access token is created after onboarding
+                      CreateAPIToken controls whether a long-lived access token is created after onboarding
                       The token is valid for 10 years and stored in a Secret
                     type: boolean
                   credentials:
@@ -413,11 +413,11 @@ spec:
                   bootstrap process
                 properties:
                   apiTokenReady:
-                    description: ApiTokenReady indicates whether the API token has
+                    description: APITokenReady indicates whether the API token has
                       been created and stored
                     type: boolean
                   apiTokenSecretName:
-                    description: ApiTokenSecretName is the name of the Secret containing
+                    description: APITokenSecretName is the name of the Secret containing
                       the API token
                     type: string
                   completed:
@@ -509,6 +509,11 @@ spec:
                   operation.
                 format: date-time
                 type: string
+              observedGeneration:
+                description: ObservedGeneration reflects the generation of the most
+                  recently observed HomeAssistant
+                format: int64
+                type: integer
               phase:
                 description: Phase represents the current lifecycle phase of the HomeAssistant
                   instance

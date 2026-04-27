@@ -54,6 +54,11 @@ type HomeAssistantAreaStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// lastError contains the error message from the last failed operation
+	// Cleared when operation succeeds
+	// +optional
+	LastError string `json:"lastError,omitempty"`
+
 	// conditions represent the current state of the HomeAssistantArea resource
 	// +listType=map
 	// +listMapKey=type
@@ -76,13 +81,13 @@ type HomeAssistantArea struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// +optional
-	metav1.ObjectMeta `json:"metadata,omitzero"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// +required
 	Spec HomeAssistantAreaSpec `json:"spec"`
 
 	// +optional
-	Status HomeAssistantAreaStatus `json:"status,omitzero"`
+	Status HomeAssistantAreaStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -90,7 +95,7 @@ type HomeAssistantArea struct {
 // HomeAssistantAreaList contains a list of HomeAssistantArea
 type HomeAssistantAreaList struct {
 	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitzero"`
+	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []HomeAssistantArea `json:"items"`
 }
 

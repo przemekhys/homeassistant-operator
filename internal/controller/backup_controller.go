@@ -59,7 +59,7 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 	}
 
 	// Get API token
-	token, err := getApiToken(ctx, r.Client, ha)
+	token, err := getAPIToken(ctx, r.Client, ha)
 	if err != nil {
 		log.Info("API token not available for backup config, will retry")
 		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{

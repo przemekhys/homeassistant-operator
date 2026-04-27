@@ -103,7 +103,7 @@ func (r *HomeAssistantLabelReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// --- API TOKEN ---
-	token, tokenErr := getApiToken(ctx, r.Client, ha)
+	token, tokenErr := getAPIToken(ctx, r.Client, ha)
 	if tokenErr != nil {
 		log.Info("API token not available, requeueing")
 		return r.setCondition(ctx, label, metav1.ConditionFalse, reasonLabelTokenNotAvail,
@@ -193,7 +193,7 @@ func (r *HomeAssistantLabelReconciler) handleDeletion(ctx context.Context, label
 		return
 	}
 
-	token, err := getApiToken(ctx, r.Client, ha)
+	token, err := getAPIToken(ctx, r.Client, ha)
 	if err != nil {
 		log.Info("API token not available during label deletion, skipping cleanup")
 		return

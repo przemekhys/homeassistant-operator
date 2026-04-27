@@ -26,7 +26,7 @@ spec:
     - jsonPath: .spec.domain
       name: Domain
       type: string
-    - jsonPath: .status.conditions[?(@.type=="IntegrationReady")].status
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
     - jsonPath: .metadata.creationTimestamp
@@ -198,6 +198,11 @@ spec:
               entryID:
                 description: EntryID is the Home Assistant config entry ID created
                   or adopted by the Config Flow
+                type: string
+              lastError:
+                description: |-
+                  LastError contains the error message from the last failed operation
+                  Cleared when operation succeeds
                 type: string
               observedGeneration:
                 description: ObservedGeneration reflects the generation of the most

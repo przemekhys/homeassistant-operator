@@ -28,7 +28,7 @@ const (
 	defaultUsernameKey        = "username"
 	defaultPasswordKey        = "password"
 	apiTokenSecretKeyName     = "token"
-	defaultApiTokenSecretName = "homeassistant-api-token"
+	defaultAPITokenSecretName = "homeassistant-api-token"
 
 	// Reconciliation intervals
 	bootstrapRetryInterval    = 30 * time.Second
@@ -142,7 +142,7 @@ func (r *HomeAssistantReconciler) reconcileBootstrap(
 
 	// Prepare bootstrap options
 	opts := &haclient.BootstrapOptions{
-		CreateLongLivedToken: ha.Spec.Bootstrap.CreateApiToken,
+		CreateLongLivedToken: ha.Spec.Bootstrap.CreateAPIToken,
 		EnableAnalytics:      ha.Spec.Bootstrap.Analytics,
 	}
 
@@ -164,7 +164,7 @@ func (r *HomeAssistantReconciler) reconcileBootstrap(
 
 	// Create Secret with API token if requested
 	tokenCreated := false
-	if ha.Spec.Bootstrap.CreateApiToken && token != "" {
+	if ha.Spec.Bootstrap.CreateAPIToken && token != "" {
 		if err := r.createAPITokenSecret(ctx, ha, token); err != nil {
 			log.Error(err, "Failed to create API token Secret")
 			return r.updateBootstrapStatus(
@@ -406,7 +406,7 @@ func (r *HomeAssistantReconciler) handleOnboardingAlreadyDone(
 	log := logf.FromContext(ctx)
 
 	// Check if API token creation was requested
-	if !ha.Spec.Bootstrap.CreateApiToken {
+	if !ha.Spec.Bootstrap.CreateAPIToken {
 		log.Info("Onboarding already completed, no API token requested")
 		return r.updateBootstrapStatus(
 			ctx, ha, reasonBootstrapAlreadyDone,
@@ -419,7 +419,7 @@ func (r *HomeAssistantReconciler) handleOnboardingAlreadyDone(
 	}
 
 	// Check if Secret already exists
-	secretName := r.getApiTokenSecretName(ha)
+	secretName := r.getAPITokenSecretName(ha)
 	existingSecret := &corev1.Secret{}
 	err := r.Get(ctx, types.NamespacedName{
 		Name:      secretName,
@@ -624,9 +624,9 @@ func (r *HomeAssistantReconciler) updateBootstrapStatus(
 		freshHA.Status.Bootstrap.Completed = completed
 
 		if completed && tokenCreated {
-			freshHA.Status.Bootstrap.ApiTokenReady = true
-			freshHA.Status.Bootstrap.ApiTokenSecretName =
-				r.getApiTokenSecretName(freshHA)
+			freshHA.Status.Bootstrap.APITokenReady = true
+			freshHA.Status.Bootstrap.APITokenSecretName =
+				r.getAPITokenSecretName(freshHA)
 		}
 
 		// Apply optional field modifiers (e.g. OnboardingDoneFirstSeen, LoginRecoveryAttempts)
@@ -699,7 +699,7 @@ func (r *HomeAssistantReconciler) createAPITokenSecret(
 ) error {
 	log := logf.FromContext(ctx)
 
-	secretName := r.getApiTokenSecretName(ha)
+	secretName := r.getAPITokenSecretName(ha)
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -736,12 +736,12 @@ func (r *HomeAssistantReconciler) createAPITokenSecret(
 	return r.Update(ctx, existingSecret)
 }
 
-// getApiTokenSecretName returns the name of the Secret for the API token
-func (r *HomeAssistantReconciler) getApiTokenSecretName(ha *hav1alpha1.HomeAssistant) string {
-	if ha.Spec.Bootstrap != nil && ha.Spec.Bootstrap.ApiTokenSecretName != "" {
-		return ha.Spec.Bootstrap.ApiTokenSecretName
+// getAPITokenSecretName returns the name of the Secret for the API token
+func (r *HomeAssistantReconciler) getAPITokenSecretName(ha *hav1alpha1.HomeAssistant) string {
+	if ha.Spec.Bootstrap != nil && ha.Spec.Bootstrap.APITokenSecretName != "" {
+		return ha.Spec.Bootstrap.APITokenSecretName
 	}
-	return ha.Name + "-" + defaultApiTokenSecretName
+	return ha.Name + "-" + defaultAPITokenSecretName
 }
 
 // getOrDefault returns value if non-empty, otherwise returns defaultValue

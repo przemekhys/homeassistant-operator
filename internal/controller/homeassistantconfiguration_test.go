@@ -221,7 +221,7 @@ var _ = Describe("HomeAssistantConfiguration", func() {
 			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
 
 			By("Creating configuration with HTTP settings")
-			httpConfig := &hav1alpha1.HttpConfig{
+			httpConfig := &hav1alpha1.HTTPConfig{
 				CORSDomains: []string{"https://example.com", "https://mobile.example.com"},
 				TrustProxy:  boolPtr(true),
 			}
@@ -236,7 +236,7 @@ var _ = Describe("HomeAssistantConfiguration", func() {
 						Name: "test-ha-http",
 					},
 					Configuration: "homeassistant:\n  name: Home\n",
-					Http:          httpConfig,
+					HTTP:          httpConfig,
 				},
 			}
 			Expect(k8sClient.Create(ctx, config)).To(Succeed())
@@ -248,9 +248,9 @@ var _ = Describe("HomeAssistantConfiguration", func() {
 				Namespace: namespace,
 			}
 			Expect(k8sClient.Get(ctx, key, retrieved)).To(Succeed())
-			Expect(retrieved.Spec.Http).NotTo(BeNil())
-			Expect(retrieved.Spec.Http.CORSDomains).To(HaveLen(2))
-			Expect(*retrieved.Spec.Http.TrustProxy).To(BeTrue())
+			Expect(retrieved.Spec.HTTP).NotTo(BeNil())
+			Expect(retrieved.Spec.HTTP.CORSDomains).To(HaveLen(2))
+			Expect(*retrieved.Spec.HTTP.TrustProxy).To(BeTrue())
 		})
 
 		It("should support Logger component configuration", func() {
@@ -366,7 +366,7 @@ var _ = Describe("HomeAssistantConfiguration", func() {
 			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
 
 			By("Creating configuration with MQTT settings")
-			mqttConfig := &hav1alpha1.MqttConfig{
+			mqttConfig := &hav1alpha1.MQTTConfig{
 				Broker:   "mqtt://mosquitto:1883",
 				Username: "homeassistant",
 				PasswordRef: &hav1alpha1.SecretKeySelector{
@@ -387,7 +387,7 @@ var _ = Describe("HomeAssistantConfiguration", func() {
 						Name: "test-ha-mqtt",
 					},
 					Configuration: "homeassistant:\n  name: Home\n",
-					Mqtt:          mqttConfig,
+					MQTT:          mqttConfig,
 				},
 			}
 			Expect(k8sClient.Create(ctx, config)).To(Succeed())
@@ -399,11 +399,11 @@ var _ = Describe("HomeAssistantConfiguration", func() {
 				Namespace: namespace,
 			}
 			Expect(k8sClient.Get(ctx, key, retrieved)).To(Succeed())
-			Expect(retrieved.Spec.Mqtt).NotTo(BeNil())
-			Expect(retrieved.Spec.Mqtt.Broker).To(Equal("mqtt://mosquitto:1883"))
-			Expect(retrieved.Spec.Mqtt.Username).To(Equal("homeassistant"))
-			Expect(retrieved.Spec.Mqtt.PasswordRef.Name).To(Equal("mqtt-credentials"))
-			Expect(*retrieved.Spec.Mqtt.KeepAlive).To(Equal(int32(60)))
+			Expect(retrieved.Spec.MQTT).NotTo(BeNil())
+			Expect(retrieved.Spec.MQTT.Broker).To(Equal("mqtt://mosquitto:1883"))
+			Expect(retrieved.Spec.MQTT.Username).To(Equal("homeassistant"))
+			Expect(retrieved.Spec.MQTT.PasswordRef.Name).To(Equal("mqtt-credentials"))
+			Expect(*retrieved.Spec.MQTT.KeepAlive).To(Equal(int32(60)))
 		})
 
 		It("should support combined typed components", func() {
@@ -430,7 +430,7 @@ var _ = Describe("HomeAssistantConfiguration", func() {
 						Name: "test-ha-combined",
 					},
 					Configuration: "homeassistant:\n  name: Home\n",
-					Http: &hav1alpha1.HttpConfig{
+					HTTP: &hav1alpha1.HTTPConfig{
 						TrustProxy: boolPtr(true),
 					},
 					Logger: &hav1alpha1.LoggerConfig{
@@ -439,7 +439,7 @@ var _ = Describe("HomeAssistantConfiguration", func() {
 					Recorder: &hav1alpha1.RecorderConfig{
 						Enabled: boolPtr(true),
 					},
-					Mqtt: &hav1alpha1.MqttConfig{
+					MQTT: &hav1alpha1.MQTTConfig{
 						Broker: "mqtt://mosquitto:1883",
 					},
 				},
@@ -453,10 +453,10 @@ var _ = Describe("HomeAssistantConfiguration", func() {
 				Namespace: namespace,
 			}
 			Expect(k8sClient.Get(ctx, key, retrieved)).To(Succeed())
-			Expect(retrieved.Spec.Http).NotTo(BeNil())
+			Expect(retrieved.Spec.HTTP).NotTo(BeNil())
 			Expect(retrieved.Spec.Logger).NotTo(BeNil())
 			Expect(retrieved.Spec.Recorder).NotTo(BeNil())
-			Expect(retrieved.Spec.Mqtt).NotTo(BeNil())
+			Expect(retrieved.Spec.MQTT).NotTo(BeNil())
 		})
 	})
 

@@ -76,6 +76,10 @@ type HomeAssistantSecretsStatus struct {
 	// LastUpdated is the timestamp when the secrets were last updated
 	// +kubebuilder:validation:Optional
 	LastUpdated *metav1.Time `json:"lastUpdated,omitempty"`
+
+	// ObservedGeneration reflects the generation of the most recently observed HomeAssistantSecrets
+	// +kubebuilder:validation:Optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true

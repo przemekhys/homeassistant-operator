@@ -50,6 +50,11 @@ type HomeAssistantLabelStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// lastError contains the error message from the last failed operation
+	// Cleared when operation succeeds
+	// +optional
+	LastError string `json:"lastError,omitempty"`
+
 	// conditions represent the current state of the HomeAssistantLabel resource
 	// +listType=map
 	// +listMapKey=type
@@ -71,13 +76,13 @@ type HomeAssistantLabel struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// +optional
-	metav1.ObjectMeta `json:"metadata,omitzero"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// +required
 	Spec HomeAssistantLabelSpec `json:"spec"`
 
 	// +optional
-	Status HomeAssistantLabelStatus `json:"status,omitzero"`
+	Status HomeAssistantLabelStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -85,7 +90,7 @@ type HomeAssistantLabel struct {
 // HomeAssistantLabelList contains a list of HomeAssistantLabel
 type HomeAssistantLabelList struct {
 	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitzero"`
+	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []HomeAssistantLabel `json:"items"`
 }
 

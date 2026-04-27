@@ -157,6 +157,11 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              lastError:
+                description: |-
+                  lastError contains the error message from the last failed operation
+                  Cleared when operation succeeds
+                type: string
               observedGeneration:
                 description: observedGeneration is the most recent generation observed
                 format: int64

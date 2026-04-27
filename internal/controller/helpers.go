@@ -116,9 +116,9 @@ func buildHomeAssistantURL(ha *hav1alpha1.HomeAssistant) string {
 	return fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", serviceName, ha.Namespace, port)
 }
 
-// getApiToken retrieves the Home Assistant API token from Secret
+// getAPIToken retrieves the Home Assistant API token from Secret
 // Used by automation and scene controllers for hot-reload
-func getApiToken(
+func getAPIToken(
 	ctx context.Context,
 	c client.Client,
 	ha *hav1alpha1.HomeAssistant,
@@ -132,7 +132,7 @@ func getApiToken(
 		return "", fmt.Errorf("bootstrap not configured")
 	}
 
-	tokenSecretName := ha.Status.Bootstrap.ApiTokenSecretName
+	tokenSecretName := ha.Status.Bootstrap.APITokenSecretName
 	if tokenSecretName == "" {
 		// Fallback: bootstrap may not be configured yet
 		log.V(1).Info("API token secret name not in status, bootstrap may not be complete")

@@ -147,8 +147,8 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled controls whether automatic bootstrap is performed | false | Optional: \{\} <br /> |
 | `credentials` _[BootstrapCredentials](#bootstrapcredentials)_ | Credentials references a Secret containing username and password for the admin user<br />The Secret must have "username" and "password" keys |  |  |
-| `createApiToken` _boolean_ | CreateApiToken controls whether a long-lived access token is created after onboarding<br />The token is valid for 10 years and stored in a Secret | true | Optional: \{\} <br /> |
-| `apiTokenSecretName` _string_ | ApiTokenSecretName is the name of the Secret where the API token will be stored<br />The Secret will have a "token" key containing the long-lived access token<br />If not specified, defaults to "\{homeassistant-name\}-homeassistant-api-token" |  | Optional: \{\} <br /> |
+| `createAPIToken` _boolean_ | CreateAPIToken controls whether a long-lived access token is created after onboarding<br />The token is valid for 10 years and stored in a Secret | true | Optional: \{\} <br /> |
+| `apiTokenSecretName` _string_ | APITokenSecretName is the name of the Secret where the API token will be stored<br />The Secret will have a "token" key containing the long-lived access token<br />If not specified, defaults to "\{homeassistant-name\}-homeassistant-api-token" |  | Optional: \{\} <br /> |
 | `ownerName` _string_ | OwnerName is the display name for the owner user created during onboarding | Admin | Optional: \{\} <br /> |
 | `language` _string_ | Language is the language code for Home Assistant (e.g., "en", "pl") | en | Optional: \{\} <br /> |
 | `location` _[LocationConfig](#locationconfig)_ | Location configures the location settings during onboarding<br />If not specified, location configuration step is skipped |  | Optional: \{\} <br /> |
@@ -170,7 +170,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `completed` _boolean_ | Completed indicates whether the bootstrap process has finished successfully |  | Optional: \{\} <br /> |
 | `apiTokenReady` _boolean_ | ApiTokenReady indicates whether the API token has been created and stored |  | Optional: \{\} <br /> |
-| `apiTokenSecretName` _string_ | ApiTokenSecretName is the name of the Secret containing the API token |  | Optional: \{\} <br /> |
+| `apiTokenSecretName` _string_ | APITokenSecretName is the name of the Secret containing the API token |  | Optional: \{\} <br /> |
 | `lastAttempt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastAttempt is the timestamp of the last bootstrap attempt |  | Optional: \{\} <br /> |
 | `message` _string_ | Message provides additional information about the bootstrap status |  | Optional: \{\} <br /> |
 | `onboardingDoneFirstSeen` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | OnboardingDoneFirstSeen is the timestamp when /api/onboarding first returned 404.<br />Used to implement confirmation delay without relying on condition LastTransitionTime<br />(which does not update when only the Reason changes). |  | Optional: \{\} <br /> |

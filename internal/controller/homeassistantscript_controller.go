@@ -105,7 +105,7 @@ func (r *HomeAssistantScriptReconciler) Reconcile(ctx context.Context, req ctrl.
 				Namespace: script.Namespace,
 			}
 			if ha, haErr := r.validateHomeAssistantRef(ctx, haRef, script); haErr == nil {
-				if token, tokenErr := getApiToken(ctx, r.Client, ha); tokenErr == nil {
+				if token, tokenErr := getAPIToken(ctx, r.Client, ha); tokenErr == nil {
 					haClient := r.haClientFor(ha)
 					id := script.Spec.ID
 					if id == "" {
@@ -160,7 +160,7 @@ func (r *HomeAssistantScriptReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 
 	// Get API token — requeue if not available yet (bootstrap may still be running)
-	token, tokenErr := getApiToken(ctx, r.Client, ha)
+	token, tokenErr := getAPIToken(ctx, r.Client, ha)
 	if tokenErr != nil {
 		log.Info("API token not available, requeueing")
 		meta.SetStatusCondition(&script.Status.Conditions, metav1.Condition{

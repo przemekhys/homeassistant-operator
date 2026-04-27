@@ -89,7 +89,7 @@ var _ = Describe("HomeAssistantScript Controller", func() {
 		ha := &hav1alpha1.HomeAssistant{}
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: haName, Namespace: namespace}, ha)).To(Succeed())
 		ha.Status.Bootstrap = &hav1alpha1.BootstrapStatus{
-			ApiTokenSecretName: haName + "-api-token",
+			APITokenSecretName: haName + "-api-token",
 		}
 		Expect(k8sClient.Status().Update(ctx, ha)).To(Succeed())
 	}

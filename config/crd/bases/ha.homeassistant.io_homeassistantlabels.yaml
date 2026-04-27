@@ -149,6 +149,11 @@ spec:
               labelID:
                 description: labelID is the ID assigned by Home Assistant after creation
                 type: string
+              lastError:
+                description: |-
+                  lastError contains the error message from the last failed operation
+                  Cleared when operation succeeds
+                type: string
               observedGeneration:
                 description: observedGeneration is the most recent generation observed
                 format: int64

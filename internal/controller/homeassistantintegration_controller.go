@@ -45,7 +45,7 @@ const (
 	integrationFinalizerName = "ha.homeassistant.io/integration-finalizer"
 
 	// Condition types and reasons for HomeAssistantIntegration
-	conditionTypeIntegrationReady      = "IntegrationReady"
+	conditionTypeIntegrationReady      = "Ready"
 	reasonIntegrationConfigured        = "IntegrationConfigured"
 	reasonAlreadyConfigured            = "AlreadyConfigured"
 	reasonIntegrationHANotReady        = "HANotReady"
@@ -128,7 +128,7 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 	}
 
 	// --- API TOKEN ---
-	token, tokenErr := getApiToken(ctx, r.Client, ha)
+	token, tokenErr := getAPIToken(ctx, r.Client, ha)
 	if tokenErr != nil {
 		log.Info("API token not available, requeueing")
 		return r.setFailedCondition(ctx, integration, reasonIntegrationTokenNotAvailable,
@@ -288,7 +288,7 @@ func (r *HomeAssistantIntegrationReconciler) handleDeletion(
 		return
 	}
 
-	token, tokenErr := getApiToken(ctx, r.Client, ha)
+	token, tokenErr := getAPIToken(ctx, r.Client, ha)
 	if tokenErr != nil {
 		log.Info("API token not available during deletion, skipping config entry removal")
 		return

@@ -92,7 +92,7 @@ spec:
     credentials:
       secretRef:
         name: ha-bootstrap-creds
-    createApiToken: true
+    createAPIToken: true
     apiTokenSecretName: %s-homeassistant-api-token
     ownerName: "E2E Critical Path"
     language: "en"
@@ -670,7 +670,7 @@ spec:
 		By("Verifying IntegrationReady=True")
 		Eventually(func(g Gomega) {
 			status := utils.Kubectl("get", "haint", intName, "-n", namespace,
-				"-o", "jsonpath={.status.conditions[?(@.type=='IntegrationReady')].status}")
+				"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}")
 			g.Expect(status).To(Equal("True"))
 		}, utils.HotReloadTimeout, reconcileInterval).Should(Succeed())
 

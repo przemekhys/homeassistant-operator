@@ -103,7 +103,7 @@ func (r *HomeAssistantFloorReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// --- API TOKEN ---
-	token, tokenErr := getApiToken(ctx, r.Client, ha)
+	token, tokenErr := getAPIToken(ctx, r.Client, ha)
 	if tokenErr != nil {
 		log.Info("API token not available, requeueing")
 		return r.setCondition(ctx, floor, metav1.ConditionFalse, reasonFloorTokenNotAvail,
@@ -194,7 +194,7 @@ func (r *HomeAssistantFloorReconciler) handleDeletion(ctx context.Context, floor
 		return
 	}
 
-	token, err := getApiToken(ctx, r.Client, ha)
+	token, err := getAPIToken(ctx, r.Client, ha)
 	if err != nil {
 		log.Info("API token not available during floor deletion, skipping cleanup")
 		return

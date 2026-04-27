@@ -51,7 +51,7 @@ spec:
     credentials:
       secretRef:
         name: ha-admin
-    createApiToken: true
+    createAPIToken: true
 ```
 
 Apply both:
