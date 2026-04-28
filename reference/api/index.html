@@ -1149,6 +1149,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#httpconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#homeassistant" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1611,17 +1622,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#httpconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HttpConfig
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#ingressspec" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1702,7 +1702,7 @@
   <a href="#mqttconfig" class="md-nav__link">
     <span class="md-ellipsis">
       
-        MqttConfig
+        MQTTConfig
       
     </span>
   </a>
@@ -2246,6 +2246,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#httpconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#homeassistant" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2708,17 +2719,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#httpconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HttpConfig
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#ingressspec" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2799,7 +2799,7 @@
   <a href="#mqttconfig" class="md-nav__link">
     <span class="md-ellipsis">
       
-        MqttConfig
+        MQTTConfig
       
     </span>
   </a>
@@ -3185,13 +3185,13 @@ This is a flexible structure that accepts any valid Home Assistant trigger confi
 </tr>
 <tr>
 <td><code>createApiToken</code> <em>boolean</em></td>
-<td>CreateApiToken controls whether a long-lived access token is created after onboarding<br />The token is valid for 10 years and stored in a Secret</td>
+<td>CreateAPIToken controls whether a long-lived access token is created after onboarding<br />The token is valid for 10 years and stored in a Secret</td>
 <td>true</td>
 <td>Optional: {} <br /></td>
 </tr>
 <tr>
 <td><code>apiTokenSecretName</code> <em>string</em></td>
-<td>ApiTokenSecretName is the name of the Secret where the API token will be stored<br />The Secret will have a "token" key containing the long-lived access token<br />If not specified, defaults to "{homeassistant-name}-homeassistant-api-token"</td>
+<td>APITokenSecretName is the name of the Secret where the API token will be stored<br />The Secret will have a "token" key containing the long-lived access token<br />If not specified, defaults to "{homeassistant-name}-homeassistant-api-token"</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
@@ -3243,13 +3243,13 @@ This is a flexible structure that accepts any valid Home Assistant trigger confi
 </tr>
 <tr>
 <td><code>apiTokenReady</code> <em>boolean</em></td>
-<td>ApiTokenReady indicates whether the API token has been created and stored</td>
+<td>APITokenReady indicates whether the API token has been created and stored</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
 <tr>
 <td><code>apiTokenSecretName</code> <em>string</em></td>
-<td>ApiTokenSecretName is the name of the Secret containing the API token</td>
+<td>APITokenSecretName is the name of the Secret containing the API token</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
@@ -3338,6 +3338,40 @@ This is a flexible structure that accepts any valid Home Assistant trigger confi
 <td><code>passwordKey</code> <em>string</em></td>
 <td>PasswordKey is the key in the Secret containing the password</td>
 <td>password</td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="httpconfig">HTTPConfig<a class="headerlink" href="#httpconfig" title="Permanent link">&para;</a></h4>
+<p>HTTPConfig defines HTTP component configuration</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantconfigurationspec">HomeAssistantConfigurationSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>corsDomains</code> <em>string array</em></td>
+<td>CorsDomains is a list of allowed CORS origins</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>trustProxy</code> <em>boolean</em></td>
+<td>TrustProxy enables trust in X-Forwarded-For header</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>useXForwardedFor</code> <em>boolean</em></td>
+<td>UseXForwardedFor enables usage of X-Forwarded-For header</td>
+<td></td>
 <td>Optional: {} <br /></td>
 </tr>
 </tbody>
@@ -3541,6 +3575,12 @@ This is a flexible structure that accepts any valid Home Assistant trigger confi
 <tr>
 <td><code>observedGeneration</code> <em>integer</em></td>
 <td>observedGeneration is the most recent generation observed</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastError</code> <em>string</em></td>
+<td>lastError contains the error message from the last failed operation<br />Cleared when operation succeeds</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
@@ -3911,8 +3951,8 @@ This is a flexible structure that accepts any valid Home Assistant trigger confi
 <td>Optional: {} <br /></td>
 </tr>
 <tr>
-<td><code>http</code> <em><a href="#httpconfig">HttpConfig</a></em></td>
-<td>Http component configuration (optional typed section)</td>
+<td><code>http</code> <em><a href="#httpconfig">HTTPConfig</a></em></td>
+<td>HTTP component configuration (optional typed section)</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
@@ -3929,8 +3969,8 @@ This is a flexible structure that accepts any valid Home Assistant trigger confi
 <td>Optional: {} <br /></td>
 </tr>
 <tr>
-<td><code>mqtt</code> <em><a href="#mqttconfig">MqttConfig</a></em></td>
-<td>Mqtt component configuration (optional typed section)</td>
+<td><code>mqtt</code> <em><a href="#mqttconfig">MQTTConfig</a></em></td>
+<td>MQTT component configuration (optional typed section)</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
@@ -4139,6 +4179,12 @@ This is a flexible structure that accepts any valid Home Assistant trigger confi
 <td>Optional: {} <br /></td>
 </tr>
 <tr>
+<td><code>lastError</code> <em>string</em></td>
+<td>lastError contains the error message from the last failed operation<br />Cleared when operation succeeds</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
 <td><code>conditions</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta">Condition</a> array</em></td>
 <td>conditions represent the current state of the HomeAssistantFloor resource</td>
 <td></td>
@@ -4250,7 +4296,7 @@ Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
 <td><code>homeAssistantRef</code> <em><a href="#homeassistantreference">HomeAssistantReference</a></em></td>
 <td>HomeAssistantRef references the HomeAssistant instance to configure</td>
 <td></td>
-<td></td>
+<td>Required: {} <br /></td>
 </tr>
 <tr>
 <td><code>domain</code> <em>string</em></td>
@@ -4295,6 +4341,12 @@ Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
 <tr>
 <td><code>conditions</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta">Condition</a> array</em></td>
 <td>Conditions represent the latest available observations of the integration state</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastError</code> <em>string</em></td>
+<td>LastError contains the error message from the last failed operation<br />Cleared when operation succeeds</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
@@ -4453,6 +4505,12 @@ Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
 <tr>
 <td><code>observedGeneration</code> <em>integer</em></td>
 <td>observedGeneration is the most recent generation observed</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>lastError</code> <em>string</em></td>
+<td>lastError contains the error message from the last failed operation<br />Cleared when operation succeeds</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
@@ -5133,6 +5191,12 @@ Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
+<tr>
+<td><code>observedGeneration</code> <em>integer</em></td>
+<td>ObservedGeneration reflects the generation of the most recently observed HomeAssistantSecrets</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
 </tbody>
 </table>
 <h4 id="homeassistantspec">HomeAssistantSpec<a class="headerlink" href="#homeassistantspec" title="Permanent link">&para;</a></h4>
@@ -5262,6 +5326,12 @@ Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
 <td>Optional: {} <br /></td>
 </tr>
 <tr>
+<td><code>observedGeneration</code> <em>integer</em></td>
+<td>ObservedGeneration reflects the generation of the most recently observed HomeAssistant</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
 <td><code>bootstrap</code> <em><a href="#bootstrapstatus">BootstrapStatus</a></em></td>
 <td>BootstrapStatus contains the status of the automatic bootstrap process</td>
 <td></td>
@@ -5276,40 +5346,6 @@ Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
 <tr>
 <td><code>lastSelfUnban</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta">Time</a></em></td>
 <td>LastSelfUnban is the timestamp of the most recent self-unban operation.</td>
-<td></td>
-<td>Optional: {} <br /></td>
-</tr>
-</tbody>
-</table>
-<h4 id="httpconfig">HttpConfig<a class="headerlink" href="#httpconfig" title="Permanent link">&para;</a></h4>
-<p>HttpConfig defines HTTP component configuration</p>
-<p><em>Appears in:</em>
-- <a href="#homeassistantconfigurationspec">HomeAssistantConfigurationSpec</a></p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-<th>Default</th>
-<th>Validation</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>corsDomains</code> <em>string array</em></td>
-<td>CorsDomains is a list of allowed CORS origins</td>
-<td></td>
-<td>Optional: {} <br /></td>
-</tr>
-<tr>
-<td><code>trustProxy</code> <em>boolean</em></td>
-<td>TrustProxy enables trust in X-Forwarded-For header</td>
-<td></td>
-<td>Optional: {} <br /></td>
-</tr>
-<tr>
-<td><code>useXForwardedFor</code> <em>boolean</em></td>
-<td>UseXForwardedFor enables usage of X-Forwarded-For header</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
@@ -5572,8 +5608,8 @@ Exactly one of Value, JSONValue, or SecretKeyRef must be set.</p>
 </tr>
 </tbody>
 </table>
-<h4 id="mqttconfig">MqttConfig<a class="headerlink" href="#mqttconfig" title="Permanent link">&para;</a></h4>
-<p>MqttConfig defines MQTT component configuration</p>
+<h4 id="mqttconfig">MQTTConfig<a class="headerlink" href="#mqttconfig" title="Permanent link">&para;</a></h4>
+<p>MQTTConfig defines MQTT component configuration</p>
 <p><em>Appears in:</em>
 - <a href="#homeassistantconfigurationspec">HomeAssistantConfigurationSpec</a></p>
 <table>
@@ -5766,7 +5802,7 @@ This is a flexible structure that accepts any valid Home Assistant field configu
 <h4 id="secretkeyselector">SecretKeySelector<a class="headerlink" href="#secretkeyselector" title="Permanent link">&para;</a></h4>
 <p>SecretKeySelector selects a Secret and an optional key</p>
 <p><em>Appears in:</em>
-- <a href="#mqttconfig">MqttConfig</a>
+- <a href="#mqttconfig">MQTTConfig</a>
 - <a href="#recorderconfig">RecorderConfig</a></p>
 <table>
 <thead>
