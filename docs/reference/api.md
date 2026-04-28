@@ -147,7 +147,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled controls whether automatic bootstrap is performed | false | Optional: \{\} <br /> |
 | `credentials` _[BootstrapCredentials](#bootstrapcredentials)_ | Credentials references a Secret containing username and password for the admin user<br />The Secret must have "username" and "password" keys |  |  |
-| `createAPIToken` _boolean_ | CreateAPIToken controls whether a long-lived access token is created after onboarding<br />The token is valid for 10 years and stored in a Secret | true | Optional: \{\} <br /> |
+| `createApiToken` _boolean_ | CreateAPIToken controls whether a long-lived access token is created after onboarding<br />The token is valid for 10 years and stored in a Secret | true | Optional: \{\} <br /> |
 | `apiTokenSecretName` _string_ | APITokenSecretName is the name of the Secret where the API token will be stored<br />The Secret will have a "token" key containing the long-lived access token<br />If not specified, defaults to "\{homeassistant-name\}-homeassistant-api-token" |  | Optional: \{\} <br /> |
 | `ownerName` _string_ | OwnerName is the display name for the owner user created during onboarding | Admin | Optional: \{\} <br /> |
 | `language` _string_ | Language is the language code for Home Assistant (e.g., "en", "pl") | en | Optional: \{\} <br /> |
@@ -453,10 +453,10 @@ _Appears in:_
 | `configuration` _string_ | Configuration contains the full configuration.yaml content as a string<br />This is the raw YAML configuration for Home Assistant |  | Required: \{\} <br /> |
 | `reloadStrategy` _[ConfigurationReloadStrategy](#configurationreloadstrategy)_ | ReloadStrategy defines how configuration changes should be applied | auto | Enum: [auto hot-reload restart] <br />Optional: \{\} <br /> |
 | `autoReload` _boolean_ | AutoReload enables automatic reloading/restart when configuration changes | true | Optional: \{\} <br /> |
-| `http` _[HttpConfig](#httpconfig)_ | Http component configuration (optional typed section) |  | Optional: \{\} <br /> |
+| `http` _[HTTPConfig](#httpconfig)_ | HTTP component configuration (optional typed section) |  | Optional: \{\} <br /> |
 | `logger` _[LoggerConfig](#loggerconfig)_ | Logger component configuration (optional typed section) |  | Optional: \{\} <br /> |
 | `recorder` _[RecorderConfig](#recorderconfig)_ | Recorder component configuration (optional typed section) |  | Optional: \{\} <br /> |
-| `mqtt` _[MqttConfig](#mqttconfig)_ | Mqtt component configuration (optional typed section) |  | Optional: \{\} <br /> |
+| `mqtt` _[MQTTConfig](#mqttconfig)_ | MQTT component configuration (optional typed section) |  | Optional: \{\} <br /> |
 
 
 #### HomeAssistantConfigurationStatus
@@ -1059,11 +1059,11 @@ _Appears in:_
 | `lastSelfUnban` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastSelfUnban is the timestamp of the most recent self-unban operation. |  | Optional: \{\} <br /> |
 
 
-#### HttpConfig
+#### HTTPConfig
 
 
 
-HttpConfig defines HTTP component configuration
+HTTPConfig defines HTTP component configuration
 
 
 
@@ -1207,11 +1207,11 @@ _Appears in:_
 | `logs` _object (keys:string, values:string)_ | Logs is a map of component names to their logging levels<br />Example: \{"homeassistant.core": "DEBUG", "homeassistant.components.mqtt": "DEBUG"\} |  | Optional: \{\} <br /> |
 
 
-#### MqttConfig
+#### MQTTConfig
 
 
 
-MqttConfig defines MQTT component configuration
+MQTTConfig defines MQTT component configuration
 
 
 
@@ -1338,7 +1338,7 @@ SecretKeySelector selects a Secret and an optional key
 
 
 _Appears in:_
-- [MqttConfig](#mqttconfig)
+- [MQTTConfig](#mqttconfig)
 - [RecorderConfig](#recorderconfig)
 
 | Field | Description | Default | Validation |

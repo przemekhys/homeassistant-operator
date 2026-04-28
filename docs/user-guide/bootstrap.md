@@ -34,7 +34,7 @@ spec:
     credentials:
       secretRef:
         name: ha-admin
-    createAPIToken: true
+    createApiToken: true
 ```
 
 Bootstrap typically completes in **2–5 minutes** on a fresh install.
@@ -58,13 +58,13 @@ bootstrap:
       passwordKey: password   # optional, default: "password"
 ```
 
-### `spec.bootstrap.createAPIToken`
+### `spec.bootstrap.createApiToken`
 
 When `true`, the operator creates a long-lived API token after onboarding and stores it in a Secret named `<ha-name>-homeassistant-api-token` (or the value of `apiTokenSecretName`).
 
 ```yaml
 bootstrap:
-  createAPIToken: true
+  createApiToken: true
   apiTokenSecretName: home-homeassistant-api-token   # optional, default: <ha-name>-homeassistant-api-token
 ```
 

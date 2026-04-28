@@ -146,7 +146,7 @@ type HomeAssistantConfigurationSpec struct {
 	// +optional
 	AutoReload *bool `json:"autoReload,omitempty"`
 
-	// Http component configuration (optional typed section)
+	// HTTP component configuration (optional typed section)
 	// +optional
 	HTTP *HTTPConfig `json:"http,omitempty"`
 
@@ -158,7 +158,7 @@ type HomeAssistantConfigurationSpec struct {
 	// +optional
 	Recorder *RecorderConfig `json:"recorder,omitempty"`
 
-	// Mqtt component configuration (optional typed section)
+	// MQTT component configuration (optional typed section)
 	// +optional
 	MQTT *MQTTConfig `json:"mqtt,omitempty"`
 }

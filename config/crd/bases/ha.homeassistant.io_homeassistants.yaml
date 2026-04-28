@@ -126,7 +126,7 @@ spec:
                       The Secret will have a "token" key containing the long-lived access token
                       If not specified, defaults to "{homeassistant-name}-homeassistant-api-token"
                     type: string
-                  createAPIToken:
+                  createApiToken:
                     default: true
                     description: |-
                       CreateAPIToken controls whether a long-lived access token is created after onboarding

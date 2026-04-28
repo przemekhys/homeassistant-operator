@@ -839,12 +839,14 @@ func (r *HomeAssistantReconciler) updateStatusFailed(
 
 	ha.Status.Phase = hav1alpha1.PhaseFailed
 	ha.Status.Ready = false
+	ha.Status.ObservedGeneration = ha.Generation
 
 	meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
-		Type:    conditionTypeReady,
-		Status:  metav1.ConditionFalse,
-		Reason:  "ReconciliationFailed",
-		Message: reconcileErr.Error(),
+		Type:               conditionTypeReady,
+		Status:             metav1.ConditionFalse,
+		Reason:             "ReconciliationFailed",
+		Message:            reconcileErr.Error(),
+		ObservedGeneration: ha.Generation,
 	})
 
 	if err := r.Status().Update(ctx, ha); err != nil {
@@ -873,6 +875,7 @@ func (r *HomeAssistantReconciler) updateStatusFromStatefulSet(
 		version = ha.Spec.Version
 	}
 	ha.Status.Version = version
+	ha.Status.ObservedGeneration = ha.Generation
 
 	// Check if StatefulSet is ready
 	if sts.Status.ReadyReplicas > 0 && sts.Status.ReadyReplicas == sts.Status.Replicas {
@@ -880,20 +883,22 @@ func (r *HomeAssistantReconciler) updateStatusFromStatefulSet(
 		ha.Status.Ready = true
 
 		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
-			Type:    conditionTypeReady,
-			Status:  metav1.ConditionTrue,
-			Reason:  "StatefulSetReady",
-			Message: "Home Assistant is running",
+			Type:               conditionTypeReady,
+			Status:             metav1.ConditionTrue,
+			Reason:             "StatefulSetReady",
+			Message:            "Home Assistant is running",
+			ObservedGeneration: ha.Generation,
 		})
 	} else {
 		ha.Status.Phase = hav1alpha1.PhasePending
 		ha.Status.Ready = false
 
 		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
-			Type:    conditionTypeReady,
-			Status:  metav1.ConditionFalse,
-			Reason:  "StatefulSetNotReady",
-			Message: fmt.Sprintf("Waiting for StatefulSet to be ready (%d/%d)", sts.Status.ReadyReplicas, sts.Status.Replicas),
+			Type:               conditionTypeReady,
+			Status:             metav1.ConditionFalse,
+			Reason:             "StatefulSetNotReady",
+			Message:            fmt.Sprintf("Waiting for StatefulSet to be ready (%d/%d)", sts.Status.ReadyReplicas, sts.Status.Replicas),
+			ObservedGeneration: ha.Generation,
 		})
 	}
 

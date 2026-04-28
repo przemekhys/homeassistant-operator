@@ -62,7 +62,7 @@ spec:
         passwordKey: password  # optional, defaults to "password"
 
     # Create long-lived API token (valid for 10 years)
-    createAPIToken: true
+    createApiToken: true
 
     # Name of the Secret where the API token will be stored
     apiTokenSecretName: my-home-api-token

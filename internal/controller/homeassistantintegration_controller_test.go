@@ -196,7 +196,7 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 			Eventually(func(g Gomega) {
 				updated := &hav1alpha1.HomeAssistantIntegration{}
 				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "int-no-ha", Namespace: namespace}, updated)).To(Succeed())
-				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeIntegrationReady)
+				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
 				g.Expect(condition.Reason).To(Equal(reasonIntegrationHANotReady))
@@ -231,7 +231,7 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 				updated := &hav1alpha1.HomeAssistantIntegration{}
 				nn := types.NamespacedName{Name: "int-no-token", Namespace: namespace}
 				g.Expect(k8sClient.Get(ctx, nn, updated)).To(Succeed())
-				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeIntegrationReady)
+				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
 				g.Expect(condition.Reason).To(Equal(reasonIntegrationTokenNotAvailable))
@@ -285,7 +285,7 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 			Eventually(func(g Gomega) {
 				updated := &hav1alpha1.HomeAssistantIntegration{}
 				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "int-ready", Namespace: namespace}, updated)).To(Succeed())
-				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeIntegrationReady)
+				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionTrue))
 				g.Expect(condition.Reason).To(Equal(reasonIntegrationConfigured))
@@ -407,7 +407,7 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 			Eventually(func(g Gomega) {
 				updated := &hav1alpha1.HomeAssistantIntegration{}
 				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "int-adopt", Namespace: namespace}, updated)).To(Succeed())
-				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeIntegrationReady)
+				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionTrue))
 				g.Expect(condition.Reason).To(Equal(reasonAlreadyConfigured))
@@ -548,7 +548,7 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 
 			updated := &hav1alpha1.HomeAssistantIntegration{}
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "int-bad-json", Namespace: namespace}, updated)).To(Succeed())
-			cond := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeIntegrationReady)
+			cond := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
 			Expect(cond).NotTo(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionFalse))
 			Expect(cond.Reason).To(Equal(reasonSecretResolutionFailed))
@@ -670,7 +670,7 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 				updated := &hav1alpha1.HomeAssistantIntegration{}
 				nn := types.NamespacedName{Name: "int-missing-key", Namespace: namespace}
 				g.Expect(k8sClient.Get(ctx, nn, updated)).To(Succeed())
-				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeIntegrationReady)
+				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
 				g.Expect(condition.Reason).To(Equal(reasonSecretResolutionFailed))
@@ -752,7 +752,7 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 				updated := &hav1alpha1.HomeAssistantIntegration{}
 				nn := types.NamespacedName{Name: "int-flow-fail", Namespace: namespace}
 				g.Expect(k8sClient.Get(ctx, nn, updated)).To(Succeed())
-				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeIntegrationReady)
+				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
 				g.Expect(condition.Reason).To(Equal(reasonConfigFlowFailed))
@@ -863,7 +863,7 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 				updated := &hav1alpha1.HomeAssistantIntegration{}
 				nn := types.NamespacedName{Name: "int-idempotent", Namespace: namespace}
 				g.Expect(k8sClient.Get(ctx, nn, updated)).To(Succeed())
-				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeIntegrationReady)
+				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionTrue))
 				g.Expect(updated.Status.EntryID).To(Equal("idem-entry-001"))

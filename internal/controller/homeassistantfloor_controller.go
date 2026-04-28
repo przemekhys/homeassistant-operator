@@ -233,6 +233,11 @@ func (r *HomeAssistantFloorReconciler) setCondition(
 		ObservedGeneration: floor.Generation,
 	})
 	floor.Status.ObservedGeneration = floor.Generation
+	if status == metav1.ConditionFalse {
+		floor.Status.LastError = message
+	} else {
+		floor.Status.LastError = ""
+	}
 
 	if err := r.Status().Update(ctx, floor); err != nil {
 		return ctrl.Result{}, err

@@ -93,11 +93,13 @@ func (r *HomeAssistantSecretsReconciler) Reconcile(ctx context.Context, req ctrl
 	if err := r.Get(ctx, haRef, ha); err != nil {
 		if errors.IsNotFound(err) {
 			log.Error(err, "Referenced HomeAssistant not found", "name", haRef.Name)
+			haSecrets.Status.ObservedGeneration = haSecrets.Generation
 			meta.SetStatusCondition(&haSecrets.Status.Conditions, metav1.Condition{
-				Type:    conditionTypeReady,
-				Status:  metav1.ConditionFalse,
-				Reason:  reasonInvalidConfiguration,
-				Message: fmt.Sprintf("HomeAssistant %s not found", haRef.Name),
+				Type:               conditionTypeReady,
+				Status:             metav1.ConditionFalse,
+				Reason:             reasonInvalidConfiguration,
+				Message:            fmt.Sprintf("HomeAssistant %s not found", haRef.Name),
+				ObservedGeneration: haSecrets.Generation,
 			})
 			if err := r.Status().Update(ctx, haSecrets); err != nil {
 				log.Error(err, "Failed to update status")
@@ -112,11 +114,13 @@ func (r *HomeAssistantSecretsReconciler) Reconcile(ctx context.Context, req ctrl
 	secretsData, err := r.collectSecrets(ctx, haSecrets)
 	if err != nil {
 		log.Error(err, "Failed to collect secrets")
+		haSecrets.Status.ObservedGeneration = haSecrets.Generation
 		meta.SetStatusCondition(&haSecrets.Status.Conditions, metav1.Condition{
-			Type:    conditionTypeReady,
-			Status:  metav1.ConditionFalse,
-			Reason:  reasonReconciliationFailed,
-			Message: fmt.Sprintf("Failed to collect secrets: %v", err),
+			Type:               conditionTypeReady,
+			Status:             metav1.ConditionFalse,
+			Reason:             reasonReconciliationFailed,
+			Message:            fmt.Sprintf("Failed to collect secrets: %v", err),
+			ObservedGeneration: haSecrets.Generation,
 		})
 		if statusErr := r.Status().Update(ctx, haSecrets); statusErr != nil {
 			log.Error(statusErr, "Failed to update status")
@@ -133,11 +137,13 @@ func (r *HomeAssistantSecretsReconciler) Reconcile(ctx context.Context, req ctrl
 	// Create or update the generated Secret
 	if err := r.reconcileGeneratedSecret(ctx, haSecrets, secretsYaml, hash); err != nil {
 		log.Error(err, "Failed to reconcile generated secret")
+		haSecrets.Status.ObservedGeneration = haSecrets.Generation
 		meta.SetStatusCondition(&haSecrets.Status.Conditions, metav1.Condition{
-			Type:    conditionTypeReady,
-			Status:  metav1.ConditionFalse,
-			Reason:  reasonReconciliationFailed,
-			Message: fmt.Sprintf("Failed to create/update generated secret: %v", err),
+			Type:               conditionTypeReady,
+			Status:             metav1.ConditionFalse,
+			Reason:             reasonReconciliationFailed,
+			Message:            fmt.Sprintf("Failed to create/update generated secret: %v", err),
+			ObservedGeneration: haSecrets.Generation,
 		})
 		if statusErr := r.Status().Update(ctx, haSecrets); statusErr != nil {
 			log.Error(statusErr, "Failed to update status")
@@ -157,11 +163,13 @@ func (r *HomeAssistantSecretsReconciler) Reconcile(ctx context.Context, req ctrl
 	now := metav1.Now()
 	haSecrets.Status.SecretsHash = hash
 	haSecrets.Status.LastUpdated = &now
+	haSecrets.Status.ObservedGeneration = haSecrets.Generation
 	meta.SetStatusCondition(&haSecrets.Status.Conditions, metav1.Condition{
-		Type:    conditionTypeReady,
-		Status:  metav1.ConditionTrue,
-		Reason:  reasonSecretsGenerated,
-		Message: "Secrets successfully generated",
+		Type:               conditionTypeReady,
+		Status:             metav1.ConditionTrue,
+		Reason:             reasonSecretsGenerated,
+		Message:            "Secrets successfully generated",
+		ObservedGeneration: haSecrets.Generation,
 	})
 
 	if err := r.Status().Update(ctx, haSecrets); err != nil {

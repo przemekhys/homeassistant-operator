@@ -270,6 +270,11 @@ func (r *HomeAssistantAreaReconciler) setCondition(
 		ObservedGeneration: area.Generation,
 	})
 	area.Status.ObservedGeneration = area.Generation
+	if status == metav1.ConditionFalse {
+		area.Status.LastError = message
+	} else {
+		area.Status.LastError = ""
+	}
 
 	if err := r.Status().Update(ctx, area); err != nil {
 		return ctrl.Result{}, err

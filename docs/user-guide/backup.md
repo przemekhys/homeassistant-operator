@@ -6,7 +6,7 @@ HA stores backup archives in `/config/backups/` on the PVC. For off-site storage
 
 ## Prerequisites
 
-Backup configuration requires a bootstrap API token. Enable `spec.bootstrap` with `createAPIToken: true` before enabling backup.
+Backup configuration requires a bootstrap API token. Enable `spec.bootstrap` with `createApiToken: true` before enabling backup.
 
 ## Example
 
@@ -24,7 +24,7 @@ spec:
     credentials:
       secretRef:
         name: ha-admin
-    createAPIToken: true
+    createApiToken: true
   backup:
     enabled: true
     recurrence: daily

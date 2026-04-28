@@ -45,7 +45,6 @@ const (
 	integrationFinalizerName = "ha.homeassistant.io/integration-finalizer"
 
 	// Condition types and reasons for HomeAssistantIntegration
-	conditionTypeIntegrationReady      = "Ready"
 	reasonIntegrationConfigured        = "IntegrationConfigured"
 	reasonAlreadyConfigured            = "AlreadyConfigured"
 	reasonIntegrationHANotReady        = "HANotReady"
@@ -96,6 +95,9 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 		}
 		return ctrl.Result{}, err
 	}
+
+	// Remove legacy condition type from before the Ready rename (one-time migration).
+	meta.RemoveStatusCondition(&integration.Status.Conditions, "IntegrationReady")
 
 	// --- DELETION ---
 	if !integration.DeletionTimestamp.IsZero() {
@@ -481,8 +483,9 @@ func (r *HomeAssistantIntegrationReconciler) setReadyCondition(
 	log := logf.FromContext(ctx)
 	integration.Status.ConfigHash = configHash
 	integration.Status.ObservedGeneration = integration.Generation
+	integration.Status.LastError = ""
 	meta.SetStatusCondition(&integration.Status.Conditions, metav1.Condition{
-		Type:               conditionTypeIntegrationReady,
+		Type:               conditionTypeReady,
 		Status:             metav1.ConditionTrue,
 		Reason:             reason,
 		Message:            message,
@@ -504,8 +507,9 @@ func (r *HomeAssistantIntegrationReconciler) setFailedCondition(
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	integration.Status.ObservedGeneration = integration.Generation
+	integration.Status.LastError = message
 	meta.SetStatusCondition(&integration.Status.Conditions, metav1.Condition{
-		Type:               conditionTypeIntegrationReady,
+		Type:               conditionTypeReady,
 		Status:             metav1.ConditionFalse,
 		Reason:             reason,
 		Message:            message,

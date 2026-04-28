@@ -373,42 +373,6 @@ func (r *HomeAssistantConfigurationReconciler) SetupWithManager(mgr ctrl.Manager
 		Complete(r)
 }
 
-// getAPIToken retrieves the API token from the bootstrap-created Secret
-func (r *HomeAssistantConfigurationReconciler) getAPIToken(
-	ctx context.Context,
-	ha *hav1alpha1.HomeAssistant,
-) (string, error) {
-	log := logf.FromContext(ctx)
-
-	// Determine token secret name
-	tokenSecretName := ha.Name + "-homeassistant-api-token"
-	if ha.Status.Bootstrap != nil && ha.Status.Bootstrap.APITokenSecretName != "" {
-		tokenSecretName = ha.Status.Bootstrap.APITokenSecretName
-	}
-
-	tokenSecret := &corev1.Secret{}
-	err := r.Get(ctx, types.NamespacedName{
-		Name:      tokenSecretName,
-		Namespace: ha.Namespace,
-	}, tokenSecret)
-
-	if err != nil {
-		if errors.IsNotFound(err) {
-			log.V(1).Info("API token secret not found, cannot perform hot-reload", "secret", tokenSecretName)
-			return "", err
-		}
-		return "", err
-	}
-
-	tokenBytes, ok := tokenSecret.Data["token"]
-	if !ok {
-		log.Error(fmt.Errorf("missing token key"), "API token secret missing key", "secret", tokenSecretName)
-		return "", fmt.Errorf("API token secret missing key 'token'")
-	}
-
-	return string(tokenBytes), nil
-}
-
 // needsRestart analyzes configuration changes and determines if restart is required
 // Returns true if restart is needed, false if hot-reload is safe
 func needsRestart(oldConfig, newConfig string) (bool, error) {
@@ -672,7 +636,7 @@ func (r *HomeAssistantConfigurationReconciler) performConfigReload(
 	}
 
 	// Get API token for hot-reload attempts
-	token, tokenErr := r.getAPIToken(ctx, ha)
+	token, tokenErr := getAPIToken(ctx, r.Client, ha)
 
 	// Build Home Assistant URL
 	haURL := r.buildHomeAssistantURL(ha)

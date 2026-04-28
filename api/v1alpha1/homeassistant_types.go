@@ -134,7 +134,7 @@ type BootstrapSpec struct {
 	// The token is valid for 10 years and stored in a Secret
 	// +kubebuilder:default=true
 	// +optional
-	CreateAPIToken bool `json:"createAPIToken,omitempty"`
+	CreateAPIToken bool `json:"createApiToken,omitempty"`
 
 	// APITokenSecretName is the name of the Secret where the API token will be stored
 	// The Secret will have a "token" key containing the long-lived access token

@@ -232,6 +232,11 @@ func (r *HomeAssistantLabelReconciler) setCondition(
 		ObservedGeneration: label.Generation,
 	})
 	label.Status.ObservedGeneration = label.Generation
+	if status == metav1.ConditionFalse {
+		label.Status.LastError = message
+	} else {
+		label.Status.LastError = ""
+	}
 
 	if err := r.Status().Update(ctx, label); err != nil {
 		return ctrl.Result{}, err

@@ -79,7 +79,7 @@ spec:
                 - name
                 type: object
               http:
-                description: Http component configuration (optional typed section)
+                description: HTTP component configuration (optional typed section)
                 properties:
                   corsDomains:
                     description: CorsDomains is a list of allowed CORS origins
@@ -111,7 +111,7 @@ spec:
                     type: object
                 type: object
               mqtt:
-                description: Mqtt component configuration (optional typed section)
+                description: MQTT component configuration (optional typed section)
                 properties:
                   broker:
                     description: Broker is the MQTT broker address (e.g., "mqtt://localhost:1883")
