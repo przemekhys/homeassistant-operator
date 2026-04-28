@@ -132,7 +132,7 @@ func getAPIToken(
 	if ha.Status.Bootstrap != nil && ha.Status.Bootstrap.APITokenSecretName != "" {
 		tokenSecretName = ha.Status.Bootstrap.APITokenSecretName
 	} else {
-		log.V(1).Info("Bootstrap status not set, using default token secret name", "secret", tokenSecretName)
+		log.V(1).Info("Bootstrap API token secret name not set, using default token secret name", "secret", tokenSecretName)
 	}
 
 	tokenSecret := &corev1.Secret{}
