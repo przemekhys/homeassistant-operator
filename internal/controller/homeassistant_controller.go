@@ -894,11 +894,13 @@ func (r *HomeAssistantReconciler) updateStatusFromStatefulSet(
 		ha.Status.Ready = false
 
 		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
-			Type:               conditionTypeReady,
-			Status:             metav1.ConditionFalse,
-			Reason:             "StatefulSetNotReady",
-			Message: fmt.Sprintf("Waiting for StatefulSet to be ready (%d/%d)",
-					sts.Status.ReadyReplicas, sts.Status.Replicas),
+			Type:   conditionTypeReady,
+			Status: metav1.ConditionFalse,
+			Reason: "StatefulSetNotReady",
+			Message: fmt.Sprintf(
+				"Waiting for StatefulSet to be ready (%d/%d)",
+				sts.Status.ReadyReplicas, sts.Status.Replicas,
+			),
 			ObservedGeneration: ha.Generation,
 		})
 	}
