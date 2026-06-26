@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
-	github.com/onsi/ginkgo/v2 v2.31.0
+	github.com/onsi/ginkgo/v2 v2.32.0
 	github.com/onsi/gomega v1.42.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.36.2
