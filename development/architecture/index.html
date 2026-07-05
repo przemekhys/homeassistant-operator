@@ -1879,7 +1879,7 @@ Resources owned by <code>HomeAssistantSecrets</code>: the aggregated <code>Confi
 </code></pre></div>
 <p>Tests wire in an <code>httptest.Server</code> instead of a real HA instance, keeping unit tests fast and hermetic.</p>
 <h2 id="package-structure">Package structure<a class="headerlink" href="#package-structure" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>api/v1alpha1/          CRD type definitions (edit here, then make manifests generate)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>api/v1/          CRD type definitions (edit here, then make manifests generate)
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cmd/main.go            Entry point — registers all controllers
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>internal/
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  controller/          One reconciler per CRD

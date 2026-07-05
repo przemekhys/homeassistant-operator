@@ -1621,7 +1621,7 @@ Community contributions — bug reports, feature requests, and code — are very
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>make<span class="w"> </span>setup-envtest
 </code></pre></div>
 <h3 id="common-workflows">Common Workflows<a class="headerlink" href="#common-workflows" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># After modifying types in api/v1alpha1/*.go — always run this first</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># After modifying types in api/v1/*.go — always run this first</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>make<span class="w"> </span>manifests<span class="w"> </span>generate<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>fmt<span class="w"> </span>vet
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Run unit tests</span>
@@ -1695,8 +1695,8 @@ Community contributions — bug reports, feature requests, and code — are very
 </code></pre></div>
 <h2 id="adding-a-new-crd">Adding a New CRD<a class="headerlink" href="#adding-a-new-crd" title="Permanent link">&para;</a></h2>
 <ol>
-<li><code>kubebuilder create api --group ha --version v1alpha1 --kind YourResource</code></li>
-<li>Define types in <code>api/v1alpha1/yourresource_types.go</code></li>
+<li><code>kubebuilder create api --group ha --version v1 --kind YourResource</code></li>
+<li>Define types in <code>api/v1/yourresource_types.go</code></li>
 <li><code>make manifests generate &amp;&amp; make fmt vet</code></li>
 <li>Write unit tests in <code>internal/controller/yourresource_controller_test.go</code></li>
 <li>Implement <code>internal/controller/yourresource_controller.go</code></li>

@@ -801,6 +801,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ip-ban-self-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IP ban self-recovery
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IP ban self-recovery">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sliding-window-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sliding-window protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#status-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#deleting-an-instance" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1562,6 +1612,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ip-ban-self-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IP ban self-recovery
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="IP ban self-recovery">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sliding-window-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sliding-window protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#status-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#deleting-an-instance" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1650,7 +1750,7 @@
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <p>A <code>HomeAssistantConfiguration</code> CR with a matching <code>spec.homeAssistantRef.name</code> must exist before or alongside the <code>HomeAssistant</code> CR. Without it, the operator sets status to <code>WaitingForConfiguration</code> and requeues every 5 seconds.</p>
 <h2 id="minimal-example">Minimal example<a class="headerlink" href="#minimal-example" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1alpha1</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistantConfiguration</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">metadata</span><span class="p">:</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
@@ -1660,7 +1760,7 @@
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="nt">configuration</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="no">default_config:</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="nn">---</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1alpha1</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1</span>
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistant</span>
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="nt">metadata</span><span class="p">:</span>
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
@@ -1748,14 +1848,53 @@
 <a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    Status:  True
 <a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>  Bootstrap:
 <a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>    Completed:       true
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>    Api Token Ready: true
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>    API Token Ready: true
 </code></pre></div></p>
+<h2 id="ip-ban-self-recovery">IP ban self-recovery<a class="headerlink" href="#ip-ban-self-recovery" title="Permanent link">&para;</a></h2>
+<p>When Home Assistant has <code>ip_ban_enabled: true</code>, it can ban the operator's own IP after repeated failed logins (HTTP <code>403</code>) — for example during bootstrap retries. A banned operator can no longer reach the HA API, which would normally require manual editing of <code>/config/ip_bans.yaml</code>. The operator recovers from this automatically, <strong>without</strong> needing the <code>pods/exec</code> RBAC permission.</p>
+<h3 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
+<ol>
+<li>The operator detects it is banned (HTTP <code>403</code> from HA).</li>
+<li>It deletes the HA pod. The <code>StatefulSet</code> recreates it with an <code>unban-operator-ip</code> init-container (reusing the HA image already cached on the node).</li>
+<li>The init-container removes the operator's IP from <code>/config/ip_bans.yaml</code> <strong>before</strong> HA starts, then HA comes up unbanned.</li>
+</ol>
+<p>The operator's IP is passed to the pod via the <code>&lt;ha-name&gt;-operator-ip</code> ConfigMap, sourced from the <code>POD_IP</code> downward-API environment variable on the operator Deployment (set by default in the Helm chart).</p>
+<h3 id="sliding-window-protection">Sliding-window protection<a class="headerlink" href="#sliding-window-protection" title="Permanent link">&para;</a></h3>
+<p>To avoid a restart loop, recovery is rate-limited:</p>
+<ul>
+<li>At most <strong>3 pod restarts</strong> within a <strong>30-minute</strong> window.</li>
+<li>A minimum <strong>5-minute cooldown</strong> between consecutive restarts.</li>
+<li>The window resets automatically after 30 minutes <strong>or</strong> on the first successful HA connection.</li>
+</ul>
+<p>Once the limit is exceeded the operator stops restarting and sets the <code>BanRecoveryFailed=True</code> condition, requiring manual intervention:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>kubectl<span class="w"> </span>describe<span class="w"> </span>ha<span class="w"> </span>home<span class="w">   </span><span class="c1"># look for the BanRecoveryFailed condition</span>
+</code></pre></div>
+<p>Manual recovery: remove the operator's IP from <code>/config/ip_bans.yaml</code> on the PVC and restart the pod (<code>kubectl delete pod home-0</code>).</p>
+<h3 id="status-fields">Status fields<a class="headerlink" href="#status-fields" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>status.selfUnbanCount</code></td>
+<td>Total number of self-unban restarts performed.</td>
+</tr>
+<tr>
+<td><code>status.lastSelfUnban</code></td>
+<td>Timestamp of the most recent self-unban.</td>
+</tr>
+</tbody>
+</table>
 <h2 id="deleting-an-instance">Deleting an instance<a class="headerlink" href="#deleting-an-instance" title="Permanent link">&para;</a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>The PVC is <strong>not</strong> deleted automatically when the <code>HomeAssistant</code> CR is removed — this protects your HA configuration data. Delete the PVC manually if you want a clean teardown:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>ha<span class="w"> </span>home
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>pvc<span class="w"> </span>home-config<span class="w">   </span><span class="c1"># name: &lt;ha-name&gt;-config</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>ha<span class="w"> </span>home
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>pvc<span class="w"> </span>home-config<span class="w">   </span><span class="c1"># name: &lt;ha-name&gt;-config</span>
 </code></pre></div></p>
 </div>
 

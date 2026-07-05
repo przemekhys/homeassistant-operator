@@ -552,6 +552,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#restrict-watched-namespaces-watchnamespaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Restrict watched namespaces (watchNamespaces)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#upgrade" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1398,6 +1409,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#restrict-watched-namespaces-watchnamespaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Restrict watched namespaces (watchNamespaces)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#upgrade" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1550,31 +1572,77 @@
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span>--create-namespace<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span>-f<span class="w"> </span>values.yaml
 </code></pre></div>
+<h3 id="restrict-watched-namespaces-watchnamespaces">Restrict watched namespaces (<code>watchNamespaces</code>)<a class="headerlink" href="#restrict-watched-namespaces-watchnamespaces" title="Permanent link">&para;</a></h3>
+<p>By default the operator watches <strong>all</strong> namespaces in the cluster, which requires a cluster-wide <code>ClusterRoleBinding</code>. To follow the principle of least privilege, set <code>watchNamespaces</code> to the list of namespaces where Home Assistant actually runs:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># values.yaml</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">watchNamespaces</span><span class="p">:</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">homeassistant</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">homeassistant-dev</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th><code>watchNamespaces</code></th>
+<th>RBAC generated</th>
+<th>Scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cluster-wide (default)</td>
+<td><code>[]</code></td>
+<td><code>ClusterRoleBinding</code></td>
+<td>All namespaces</td>
+</tr>
+<tr>
+<td>Namespace-scoped</td>
+<td>non-empty list</td>
+<td>one <code>RoleBinding</code> per listed namespace</td>
+<td>Only listed namespaces</td>
+</tr>
+</tbody>
+</table>
+<p>When set, the operator receives per-namespace <code>RoleBinding</code> objects instead of the <code>ClusterRoleBinding</code>, and the <code>WATCH_NAMESPACES</code> environment variable is injected automatically.</p>
+<div class="admonition warning">
+<p class="admonition-title">The operator's own namespace is not auto-included</p>
+<p>Add <code>homeassistant-operator-system</code> to the list explicitly if you deploy <code>HomeAssistant</code> resources into the same namespace as the operator itself.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">ClusterRoleBinding mode is deprecated</p>
+<p>The default <code>watchNamespaces: []</code> (cluster-wide) mode is <strong>deprecated since v1.1.0</strong> and planned for removal in <strong>v2.0.0</strong>. See <a href="https://github.com/przemekhys/homeassistant-operator/blob/main/DEPRECATIONS.md">DEPRECATIONS.md</a> for details.</p>
+</div>
+<p><strong>Migrating with kustomize</strong> (non-Helm users):</p>
+<ol>
+<li>Remove <code>config/rbac/role_binding.yaml</code> (the <code>ClusterRoleBinding</code>).</li>
+<li>Apply <code>config/rbac/watched_namespace_role_binding.yaml</code> in each watched namespace.</li>
+<li>Set the <code>WATCH_NAMESPACES</code> environment variable on the operator <code>Deployment</code>.</li>
+</ol>
 <h3 id="upgrade">Upgrade<a class="headerlink" href="#upgrade" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>homeassistant-operator<span class="w"> </span>oci://ghcr.io/przemekhys/charts/homeassistant-operator<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>--version<span class="w"> </span>&lt;new-version&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>--namespace<span class="w"> </span>homeassistant-operator-system
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>homeassistant-operator<span class="w"> </span>oci://ghcr.io/przemekhys/charts/homeassistant-operator<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>--version<span class="w"> </span>&lt;new-version&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--namespace<span class="w"> </span>homeassistant-operator-system
 </code></pre></div>
 <h3 id="uninstall-helm">Uninstall (Helm)<a class="headerlink" href="#uninstall-helm" title="Permanent link">&para;</a></h3>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Delete all custom resources <strong>before</strong> removing the operator. The operator must be running to process finalizers (automation/scene/script/integration cleanup). Deleting the operator first causes CRs with finalizers to hang indefinitely.</p>
 </div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># 1. Delete all custom resources (keep operator running to process finalizers)</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistants<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantconfigurations<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantsecrets<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantautomations<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantscenes<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantscripts<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantintegrations<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1"># 2. Uninstall the Helm release (removes the operator and CRDs)</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>helm<span class="w"> </span>uninstall<span class="w"> </span>homeassistant-operator<span class="w"> </span>-n<span class="w"> </span>homeassistant-operator-system
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># 1. Delete all custom resources (keep operator running to process finalizers)</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistants<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantconfigurations<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantsecrets<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantautomations<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantscenes<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantscripts<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantintegrations<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c1"># 2. Uninstall the Helm release (removes the operator and CRDs)</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>helm<span class="w"> </span>uninstall<span class="w"> </span>homeassistant-operator<span class="w"> </span>-n<span class="w"> </span>homeassistant-operator-system
 </code></pre></div>
 <h2 id="install-via-manifest">Install via manifest<a class="headerlink" href="#install-via-manifest" title="Permanent link">&para;</a></h2>
 <p>If you prefer a plain <code>kubectl apply</code> without Helm:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/przemekhys/homeassistant-operator/v0.10.0/dist/install.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/przemekhys/homeassistant-operator/v0.10.0/dist/install.yaml
 </code></pre></div>
 <p>This installs:</p>
 <ul>
@@ -1587,17 +1655,17 @@
 <p class="admonition-title">Warning</p>
 <p>Delete all custom resources <strong>before</strong> removing the operator (same reason as above).</p>
 </div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># 1. Delete all custom resources</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistants<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantconfigurations<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantsecrets<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantautomations<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantscenes<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantscripts<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantintegrations<span class="w"> </span>--all<span class="w"> </span>-A
-<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
-<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># 2. Remove the operator and CRDs</span>
-<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/przemekhys/homeassistant-operator/v0.10.0/dist/install.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># 1. Delete all custom resources</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistants<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantconfigurations<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantsecrets<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantautomations<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantscenes<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantscripts<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantintegrations<span class="w"> </span>--all<span class="w"> </span>-A
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="c1"># 2. Remove the operator and CRDs</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/przemekhys/homeassistant-operator/v0.10.0/dist/install.yaml
 </code></pre></div>
 
 

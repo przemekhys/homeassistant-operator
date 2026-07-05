@@ -475,17 +475,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#project-status" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Project Status
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -1368,17 +1357,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#project-status" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Project Status
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -1417,11 +1395,12 @@
 <a href="https://github.com/przemekhys/homeassistant-operator/actions/workflows/test.yml"><img alt="Tests" src="https://github.com/przemekhys/homeassistant-operator/actions/workflows/test.yml/badge.svg" /></a>
 <a href="https://github.com/przemekhys/homeassistant-operator/actions/workflows/test-e2e-parallel.yml"><img alt="E2E Tests" src="https://github.com/przemekhys/homeassistant-operator/actions/workflows/test-e2e-parallel.yml/badge.svg" /></a>
 <a href="https://github.com/przemekhys/homeassistant-operator/actions/workflows/security.yml"><img alt="Security Scan" src="https://github.com/przemekhys/homeassistant-operator/actions/workflows/security.yml/badge.svg" /></a>
-<a href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" /></a></p>
+<a href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" /></a>
+<a href="https://scorecard.dev/viewer/?uri=github.com/przemekhys/homeassistant-operator"><img alt="OpenSSF Scorecard" src="https://api.securityscorecards.dev/projects/github.com/przemekhys/homeassistant-operator/badge" /></a></p>
 <p>A Kubernetes operator that simplifies deploying and managing <a href="https://www.home-assistant.io/">Home Assistant</a> instances on Kubernetes clusters, with a primary focus on lightweight environments like k3s on Raspberry Pi.</p>
 <h2 id="what-is-it">What is it?<a class="headerlink" href="#what-is-it" title="Permanent link">&para;</a></h2>
 <p>The Home Assistant Operator automates the full lifecycle of Home Assistant on Kubernetes. Instead of managing Deployments, Services, PVCs and config files by hand, you declare the desired state in custom resources and the operator handles the rest — including zero-touch bootstrap, hot-reload of configuration changes, and declarative management of automations, scenes, scripts and integrations.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1alpha1</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistant</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">metadata</span><span class="p">:</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
@@ -1531,8 +1510,6 @@ a great middle ground between full GitOps and manual UI management.</p>
 </tr>
 </tbody>
 </table>
-<h2 id="project-status">Project Status<a class="headerlink" href="#project-status" title="Permanent link">&para;</a></h2>
-<p><strong>Alpha</strong> — APIs may change between minor versions until v1.0.0.</p>
 <p><a class="md-button md-button--primary" href="getting-started/installation/">Get started →</a>
 <a class="md-button" href="https://github.com/przemekhys/homeassistant-operator">View on GitHub →</a></p>
 
