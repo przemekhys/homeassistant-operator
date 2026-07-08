@@ -1204,6 +1204,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#alphaspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AlphaSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#automationaction" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1868,6 +1879,17 @@
     <span class="md-ellipsis">
       
         MQTTConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#networkpolicyalphaspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NetworkPolicyAlphaSpec
       
     </span>
   </a>
@@ -2301,6 +2323,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#alphaspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AlphaSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#automationaction" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2972,6 +3005,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#networkpolicyalphaspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NetworkPolicyAlphaSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#recorderconfig" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3194,6 +3238,30 @@
 <li><a href="#homeassistantsecrets">HomeAssistantSecrets</a></li>
 <li><a href="#homeassistantsecretslist">HomeAssistantSecretsList</a></li>
 </ul>
+<h4 id="alphaspec">AlphaSpec<a class="headerlink" href="#alphaspec" title="Permanent link">&para;</a></h4>
+<p>AlphaSpec groups experimental fields that are not yet stable enough for the
+top-level spec. See spec.alpha.* lifecycle: alpha (opt-in,
+default false) -&gt; stable default false -&gt; stable default true -&gt; mandatory.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantspec">HomeAssistantSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>networkPolicy</code> <em><a href="#networkpolicyalphaspec">NetworkPolicyAlphaSpec</a></em></td>
+<td>NetworkPolicy controls whether the operator creates a NetworkPolicy<br />restricting ingress to the Home Assistant pod.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
 <h4 id="automationaction">AutomationAction<a class="headerlink" href="#automationaction" title="Permanent link">&para;</a></h4>
 <p>AutomationAction defines an action to be executed by the automation
 This is a flexible structure that accepts any valid Home Assistant action configuration</p>
@@ -5450,6 +5518,12 @@ Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
+<tr>
+<td><code>alpha</code> <em><a href="#alphaspec">AlphaSpec</a></em></td>
+<td>Alpha groups experimental, unstable fields. Fields here may change or be<br />removed without a deprecation notice.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
 </tbody>
 </table>
 <h4 id="homeassistantstatus">HomeAssistantStatus<a class="headerlink" href="#homeassistantstatus" title="Permanent link">&para;</a></h4>
@@ -5833,6 +5907,29 @@ Exactly one of Value, JSONValue, or SecretKeyRef must be set.</p>
 <td><code>keepAlive</code> <em>integer</em></td>
 <td>KeepAlive defines MQTT keep-alive interval in seconds</td>
 <td>60</td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="networkpolicyalphaspec">NetworkPolicyAlphaSpec<a class="headerlink" href="#networkpolicyalphaspec" title="Permanent link">&para;</a></h4>
+<p>NetworkPolicyAlphaSpec configures the (alpha) NetworkPolicy created for the
+Home Assistant pod.</p>
+<p><em>Appears in:</em>
+- <a href="#alphaspec">AlphaSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code> <em>boolean</em></td>
+<td>Enabled controls whether the operator creates a NetworkPolicy for the<br />Home Assistant pod, restricting ingress to the operator's namespace and<br />the Home Assistant namespace on the Service port. Egress is left<br />unrestricted (Home Assistant needs broad, unpredictable egress to IoT<br />devices, cloud APIs, and MQTT brokers).<br />NetworkPolicy operates on pod IPs — it does not restrict traffic<br />arriving via the host network interface. Combining this with<br />spec.hostNetwork: true gives only partial isolation.<br />Deliberately without omitempty: this field represents explicit user<br />intent, and the spec.alpha lifecycle plans to flip its default to true<br />in a later phase — omitempty would let an explicit false be dropped and<br />silently re-defaulted to true by the API server once that happens.</td>
+<td>false</td>
 <td>Optional: {} <br /></td>
 </tr>
 </tbody>
