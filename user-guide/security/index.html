@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://przemekhys.github.io/homeassistant-operator/user-guide/backup/">
+        <link rel="canonical" href="https://przemekhys.github.io/homeassistant-operator/user-guide/security/">
       
       
-        <link rel="prev" href="../infrastructure/">
+        <link rel="prev" href="../backup/">
       
       
-        <link rel="next" href="../security/">
+        <link rel="next" href="../../ecosystem/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Backup - Home Assistant Operator</title>
+        <title>Security (Pod Security Standards) - Home Assistant Operator</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#backup" class="md-skip">
+        <a href="#security-pod-security-standards" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Backup
+              Security (Pod Security Standards)
             
           </span>
         </div>
@@ -872,6 +872,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -891,7 +919,7 @@
   <span class="md-ellipsis">
     
   
-    Backup
+    Security (Pod Security Standards)
   
 
     
@@ -909,7 +937,7 @@
   <span class="md-ellipsis">
     
   
-    Backup
+    Security (Pod Security Standards)
   
 
     
@@ -935,10 +963,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
+  <a href="#what-is-enforced" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prerequisites
+        What is enforced
       
     </span>
   </a>
@@ -946,10 +974,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
+  <a href="#scope-operator-only" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example
+        Scope: operator only
       
     </span>
   </a>
@@ -957,121 +985,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#spec-reference" class="md-nav__link">
+  <a href="#enforcement-with-helm" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Spec reference
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Spec reference">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#specbackupenabled" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        spec.backup.enabled
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#specbackuprecurrence" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        spec.backup.recurrence
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#specbackuptime" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        spec.backup.time
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#specbackupretentioncopies" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        spec.backup.retentionCopies
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#specbackupretentiondays" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        spec.backup.retentionDays
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#specbackupincludedatabase" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        spec.backup.includeDatabase
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#status" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Status
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Status">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#condition-reasons" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Condition reasons
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#idempotency" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Idempotency
+        Enforcement with Helm
       
     </span>
   </a>
@@ -1079,10 +996,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#off-site-backup-with-velero" class="md-nav__link">
+  <a href="#behavior-without-pod-security-admission" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Off-site backup with Velero
+        Behavior without Pod Security Admission
       
     </span>
   </a>
@@ -1090,10 +1007,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#restore" class="md-nav__link">
+  <a href="#verifying-compliance" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Restore
+        Verifying compliance
       
     </span>
   </a>
@@ -1104,34 +1021,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../security/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Security (Pod Security Standards)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -1634,10 +1523,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
+  <a href="#what-is-enforced" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prerequisites
+        What is enforced
       
     </span>
   </a>
@@ -1645,10 +1534,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
+  <a href="#scope-operator-only" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example
+        Scope: operator only
       
     </span>
   </a>
@@ -1656,121 +1545,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#spec-reference" class="md-nav__link">
+  <a href="#enforcement-with-helm" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Spec reference
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Spec reference">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#specbackupenabled" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        spec.backup.enabled
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#specbackuprecurrence" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        spec.backup.recurrence
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#specbackuptime" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        spec.backup.time
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#specbackupretentioncopies" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        spec.backup.retentionCopies
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#specbackupretentiondays" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        spec.backup.retentionDays
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#specbackupincludedatabase" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        spec.backup.includeDatabase
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#status" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Status
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Status">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#condition-reasons" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Condition reasons
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#idempotency" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Idempotency
+        Enforcement with Helm
       
     </span>
   </a>
@@ -1778,10 +1556,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#off-site-backup-with-velero" class="md-nav__link">
+  <a href="#behavior-without-pod-security-admission" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Off-site backup with Velero
+        Behavior without Pod Security Admission
       
     </span>
   </a>
@@ -1789,10 +1567,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#restore" class="md-nav__link">
+  <a href="#verifying-compliance" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Restore
+        Verifying compliance
       
     </span>
   </a>
@@ -1864,7 +1642,7 @@
 
 
   
-    <a href="https://github.com/przemekhys/homeassistant-operator/edit/main/docs/user-guide/backup.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/przemekhys/homeassistant-operator/edit/main/docs/user-guide/security.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1872,128 +1650,86 @@
   
 
 
-<h1 id="backup">Backup<a class="headerlink" href="#backup" title="Permanent link">&para;</a></h1>
-<p>The operator configures Home Assistant's <strong>built-in backup system</strong> by sending a <code>backup/config/update</code> WebSocket command. No separate CRD is needed — backup is a section of the <code>HomeAssistant</code> spec.</p>
-<p>HA stores backup archives in <code>/config/backups/</code> on the PVC. For off-site storage, use <a href="https://velero.io/">Velero</a> to snapshot the PVC to S3 or NFS.</p>
-<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
-<p>Backup configuration requires a bootstrap API token. Enable <code>spec.bootstrap</code> with <code>createApiToken: true</code> before enabling backup.</p>
-<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistant</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">metadata</span><span class="p">:</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2025.6&quot;</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="nt">storage</span><span class="p">:</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10Gi</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="nt">bootstrap</span><span class="p">:</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="nt">credentials</span><span class="p">:</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">      </span><span class="nt">secretRef</span><span class="p">:</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha-admin</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="nt">createApiToken</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">  </span><span class="nt">backup</span><span class="p">:</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">    </span><span class="nt">recurrence</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">daily</span>
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">    </span><span class="nt">time</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;03:00:00&quot;</span>
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span><span class="nt">retentionCopies</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7</span>
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">    </span><span class="nt">includeDatabase</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<h1 id="security-pod-security-standards">Security: Pod Security Standards<a class="headerlink" href="#security-pod-security-standards" title="Permanent link">&para;</a></h1>
+<p>The operator ships hardened to run under the <strong><code>restricted</code></strong> <a href="https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted">Pod Security
+Standard</a>
+— the strictest built-in profile — and its namespace is labeled to <strong>enforce</strong> that
+profile.</p>
+<h2 id="what-is-enforced">What is enforced<a class="headerlink" href="#what-is-enforced" title="Permanent link">&para;</a></h2>
+<p>The operator's own namespace (<code>homeassistant-operator-system</code> by default) carries the
+Pod Security Admission labels:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">pod-security.kubernetes.io/enforce</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">restricted</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">pod-security.kubernetes.io/enforce-version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">latest</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">pod-security.kubernetes.io/audit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">restricted</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nt">pod-security.kubernetes.io/audit-version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">latest</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nt">pod-security.kubernetes.io/warn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">restricted</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nt">pod-security.kubernetes.io/warn-version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">latest</span>
 </code></pre></div>
-<h2 id="spec-reference">Spec reference<a class="headerlink" href="#spec-reference" title="Permanent link">&para;</a></h2>
-<h3 id="specbackupenabled"><code>spec.backup.enabled</code><a class="headerlink" href="#specbackupenabled" title="Permanent link">&para;</a></h3>
-<p>Set to <code>true</code> to activate backup configuration. Default: <code>false</code>.</p>
-<p>When set back to <code>false</code> after being enabled, the operator clears the <code>BackupConfigured</code> status condition.</p>
-<h3 id="specbackuprecurrence"><code>spec.backup.recurrence</code><a class="headerlink" href="#specbackuprecurrence" title="Permanent link">&para;</a></h3>
-<p>How often to create a backup.</p>
-<table>
-<thead>
-<tr>
-<th>Value</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>daily</code></td>
-<td>Every day at <code>time</code></td>
-</tr>
-<tr>
-<td><code>mon</code> … <code>sun</code></td>
-<td>Specific day of the week</td>
-</tr>
-<tr>
-<td><code>never</code></td>
-<td>Disable scheduled backups (manual only)</td>
-</tr>
-</tbody>
-</table>
-<h3 id="specbackuptime"><code>spec.backup.time</code><a class="headerlink" href="#specbackuptime" title="Permanent link">&para;</a></h3>
-<p>Time of day in <code>HH:MM:SS</code> format (e.g. <code>"03:00:00"</code>). If empty, HA picks automatically.</p>
-<h3 id="specbackupretentioncopies"><code>spec.backup.retentionCopies</code><a class="headerlink" href="#specbackupretentioncopies" title="Permanent link">&para;</a></h3>
-<p>Number of backup archives to keep. Older ones are deleted automatically. If omitted, unlimited retention.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">backup</span><span class="p">:</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">retentionCopies</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7</span><span class="w">   </span><span class="c1"># keep last 7 backups</span>
+<p>The controller-manager pod already satisfies <code>restricted</code>:</p>
+<ul>
+<li>runs as a non-root user (<code>runAsNonRoot: true</code>),</li>
+<li><code>seccompProfile: RuntimeDefault</code>,</li>
+<li><code>allowPrivilegeEscalation: false</code>,</li>
+<li>all Linux capabilities dropped (<code>capabilities.drop: ["ALL"]</code>),</li>
+<li>no host namespaces, <code>hostPath</code> volumes, or host ports.</li>
+</ul>
+<p>Version <code>latest</code> means the namespace always applies the newest <code>restricted</code> rules and
+automatically tightens on cluster upgrades.</p>
+<h2 id="scope-operator-only">Scope: operator only<a class="headerlink" href="#scope-operator-only" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Home Assistant pods are out of scope</p>
+<p>This enforcement applies <strong>only to the operator's own workloads</strong>. Home Assistant
+pods run in their own namespaces and are deliberately <strong>not</strong> placed under
+<code>restricted</code>. Many Home Assistant setups need elevated privileges (for example
+<code>hostNetwork</code>, or access to USB/Zigbee devices), which <code>restricted</code> would block.</p>
+</div>
+<h2 id="enforcement-with-helm">Enforcement with Helm<a class="headerlink" href="#enforcement-with-helm" title="Permanent link">&para;</a></h2>
+<p>The Helm chart's operator pod is restricted-compliant out of the box (see
+<code>securityContext</code>/<code>podSecurityContext</code> in <code>values.yaml</code>). Namespace-level enforcement
+is <strong>opt-in</strong>, because Helm does not label the namespace it is installed into.</p>
+<p><strong>GitOps / <code>helm template</code> (recommended for enforcement).</strong> Set <code>namespace.create=true</code>
+so the chart renders a <code>Namespace</code> carrying the six <code>restricted</code> PSA labels. This works
+when the rendered manifests are applied directly — e.g. Argo CD, Flux, or a plain
+<code>helm template ... | kubectl apply -f -</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>helm<span class="w"> </span>template<span class="w"> </span>ha-operator<span class="w"> </span>oci://ghcr.io/przemekhys/charts/homeassistant-operator<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>--namespace<span class="w"> </span>homeassistant-operator-system<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--set<span class="w"> </span>namespace.create<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>-
 </code></pre></div>
-<h3 id="specbackupretentiondays"><code>spec.backup.retentionDays</code><a class="headerlink" href="#specbackupretentiondays" title="Permanent link">&para;</a></h3>
-<p>Number of days to keep backup archives. If omitted, unlimited retention.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">backup</span><span class="p">:</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">retentionDays</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span><span class="w">    </span><span class="c1"># keep backups for 30 days</span>
+<div class="admonition note">
+<p class="admonition-title">Direct <code>helm install</code> cannot create its own release namespace</p>
+<p>With <code>helm install</code>, Helm must store release state in the target namespace <em>before</em>
+it applies the chart, so the namespace has to exist first. Do <strong>not</strong> combine
+<code>namespace.create=true</code> with <code>--create-namespace</code> (the auto-created namespace
+collides with the chart's <code>Namespace</code> object). Instead, pre-create and label the
+namespace, then install with <code>namespace.create=false</code> (the default):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kubectl<span class="w"> </span>create<span class="w"> </span>namespace<span class="w"> </span>homeassistant-operator-system
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>kubectl<span class="w"> </span>label<span class="w"> </span>namespace<span class="w"> </span>homeassistant-operator-system<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>pod-security.kubernetes.io/enforce<span class="o">=</span>restricted<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>pod-security.kubernetes.io/enforce-version<span class="o">=</span>latest<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span>pod-security.kubernetes.io/audit<span class="o">=</span>restricted<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span>pod-security.kubernetes.io/audit-version<span class="o">=</span>latest<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span>pod-security.kubernetes.io/warn<span class="o">=</span>restricted<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span>pod-security.kubernetes.io/warn-version<span class="o">=</span>latest
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>helm<span class="w"> </span>install<span class="w"> </span>ha-operator<span class="w"> </span>oci://ghcr.io/przemekhys/charts/homeassistant-operator<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span>--namespace<span class="w"> </span>homeassistant-operator-system
 </code></pre></div>
-<p><code>retentionCopies</code> and <code>retentionDays</code> can be combined — HA applies whichever limit is reached first.</p>
-<h3 id="specbackupincludedatabase"><code>spec.backup.includeDatabase</code><a class="headerlink" href="#specbackupincludedatabase" title="Permanent link">&para;</a></h3>
-<p>Whether to include the HA database (<code>home-assistant_v2.db</code>) in the backup. Default: <code>true</code>.</p>
-<p>Excluding the database significantly reduces backup size but means you lose history data on restore.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">backup</span><span class="p">:</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">includeDatabase</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w">   </span><span class="c1"># config-only backup, smaller files</span>
+</div>
+<p>The operator pod stays restricted-compliant in every case; only the namespace-level
+enforcement differs.</p>
+<h2 id="behavior-without-pod-security-admission">Behavior without Pod Security Admission<a class="headerlink" href="#behavior-without-pod-security-admission" title="Permanent link">&para;</a></h2>
+<p>Pod Security Admission is a cluster feature. On clusters where it is disabled (or that
+predate it), the labels are <strong>inert</strong> — they never block installation. The pod's
+<code>securityContext</code> remains compliant, so enforcement takes effect immediately once PSA
+is enabled.</p>
+<h2 id="verifying-compliance">Verifying compliance<a class="headerlink" href="#verifying-compliance" title="Permanent link">&para;</a></h2>
+<p>A static check validates that the rendered manifests keep satisfying <code>restricted</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>make<span class="w"> </span>verify-pss
 </code></pre></div>
-<h2 id="status">Status<a class="headerlink" href="#status" title="Permanent link">&para;</a></h2>
-<p><div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>ha<span class="w"> </span>home<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.status.conditions}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.[] | select(.type==&quot;BackupConfigured&quot;)&#39;</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BackupConfigured&quot;</span><span class="p">,</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;True&quot;</span><span class="p">,</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="nt">&quot;reason&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BackupConfigured&quot;</span><span class="p">,</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">&quot;message&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Backup configuration applied successfully&quot;</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="p">}</span>
-</code></pre></div></p>
-<h3 id="condition-reasons">Condition reasons<a class="headerlink" href="#condition-reasons" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Reason</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>BackupConfigured</code></td>
-<td>Schedule applied in HA</td>
-</tr>
-<tr>
-<td><code>BackupConfigFailed</code></td>
-<td>WebSocket command returned an error</td>
-</tr>
-<tr>
-<td><code>TokenNotAvailable</code></td>
-<td>Bootstrap token not ready; requeuing</td>
-</tr>
-</tbody>
-</table>
-<h2 id="idempotency">Idempotency<a class="headerlink" href="#idempotency" title="Permanent link">&para;</a></h2>
-<p>The operator reads the current backup config from HA (<code>backup/config/info</code>) before writing. It only sends <code>backup/config/update</code> if the desired state differs from the actual state — no unnecessary WebSocket calls on every reconcile.</p>
-<h2 id="off-site-backup-with-velero">Off-site backup with Velero<a class="headerlink" href="#off-site-backup-with-velero" title="Permanent link">&para;</a></h2>
-<p>HA backups on the PVC are only as durable as the underlying storage. For cloud-native durability, snapshot the PVC with Velero:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Install Velero with AWS S3 backend</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>velero<span class="w"> </span>install<span class="w"> </span>--provider<span class="w"> </span>aws<span class="w"> </span>--bucket<span class="w"> </span>my-ha-backups<span class="w"> </span>...
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Schedule PVC snapshot</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>velero<span class="w"> </span>schedule<span class="w"> </span>create<span class="w"> </span>ha-daily<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">  </span>--schedule<span class="o">=</span><span class="s2">&quot;0 4 * * *&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">  </span>--include-namespaces<span class="w"> </span>default<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">  </span>--selector<span class="w"> </span><span class="nv">app</span><span class="o">=</span>home
-</code></pre></div>
-<h2 id="restore">Restore<a class="headerlink" href="#restore" title="Permanent link">&para;</a></h2>
-<p>Restore is performed manually through the HA UI (<code>Settings → System → Backups</code>). The operator does not automate restore operations.</p>
+<p>It renders <strong>both</strong> shipped install paths — <code>kustomize build config/default</code> and
+<code>helm template ... --set namespace.create=true</code> — and fails (non-zero exit) if any
+required PSA namespace label or <code>securityContext</code> field is missing or non-compliant.
+The same check runs in CI (the <code>Security Scan</code> workflow), so a regression on either
+path is caught before release.</p>
 
 
 

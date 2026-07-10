@@ -893,6 +893,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security (Pod Security Standards)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1275,6 +1303,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1304,7 +1343,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#security" class="md-nav__link">
+  <a href="#security_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Security
@@ -1460,7 +1499,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#security_1" class="md-nav__link">
+  <a href="#security_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Security
@@ -2114,6 +2153,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2143,7 +2193,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#security" class="md-nav__link">
+  <a href="#security_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Security
@@ -2299,7 +2349,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#security_1" class="md-nav__link">
+  <a href="#security_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Security
@@ -2825,6 +2875,10 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <ul>
 <li><strong>Opt-in NetworkPolicy for the Home Assistant pod (alpha)</strong> — new <code>spec.alpha.networkPolicy.enabled</code> field (default <code>false</code>). When enabled, the operator creates a <code>NetworkPolicy</code> that restricts ingress to the HA pod to the same namespace and the operator's own namespace on the Service port, while leaving egress unrestricted (HA needs broad, unpredictable egress to IoT devices, cloud APIs, and MQTT brokers). The operator only manages <code>NetworkPolicy</code> objects it owns (via controller reference), so a pre-existing policy of the same name is left untouched. The operator-namespace ingress peer is added only when the controller knows its own namespace via the <code>OPERATOR_NAMESPACE</code> env var (set by the shipped manifests); otherwise it is omitted with a warning. Being an <code>spec.alpha</code> feature, it is off by default and may change or be removed without a deprecation notice.</li>
 </ul>
+<h3 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Restricted Pod Security Standard enforced on the operator namespace</strong> — the shipped manifests now label the operator's own namespace with <code>pod-security.kubernetes.io/{enforce,audit,warn}=restricted</code> (version <code>latest</code>), so the controller-manager pod runs under and is enforced at the strictest Pod Security profile. The pod's <code>securityContext</code> already satisfied <code>restricted</code> (runs as non-root, <code>seccompProfile: RuntimeDefault</code>, <code>allowPrivilegeEscalation: false</code>, all capabilities dropped); this change adds enforcement plus a <code>make verify-pss</code> CI check — covering <strong>both</strong> the Kustomize (<code>config/default</code>) and Helm render paths — that fails if either regresses. For Helm, enforcement is opt-in via the new <code>namespace.create=true</code> value (install without <code>--create-namespace</code> so the chart owns and labels the namespace); the operator pod is restricted-compliant regardless. Scope is the <strong>operator only</strong> — Home Assistant workload pods run in their own namespaces and are unaffected (they often need elevated privileges such as <code>hostNetwork</code> or USB/Zigbee device access that <code>restricted</code> would block). On clusters without Pod Security Admission the labels are inert, so installation never fails.</li>
+</ul>
 <h2 id="v110-2026-07-05"><a href="https://github.com/przemekhys/homeassistant-operator/compare/v1.0.1...v1.1.0">v1.1.0</a> - 2026-07-05<a class="headerlink" href="#v110-2026-07-05" title="Permanent link">&para;</a></h2>
 <h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2835,7 +2889,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <p><strong>IP ban self-recovery via init-container</strong> — when the operator's IP is banned by Home Assistant (HTTP 403), the operator now deletes the HA pod so it restarts with a new <code>unban-operator-ip</code> init-container. The init-container (using the same HA image already cached on the node) runs an idempotent Python script that removes the operator's IP from <code>/config/ip_bans.yaml</code> before HA starts. No <code>pods/exec</code> RBAC permission needed. Sliding window protection: at most 3 pod restarts within 30 minutes; once the limit is reached the <code>BanRecoveryFailed=True</code> condition is set and manual intervention is required. The window resets automatically on a successful HA connection. Requires the <code>POD_IP</code> downward-API env var on the operator Deployment (set by default in the Helm chart).</p>
 </li>
 </ul>
-<h3 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h3>
+<h3 id="security_1">Security<a class="headerlink" href="#security_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>
 <p><strong>Removed <code>pods/exec</code> RBAC permission</strong> — the operator no longer requires <code>create</code> on <code>pods/exec</code>. The unban flow uses pod deletion + init-container instead of exec-into-pod. Run <code>make manifests</code> to regenerate <code>config/rbac/role.yaml</code>.</p>
@@ -2918,7 +2972,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <blockquote>
 <p><strong>This release is yanked.</strong> The Helm chart OCI artifact overwrote the Docker image tag — installing via <code>helm install</code> pulled a Helm chart manifest instead of a runnable container image, causing pods to fail with <code>/manager: no such file or directory</code>. Use v0.10.1 instead.</p>
 </blockquote>
-<h3 id="security_1">Security<a class="headerlink" href="#security_1" title="Permanent link">&para;</a></h3>
+<h3 id="security_2">Security<a class="headerlink" href="#security_2" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>CVE-2026-33186</strong> — upgraded <code>google.golang.org/grpc</code> v1.78.0 → v1.80.0 (fixes gRPC-Go authorization bypass via malformed HTTP/2 <code>:path</code> pseudo-header; operator does not expose a gRPC server so not directly exploitable, but upgraded as a precaution).</li>
 <li><strong>CVE-2026-39883</strong> — upgraded <code>go.opentelemetry.io/otel</code> v1.40.0 → v1.43.0 (fixes OpenTelemetry-Go path traversal via untrusted <code>kenv</code> search path on BSD/Solaris; not exploitable on Linux, upgraded as a precaution).</li>
