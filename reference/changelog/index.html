@@ -921,6 +921,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/upgrade/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upgrade
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2873,11 +2901,21 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <h2 id="unreleased"><a href="https://github.com/przemekhys/homeassistant-operator/compare/v1.1.0...HEAD">Unreleased</a><a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Opt-in NetworkPolicy for the Home Assistant pod (alpha)</strong> — new <code>spec.alpha.networkPolicy.enabled</code> field (default <code>false</code>). When enabled, the operator creates a <code>NetworkPolicy</code> that restricts ingress to the HA pod to the same namespace and the operator's own namespace on the Service port, while leaving egress unrestricted (HA needs broad, unpredictable egress to IoT devices, cloud APIs, and MQTT brokers). The operator only manages <code>NetworkPolicy</code> objects it owns (via controller reference), so a pre-existing policy of the same name is left untouched. The operator-namespace ingress peer is added only when the controller knows its own namespace via the <code>OPERATOR_NAMESPACE</code> env var (set by the shipped manifests); otherwise it is omitted with a warning. Being an <code>spec.alpha</code> feature, it is off by default and may change or be removed without a deprecation notice.</li>
+<li><strong>Helm chart is now generated from a single source of truth</strong> — the chart's static parts (all 10 CRDs and the operator RBAC rules) are generated from the authoritative Kustomize sources under <code>config/</code> via <code>make helm-sync</code>, so the Helm and Kustomize install paths can no longer physically drift. New CI gates (<code>make helm-verify</code>) block a PR that leaves the chart out of sync (<code>verify-chart-sync</code>), that lets the two render paths diverge on RBAC / securityContext / PSA labels (<code>verify-equivalence</code>), or that broadens the operator's RBAC versus the previous release without an explicit justification in <code>hack/rbac-allowlist.txt</code> (<code>verify-rbac-upgrade</code>, enforcing the minimal-RBAC principle).</li>
+<li><strong>Helm chart test layers</strong> — the chart now ships with <code>values.schema.json</code> (install-time validation of <code>values.yaml</code> types/enums), <code>helm-unittest</code> template unit tests under <code>charts/homeassistant-operator/tests/</code>, an auto-generated parameter table in <code>README.md</code> via <code>helm-docs</code> (with a CI drift gate), a k3d end-to-end job covering a fresh install <strong>and</strong> an upgrade from the previous release (N-1 → latest, including the explicit CRD apply step), and a post-publish smoke test that installs the exact published OCI artifact and, on failure, raises a maintainer alert and marks the release "needs verification" without yanking the artifact. See the new <code>.github/workflows/test-helm.yml</code> and the <code>##@ Helm</code> targets in the Makefile.</li>
+<li><strong>Upgrade documentation</strong> — a new <a href="https://przemekhys.github.io/homeassistant-operator/user-guide/upgrade/">Upgrade guide</a> documents fresh install and N-1 → latest upgrade with the exact <code>kubectl apply -f .../crds/</code> command, step ordering, and verification steps, so upgrading never requires guessing.</li>
 </ul>
 <h3 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Restricted Pod Security Standard enforced on the operator namespace</strong> — the shipped manifests now label the operator's own namespace with <code>pod-security.kubernetes.io/{enforce,audit,warn}=restricted</code> (version <code>latest</code>), so the controller-manager pod runs under and is enforced at the strictest Pod Security profile. The pod's <code>securityContext</code> already satisfied <code>restricted</code> (runs as non-root, <code>seccompProfile: RuntimeDefault</code>, <code>allowPrivilegeEscalation: false</code>, all capabilities dropped); this change adds enforcement plus a <code>make verify-pss</code> CI check — covering <strong>both</strong> the Kustomize (<code>config/default</code>) and Helm render paths — that fails if either regresses. For Helm, enforcement is opt-in via the new <code>namespace.create=true</code> value (install without <code>--create-namespace</code> so the chart owns and labels the namespace); the operator pod is restricted-compliant regardless. Scope is the <strong>operator only</strong> — Home Assistant workload pods run in their own namespaces and are unaffected (they often need elevated privileges such as <code>hostNetwork</code> or USB/Zigbee device access that <code>restricted</code> would block). On clusters without Pod Security Admission the labels are inert, so installation never fails.</li>
+<li>
+<p><strong>Hardened the operator container securityContext in the Kustomize path</strong> — <code>config/manager</code> now sets <code>readOnlyRootFilesystem: true</code>, <code>runAsUser: 65532</code>, and <code>runAsGroup: 65532</code> on the controller-manager container, matching the hardening the Helm chart already applied. This was surfaced by the new Kustomize↔Helm equivalence gate, which found the Kustomize install path shipped a weaker container securityContext than Helm.</p>
+</li>
+<li>
+<p><strong>Opt-in NetworkPolicy for the Home Assistant pod (alpha)</strong> — new <code>spec.alpha.networkPolicy.enabled</code> field (default <code>false</code>). When enabled, the operator creates a <code>NetworkPolicy</code> that restricts ingress to the HA pod to the same namespace and the operator's own namespace on the Service port, while leaving egress unrestricted (HA needs broad, unpredictable egress to IoT devices, cloud APIs, and MQTT brokers). The operator only manages <code>NetworkPolicy</code> objects it owns (via controller reference), so a pre-existing policy of the same name is left untouched. The operator-namespace ingress peer is added only when the controller knows its own namespace via the <code>OPERATOR_NAMESPACE</code> env var (set by the shipped manifests); otherwise it is omitted with a warning. Being an <code>spec.alpha</code> feature, it is off by default and may change or be removed without a deprecation notice.</p>
+</li>
+<li>
+<p><strong>Restricted Pod Security Standard enforced on the operator namespace</strong> — the shipped manifests now label the operator's own namespace with <code>pod-security.kubernetes.io/{enforce,audit,warn}=restricted</code> (version <code>latest</code>), so the controller-manager pod runs under and is enforced at the strictest Pod Security profile. The pod's <code>securityContext</code> already satisfied <code>restricted</code> (runs as non-root, <code>seccompProfile: RuntimeDefault</code>, <code>allowPrivilegeEscalation: false</code>, all capabilities dropped); this change adds enforcement plus a <code>make verify-pss</code> CI check — covering <strong>both</strong> the Kustomize (<code>config/default</code>) and Helm render paths — that fails if either regresses. For Helm, enforcement is opt-in via the new <code>namespace.create=true</code> value (install without <code>--create-namespace</code> so the chart owns and labels the namespace); the operator pod is restricted-compliant regardless. Scope is the <strong>operator only</strong> — Home Assistant workload pods run in their own namespaces and are unaffected (they often need elevated privileges such as <code>hostNetwork</code> or USB/Zigbee device access that <code>restricted</code> would block). On clusters without Pod Security Admission the labels are inert, so installation never fails.</p>
+</li>
 </ul>
 <h2 id="v110-2026-07-05"><a href="https://github.com/przemekhys/homeassistant-operator/compare/v1.0.1...v1.1.0">v1.1.0</a> - 2026-07-05<a class="headerlink" href="#v110-2026-07-05" title="Permanent link">&para;</a></h2>
 <h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
