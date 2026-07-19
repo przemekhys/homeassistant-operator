@@ -956,6 +956,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../user-guide/signed-releases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signed Releases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../user-guide/upgrade/" class="md-nav__link">
         
   
@@ -2940,6 +2968,9 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 </ul>
 <h3 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h3>
 <ul>
+<li>
+<p><strong>Signed releases (keyless, Sigstore/cosign)</strong> — starting with <strong>v1.2.0</strong>, the release pipeline signs the container image (full multi-arch manifest), the Helm chart OCI artifact, and a <code>checksums.txt</code> bundle attached to a newly-created GitHub Release for each version tag. Signing is <strong>keyless</strong>: it uses the release workflow's own GitHub Actions OIDC identity via Sigstore (Fulcio short-lived certificates + a public Rekor transparency-log entry) — no long-lived key is generated, stored, or rotated by the maintainer. Verification needs only public information; see the <a href="https://przemekhys.github.io/homeassistant-operator/user-guide/signed-releases/">Signed Releases guide</a> for the <code>cosign verify</code>/<code>verify-blob</code> commands and <code>hack/verify-signatures.sh</code> for a one-command local check. A sample Kyverno <code>ClusterPolicy</code> (<code>hack/kyverno/verify-homeassistant-operator-image.yaml</code>, tested via <code>kyverno test</code> in CI) lets cluster operators enforce this at admission time for the container image; this is entirely opt-in and does not change the default Helm chart install. Releases published before v1.2.0 are not signed.</p>
+</li>
 <li>
 <p><strong>Hardened the operator container securityContext in the Kustomize path</strong> — <code>config/manager</code> now sets <code>readOnlyRootFilesystem: true</code>, <code>runAsUser: 65532</code>, and <code>runAsGroup: 65532</code> on the controller-manager container, matching the hardening the Helm chart already applied. This was surfaced by the new Kustomize↔Helm equivalence gate, which found the Kustomize install path shipped a weaker container securityContext than Helm.</p>
 </li>

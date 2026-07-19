@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://przemekhys.github.io/homeassistant-operator/user-guide/tls/">
+        <link rel="canonical" href="https://przemekhys.github.io/homeassistant-operator/user-guide/signed-releases/">
       
       
-        <link rel="prev" href="../security/">
+        <link rel="prev" href="../tls/">
       
       
-        <link rel="next" href="../signed-releases/">
+        <link rel="next" href="../upgrade/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>TLS (cert-manager) - Home Assistant Operator</title>
+        <title>Signed Releases - Home Assistant Operator</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#tls-with-cert-manager" class="md-skip">
+        <a href="#signed-releases" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              TLS (cert-manager)
+              Signed Releases
             
           </span>
         </div>
@@ -928,6 +928,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../tls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TLS (cert-manager)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -947,7 +975,7 @@
   <span class="md-ellipsis">
     
   
-    TLS (cert-manager)
+    Signed Releases
   
 
     
@@ -965,7 +993,7 @@
   <span class="md-ellipsis">
     
   
-    TLS (cert-manager)
+    Signed Releases
   
 
     
@@ -991,10 +1019,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
+  <a href="#what-is-signed" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prerequisites
+        What is signed
       
     </span>
   </a>
@@ -1002,10 +1030,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-issuerref" class="md-nav__link">
+  <a href="#verify-the-container-image" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The issuerRef
+        Verify the container image
       
     </span>
   </a>
@@ -1013,10 +1041,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#native-tls-alpha" class="md-nav__link">
+  <a href="#verify-with-kyverno" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Native TLS (alpha)
+        Verify with Kyverno
       
     </span>
   </a>
@@ -1024,88 +1052,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ingress-api-gateway-exposure" class="md-nav__link">
+  <a href="#verify-the-helm-chart" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Ingress / API Gateway exposure
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Ingress / API Gateway exposure">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#ingress" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ingress
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#gateway-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Gateway API
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#webhook" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Webhook
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Webhook">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#self-managed-serving-certificate-default-no-cert-manager" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Self-managed serving certificate (default — no cert-manager)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#cert-manager-opt-in-override" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        cert-manager (opt-in override)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#status-conditions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Status conditions
+        Verify the Helm chart
       
     </span>
   </a>
@@ -1113,10 +1063,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#behavior-without-cert-manager" class="md-nav__link">
+  <a href="#scope-and-limitations" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Behavior without cert-manager
+        Scope and limitations
       
     </span>
   </a>
@@ -1127,34 +1077,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../signed-releases/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Signed Releases
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -1685,10 +1607,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
+  <a href="#what-is-signed" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prerequisites
+        What is signed
       
     </span>
   </a>
@@ -1696,10 +1618,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-issuerref" class="md-nav__link">
+  <a href="#verify-the-container-image" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The issuerRef
+        Verify the container image
       
     </span>
   </a>
@@ -1707,10 +1629,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#native-tls-alpha" class="md-nav__link">
+  <a href="#verify-with-kyverno" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Native TLS (alpha)
+        Verify with Kyverno
       
     </span>
   </a>
@@ -1718,88 +1640,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ingress-api-gateway-exposure" class="md-nav__link">
+  <a href="#verify-the-helm-chart" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Ingress / API Gateway exposure
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Ingress / API Gateway exposure">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#ingress" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ingress
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#gateway-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Gateway API
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#webhook" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Webhook
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Webhook">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#self-managed-serving-certificate-default-no-cert-manager" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Self-managed serving certificate (default — no cert-manager)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#cert-manager-opt-in-override" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        cert-manager (opt-in override)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#status-conditions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Status conditions
+        Verify the Helm chart
       
     </span>
   </a>
@@ -1807,10 +1651,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#behavior-without-cert-manager" class="md-nav__link">
+  <a href="#scope-and-limitations" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Behavior without cert-manager
+        Scope and limitations
       
     </span>
   </a>
@@ -1882,7 +1726,7 @@
 
 
   
-    <a href="https://github.com/przemekhys/homeassistant-operator/edit/main/docs/user-guide/tls.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/przemekhys/homeassistant-operator/edit/main/docs/user-guide/signed-releases.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1890,222 +1734,168 @@
   
 
 
-<h1 id="tls-with-cert-manager">TLS with cert-manager<a class="headerlink" href="#tls-with-cert-manager" title="Permanent link">&para;</a></h1>
-<p>The operator integrates with <a href="https://cert-manager.io/">cert-manager</a> to provision
-TLS certificates for three independent use cases:</p>
-<ul>
-<li><strong>Native TLS</strong> — Home Assistant serves HTTPS itself, on its existing port.</li>
-<li><strong>Ingress / API Gateway</strong> — the operator manages the edge routing and its certificate.</li>
-<li><strong>Webhook</strong> — the operator's validating admission webhook serves over TLS.</li>
-</ul>
+<h1 id="signed-releases">Signed Releases<a class="headerlink" href="#signed-releases" title="Permanent link">&para;</a></h1>
+<p>Starting with <strong>v1.2.0</strong>, every release artifact — the container image, the Helm
+chart OCI artifact, and a <code>checksums.txt</code> bundle attached to the GitHub Release —
+is cryptographically signed. Anyone can verify authenticity without contacting the
+maintainer, and Kubernetes cluster operators can enforce it automatically with
+Kyverno.</p>
 <div class="admonition info">
-<p class="admonition-title">cert-manager is an optional, external dependency</p>
-<p>Neither the operator nor its Helm chart ever installs cert-manager. You install
-it (and provide an <code>Issuer</code>/<code>ClusterIssuer</code>) yourself. If cert-manager is <strong>not</strong>
-present, native TLS and Ingress/API Gateway reconciliation degrade gracefully:
-the corresponding mode simply stays inactive and the resource reports a status
-condition — nothing fails or loops. A cert-manager installed <em>after</em> the
-operator is picked up automatically.</p>
-<p>This graceful degradation does <strong>not</strong> cover the webhook's cert-manager
-override (<code>--set webhook.certManager.enabled=true</code>): that path renders an
-<code>Issuer</code>/<code>Certificate</code> directly via Helm, which requires the cert-manager CRDs
-to exist at install time. Only enable it when cert-manager is already installed.</p>
+<p class="admonition-title">Releases before v1.2.0 are not signed</p>
+<p>Signing starts at v1.2.0. There is no retroactive signing of earlier releases —
+do not assume coverage for tags published before it.</p>
 </div>
-<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
-<ul>
-<li>cert-manager installed on the cluster.</li>
-<li>A ready <code>Issuer</code> or <code>ClusterIssuer</code>. The operator only <strong>references</strong> an issuer;
-  it never creates application issuers.</li>
-</ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Example: a self-signed ClusterIssuer for testing</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cert-manager.io/v1</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nt">metadata</span><span class="p">:</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="nt">selfSigned</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<h2 id="what-is-signed">What is signed<a class="headerlink" href="#what-is-signed" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Container image</td>
+<td>The multi-architecture (amd64/arm64) manifest list pushed to <code>ghcr.io/przemekhys/homeassistant-operator</code></td>
+</tr>
+<tr>
+<td>Helm chart</td>
+<td>The chart packaged and pushed as an OCI artifact to <code>oci://ghcr.io/przemekhys/charts/homeassistant-operator</code></td>
+</tr>
+<tr>
+<td><code>checksums.txt</code></td>
+<td>A text file listing the image and chart digests for the release, attached to the GitHub Release along with its own signature</td>
+</tr>
+</tbody>
+</table>
+<p>All three are signed <strong>keyless</strong>, using <a href="https://www.sigstore.dev/">Sigstore</a>/<code>cosign</code>,
+bound to this repository's own GitHub Actions release workflow identity. There is
+no long-lived signing key anywhere — the maintainer never generates, stores, or
+rotates one. Each signature is backed by a short-lived certificate from Sigstore's
+Fulcio and a public transparency-log entry in Rekor, which is what the verification
+commands below check against.</p>
+<h2 id="verify-the-container-image">Verify the container image<a class="headerlink" href="#verify-the-container-image" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nv">IMAGE</span><span class="o">=</span>ghcr.io/przemekhys/homeassistant-operator
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nv">DIGEST</span><span class="o">=</span><span class="k">$(</span>crane<span class="w"> </span>digest<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$IMAGE</span><span class="s2">:v1.2.0&quot;</span><span class="k">)</span><span class="w">   </span><span class="c1"># or read it from checksums.txt</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>cosign<span class="w"> </span>verify<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span>--certificate-identity-regexp<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="s1">&#39;https://github.com/przemekhys/homeassistant-operator/\.github/workflows/release\.yml@refs/tags/.*&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span>--certificate-oidc-issuer<span class="w"> </span>https://token.actions.githubusercontent.com<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="s2">&quot;</span><span class="nv">$IMAGE</span><span class="s2">@</span><span class="nv">$DIGEST</span><span class="s2">&quot;</span>
 </code></pre></div>
-<h2 id="the-issuerref">The <code>issuerRef</code><a class="headerlink" href="#the-issuerref" title="Permanent link">&para;</a></h2>
-<p>Every TLS mode references an issuer the same way. <code>kind</code> defaults to <code>Issuer</code>,
-<code>group</code> to <code>cert-manager.io</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">issuerRef</span><span class="p">:</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span><span class="w">   </span><span class="c1"># or Issuer (namespaced)</span>
+<p>To verify the whole <code>checksums.txt</code> bundle instead (covers the image and chart
+digests transitively in one check):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>gh<span class="w"> </span>release<span class="w"> </span>download<span class="w"> </span>v1.2.0<span class="w"> </span>-p<span class="w"> </span><span class="s1">&#39;checksums.txt*&#39;</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>cosign<span class="w"> </span>verify-blob<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--certificate<span class="w"> </span>checksums.txt.pem<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>--signature<span class="w"> </span>checksums.txt.sig<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span>--certificate-identity-regexp<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="s1">&#39;https://github.com/przemekhys/homeassistant-operator/\.github/workflows/release\.yml@refs/tags/.*&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span>--certificate-oidc-issuer<span class="w"> </span>https://token.actions.githubusercontent.com<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span>checksums.txt
 </code></pre></div>
 <div class="admonition tip">
-<p class="admonition-title">Bring your own certificate</p>
-<p>Each mode also accepts a <code>secretName</code> pointing at a TLS Secret you manage
-yourself. When set, it <strong>takes precedence over <code>issuerRef</code></strong> and the operator
-does not create a cert-manager <code>Certificate</code>.</p>
+<p class="admonition-title">Local reproduction</p>
+<p><a href="https://github.com/przemekhys/homeassistant-operator/blob/main/hack/verify-signatures.sh"><code>hack/verify-signatures.sh</code></a>
+runs these same checks (image, chart, checksums bundle) in one command:
+<code>hack/verify-signatures.sh v1.2.0</code>.</p>
 </div>
-<h2 id="native-tls-alpha">Native TLS (alpha)<a class="headerlink" href="#native-tls-alpha" title="Permanent link">&para;</a></h2>
-<p>Home Assistant terminates TLS itself, serving HTTPS on its existing port (<code>8123</code>) —
-no reverse proxy required. The operator provisions a certificate, mounts the Secret
-into the pod at <code>/config/ssl</code>, sets <code>http.ssl_certificate</code>/<code>ssl_key</code> in the generated
-configuration, and switches its own connection to Home Assistant to HTTPS (trusting
-the issued CA — certificate verification is never disabled).</p>
-<div class="admonition warning">
-<p class="admonition-title">This is an <code>spec.alpha</code> feature</p>
-<p>Native TLS changes how Home Assistant serves traffic and how the operator
-connects to it, so it lives under <code>spec.alpha</code> and is <strong>off by default</strong>. Alpha
-fields may change or be removed without a deprecation notice.</p>
-</div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistant</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">metadata</span><span class="p">:</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">alpha</span><span class="p">:</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="nt">tls</span><span class="p">:</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">      </span><span class="nt">native</span><span class="p">:</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">        </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">        </span><span class="nt">issuerRef</span><span class="p">:</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">          </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">          </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">        </span><span class="nt">dnsNames</span><span class="p">:</span>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.example.com</span>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">        </span><span class="c1"># secretName: my-tls   # bring-your-own; overrides issuerRef</span>
-</code></pre></div>
-<p>The operator always adds the in-cluster Service FQDN
-(<code>&lt;name&gt;.&lt;namespace&gt;.svc.cluster.local</code>) to the certificate's SANs so it can verify
-Home Assistant over HTTPS. When cert-manager rotates the certificate, the pod is
-rolled to pick up the new material.</p>
-<p>The pod switches to HTTPS only <strong>after</strong> the certificate is issued, so enabling the
-mode never leaves Home Assistant stuck without a certificate.</p>
-<h2 id="ingress-api-gateway-exposure">Ingress / API Gateway exposure<a class="headerlink" href="#ingress-api-gateway-exposure" title="Permanent link">&para;</a></h2>
-<p>The operator manages the edge routing resources <strong>and</strong> their certificate.</p>
-<h3 id="ingress">Ingress<a class="headerlink" href="#ingress" title="Permanent link">&para;</a></h3>
-<p>Enable <code>spec.ingress</code> and add an <code>issuerRef</code> under <code>tls</code>. The operator creates the
-<code>Ingress</code> and a <code>Certificate</code> whose Secret backs the Ingress TLS.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">ingress</span><span class="p">:</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.example.com</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="nt">ingressClassName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="nt">tls</span><span class="p">:</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">      </span><span class="nt">issuerRef</span><span class="p">:</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span>
-</code></pre></div>
-<h3 id="gateway-api">Gateway API<a class="headerlink" href="#gateway-api" title="Permanent link">&para;</a></h3>
-<p><code>spec.gateway</code> (a stable opt-in) makes the operator manage a <code>HTTPRoute</code> that routes
-to Home Assistant, and — when <code>manageGateway: true</code> — a <code>Gateway</code> with an HTTPS
-listener. Attach the route to an existing <code>Gateway</code> via <code>parentRef</code>, or let the
-operator create one.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">gateway</span><span class="p">:</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.example.com</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">issuerRef</span><span class="p">:</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">      </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="nt">parentRef</span><span class="p">:</span><span class="w">                 </span><span class="c1"># attach to an existing Gateway listener</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik-gateway</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">      </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gateway</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">      </span><span class="nt">sectionName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https</span>
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="c1"># manageGateway: true      # ...or let the operator create the Gateway</span>
-</code></pre></div>
+<h2 id="verify-with-kyverno">Verify with Kyverno<a class="headerlink" href="#verify-with-kyverno" title="Permanent link">&para;</a></h2>
+<p>Cluster operators can enforce this automatically at admission time with
+<a href="https://kyverno.io/">Kyverno</a>, so an unsigned or tampered image is rejected before
+it ever runs.</p>
 <div class="admonition note">
-<p class="admonition-title">What the operator does not manage</p>
-<p>The operator does <strong>not</strong> manage the <code>GatewayClass</code> or the Ingress/Gateway
-controller itself — those are provided by your platform. It only manages the
-routing resources and the certificate.</p>
+<p class="admonition-title">Minimum Kyverno version</p>
+<p>This sample was validated against the classic <code>kyverno.io/v1 ClusterPolicy</code> API,
+supported since <strong>Kyverno 1.9</strong>. It intentionally does not use the newer
+CEL-based <code>ImageValidatingPolicy</code> (Kyverno 1.14+) so it works on a broader range
+of clusters.</p>
 </div>
-<h2 id="webhook">Webhook<a class="headerlink" href="#webhook" title="Permanent link">&para;</a></h2>
-<p>The operator ships a validating admission webhook that checks the coherence of your
-configuration at apply time (for example, it rejects native TLS enabled without an
-<code>issuerRef</code> or <code>secretName</code>). It is <strong>enabled by default (opt-out)</strong> — more
-validations will be added over time; disable it with <code>--set webhook.enabled=false</code>
-if it ever gets in your way.</p>
-<h3 id="self-managed-serving-certificate-default-no-cert-manager">Self-managed serving certificate (default — no cert-manager)<a class="headerlink" href="#self-managed-serving-certificate-default-no-cert-manager" title="Permanent link">&para;</a></h3>
-<p>By default the <strong>operator manages its own serving certificate</strong>: it generates a
-self-signed certificate, rotates it automatically, and injects the CA bundle into
-its own <code>ValidatingWebhookConfiguration</code>. This needs <strong>no cert-manager</strong> and works
-the same on Helm, Kustomize and plain manifests.</p>
-<table>
-<thead>
-<tr>
-<th><code>webhook.enabled</code></th>
-<th><code>webhook.certManager.enabled</code></th>
-<th>Serving certificate</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>true</code> (default)</td>
-<td><code>false</code> (default)</td>
-<td><strong>Self-managed by the operator — no cert-manager</strong></td>
-</tr>
-<tr>
-<td><code>true</code></td>
-<td><code>true</code></td>
-<td>Issued by cert-manager, CA injected via annotation</td>
-</tr>
-<tr>
-<td><code>false</code></td>
-<td>—</td>
-<td>Webhook not deployed (<code>ENABLE_WEBHOOKS=false</code>)</td>
-</tr>
-</tbody>
-</table>
-<h3 id="cert-manager-opt-in-override">cert-manager (opt-in override)<a class="headerlink" href="#cert-manager-opt-in-override" title="Permanent link">&para;</a></h3>
-<p>If you prefer cert-manager to issue and rotate the serving certificate (for example
-to centralize certificate policy), opt in:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>ha-operator<span class="w"> </span>...<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--set<span class="w"> </span>webhook.certManager.enabled<span class="o">=</span><span class="nb">true</span><span class="w">   </span><span class="c1"># requires cert-manager installed</span>
+<p>The full sample lives at
+<a href="https://github.com/przemekhys/homeassistant-operator/blob/main/hack/kyverno/verify-homeassistant-operator-image.yaml"><code>hack/kyverno/verify-homeassistant-operator-image.yaml</code></a>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kyverno.io/v1</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterPolicy</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">verify-homeassistant-operator-image</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="nt">policies.kyverno.io/title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Verify homeassistant-operator image signature</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="nt">policies.kyverno.io/category</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Software Supply Chain</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="nt">policies.kyverno.io/severity</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="nt">policies.kyverno.io/description</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">&gt;-</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">      </span><span class="no">Requires that any ghcr.io/przemekhys/homeassistant-operator image was signed</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">      </span><span class="no">by the project&#39;s own GitHub Actions release workflow (keyless Sigstore</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">      </span><span class="no">signing), rejecting unsigned or tampered images at admission time.</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">  </span><span class="nt">validationFailureAction</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Enforce</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span><span class="nt">webhookTimeoutSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">  </span><span class="nt">rules</span><span class="p">:</span>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">verify-signature</span>
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">      </span><span class="nt">match</span><span class="p">:</span>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">        </span><span class="nt">any</span><span class="p">:</span>
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">resources</span><span class="p">:</span>
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="w">              </span><span class="nt">kinds</span><span class="p">:</span>
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="w">                </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Pod</span>
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">      </span><span class="nt">verifyImages</span><span class="p">:</span>
+<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">imageReferences</span><span class="p">:</span>
+<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;ghcr.io/przemekhys/homeassistant-operator*&quot;</span>
+<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a><span class="w">          </span><span class="nt">attestors</span><span class="p">:</span>
+<a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">count</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a><span class="w">              </span><span class="nt">entries</span><span class="p">:</span>
+<a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a><span class="w">                </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">keyless</span><span class="p">:</span>
+<a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a><span class="w">                    </span><span class="nt">issuer</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;https://token.actions.githubusercontent.com&quot;</span>
+<a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a><span class="w">                    </span><span class="nt">subject</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;https://github.com/przemekhys/homeassistant-operator/.github/workflows/release.yml@refs/tags/*&quot;</span>
+<a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a><span class="w">                    </span><span class="nt">rekor</span><span class="p">:</span>
+<a id="__codelineno-2-33" name="__codelineno-2-33" href="#__codelineno-2-33"></a><span class="w">                      </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://rekor.sigstore.dev</span>
 </code></pre></div>
+<p>Apply it, then try both a genuine and a tampered image:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>hack/kyverno/verify-homeassistant-operator-image.yaml
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Genuine image: admitted.</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>kubectl<span class="w"> </span>run<span class="w"> </span>ha-genuine<span class="w"> </span>--image<span class="o">=</span>ghcr.io/przemekhys/homeassistant-operator:v1.2.0<span class="w"> </span>--restart<span class="o">=</span>Never
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c1"># Tampered/re-tagged image: rejected by the admission webhook.</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>kubectl<span class="w"> </span>run<span class="w"> </span>ha-tampered<span class="w"> </span>--image<span class="o">=</span>&lt;attacker-controlled-retag&gt;<span class="w"> </span>--restart<span class="o">=</span>Never
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Roll out with Audit first</p>
+<p>The sample defaults to <code>validationFailureAction: Enforce</code>. For a first adoption
+in an existing cluster, consider switching it to <code>Audit</code> (log-only) to confirm
+it matches as expected before enforcing rejections.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Keep this policy in sync if the signing identity changes</p>
+<p>The <code>issuer</code>/<code>subject</code> values above are pinned to this repository's release
+workflow file path and tag-ref pattern. If that workflow is ever renamed or
+moved, both this doc page and the policy file must be updated together in the
+same change — otherwise the policy would silently stop matching new releases
+instead of failing loudly.</p>
+</div>
+<h2 id="verify-the-helm-chart">Verify the Helm chart<a class="headerlink" href="#verify-the-helm-chart" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cosign<span class="w"> </span>verify<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>--certificate-identity-regexp<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="s1">&#39;https://github.com/przemekhys/homeassistant-operator/\.github/workflows/release\.yml@refs/tags/.*&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>--certificate-oidc-issuer<span class="w"> </span>https://token.actions.githubusercontent.com<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>oci://ghcr.io/przemekhys/charts/homeassistant-operator@&lt;chart-digest&gt;
+</code></pre></div>
+<p>This check is independent of Kyverno and of any cluster — it works anywhere
+<code>cosign</code> can reach the OCI registry, for example as a preflight step in a GitOps
+pipeline before <code>helm install</code>/<code>upgrade</code> ever runs.</p>
+<h2 id="scope-and-limitations">Scope and limitations<a class="headerlink" href="#scope-and-limitations" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Kyverno enforcement covers the container image only</p>
+<p>Kyverno's <code>verifyImages</code> rule operates on images referenced by Pod specs at
+admission time — it has no hook into <code>helm install</code>/<code>upgrade</code>, so it cannot and
+does not verify the Helm chart OCI artifact. Verify the chart manually with the
+command above.</p>
+</div>
 <div class="admonition info">
-<p class="admonition-title">Installation never requires cert-manager</p>
-<p>The webhook's default self-managed path needs no cert-manager. Enable the
-cert-manager override only when cert-manager is installed.</p>
+<p class="admonition-title">The default installation is unaffected</p>
+<p>Whether or not Kyverno is present, or whether you verify anything at all,
+<code>helm install</code>/<code>upgrade</code> of this chart works exactly as before this feature
+shipped. Signature verification is entirely opt-in — nothing here is required
+for the operator to run.</p>
 </div>
-<div class="admonition tip">
-<p class="admonition-title">Availability of a default-on webhook</p>
-<p>With <code>failurePolicy: Ignore</code> (the default), <code>HomeAssistant</code> create/update calls
-are admitted best-effort while the webhook is unavailable (e.g. during an
-operator restart) — validation simply doesn't run for that call. Set
-<code>--set webhook.failurePolicy=Fail</code> to reject calls instead while the webhook is
-down, or disable the webhook entirely.</p>
-</div>
-<h2 id="status-conditions">Status conditions<a class="headerlink" href="#status-conditions" title="Permanent link">&para;</a></h2>
-<p>The operator reflects TLS state in <code>status.conditions</code>:</p>
-<table>
-<thead>
-<tr>
-<th>Condition</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>CertManagerAvailable</code></td>
-<td>Whether cert-manager was detected on the cluster</td>
-</tr>
-<tr>
-<td><code>TLSReady</code></td>
-<td>Whether the certificate for the enabled TLS mode has been issued</td>
-</tr>
-<tr>
-<td><code>ExposureReady</code></td>
-<td>Whether the Ingress/Gateway exposure resources are reconciled</td>
-</tr>
-</tbody>
-</table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>homeassistant<span class="w"> </span>home<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.status.conditions}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq
-</code></pre></div>
-<h2 id="behavior-without-cert-manager">Behavior without cert-manager<a class="headerlink" href="#behavior-without-cert-manager" title="Permanent link">&para;</a></h2>
-<p>If you enable a cert-manager-backed TLS mode while cert-manager is absent:</p>
-<ul>
-<li>The resource reports <code>CertManagerAvailable=False</code> (reason <code>CertManagerNotInstalled</code>)
-  and <code>TLSReady=Unknown</code>, and emits a <code>CertManagerUnavailable</code> event.</li>
-<li>Home Assistant keeps serving over HTTP; exposure keeps working over HTTP.</li>
-<li>No error is raised and reconciliation does not loop.</li>
-<li>Once you install cert-manager, the operator provisions the certificate automatically.</li>
-</ul>
-<p>See also: <a href="../../reference/troubleshooting/">Troubleshooting</a> and the
-<a href="https://github.com/przemekhys/homeassistant-operator/tree/main/config/samples"><code>config/samples/</code></a>
-directory (<code>ha_v1_native_tls.yaml</code>, <code>ha_v1_ingress_tls.yaml</code>, <code>ha_v1_gateway_managed_tls.yaml</code>).</p>
 
 
 
