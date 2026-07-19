@@ -928,6 +928,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../user-guide/tls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TLS (cert-manager)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../user-guide/upgrade/" class="md-nav__link">
         
   
@@ -1381,6 +1409,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#gatewayparentref" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GatewayParentRef
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gatewayspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GatewaySpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#httpconfig" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1909,6 +1959,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#issuerreference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IssuerReference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#locationconfig" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1935,6 +1996,17 @@
     <span class="md-ellipsis">
       
         MQTTConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nativetlsalphaspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NativeTLSAlphaSpec
       
     </span>
   </a>
@@ -2056,6 +2128,17 @@
     <span class="md-ellipsis">
       
         StorageSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tlsalphaspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLSAlphaSpec
       
     </span>
   </a>
@@ -2500,6 +2583,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#gatewayparentref" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GatewayParentRef
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gatewayspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GatewaySpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#httpconfig" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3028,6 +3133,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#issuerreference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IssuerReference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#locationconfig" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3054,6 +3170,17 @@
     <span class="md-ellipsis">
       
         MQTTConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nativetlsalphaspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NativeTLSAlphaSpec
       
     </span>
   </a>
@@ -3175,6 +3302,17 @@
     <span class="md-ellipsis">
       
         StorageSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tlsalphaspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLSAlphaSpec
       
     </span>
   </a>
@@ -3313,6 +3451,12 @@ default false) -&gt; stable default false -&gt; stable default true -&gt; mandat
 <tr>
 <td><code>networkPolicy</code> <em><a href="#networkpolicyalphaspec">NetworkPolicyAlphaSpec</a></em></td>
 <td>NetworkPolicy controls whether the operator creates a NetworkPolicy<br />restricting ingress to the Home Assistant pod.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>tls</code> <em><a href="#tlsalphaspec">TLSAlphaSpec</a></em></td>
+<td>TLS groups experimental TLS integration with cert-manager. Native TLS<br />changes the Home Assistant pod networking/config, so it starts in<br />spec.alpha until it stabilizes.</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
@@ -3627,6 +3771,95 @@ This is a flexible structure that accepts any valid Home Assistant trigger confi
 <td><code>passwordKey</code> <em>string</em></td>
 <td>PasswordKey is the key in the Secret containing the password</td>
 <td>password</td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="gatewayparentref">GatewayParentRef<a class="headerlink" href="#gatewayparentref" title="Permanent link">&para;</a></h4>
+<p>GatewayParentRef references an existing Gateway listener.</p>
+<p><em>Appears in:</em>
+- <a href="#gatewayspec">GatewaySpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code> <em>string</em></td>
+<td>Name of the existing Gateway.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>namespace</code> <em>string</em></td>
+<td>Namespace of the Gateway. When different from the HA namespace, the user<br />must provide a ReferenceGrant.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>sectionName</code> <em>string</em></td>
+<td>SectionName is the listener name (e.g. "https").</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="gatewayspec">GatewaySpec<a class="headerlink" href="#gatewayspec" title="Permanent link">&para;</a></h4>
+<p>GatewaySpec configures operator-managed Gateway API exposure for HA. Managing
+Gateway API routing resources (sibling to the HA pod) is a stable opt-in — it
+does not change the Home Assistant pod's networking or security context, so it
+lives at the top level rather than under spec.alpha.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantspec">HomeAssistantSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code> <em>boolean</em></td>
+<td>Enabled turns on operator management of Gateway API routing (HTTPRoute,<br />and optionally a Gateway).</td>
+<td>false</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>host</code> <em>string</em></td>
+<td>Host is the hostname for the route and certificate.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>issuerRef</code> <em><a href="#issuerreference">IssuerReference</a></em></td>
+<td>IssuerRef references an existing cert-manager Issuer/ClusterIssuer. When<br />set (and cert-manager available), the operator issues a certificate for<br />the listener.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>secretName</code> <em>string</em></td>
+<td>SecretName references a bring-your-own TLS Secret for the listener.<br />Takes precedence over IssuerRef.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>parentRef</code> <em><a href="#gatewayparentref">GatewayParentRef</a></em></td>
+<td>ParentRef references an existing Gateway/listener to attach the HTTPRoute<br />to. When empty and ManageGateway is true, the operator creates a Gateway.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>manageGateway</code> <em>boolean</em></td>
+<td>ManageGateway controls whether the operator also creates a Gateway<br />resource (not just the HTTPRoute). GatewayClass and the gateway controller<br />remain the platform's responsibility.</td>
+<td>false</td>
 <td>Optional: {} <br /></td>
 </tr>
 </tbody>
@@ -5545,6 +5778,12 @@ Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
 <td>Optional: {} <br /></td>
 </tr>
 <tr>
+<td><code>gateway</code> <em><a href="#gatewayspec">GatewaySpec</a></em></td>
+<td>Gateway configures operator-managed Gateway API exposure (HTTPRoute, and<br />optionally a Gateway) for Home Assistant, with optional cert-manager TLS.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
 <td><code>timezone</code> <em>string</em></td>
 <td>Timezone for the Home Assistant instance (e.g., "Europe/Warsaw")</td>
 <td>UTC</td>
@@ -5732,7 +5971,13 @@ Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
 </tr>
 <tr>
 <td><code>secretName</code> <em>string</em></td>
-<td>SecretName containing the TLS certificate. If empty, cert-manager annotation should be used.</td>
+<td>SecretName containing the TLS certificate. When set, it is used as-is<br />(bring-your-own) and takes precedence over IssuerRef.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>issuerRef</code> <em><a href="#issuerreference">IssuerReference</a></em></td>
+<td>IssuerRef references an existing cert-manager Issuer/ClusterIssuer. When<br />set and cert-manager is available, the operator creates a Certificate for<br />the Ingress TLS Secret. Ignored when SecretName is provided.</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
@@ -5831,6 +6076,43 @@ Exactly one of Value, JSONValue, or SecretKeyRef must be set.</p>
 <td><code>secretKeyRef</code> <em><a href="#integrationsecretkeyref">IntegrationSecretKeyRef</a></em></td>
 <td>SecretKeyRef references a key in a Kubernetes Secret</td>
 <td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="issuerreference">IssuerReference<a class="headerlink" href="#issuerreference" title="Permanent link">&para;</a></h4>
+<p>IssuerReference references a cert-manager Issuer or ClusterIssuer. The
+operator only references issuers — it never creates application issuers.</p>
+<p><em>Appears in:</em>
+- <a href="#gatewayspec">GatewaySpec</a>
+- <a href="#ingresstlsspec">IngressTLSSpec</a>
+- <a href="#nativetlsalphaspec">NativeTLSAlphaSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code> <em>string</em></td>
+<td>Name of the Issuer/ClusterIssuer.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>kind</code> <em>string</em></td>
+<td>Kind of the issuer.</td>
+<td>Issuer</td>
+<td>Enum: [Issuer ClusterIssuer] <br />Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>group</code> <em>string</em></td>
+<td>Group of the issuer API.</td>
+<td>cert-manager.io</td>
 <td>Optional: {} <br /></td>
 </tr>
 </tbody>
@@ -5963,6 +6245,46 @@ Exactly one of Value, JSONValue, or SecretKeyRef must be set.</p>
 <td><code>keepAlive</code> <em>integer</em></td>
 <td>KeepAlive defines MQTT keep-alive interval in seconds</td>
 <td>60</td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="nativetlsalphaspec">NativeTLSAlphaSpec<a class="headerlink" href="#nativetlsalphaspec" title="Permanent link">&para;</a></h4>
+<p>NativeTLSAlphaSpec configures native TLS termination inside Home Assistant.</p>
+<p><em>Appears in:</em>
+- <a href="#tlsalphaspec">TLSAlphaSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code> <em>boolean</em></td>
+<td>Enabled turns on native TLS. Home Assistant serves HTTPS on its existing<br />port (8123); the Service port is unchanged. Requires cert-manager to be<br />installed (or a bring-your-own SecretName). When cert-manager is absent,<br />the operator reports a status condition and keeps serving HTTP.<br />Deliberately without omitempty (see NetworkPolicyAlphaSpec.Enabled).</td>
+<td>false</td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>issuerRef</code> <em><a href="#issuerreference">IssuerReference</a></em></td>
+<td>IssuerRef references an existing cert-manager Issuer/ClusterIssuer used to<br />issue the certificate. Required unless SecretName (bring-your-own) is set.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>dnsNames</code> <em>string array</em></td>
+<td>DNSNames are additional SANs for the certificate. The operator always adds<br />the in-cluster Service FQDN so it can trust HA over HTTPS.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>secretName</code> <em>string</em></td>
+<td>SecretName references a user-provided TLS Secret (bring-your-own). When<br />set, the operator does not create a cert-manager Certificate and this<br />Secret takes precedence over IssuerRef.</td>
+<td></td>
 <td>Optional: {} <br /></td>
 </tr>
 </tbody>
@@ -6261,6 +6583,28 @@ This is a flexible structure that accepts any valid Home Assistant field configu
 <tr>
 <td><code>initContainer</code> <em><a href="#initcontainerspec">InitContainerSpec</a></em></td>
 <td>InitContainer configures the init container that pre-creates required YAML files<br />(automations.yaml, scenes.yaml, scripts.yaml) on the PVC before Home Assistant starts.<br />This prevents HA from entering recovery mode when the !include directives are present<br />but the files do not yet exist.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="tlsalphaspec">TLSAlphaSpec<a class="headerlink" href="#tlsalphaspec" title="Permanent link">&para;</a></h4>
+<p>TLSAlphaSpec groups the (alpha) TLS integration modes backed by cert-manager.</p>
+<p><em>Appears in:</em>
+- <a href="#alphaspec">AlphaSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>native</code> <em><a href="#nativetlsalphaspec">NativeTLSAlphaSpec</a></em></td>
+<td>Native enables Home Assistant to serve HTTPS natively (TLS terminated in<br />HA itself on the same port), using a certificate issued by cert-manager.</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>

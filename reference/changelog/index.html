@@ -928,6 +928,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../user-guide/tls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TLS (cert-manager)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../user-guide/upgrade/" class="md-nav__link">
         
   
@@ -2903,7 +2931,12 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <ul>
 <li><strong>Helm chart is now generated from a single source of truth</strong> — the chart's static parts (all 10 CRDs and the operator RBAC rules) are generated from the authoritative Kustomize sources under <code>config/</code> via <code>make helm-sync</code>, so the Helm and Kustomize install paths can no longer physically drift. New CI gates (<code>make helm-verify</code>) block a PR that leaves the chart out of sync (<code>verify-chart-sync</code>), that lets the two render paths diverge on RBAC / securityContext / PSA labels (<code>verify-equivalence</code>), or that broadens the operator's RBAC versus the previous release without an explicit justification in <code>hack/rbac-allowlist.txt</code> (<code>verify-rbac-upgrade</code>, enforcing the minimal-RBAC principle).</li>
 <li><strong>Helm chart test layers</strong> — the chart now ships with <code>values.schema.json</code> (install-time validation of <code>values.yaml</code> types/enums), <code>helm-unittest</code> template unit tests under <code>charts/homeassistant-operator/tests/</code>, an auto-generated parameter table in <code>README.md</code> via <code>helm-docs</code> (with a CI drift gate), a k3d end-to-end job covering a fresh install <strong>and</strong> an upgrade from the previous release (N-1 → latest, including the explicit CRD apply step), and a post-publish smoke test that installs the exact published OCI artifact and, on failure, raises a maintainer alert and marks the release "needs verification" without yanking the artifact. See the new <code>.github/workflows/test-helm.yml</code> and the <code>##@ Helm</code> targets in the Makefile.</li>
-<li><strong>Upgrade documentation</strong> — a new <a href="https://przemekhys.github.io/homeassistant-operator/user-guide/upgrade/">Upgrade guide</a> documents fresh install and N-1 → latest upgrade with the exact <code>kubectl apply -f .../crds/</code> command, step ordering, and verification steps, so upgrading never requires guessing.</li>
+<li>
+<p><strong>Upgrade documentation</strong> — a new <a href="https://przemekhys.github.io/homeassistant-operator/user-guide/upgrade/">Upgrade guide</a> documents fresh install and N-1 → latest upgrade with the exact <code>kubectl apply -f .../crds/</code> command, step ordering, and verification steps, so upgrading never requires guessing.</p>
+</li>
+<li>
+<p><strong>cert-manager TLS integration — foundation (opt-in)</strong> — groundwork for issuing TLS certificates via cert-manager for three modes: native TLS in Home Assistant, Ingress / API Gateway exposure, and the operator's webhook. New opt-in API fields land as <code>spec.ingress.tls.issuerRef</code> and <code>spec.gateway</code> (<code>enabled</code>, <code>host</code>, <code>issuerRef</code>, <code>secretName</code>, <code>parentRef</code>, <code>manageGateway</code>) at the stable top level, plus <code>spec.alpha.tls.native</code> (<code>enabled</code>, <code>issuerRef</code>, <code>dnsNames</code>, <code>secretName</code>) under <code>spec.alpha</code> — native TLS changes how Home Assistant serves traffic and how the operator connects to it, so it follows the experimental <code>spec.alpha</code> lifecycle, while Ingress/Gateway only manage sibling routing resources and are stable opt-ins. All modes share an <code>IssuerReference</code> (the operator only <em>references</em> an existing <code>Issuer</code>/<code>ClusterIssuer</code>, never creates issuers). The operator now <strong>detects cert-manager at runtime</strong> (via the API RESTMapper, cached with a 60s TTL) and <strong>never installs it and never requires it</strong>: when a TLS mode is requested but cert-manager is absent, the resource reports <code>CertManagerAvailable=False</code>/<code>TLSReady=Unknown</code>, emits a <code>CertManagerUnavailable</code> event, and keeps Home Assistant fully functional over HTTP without erroring or looping — a later cert-manager install is picked up automatically. Narrow RBAC for <code>cert-manager.io/certificates</code>, <code>networking.k8s.io/ingresses</code>, and <code>gateway.networking.k8s.io/{httproutes,gateways}</code> was added. Implemented on top of this gate: cert-manager <code>Certificate</code> provisioning for all three modes; native TLS runtime (Secret mounted into the HA pod at <code>/config/ssl</code>, <code>http.ssl_certificate</code>/<code>ssl_key</code> injected, and the operator→HA connection switched to HTTPS with <code>ca.crt</code> trust — never <code>InsecureSkipVerify</code>, all gated on a single readiness predicate so HA and the operator flip together); operator-managed Ingress and Gateway API (HTTPRoute/Gateway) exposure; and a validating admission webhook, <strong>enabled by default (opt-out)</strong>, whose serving certificate is <strong>self-managed by the operator</strong> (self-signed, auto-rotated, CA injected into its own <code>ValidatingWebhookConfiguration</code> via <a href="https://github.com/open-policy-agent/cert-controller">cert-controller</a>) — so the webhook needs <strong>no cert-manager</strong>; cert-manager can still issue the serving certificate as an opt-in (<code>webhook.certManager.enabled=true</code>). Cluster end-to-end validation is the remaining follow-up. The <code>spec.alpha.tls.native</code> field is off by default and may change or be removed without a deprecation notice.</p>
+</li>
 </ul>
 <h3 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h3>
 <ul>

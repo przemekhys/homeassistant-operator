@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://przemekhys.github.io/homeassistant-operator/getting-started/configuration/">
+        <link rel="canonical" href="https://przemekhys.github.io/homeassistant-operator/user-guide/tls/">
       
       
-        <link rel="prev" href="../quick-start/">
+        <link rel="prev" href="../security/">
       
       
-        <link rel="next" href="../../user-guide/homeassistant/">
+        <link rel="next" href="../upgrade/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Configuration - Home Assistant Operator</title>
+        <title>TLS (cert-manager) - Home Assistant Operator</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#configuration-overview" class="md-skip">
+        <a href="#tls-with-cert-manager" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Configuration
+              TLS (cert-manager)
             
           </span>
         </div>
@@ -238,13 +238,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../installation/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../getting-started/installation/" class="md-tabs__link">
           
   
   
@@ -260,11 +258,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../user-guide/homeassistant/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../homeassistant/" class="md-tabs__link">
           
   
   
@@ -418,31 +418,28 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
             
   
   
@@ -460,7 +457,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -478,7 +475,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../installation/" class="md-nav__link">
+      <a href="../../getting-started/installation/" class="md-nav__link">
         
   
   
@@ -506,7 +503,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../quick-start/" class="md-nav__link">
+      <a href="../../getting-started/quick-start/" class="md-nav__link">
         
   
   
@@ -514,6 +511,406 @@
     
   
     Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../homeassistant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home Assistant CR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bootstrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bootstrap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../secrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Secrets Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../automations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Automations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scenes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scripts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scripts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../infrastructure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Infrastructure (Floor/Label/Area)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security (Pod Security Standards)
   
 
     
@@ -543,405 +940,25 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TLS (cert-manager)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Configuration
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    User Guide
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    User Guide
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../user-guide/homeassistant/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Home Assistant CR
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../user-guide/bootstrap/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Bootstrap
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../user-guide/secrets/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Secrets Management
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../user-guide/configuration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Configuration Management
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../user-guide/automations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Automations
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../user-guide/scenes/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Scenes
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../user-guide/scripts/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Scripts
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../user-guide/integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Integrations
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../user-guide/infrastructure/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Infrastructure (Floor/Label/Area)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../user-guide/backup/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Backup
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../user-guide/security/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Security (Pod Security Standards)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../user-guide/tls/" class="md-nav__link">
         
   
   
@@ -957,6 +974,159 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-issuerref" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The issuerRef
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#native-tls-alpha" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Native TLS (alpha)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ingress-api-gateway-exposure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ingress / API Gateway exposure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Ingress / API Gateway exposure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ingress" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ingress
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gateway-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gateway API
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#webhook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Webhook
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Webhook">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#self-managed-serving-certificate-default-no-cert-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Self-managed serving certificate (default — no cert-manager)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cert-manager-opt-in-override" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cert-manager (opt-in override)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#status-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status conditions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#behavior-without-cert-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior without cert-manager
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -969,7 +1139,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../user-guide/upgrade/" class="md-nav__link">
+      <a href="../upgrade/" class="md-nav__link">
         
   
   
@@ -1480,6 +1650,147 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-issuerref" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The issuerRef
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#native-tls-alpha" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Native TLS (alpha)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ingress-api-gateway-exposure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ingress / API Gateway exposure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Ingress / API Gateway exposure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ingress" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ingress
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gateway-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gateway API
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#webhook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Webhook
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Webhook">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#self-managed-serving-certificate-default-no-cert-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Self-managed serving certificate (default — no cert-manager)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cert-manager-opt-in-override" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cert-manager (opt-in override)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#status-conditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status conditions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#behavior-without-cert-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior without cert-manager
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1521,10 +1832,10 @@
     
     
       <li class="md-path__item">
-        <a href="../installation/" class="md-path__link">
+        <a href="../homeassistant/" class="md-path__link">
           
   <span class="md-ellipsis">
-    Getting Started
+    User Guide
   </span>
 
         </a>
@@ -1543,7 +1854,7 @@
 
 
   
-    <a href="https://github.com/przemekhys/homeassistant-operator/edit/main/docs/getting-started/configuration.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/przemekhys/homeassistant-operator/edit/main/docs/user-guide/tls.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1551,8 +1862,222 @@
   
 
 
-<h1 id="configuration-overview">Configuration Overview<a class="headerlink" href="#configuration-overview" title="Permanent link">&para;</a></h1>
-<p>See <a href="../../user-guide/configuration/">User Guide → Configuration Management</a> for full details.</p>
+<h1 id="tls-with-cert-manager">TLS with cert-manager<a class="headerlink" href="#tls-with-cert-manager" title="Permanent link">&para;</a></h1>
+<p>The operator integrates with <a href="https://cert-manager.io/">cert-manager</a> to provision
+TLS certificates for three independent use cases:</p>
+<ul>
+<li><strong>Native TLS</strong> — Home Assistant serves HTTPS itself, on its existing port.</li>
+<li><strong>Ingress / API Gateway</strong> — the operator manages the edge routing and its certificate.</li>
+<li><strong>Webhook</strong> — the operator's validating admission webhook serves over TLS.</li>
+</ul>
+<div class="admonition info">
+<p class="admonition-title">cert-manager is an optional, external dependency</p>
+<p>Neither the operator nor its Helm chart ever installs cert-manager. You install
+it (and provide an <code>Issuer</code>/<code>ClusterIssuer</code>) yourself. If cert-manager is <strong>not</strong>
+present, native TLS and Ingress/API Gateway reconciliation degrade gracefully:
+the corresponding mode simply stays inactive and the resource reports a status
+condition — nothing fails or loops. A cert-manager installed <em>after</em> the
+operator is picked up automatically.</p>
+<p>This graceful degradation does <strong>not</strong> cover the webhook's cert-manager
+override (<code>--set webhook.certManager.enabled=true</code>): that path renders an
+<code>Issuer</code>/<code>Certificate</code> directly via Helm, which requires the cert-manager CRDs
+to exist at install time. Only enable it when cert-manager is already installed.</p>
+</div>
+<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
+<ul>
+<li>cert-manager installed on the cluster.</li>
+<li>A ready <code>Issuer</code> or <code>ClusterIssuer</code>. The operator only <strong>references</strong> an issuer;
+  it never creates application issuers.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Example: a self-signed ClusterIssuer for testing</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cert-manager.io/v1</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="nt">selfSigned</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+</code></pre></div>
+<h2 id="the-issuerref">The <code>issuerRef</code><a class="headerlink" href="#the-issuerref" title="Permanent link">&para;</a></h2>
+<p>Every TLS mode references an issuer the same way. <code>kind</code> defaults to <code>Issuer</code>,
+<code>group</code> to <code>cert-manager.io</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">issuerRef</span><span class="p">:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span><span class="w">   </span><span class="c1"># or Issuer (namespaced)</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Bring your own certificate</p>
+<p>Each mode also accepts a <code>secretName</code> pointing at a TLS Secret you manage
+yourself. When set, it <strong>takes precedence over <code>issuerRef</code></strong> and the operator
+does not create a cert-manager <code>Certificate</code>.</p>
+</div>
+<h2 id="native-tls-alpha">Native TLS (alpha)<a class="headerlink" href="#native-tls-alpha" title="Permanent link">&para;</a></h2>
+<p>Home Assistant terminates TLS itself, serving HTTPS on its existing port (<code>8123</code>) —
+no reverse proxy required. The operator provisions a certificate, mounts the Secret
+into the pod at <code>/config/ssl</code>, sets <code>http.ssl_certificate</code>/<code>ssl_key</code> in the generated
+configuration, and switches its own connection to Home Assistant to HTTPS (trusting
+the issued CA — certificate verification is never disabled).</p>
+<div class="admonition warning">
+<p class="admonition-title">This is an <code>spec.alpha</code> feature</p>
+<p>Native TLS changes how Home Assistant serves traffic and how the operator
+connects to it, so it lives under <code>spec.alpha</code> and is <strong>off by default</strong>. Alpha
+fields may change or be removed without a deprecation notice.</p>
+</div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistant</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">alpha</span><span class="p">:</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="nt">tls</span><span class="p">:</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">      </span><span class="nt">native</span><span class="p">:</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">        </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">        </span><span class="nt">issuerRef</span><span class="p">:</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">          </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">          </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">        </span><span class="nt">dnsNames</span><span class="p">:</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.example.com</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">        </span><span class="c1"># secretName: my-tls   # bring-your-own; overrides issuerRef</span>
+</code></pre></div>
+<p>The operator always adds the in-cluster Service FQDN
+(<code>&lt;name&gt;.&lt;namespace&gt;.svc.cluster.local</code>) to the certificate's SANs so it can verify
+Home Assistant over HTTPS. When cert-manager rotates the certificate, the pod is
+rolled to pick up the new material.</p>
+<p>The pod switches to HTTPS only <strong>after</strong> the certificate is issued, so enabling the
+mode never leaves Home Assistant stuck without a certificate.</p>
+<h2 id="ingress-api-gateway-exposure">Ingress / API Gateway exposure<a class="headerlink" href="#ingress-api-gateway-exposure" title="Permanent link">&para;</a></h2>
+<p>The operator manages the edge routing resources <strong>and</strong> their certificate.</p>
+<h3 id="ingress">Ingress<a class="headerlink" href="#ingress" title="Permanent link">&para;</a></h3>
+<p>Enable <code>spec.ingress</code> and add an <code>issuerRef</code> under <code>tls</code>. The operator creates the
+<code>Ingress</code> and a <code>Certificate</code> whose Secret backs the Ingress TLS.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">ingress</span><span class="p">:</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.example.com</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="nt">ingressClassName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="nt">tls</span><span class="p">:</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">      </span><span class="nt">issuerRef</span><span class="p">:</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span>
+</code></pre></div>
+<h3 id="gateway-api">Gateway API<a class="headerlink" href="#gateway-api" title="Permanent link">&para;</a></h3>
+<p><code>spec.gateway</code> (a stable opt-in) makes the operator manage a <code>HTTPRoute</code> that routes
+to Home Assistant, and — when <code>manageGateway: true</code> — a <code>Gateway</code> with an HTTPS
+listener. Attach the route to an existing <code>Gateway</code> via <code>parentRef</code>, or let the
+operator create one.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">gateway</span><span class="p">:</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.example.com</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">issuerRef</span><span class="p">:</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">      </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="nt">parentRef</span><span class="p">:</span><span class="w">                 </span><span class="c1"># attach to an existing Gateway listener</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik-gateway</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">      </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gateway</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">      </span><span class="nt">sectionName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="c1"># manageGateway: true      # ...or let the operator create the Gateway</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">What the operator does not manage</p>
+<p>The operator does <strong>not</strong> manage the <code>GatewayClass</code> or the Ingress/Gateway
+controller itself — those are provided by your platform. It only manages the
+routing resources and the certificate.</p>
+</div>
+<h2 id="webhook">Webhook<a class="headerlink" href="#webhook" title="Permanent link">&para;</a></h2>
+<p>The operator ships a validating admission webhook that checks the coherence of your
+configuration at apply time (for example, it rejects native TLS enabled without an
+<code>issuerRef</code> or <code>secretName</code>). It is <strong>enabled by default (opt-out)</strong> — more
+validations will be added over time; disable it with <code>--set webhook.enabled=false</code>
+if it ever gets in your way.</p>
+<h3 id="self-managed-serving-certificate-default-no-cert-manager">Self-managed serving certificate (default — no cert-manager)<a class="headerlink" href="#self-managed-serving-certificate-default-no-cert-manager" title="Permanent link">&para;</a></h3>
+<p>By default the <strong>operator manages its own serving certificate</strong>: it generates a
+self-signed certificate, rotates it automatically, and injects the CA bundle into
+its own <code>ValidatingWebhookConfiguration</code>. This needs <strong>no cert-manager</strong> and works
+the same on Helm, Kustomize and plain manifests.</p>
+<table>
+<thead>
+<tr>
+<th><code>webhook.enabled</code></th>
+<th><code>webhook.certManager.enabled</code></th>
+<th>Serving certificate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>true</code> (default)</td>
+<td><code>false</code> (default)</td>
+<td><strong>Self-managed by the operator — no cert-manager</strong></td>
+</tr>
+<tr>
+<td><code>true</code></td>
+<td><code>true</code></td>
+<td>Issued by cert-manager, CA injected via annotation</td>
+</tr>
+<tr>
+<td><code>false</code></td>
+<td>—</td>
+<td>Webhook not deployed (<code>ENABLE_WEBHOOKS=false</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cert-manager-opt-in-override">cert-manager (opt-in override)<a class="headerlink" href="#cert-manager-opt-in-override" title="Permanent link">&para;</a></h3>
+<p>If you prefer cert-manager to issue and rotate the serving certificate (for example
+to centralize certificate policy), opt in:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>ha-operator<span class="w"> </span>...<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--set<span class="w"> </span>webhook.certManager.enabled<span class="o">=</span><span class="nb">true</span><span class="w">   </span><span class="c1"># requires cert-manager installed</span>
+</code></pre></div>
+<div class="admonition info">
+<p class="admonition-title">Installation never requires cert-manager</p>
+<p>The webhook's default self-managed path needs no cert-manager. Enable the
+cert-manager override only when cert-manager is installed.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Availability of a default-on webhook</p>
+<p>With <code>failurePolicy: Ignore</code> (the default), <code>HomeAssistant</code> create/update calls
+are admitted best-effort while the webhook is unavailable (e.g. during an
+operator restart) — validation simply doesn't run for that call. Set
+<code>--set webhook.failurePolicy=Fail</code> to reject calls instead while the webhook is
+down, or disable the webhook entirely.</p>
+</div>
+<h2 id="status-conditions">Status conditions<a class="headerlink" href="#status-conditions" title="Permanent link">&para;</a></h2>
+<p>The operator reflects TLS state in <code>status.conditions</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CertManagerAvailable</code></td>
+<td>Whether cert-manager was detected on the cluster</td>
+</tr>
+<tr>
+<td><code>TLSReady</code></td>
+<td>Whether the certificate for the enabled TLS mode has been issued</td>
+</tr>
+<tr>
+<td><code>ExposureReady</code></td>
+<td>Whether the Ingress/Gateway exposure resources are reconciled</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>homeassistant<span class="w"> </span>home<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.status.conditions}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq
+</code></pre></div>
+<h2 id="behavior-without-cert-manager">Behavior without cert-manager<a class="headerlink" href="#behavior-without-cert-manager" title="Permanent link">&para;</a></h2>
+<p>If you enable a cert-manager-backed TLS mode while cert-manager is absent:</p>
+<ul>
+<li>The resource reports <code>CertManagerAvailable=False</code> (reason <code>CertManagerNotInstalled</code>)
+  and <code>TLSReady=Unknown</code>, and emits a <code>CertManagerUnavailable</code> event.</li>
+<li>Home Assistant keeps serving over HTTP; exposure keeps working over HTTP.</li>
+<li>No error is raised and reconciliation does not loop.</li>
+<li>Once you install cert-manager, the operator provisions the certificate automatically.</li>
+</ul>
+<p>See also: <a href="../../reference/troubleshooting/">Troubleshooting</a> and the
+<a href="https://github.com/przemekhys/homeassistant-operator/tree/main/config/samples"><code>config/samples/</code></a>
+directory (<code>ha_v1_native_tls.yaml</code>, <code>ha_v1_ingress_tls.yaml</code>, <code>ha_v1_gateway_managed_tls.yaml</code>).</p>
 
 
 

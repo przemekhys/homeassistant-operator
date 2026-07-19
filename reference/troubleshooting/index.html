@@ -928,6 +928,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../user-guide/tls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TLS (cert-manager)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../user-guide/upgrade/" class="md-nav__link">
         
   
@@ -1296,6 +1324,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#tls-mode-enabled-but-no-certificate-is-issued" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLS mode enabled but no certificate is issued
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1583,6 +1622,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#tls-mode-enabled-but-no-certificate-is-issued" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLS mode enabled but no certificate is issued
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1689,6 +1739,22 @@
 <p>If a CR hangs on deletion, the operator was likely removed before the CR (finalizer cleanup could not run). Restore the operator, or force-remove the finalizer as a last resort:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kubectl<span class="w"> </span>patch<span class="w"> </span>&lt;resource&gt;<span class="w"> </span>&lt;name&gt;<span class="w"> </span>-p<span class="w"> </span><span class="s1">&#39;{&quot;metadata&quot;:{&quot;finalizers&quot;:null}}&#39;</span><span class="w"> </span>--type<span class="o">=</span>merge
 </code></pre></div>
+<h2 id="tls-mode-enabled-but-no-certificate-is-issued">TLS mode enabled but no certificate is issued<a class="headerlink" href="#tls-mode-enabled-but-no-certificate-is-issued" title="Permanent link">&para;</a></h2>
+<p>Check the status conditions (<a href="../../user-guide/tls/">TLS guide</a>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>homeassistant<span class="w"> </span>&lt;name&gt;<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.status.conditions}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq
+</code></pre></div>
+<ul>
+<li><strong><code>CertManagerAvailable=False</code> (<code>CertManagerNotInstalled</code>)</strong> — cert-manager is not
+  installed. Home Assistant keeps serving over HTTP; install cert-manager and the
+  operator picks it up automatically (no restart needed).</li>
+<li><strong><code>TLSReady=False</code> (<code>CertificateNotIssued</code>)</strong> — the <code>Certificate</code> exists but has not
+  been issued. Inspect it: <code>kubectl describe certificate &lt;name&gt;-native-tls</code> (or
+  <code>-ingress-tls</code> / <code>-gateway-tls</code>) and check the referenced <code>Issuer</code>/<code>ClusterIssuer</code>
+  is Ready.</li>
+<li><strong>Native TLS pod not switching to HTTPS</strong> — the pod switches only after the TLS
+  Secret exists. Confirm the Secret (<code>&lt;name&gt;-native-tls</code>) is populated and that the
+  StatefulSet rolled out.</li>
+</ul>
 
 
 
