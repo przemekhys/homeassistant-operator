@@ -1876,8 +1876,14 @@ instead of failing loudly.</p>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>--certificate-identity-regexp<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="s1">&#39;https://github.com/przemekhys/homeassistant-operator/\.github/workflows/release\.yml@refs/tags/.*&#39;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>--certificate-oidc-issuer<span class="w"> </span>https://token.actions.githubusercontent.com<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>oci://ghcr.io/przemekhys/charts/homeassistant-operator@&lt;chart-digest&gt;
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>ghcr.io/przemekhys/charts/homeassistant-operator@&lt;chart-digest&gt;
 </code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">No <code>oci://</code> prefix here</p>
+<p>That scheme is Helm-specific syntax for <code>helm install</code>/<code>push</code>. <code>cosign</code>
+expects a bare <code>registry/repo@digest</code> — passing <code>oci://...</code> makes it try to
+resolve <code>oci</code> itself as a registry hostname and fail.</p>
+</div>
 <p>This check is independent of Kyverno and of any cluster — it works anywhere
 <code>cosign</code> can reach the OCI registry, for example as a preflight step in a GitOps
 pipeline before <code>helm install</code>/<code>upgrade</code> ever runs.</p>
