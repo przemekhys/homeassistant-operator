@@ -1062,17 +1062,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#scope-and-limitations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Scope and limitations
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -1650,17 +1639,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#scope-and-limitations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Scope and limitations
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -1877,30 +1855,9 @@ instead of failing loudly.</p>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>--certificate-oidc-issuer<span class="w"> </span>https://token.actions.githubusercontent.com<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>ghcr.io/przemekhys/charts/homeassistant-operator@&lt;chart-digest&gt;
 </code></pre></div>
-<div class="admonition note">
-<p class="admonition-title">No <code>oci://</code> prefix here</p>
-<p>That scheme is Helm-specific syntax for <code>helm install</code>/<code>push</code>. <code>cosign</code>
-expects a bare <code>registry/repo@digest</code> — passing <code>oci://...</code> makes it try to
-resolve <code>oci</code> itself as a registry hostname and fail.</p>
-</div>
 <p>This check is independent of Kyverno and of any cluster — it works anywhere
 <code>cosign</code> can reach the OCI registry, for example as a preflight step in a GitOps
 pipeline before <code>helm install</code>/<code>upgrade</code> ever runs.</p>
-<h2 id="scope-and-limitations">Scope and limitations<a class="headerlink" href="#scope-and-limitations" title="Permanent link">&para;</a></h2>
-<div class="admonition warning">
-<p class="admonition-title">Kyverno enforcement covers the container image only</p>
-<p>Kyverno's <code>verifyImages</code> rule operates on images referenced by Pod specs at
-admission time — it has no hook into <code>helm install</code>/<code>upgrade</code>, so it cannot and
-does not verify the Helm chart OCI artifact. Verify the chart manually with the
-command above.</p>
-</div>
-<div class="admonition info">
-<p class="admonition-title">The default installation is unaffected</p>
-<p>Whether or not Kyverno is present, or whether you verify anything at all,
-<code>helm install</code>/<code>upgrade</code> of this chart works exactly as before this feature
-shipped. Signature verification is entirely opt-in — nothing here is required
-for the operator to run.</p>
-</div>
 
 
 
