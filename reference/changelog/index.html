@@ -1373,7 +1373,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Unreleased">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v120-2026-07-24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v1.2.0 - 2026-07-24
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v1.2.0 - 2026-07-24">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2223,7 +2234,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Unreleased">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v120-2026-07-24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v1.2.0 - 2026-07-24
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v1.2.0 - 2026-07-24">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2954,7 +2976,8 @@
 <p>All notable changes to this project will be documented in this file.</p>
 <p>The format is based on <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
-<h2 id="unreleased"><a href="https://github.com/przemekhys/homeassistant-operator/compare/v1.1.0...HEAD">Unreleased</a><a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h2 id="unreleased"><a href="https://github.com/przemekhys/homeassistant-operator/compare/v1.2.0...HEAD">Unreleased</a><a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h2 id="v120-2026-07-24"><a href="https://github.com/przemekhys/homeassistant-operator/compare/v1.1.0...v1.2.0">v1.2.0</a> - 2026-07-24<a class="headerlink" href="#v120-2026-07-24" title="Permanent link">&para;</a></h2>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Helm chart is now generated from a single source of truth</strong> — the chart's static parts (all 10 CRDs and the operator RBAC rules) are generated from the authoritative Kustomize sources under <code>config/</code> via <code>make helm-sync</code>, so the Helm and Kustomize install paths can no longer physically drift. New CI gates (<code>make helm-verify</code>) block a PR that leaves the chart out of sync (<code>verify-chart-sync</code>), that lets the two render paths diverge on RBAC / securityContext / PSA labels (<code>verify-equivalence</code>), or that broadens the operator's RBAC versus the previous release without an explicit justification in <code>hack/rbac-allowlist.txt</code> (<code>verify-rbac-upgrade</code>, enforcing the minimal-RBAC principle).</li>
