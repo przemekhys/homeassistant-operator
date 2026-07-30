@@ -1470,6 +1470,72 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#httpheader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPHeader
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httpheaderfilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPHeaderFilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httppathmodifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPPathModifier
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httprequestredirectfilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPRequestRedirectFilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httproutefilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPRouteFilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httpurlrewritefilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPURLRewriteFilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#homeassistant" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2637,6 +2703,72 @@
     <span class="md-ellipsis">
       
         HTTPConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httpheader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPHeader
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httpheaderfilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPHeaderFilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httppathmodifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPPathModifier
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httprequestredirectfilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPRequestRedirectFilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httproutefilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPRouteFilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#httpurlrewritefilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPURLRewriteFilter
       
     </span>
   </a>
@@ -3890,6 +4022,12 @@ lives at the top level rather than under spec.alpha.</p>
 <td>false</td>
 <td>Optional: {} <br /></td>
 </tr>
+<tr>
+<td><code>filters</code> <em><a href="#httproutefilter">HTTPRouteFilter</a> array</em></td>
+<td>Filters are HTTP route-level behaviors (header modification, redirect, URL<br />rewrite) applied, in order, to the single HTTPRoute rule the operator<br />manages for this instance. Omitted/empty leaves the route unchanged from<br />its default shape.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
 </tbody>
 </table>
 <h4 id="httpconfig">HTTPConfig<a class="headerlink" href="#httpconfig" title="Permanent link">&para;</a></h4>
@@ -3921,6 +4059,232 @@ lives at the top level rather than under spec.alpha.</p>
 <tr>
 <td><code>useXForwardedFor</code> <em>boolean</em></td>
 <td>UseXForwardedFor enables usage of X-Forwarded-For header</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="httpheader">HTTPHeader<a class="headerlink" href="#httpheader" title="Permanent link">&para;</a></h4>
+<p>HTTPHeader is a single HTTP header name/value pair.</p>
+<p><em>Appears in:</em>
+- <a href="#httpheaderfilter">HTTPHeaderFilter</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code> <em>string</em></td>
+<td>Name of the header.</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>value</code> <em>string</em></td>
+<td>Value of the header.</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4 id="httpheaderfilter">HTTPHeaderFilter<a class="headerlink" href="#httpheaderfilter" title="Permanent link">&para;</a></h4>
+<p>HTTPHeaderFilter adds, sets, or removes HTTP headers. Used for both
+RequestHeaderModifier and ResponseHeaderModifier.</p>
+<p><em>Appears in:</em>
+- <a href="#httproutefilter">HTTPRouteFilter</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>set</code> <em><a href="#httpheader">HTTPHeader</a> array</em></td>
+<td>Set overwrites headers already present.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>add</code> <em><a href="#httpheader">HTTPHeader</a> array</em></td>
+<td>Add appends headers, keeping any existing value.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>remove</code> <em>string array</em></td>
+<td>Remove lists header names to strip.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="httppathmodifier">HTTPPathModifier<a class="headerlink" href="#httppathmodifier" title="Permanent link">&para;</a></h4>
+<p>HTTPPathModifier describes a path replacement for HTTPRequestRedirectFilter
+or HTTPURLRewriteFilter.</p>
+<p><em>Appears in:</em>
+- <a href="#httprequestredirectfilter">HTTPRequestRedirectFilter</a>
+- <a href="#httpurlrewritefilter">HTTPURLRewriteFilter</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type</code> <em>string</em></td>
+<td>Type selects which of the fields below applies.</td>
+<td></td>
+<td>Enum: [ReplaceFullPath ReplacePrefixMatch] <br /></td>
+</tr>
+<tr>
+<td><code>replaceFullPath</code> <em>string</em></td>
+<td>ReplaceFullPath is the whole replacement path. Must be set, and only be<br />set, when Type is ReplaceFullPath.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>replacePrefixMatch</code> <em>string</em></td>
+<td>ReplacePrefixMatch is the replacement for the matched path prefix. Must<br />be set, and only be set, when Type is ReplacePrefixMatch.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="httprequestredirectfilter">HTTPRequestRedirectFilter<a class="headerlink" href="#httprequestredirectfilter" title="Permanent link">&para;</a></h4>
+<p>HTTPRequestRedirectFilter redirects the request to a different
+scheme/hostname/path/port, optionally with a specific status code.</p>
+<p><em>Appears in:</em>
+- <a href="#httproutefilter">HTTPRouteFilter</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scheme</code> <em>string</em></td>
+<td>Scheme replaces the request scheme (e.g. "https").</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>hostname</code> <em>string</em></td>
+<td>Hostname replaces the request hostname.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>path</code> <em><a href="#httppathmodifier">HTTPPathModifier</a></em></td>
+<td>Path replaces the request path.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>port</code> <em>integer</em></td>
+<td>Port replaces the request port.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>statusCode</code> <em>integer</em></td>
+<td>StatusCode is the redirect status code.</td>
+<td></td>
+<td>Enum: [301 302 303 307 308] <br />Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="httproutefilter">HTTPRouteFilter<a class="headerlink" href="#httproutefilter" title="Permanent link">&para;</a></h4>
+<p>HTTPRouteFilter is one user-declared route behavior attached to the HTTP
+route exposing a HomeAssistant instance through Gateway API. Mirrors the
+field names/shape of upstream Gateway API's own HTTPRouteFilter, limited to
+the four supported types: RequestHeaderModifier, ResponseHeaderModifier,
+RequestRedirect, URLRewrite. Exactly the sub-object matching Type must be
+set; the webhook rejects any other combination.</p>
+<p><em>Appears in:</em>
+- <a href="#gatewayspec">GatewaySpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type</code> <em>string</em></td>
+<td>Type selects which of the sub-objects below applies.</td>
+<td></td>
+<td>Enum: [RequestHeaderModifier ResponseHeaderModifier RequestRedirect URLRewrite] <br /></td>
+</tr>
+<tr>
+<td><code>requestHeaderModifier</code> <em><a href="#httpheaderfilter">HTTPHeaderFilter</a></em></td>
+<td>RequestHeaderModifier modifies request headers. Must be set, and only be<br />set, when Type is RequestHeaderModifier.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>responseHeaderModifier</code> <em><a href="#httpheaderfilter">HTTPHeaderFilter</a></em></td>
+<td>ResponseHeaderModifier modifies response headers. Must be set, and only<br />be set, when Type is ResponseHeaderModifier.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>requestRedirect</code> <em><a href="#httprequestredirectfilter">HTTPRequestRedirectFilter</a></em></td>
+<td>RequestRedirect redirects the request. Must be set, and only be set,<br />when Type is RequestRedirect.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>urlRewrite</code> <em><a href="#httpurlrewritefilter">HTTPURLRewriteFilter</a></em></td>
+<td>URLRewrite rewrites the request path/hostname. Must be set, and only be<br />set, when Type is URLRewrite.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="httpurlrewritefilter">HTTPURLRewriteFilter<a class="headerlink" href="#httpurlrewritefilter" title="Permanent link">&para;</a></h4>
+<p>HTTPURLRewriteFilter rewrites the request hostname/path before it reaches
+Home Assistant.</p>
+<p><em>Appears in:</em>
+- <a href="#httproutefilter">HTTPRouteFilter</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hostname</code> <em>string</em></td>
+<td>Hostname replaces the request hostname.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>path</code> <em><a href="#httppathmodifier">HTTPPathModifier</a></em></td>
+<td>Path replaces the request path.</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
