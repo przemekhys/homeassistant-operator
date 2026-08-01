@@ -1530,6 +1530,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#choosing-a-test-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a test level
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Choosing a test level">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#worked-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Worked examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-note-on-coverage-trade-offs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A note on coverage trade-offs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#unit-tests-envtest" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1581,10 +1620,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#running-e2e" class="md-nav__link">
+  <a href="#running-e2e-locally" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Running E2E
+        Running E2E locally
       
     </span>
   </a>
@@ -1592,10 +1631,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#critical-path-tests-11-tests" class="md-nav__link">
+  <a href="#the-six-e2e-jobs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Critical path tests (11 tests)
+        The six e2e jobs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e2e-critical-path-tests-10-specs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        e2e-critical-path tests (10 specs)
       
     </span>
   </a>
@@ -1604,6 +1654,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coverage-gap-record" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coverage Gap Record
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1672,6 +1733,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#choosing-a-test-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a test level
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Choosing a test level">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#worked-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Worked examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-note-on-coverage-trade-offs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A note on coverage trade-offs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#unit-tests-envtest" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1723,10 +1823,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#running-e2e" class="md-nav__link">
+  <a href="#running-e2e-locally" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Running E2E
+        Running E2E locally
       
     </span>
   </a>
@@ -1734,10 +1834,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#critical-path-tests-11-tests" class="md-nav__link">
+  <a href="#the-six-e2e-jobs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Critical path tests (11 tests)
+        The six e2e jobs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e2e-critical-path-tests-10-specs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        e2e-critical-path tests (10 specs)
       
     </span>
   </a>
@@ -1746,6 +1857,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coverage-gap-record" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coverage Gap Record
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1836,12 +1958,73 @@ Every reconciliation test should verify idempotent behavior.</p>
 </ul>
 <h2 id="test-pyramid">Test Pyramid<a class="headerlink" href="#test-pyramid" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>              ┌─────────────┐
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>              │    E2E      │  ← One critical path (all CRDs, sequential)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>              │    E2E      │  ← Six focused suites, run concurrently (≤10 min total)
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>              ├─────────────┤
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>              │    Unit     │  ← Controller logic + pure functions (envtest)
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>              └─────────────┘
 </code></pre></div>
 <p><strong>Golden rule</strong>: if you can test it with envtest, don't use E2E.</p>
+<h2 id="choosing-a-test-level">Choosing a test level<a class="headerlink" href="#choosing-a-test-level" title="Permanent link">&para;</a></h2>
+<p>The golden rule above is a starting point, not the whole decision. Use this
+checklist for anything more specific — if any signal below applies, the
+behavior belongs in e2e (or a Helm chart test); otherwise it belongs in
+unit/integration (envtest).</p>
+<p><strong>Push toward e2e when the behavior...</strong></p>
+<ul>
+<li>Can only be observed against a real running container or HTTP/WebSocket
+  server (e.g. a real Home Assistant instance's actual API response) — no
+  Go-level fake or mock reproduces the real service's behavior.</li>
+<li>Depends on a real external controller reconciling something on its own
+  schedule — a real Gateway API implementation's <code>HTTPRoute</code> acceptance, or
+  cert-manager actually issuing a <code>Certificate</code> — which envtest's fake API
+  server does not simulate (it accepts writes to the Kubernetes API but runs
+  no other controllers).</li>
+<li>Validates the Helm chart's install/upgrade path itself (RBAC that only
+  takes effect once actually applied by Helm, webhook wiring that depends on
+  chart-templated Secrets/Services, CRD schema as shipped in the chart).</li>
+</ul>
+<p><strong>Push toward unit/integration (envtest) when the behavior...</strong></p>
+<ul>
+<li>Is pure reconciliation logic against the Kubernetes API surface envtest
+  already provides (creating/updating child resources, computing status
+  conditions, hashing, owner references) — envtest's fake API server models
+  this faithfully.</li>
+<li>Can be exercised with the <code>NewHAClient</code> dependency-injection pattern (an
+  <code>httptest.Server</code> standing in for Home Assistant's REST API) rather than a
+  real HA container.</li>
+</ul>
+<p><strong>Tiebreaker</strong> for borderline cases (technically reproducible with envtest,
+but only via significant custom scaffolding): if reproducing the real
+behavior in envtest would require re-implementing a third-party controller's
+logic (Gateway API, cert-manager) rather than just calling the Kubernetes API,
+that is itself the "e2e" signal — you'd be testing your fake, not the real
+integration.</p>
+<h3 id="worked-examples">Worked examples<a class="headerlink" href="#worked-examples" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>A <code>HomeAssistantScript</code> field that changes what gets written into
+   <code>scripts.yaml</code>.</strong> → Unit/integration. This is reconciliation logic
+   (ConfigMap generation) against the Kubernetes API — envtest covers it
+   fully; assert on the generated ConfigMap's content.</li>
+<li><strong>A change whose correctness depends on a real Home Assistant
+   HTTP/WebSocket API response</strong> (e.g. confirming a <code>spec.gateway.filters</code>
+   redirect actually changes traffic once reconciled onto a real <code>HTTPRoute</code>
+   by a real Gateway API implementation, or confirming an automation actually
+   hot-reloads via HA's real REST API). → E2e. No fake API server simulates a
+   real Gateway API controller's route acceptance or a real HA process's
+   config-reload behavior.</li>
+<li><strong>A change to RBAC/webhook wiring that only matters once deployed via
+   Helm</strong> (e.g. the webhook's <code>certManager.enabled</code> fallback path, or a new
+   RBAC rule's effect on the shipped <code>ClusterRole</code>). → E2e or a Helm chart
+   test via <code>make helm-verify</code> — this is only observable once the chart is
+   actually installed, not from Go code directly.</li>
+</ol>
+<h3 id="a-note-on-coverage-trade-offs">A note on coverage trade-offs<a class="headerlink" href="#a-note-on-coverage-trade-offs" title="Permanent link">&para;</a></h3>
+<p>Adding e2e coverage is not free — every e2e job runs against a real k3d
+cluster and counts against the 10-minute workflow budget (see below). If a
+new scenario cannot fit within an existing job's budget even after
+considering unit/integration alternatives, it is acceptable to intentionally
+not add e2e coverage for it, <strong>as long as that decision is recorded</strong> in the
+Coverage Gap Record below rather than the scenario silently going untested.</p>
 <hr />
 <h2 id="unit-tests-envtest">Unit Tests (envtest)<a class="headerlink" href="#unit-tests-envtest" title="Permanent link">&para;</a></h2>
 <p><strong>Location</strong>: <code>internal/controller/*_test.go</code>
@@ -1903,24 +2086,102 @@ Every reconciliation test should verify idempotent behavior.</p>
 </code></pre></div></p>
 <hr />
 <h2 id="e2e-tests">E2E Tests<a class="headerlink" href="#e2e-tests" title="Permanent link">&para;</a></h2>
-<p><strong>Location</strong>: <code>test/e2e/e2e_critical_path_test.go</code>
+<p><strong>Location</strong>: <code>test/e2e/*_test.go</code> (8 files, 25 specs total)
 <strong>Framework</strong>: Ginkgo v2 + real k3d cluster
-<strong>Strategy</strong>: One ordered suite, one bootstrap, one <code>It</code> block per CRD</p>
-<p>The entire E2E suite shares a single Home Assistant bootstrap (~30 min). Tests run sequentially (<code>Ordered</code>) and continue even if one fails (<code>ContinueOnFailure</code>) so later CRDs are still exercised.</p>
-<h3 id="running-e2e">Running E2E<a class="headerlink" href="#running-e2e" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>make<span class="w"> </span>test-e2e<span class="w">    </span><span class="c1"># Creates fresh k3d cluster (12 GB RAM), runs all tests, tears down (~40-50 min)</span>
+<strong>Strategy</strong>: Six independently-labeled suites, run as six concurrent GitHub
+Actions jobs (<code>.github/workflows/test-e2e-parallel.yml</code>), so the whole
+workflow — not any single job — completes within a <strong>10-minute</strong> budget.</p>
+<p><strong>This section is the sole source of truth in this repository for e2e
+suite/job duration</strong> (per this project's testing policy). Any other file that
+needs to reference how long the suite takes should point here rather than
+restating a number.</p>
+<p><strong>Goal</strong>: the whole e2e workflow completes in about 10 minutes, split across
+the six concurrent jobs below.</p>
+<h3 id="running-e2e-locally">Running E2E locally<a class="headerlink" href="#running-e2e-locally" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>make<span class="w"> </span>test-e2e-critical-path<span class="w">              </span><span class="c1"># HomeAssistant + sibling CRDs (10 specs)</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>make<span class="w"> </span>test-e2e-tls<span class="w">                        </span><span class="c1"># TLS ingress/gateway/native/webhook (5 specs)</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>make<span class="w"> </span>test-e2e-network-policy<span class="w">             </span><span class="c1"># NetworkPolicy enforcement (1 spec)</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>make<span class="w"> </span>test-e2e-pod-security<span class="w">                </span><span class="c1"># Pod Security Standards (2 specs)</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>make<span class="w"> </span>test-e2e-community-repository-a<span class="w">     </span><span class="c1"># HACS-style installs, group A (3 specs)</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>make<span class="w"> </span>test-e2e-community-repository-b<span class="w">     </span><span class="c1"># HACS-style installs, group B (4 specs)</span>
 </code></pre></div>
-<p>Under the hood:
-1. <code>make setup-test-e2e</code> — deletes any existing cluster, creates a fresh one, imports HA image
-2. Ginkgo runs the suite with <code>--timeout=60m</code>
-3. <code>make cleanup-test-e2e</code> — tears down the cluster regardless of result</p>
-<div class="admonition warning">
-<p class="admonition-title">Memory requirement</p>
-<p><code>make test-e2e</code> requires <strong>12 GB RAM</strong> for the k3d cluster. On machines with less memory:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nv">K3D_MEMORY_E2E</span><span class="o">=</span>4g<span class="w"> </span>make<span class="w"> </span>test-e2e
-</code></pre></div></p>
-</div>
-<h3 id="critical-path-tests-11-tests">Critical path tests (11 tests)<a class="headerlink" href="#critical-path-tests-11-tests" title="Permanent link">&para;</a></h3>
+<p>Each target creates its own fresh k3d cluster (<code>K3D_MEMORY_E2E=4g</code> by
+default), runs its <code>ginkgo run --label-filter=...</code> subset, and tears the
+cluster down afterward — mirroring exactly what each CI job does.</p>
+<p>Local runs build and use <code>example.com/homeassistant-operator:v0.0.1</code> (the
+suite's own default), rebuilding the image each time. CI instead builds the
+image once (the <code>build</code> job), uploads it as an artifact tagged <code>operator:e2e</code>,
+and every e2e job downloads and loads that same artifact — set
+<code>E2E_SKIP_IMAGE_BUILD=true</code> and <code>E2E_IMG=&lt;tag&gt;</code> to reproduce that
+skip-the-rebuild behavior locally against a pre-built image.</p>
+<h3 id="the-six-e2e-jobs">The six e2e jobs<a class="headerlink" href="#the-six-e2e-jobs" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Job</th>
+<th>Label filter</th>
+<th>Specs</th>
+<th>What is verified</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>e2e-critical-path</code></td>
+<td><code>critical-path</code></td>
+<td>10</td>
+<td>All CRDs' core lifecycle (see table below) — shares one HA bootstrap</td>
+</tr>
+<tr>
+<td><code>e2e-tls</code></td>
+<td><code>tls</code></td>
+<td>5</td>
+<td>TLS via Ingress, Gateway API, native HA TLS, and the validating webhook</td>
+</tr>
+<tr>
+<td><code>e2e-network-policy</code></td>
+<td><code>network-policy</code></td>
+<td>1</td>
+<td><code>spec.alpha.networkPolicy</code> actually restricts traffic, not just that the object exists</td>
+</tr>
+<tr>
+<td><code>e2e-pod-security</code></td>
+<td><code>pod-security</code></td>
+<td>2</td>
+<td>Operator namespace enforces the <code>restricted</code> Pod Security Standard</td>
+</tr>
+<tr>
+<td><code>e2e-community-repository-a</code></td>
+<td><code>community-repository &amp;&amp; group-a</code></td>
+<td>3</td>
+<td><code>HomeAssistantCommunityRepository</code>: integration + theme install, theme ref-update</td>
+</tr>
+<tr>
+<td><code>e2e-community-repository-b</code></td>
+<td><code>community-repository &amp;&amp; group-b</code></td>
+<td>4</td>
+<td><code>HomeAssistantCommunityRepository</code>: python_script + template + plugin install, deletion</td>
+</tr>
+</tbody>
+</table>
+<p>The community-repository split (not an arbitrary half-and-half) keeps two
+spec pairs together: "keeps installedVersion..." reuses the CR created by the
+theme-install spec, and "removes the ConfigMap entry..." reuses the CR
+created by the python_script-install spec — each pair must run in the same
+Ginkgo process since separate CI jobs use separate clusters and cannot see
+each other's resources.</p>
+<p><strong>Known gap</strong>: real CI runs showed every job's cold-start overhead — and the
+community-repository specs' own runtime — running noticeably longer than
+initial estimates (extrapolated from a single long-running, cache-warm job)
+suggested, so per-job timeouts have been progressively widened rather than
+left to fail: <code>e2e-community-repository-b</code> up to 16 min, <code>-a</code> up to 14 min,
+<code>e2e-tls</code> up to 11 min. <strong>The whole workflow does not currently meet the
+10-minute goal</strong> — with <code>build</code> (a few minutes) plus the slowest job
+(<code>e2e-community-repository-b</code>), real end-to-end time is closer to 15-20
+minutes. Tightening this back down needs either genuine optimization (e.g.
+the per-spec activation-confirmation polling in community-repository, or the
+"Load Home Assistant image" step's own variability) or accepting a revised,
+honest target — not just more timeout increases.</p>
+<h3 id="e2e-critical-path-tests-10-specs"><code>e2e-critical-path</code> tests (10 specs)<a class="headerlink" href="#e2e-critical-path-tests-10-specs" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -1979,6 +2240,31 @@ Every reconciliation test should verify idempotent behavior.</p>
 <td>10</td>
 <td><code>HomeAssistantArea</code></td>
 <td>Created via WebSocket registry API, deleted</td>
+</tr>
+</tbody>
+</table>
+<p>This job's specs share one Home Assistant bootstrap (real onboarding) and run
+sequentially (<code>Ordered</code>), continuing even if one fails (<code>ContinueOnFailure</code>)
+so later CRDs are still exercised.</p>
+<h2 id="coverage-gap-record">Coverage Gap Record<a class="headerlink" href="#coverage-gap-record" title="Permanent link">&para;</a></h2>
+<p>No e2e scenario has been intentionally dropped from the gating workflow — all
+25 pre-existing specs are still verified, split across the six jobs above.
+This section exists as the place to record it if a future change ever needs
+to drop a scenario from the gating path rather than fitting it into an
+existing (or new) job:</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Why not gating</th>
+<th>Where (if anywhere) it's still verified</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none currently)</em></td>
+<td></td>
+<td></td>
 </tr>
 </tbody>
 </table>
