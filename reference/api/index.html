@@ -4082,13 +4082,13 @@ lives at the top level rather than under spec.alpha.</p>
 <td><code>name</code> <em>string</em></td>
 <td>Name of the header.</td>
 <td></td>
-<td></td>
+<td>MinLength: 1 <br />Pattern: <code>^[A-Za-z0-9!#$%&amp;'*+\-.^_\x60\|~]+$</code> <br />Required: {} <br /></td>
 </tr>
 <tr>
 <td><code>value</code> <em>string</em></td>
 <td>Value of the header.</td>
 <td></td>
-<td></td>
+<td>MinLength: 1 <br />Required: {} <br /></td>
 </tr>
 </tbody>
 </table>
@@ -4147,7 +4147,7 @@ or HTTPURLRewriteFilter.</p>
 <td><code>type</code> <em>string</em></td>
 <td>Type selects which of the fields below applies.</td>
 <td></td>
-<td>Enum: [ReplaceFullPath ReplacePrefixMatch] <br /></td>
+<td>Enum: [ReplaceFullPath ReplacePrefixMatch] <br />Required: {} <br /></td>
 </tr>
 <tr>
 <td><code>replaceFullPath</code> <em>string</em></td>
@@ -4233,7 +4233,7 @@ set; the webhook rejects any other combination.</p>
 <td><code>type</code> <em>string</em></td>
 <td>Type selects which of the sub-objects below applies.</td>
 <td></td>
-<td>Enum: [RequestHeaderModifier ResponseHeaderModifier RequestRedirect URLRewrite] <br /></td>
+<td>Enum: [RequestHeaderModifier ResponseHeaderModifier RequestRedirect URLRewrite] <br />Required: {} <br /></td>
 </tr>
 <tr>
 <td><code>requestHeaderModifier</code> <em><a href="#httpheaderfilter">HTTPHeaderFilter</a></em></td>
@@ -4937,6 +4937,12 @@ Home Assistant.</p>
 <tr>
 <td><code>observedGeneration</code> <em>integer</em></td>
 <td>Generation tracks the generation of the spec that the status reflects</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>trustedProxiesDefaulted</code> <em>boolean</em></td>
+<td>TrustedProxiesDefaulted reports whether the operator's default<br />http.trusted_proxies / http.use_x_forwarded_for values are currently<br />active in the generated configuration for the referenced HomeAssistant.<br />false covers every case where they are not active (not exposed via<br />Ingress/Gateway, opted out via spec.disableDefaultTrustedProxies, or the<br />user already manages these keys themselves) — see the HomeAssistant's own<br />ExposureReady condition message for which of those it is.</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
@@ -6202,6 +6208,12 @@ Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
 <tr>
 <td><code>backup</code> <em><a href="#backupspec">BackupSpec</a></em></td>
 <td>Backup configures automatic backups using Home Assistant's built-in backup system.<br />Requires bootstrap with API token enabled.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>disableDefaultTrustedProxies</code> <em>boolean</em></td>
+<td>DisableDefaultTrustedProxies opts out of the operator's automatic<br />http.trusted_proxies / http.use_x_forwarded_for defaults. When Ingress or<br />Gateway API exposure is enabled, Home Assistant rejects every request<br />through that endpoint with 400 Bad Request until it trusts the proxy<br />forwarding the request. Unless this is set to true, and unless the user<br />has already set these keys themselves in HomeAssistantConfiguration (or<br />manages http: entirely externally, e.g. via an !include tag), the<br />operator injects the RFC1918 private address ranges (10.0.0.0/8,<br />172.16.0.0/12, 192.168.0.0/16) as sensible defaults — this cannot be a<br />reliable autodetection of the real cluster CIDR, only a conservative<br />guess, so this field exists to opt out entirely for clusters where it<br />doesn't apply (e.g. non-RFC1918 pod/service networks, or where other<br />workloads on the pod network should not be trusted to set<br />X-Forwarded-For for the actual Ingress/Gateway proxy).</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>

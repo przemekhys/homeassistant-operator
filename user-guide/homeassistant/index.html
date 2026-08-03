@@ -769,6 +769,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="spec.ingress">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-trusted-proxies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default trusted proxies
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1848,6 +1865,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="spec.ingress">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-trusted-proxies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default trusted proxies
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -2107,21 +2141,63 @@
 <a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="nt">tls</span><span class="p">:</span>
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">      </span><span class="nt">secretName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha-tls</span>
 </code></pre></div>
+<h4 id="default-trusted-proxies">Default trusted proxies<a class="headerlink" href="#default-trusted-proxies" title="Permanent link">&para;</a></h4>
+<p>Home Assistant rejects every request with <code>400 Bad Request</code> unless it is told
+to trust the proxy in front of it. Whenever <code>spec.ingress.enabled</code> or
+<code>spec.gateway.enabled</code> is <code>true</code>, the operator automatically adds the
+following to the generated <code>configuration.yaml</code>, unless the keys are already
+present:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">http</span><span class="p">:</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">use_x_forwarded_for</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nt">trusted_proxies</span><span class="p">:</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10.0.0.0/8</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">172.16.0.0/12</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">192.168.0.0/16</span>
+</code></pre></div>
+<p>These are the RFC1918 private address ranges — a conservative default, not an
+autodetection of the real cluster pod/service CIDR (which cannot be reliably
+read from the Kubernetes API). Each key is added independently: if you have
+already set either <code>http.use_x_forwarded_for</code> or <code>http.trusted_proxies</code>
+yourself in <code>HomeAssistantConfiguration</code>, the operator leaves your value
+untouched and only fills in the missing key. If <code>http:</code> itself is an
+externally managed tagged block (for example <code>http: !include http.yaml</code>),
+the operator leaves it completely untouched — set the keys in that included
+file, or move the section into <code>HomeAssistantConfiguration.spec.configuration</code>
+directly, if you want the operator to manage them.</p>
+<p><strong>Security note</strong>: because these are broad RFC1918 ranges, in most Kubernetes
+clusters they cover every pod on the network, not just your actual Ingress
+controller or Gateway. Any reachable workload can then set its own
+<code>X-Forwarded-For</code> header and have Home Assistant trust it as the real client
+IP, weakening IP-based bans, rate limiting, and audit-log attribution. If
+other workloads in the cluster aren't trusted, replace the default
+<code>trusted_proxies</code> with the actual CIDR of your Ingress/Gateway proxy (for
+example, the ingress controller's pod or Service CIDR) in
+<code>HomeAssistantConfiguration</code>, or disable the defaults below and configure
+<code>http.trusted_proxies</code>/<code>http.use_x_forwarded_for</code> yourself.</p>
+<p>To opt out entirely (for example, if your cluster's pod/service network isn't
+RFC1918, or you want to set narrower proxy ranges yourself), set:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nt">disableDefaultTrustedProxies</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+<p>The <code>HomeAssistant</code> resource's <code>ExposureReady</code> condition message reports
+which of the three states applies: <code>default trusted proxies applied</code>, <code>using
+user-configured trusted proxies</code>, or <code>default trusted proxies disabled
+(opt-out)</code>.</p>
 <h3 id="specresources"><code>spec.resources</code><a class="headerlink" href="#specresources" title="Permanent link">&para;</a></h3>
 <p>CPU and memory requests/limits for the HA container.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">resources</span><span class="p">:</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">requests</span><span class="p">:</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">      </span><span class="nt">cpu</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;100m&quot;</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">      </span><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;256Mi&quot;</span>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="nt">limits</span><span class="p">:</span>
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">      </span><span class="nt">cpu</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1000m&quot;</span>
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">      </span><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1Gi&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">resources</span><span class="p">:</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="nt">requests</span><span class="p">:</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">      </span><span class="nt">cpu</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;100m&quot;</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">      </span><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;256Mi&quot;</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">    </span><span class="nt">limits</span><span class="p">:</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">      </span><span class="nt">cpu</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1000m&quot;</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">      </span><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1Gi&quot;</span>
 </code></pre></div>
 <h3 id="spechostnetwork"><code>spec.hostNetwork</code><a class="headerlink" href="#spechostnetwork" title="Permanent link">&para;</a></h3>
 <p>Enables host networking for mDNS/SSDP/DHCP device discovery on the local LAN. Off by default.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nt">hostNetwork</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">hostNetwork</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -2134,10 +2210,10 @@
 <p>Opt-in, off by default. Fields under <code>spec.alpha</code> are experimental and may change or be removed without a deprecation notice.</p>
 </div>
 <p>When enabled, the operator creates a <code>NetworkPolicy</code> restricting ingress to the Home Assistant pod to the same namespace and the operator's own namespace, on the Service port. Egress is left unrestricted — Home Assistant needs broad, unpredictable egress to IoT devices, cloud APIs, and MQTT brokers.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">alpha</span><span class="p">:</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="nt">networkPolicy</span><span class="p">:</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="nt">alpha</span><span class="p">:</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="nt">networkPolicy</span><span class="p">:</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -2145,25 +2221,25 @@
 </div>
 <h3 id="specsecretsfrom"><code>spec.secretsFrom</code><a class="headerlink" href="#specsecretsfrom" title="Permanent link">&para;</a></h3>
 <p>Direct reference to a Kubernetes Secret containing a <code>secrets.yaml</code> blob. Prefer <code>HomeAssistantSecrets</code> CR for managed secret composition.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">secretsFrom</span><span class="p">:</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-raw-secrets</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">secretsFrom</span><span class="p">:</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-raw-secrets</span>
 </code></pre></div>
 <h2 id="status">Status<a class="headerlink" href="#status" title="Permanent link">&para;</a></h2>
-<p><div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>ha<span class="w"> </span>home
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>ha<span class="w"> </span>home
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>NAME   READY   STATUS    VERSION   AGE
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>home   True    Running   2025.6    5m
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>NAME   READY   STATUS    VERSION   AGE
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>home   True    Running   2025.6    5m
 </code></pre></div></p>
-<p><div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>kubectl<span class="w"> </span>describe<span class="w"> </span>ha<span class="w"> </span>home
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>kubectl<span class="w"> </span>describe<span class="w"> </span>ha<span class="w"> </span>home
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>Status:
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>  Conditions:
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    Type:    Ready
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    Status:  True
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>  Bootstrap:
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    Completed:       true
-<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    API Token Ready: true
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>Status:
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>  Conditions:
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    Type:    Ready
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    Status:  True
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>  Bootstrap:
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    Completed:       true
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>    API Token Ready: true
 </code></pre></div></p>
 <h2 id="ip-ban-self-recovery">IP ban self-recovery<a class="headerlink" href="#ip-ban-self-recovery" title="Permanent link">&para;</a></h2>
 <p>When Home Assistant has <code>ip_ban_enabled: true</code>, it can ban the operator's own IP after repeated failed logins (HTTP <code>403</code>) — for example during bootstrap retries. A banned operator can no longer reach the HA API, which would normally require manual editing of <code>/config/ip_bans.yaml</code>. The operator recovers from this automatically, <strong>without</strong> needing the <code>pods/exec</code> RBAC permission.</p>
@@ -2182,7 +2258,7 @@
 <li>The window resets automatically after 30 minutes <strong>or</strong> on the first successful HA connection.</li>
 </ul>
 <p>Once the limit is exceeded the operator stops restarting and sets the <code>BanRecoveryFailed=True</code> condition, requiring manual intervention:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>kubectl<span class="w"> </span>describe<span class="w"> </span>ha<span class="w"> </span>home<span class="w">   </span><span class="c1"># look for the BanRecoveryFailed condition</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>kubectl<span class="w"> </span>describe<span class="w"> </span>ha<span class="w"> </span>home<span class="w">   </span><span class="c1"># look for the BanRecoveryFailed condition</span>
 </code></pre></div>
 <p>Manual recovery: remove the operator's IP from <code>/config/ip_bans.yaml</code> on the PVC and restart the pod (<code>kubectl delete pod home-0</code>).</p>
 <h3 id="status-fields">Status fields<a class="headerlink" href="#status-fields" title="Permanent link">&para;</a></h3>
@@ -2208,8 +2284,8 @@
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>The PVC is <strong>not</strong> deleted automatically when the <code>HomeAssistant</code> CR is removed — this protects your HA configuration data. Delete the PVC manually if you want a clean teardown:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>ha<span class="w"> </span>home
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>pvc<span class="w"> </span>home-config<span class="w">   </span><span class="c1"># name: &lt;ha-name&gt;-config</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>ha<span class="w"> </span>home
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>pvc<span class="w"> </span>home-config<span class="w">   </span><span class="c1"># name: &lt;ha-name&gt;-config</span>
 </code></pre></div></p>
 </div>
 
