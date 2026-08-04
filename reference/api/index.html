@@ -1437,6 +1437,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#devicepassthroughentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DevicePassthroughEntry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#gatewayparentref" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2677,6 +2688,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#devicepassthroughentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DevicePassthroughEntry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#gatewayparentref" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3620,6 +3642,12 @@ default false) -&gt; stable default false -&gt; stable default true -&gt; mandat
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
+<tr>
+<td><code>devices</code> <em><a href="#devicepassthroughentry">DevicePassthroughEntry</a> array</em></td>
+<td>Devices declares host device nodes (e.g. /dev/ttyACM0 for a Zigbee/<br />Z-Wave USB coordinator) to mount into the Home Assistant container.<br />Each entry is mounted via a hostPath volume typed as a character<br />device; the container is never granted <code>privileged: true</code> for this.<br />Declaring at least one entry changes the pod's security context, so<br />this starts in spec.alpha until it stabilizes. This does not affect<br />where the pod is scheduled — the declared device(s) must already<br />exist on whichever node the pod lands on (see node pinning, a<br />separate capability) for this to be useful.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
 </tbody>
 </table>
 <h4 id="automationaction">AutomationAction<a class="headerlink" href="#automationaction" title="Permanent link">&para;</a></h4>
@@ -3931,6 +3959,35 @@ This is a flexible structure that accepts any valid Home Assistant trigger confi
 <td><code>passwordKey</code> <em>string</em></td>
 <td>PasswordKey is the key in the Secret containing the password</td>
 <td>password</td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="devicepassthroughentry">DevicePassthroughEntry<a class="headerlink" href="#devicepassthroughentry" title="Permanent link">&para;</a></h4>
+<p>DevicePassthroughEntry declares one host device node to expose inside the
+Home Assistant container.</p>
+<p><em>Appears in:</em>
+- <a href="#alphaspec">AlphaSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hostPath</code> <em>string</em></td>
+<td>HostPath is the device node's path on the host, e.g. /dev/ttyACM0.<br />Must be an absolute path under /dev.</td>
+<td></td>
+<td>Required: {} <br /></td>
+</tr>
+<tr>
+<td><code>containerPath</code> <em>string</em></td>
+<td>ContainerPath is the path the device is mounted at inside the Home<br />Assistant container. Defaults to HostPath when omitted.</td>
+<td></td>
 <td>Optional: {} <br /></td>
 </tr>
 </tbody>

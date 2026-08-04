@@ -822,6 +822,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#specalphadevices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        spec.alpha.devices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#specsecretsfrom" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1918,6 +1929,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#specalphadevices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        spec.alpha.devices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#specsecretsfrom" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2219,27 +2241,48 @@ user-configured trusted proxies</code>, or <code>default trusted proxies disable
 <p class="admonition-title">Warning</p>
 <p>The operator-namespace ingress peer is only added when the controller knows its own namespace via the <code>OPERATOR_NAMESPACE</code> environment variable (set automatically by the shipped manifests). If it is unset, the operator silently omits that peer and only logs a warning — the resulting policy blocks the operator from reaching the HA API, breaking bootstrap, hot-reload, and health checks. Ensure <code>OPERATOR_NAMESPACE</code> is set on the controller before enabling this.</p>
 </div>
+<h3 id="specalphadevices"><code>spec.alpha.devices</code><a class="headerlink" href="#specalphadevices" title="Permanent link">&para;</a></h3>
+<div class="admonition note">
+<p class="admonition-title">Alpha</p>
+<p>Opt-in, off by default. Fields under <code>spec.alpha</code> are experimental and may change or be removed without a deprecation notice.</p>
+</div>
+<p>Mounts one or more host device nodes (e.g. <code>/dev/ttyACM0</code> for a Zigbee/Z-Wave USB coordinator such as a Conbee2 or SkyConnect) into the Home Assistant container, so integrations like Zigbee2MQTT, Z-Wave JS, or ZHA can open the serial port. Each entry is mounted as a <code>hostPath</code> volume typed as a character device — the operator never sets <code>privileged: true</code> on the pod for this.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">alpha</span><span class="p">:</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="nt">devices</span><span class="p">:</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">hostPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/dev/ttyACM0</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">        </span><span class="c1"># containerPath defaults to hostPath when omitted</span>
+</code></pre></div>
+<p>Fields per entry:</p>
+<ul>
+<li><code>hostPath</code> (required): the device node's path on the host. Must be an absolute path under <code>/dev</code>.</li>
+<li><code>containerPath</code> (optional): the path the device is mounted at inside the container. Defaults to <code>hostPath</code>.</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This does <strong>not</strong> pin the pod to the node the device is physically attached to. A USB coordinator only exists on one specific node, so declaring it here is only useful once you've separately ensured the pod is scheduled there (e.g. via <code>nodeSelector</code>/affinity/tolerations — node pinning is a separate capability). If the declared device isn't present on whichever node the pod lands on, the pod fails to start and the <code>HomeAssistant</code> resource's <code>DevicesReady</code> status condition names the missing path.</p>
+</div>
 <h3 id="specsecretsfrom"><code>spec.secretsFrom</code><a class="headerlink" href="#specsecretsfrom" title="Permanent link">&para;</a></h3>
 <p>Direct reference to a Kubernetes Secret containing a <code>secrets.yaml</code> blob. Prefer <code>HomeAssistantSecrets</code> CR for managed secret composition.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">secretsFrom</span><span class="p">:</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-raw-secrets</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">secretsFrom</span><span class="p">:</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-raw-secrets</span>
 </code></pre></div>
 <h2 id="status">Status<a class="headerlink" href="#status" title="Permanent link">&para;</a></h2>
-<p><div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>ha<span class="w"> </span>home
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>ha<span class="w"> </span>home
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>NAME   READY   STATUS    VERSION   AGE
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>home   True    Running   2025.6    5m
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>NAME   READY   STATUS    VERSION   AGE
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>home   True    Running   2025.6    5m
 </code></pre></div></p>
-<p><div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>kubectl<span class="w"> </span>describe<span class="w"> </span>ha<span class="w"> </span>home
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>kubectl<span class="w"> </span>describe<span class="w"> </span>ha<span class="w"> </span>home
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>Status:
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>  Conditions:
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    Type:    Ready
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    Status:  True
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>  Bootstrap:
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    Completed:       true
-<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>    API Token Ready: true
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>Status:
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>  Conditions:
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    Type:    Ready
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    Status:  True
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>  Bootstrap:
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    Completed:       true
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>    API Token Ready: true
 </code></pre></div></p>
 <h2 id="ip-ban-self-recovery">IP ban self-recovery<a class="headerlink" href="#ip-ban-self-recovery" title="Permanent link">&para;</a></h2>
 <p>When Home Assistant has <code>ip_ban_enabled: true</code>, it can ban the operator's own IP after repeated failed logins (HTTP <code>403</code>) — for example during bootstrap retries. A banned operator can no longer reach the HA API, which would normally require manual editing of <code>/config/ip_bans.yaml</code>. The operator recovers from this automatically, <strong>without</strong> needing the <code>pods/exec</code> RBAC permission.</p>
@@ -2258,7 +2301,7 @@ user-configured trusted proxies</code>, or <code>default trusted proxies disable
 <li>The window resets automatically after 30 minutes <strong>or</strong> on the first successful HA connection.</li>
 </ul>
 <p>Once the limit is exceeded the operator stops restarting and sets the <code>BanRecoveryFailed=True</code> condition, requiring manual intervention:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>kubectl<span class="w"> </span>describe<span class="w"> </span>ha<span class="w"> </span>home<span class="w">   </span><span class="c1"># look for the BanRecoveryFailed condition</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>kubectl<span class="w"> </span>describe<span class="w"> </span>ha<span class="w"> </span>home<span class="w">   </span><span class="c1"># look for the BanRecoveryFailed condition</span>
 </code></pre></div>
 <p>Manual recovery: remove the operator's IP from <code>/config/ip_bans.yaml</code> on the PVC and restart the pod (<code>kubectl delete pod home-0</code>).</p>
 <h3 id="status-fields">Status fields<a class="headerlink" href="#status-fields" title="Permanent link">&para;</a></h3>
@@ -2284,8 +2327,8 @@ user-configured trusted proxies</code>, or <code>default trusted proxies disable
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>The PVC is <strong>not</strong> deleted automatically when the <code>HomeAssistant</code> CR is removed — this protects your HA configuration data. Delete the PVC manually if you want a clean teardown:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>ha<span class="w"> </span>home
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>pvc<span class="w"> </span>home-config<span class="w">   </span><span class="c1"># name: &lt;ha-name&gt;-config</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>ha<span class="w"> </span>home
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>pvc<span class="w"> </span>home-config<span class="w">   </span><span class="c1"># name: &lt;ha-name&gt;-config</span>
 </code></pre></div></p>
 </div>
 

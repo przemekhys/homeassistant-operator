@@ -1631,10 +1631,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#the-six-e2e-jobs" class="md-nav__link">
+  <a href="#the-seven-e2e-jobs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The six e2e jobs
+        The seven e2e jobs
       
     </span>
   </a>
@@ -1642,10 +1642,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#e2e-critical-path-tests-10-specs" class="md-nav__link">
+  <a href="#e2e-critical-a-tests-10-specs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        e2e-critical-path tests (10 specs)
+        e2e-critical-a tests (10 specs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e2e-critical-b-tests-1-spec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        e2e-critical-b tests (1 spec)
       
     </span>
   </a>
@@ -1834,10 +1845,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#the-six-e2e-jobs" class="md-nav__link">
+  <a href="#the-seven-e2e-jobs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The six e2e jobs
+        The seven e2e jobs
       
     </span>
   </a>
@@ -1845,10 +1856,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#e2e-critical-path-tests-10-specs" class="md-nav__link">
+  <a href="#e2e-critical-a-tests-10-specs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        e2e-critical-path tests (10 specs)
+        e2e-critical-a tests (10 specs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e2e-critical-b-tests-1-spec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        e2e-critical-b tests (1 spec)
       
     </span>
   </a>
@@ -2086,24 +2108,26 @@ Coverage Gap Record below rather than the scenario silently going untested.</p>
 </code></pre></div></p>
 <hr />
 <h2 id="e2e-tests">E2E Tests<a class="headerlink" href="#e2e-tests" title="Permanent link">&para;</a></h2>
-<p><strong>Location</strong>: <code>test/e2e/*_test.go</code> (8 files, 25 specs total)
+<p><strong>Location</strong>: <code>test/e2e/*_test.go</code> (9 files, 26 specs total)
 <strong>Framework</strong>: Ginkgo v2 + real k3d cluster
-<strong>Strategy</strong>: Six independently-labeled suites, run as six concurrent GitHub
-Actions jobs (<code>.github/workflows/test-e2e-parallel.yml</code>), so the whole
-workflow — not any single job — completes within a <strong>10-minute</strong> budget.</p>
+<strong>Strategy</strong>: Seven independently-labeled suites, run as seven concurrent
+GitHub Actions jobs (<code>.github/workflows/test-e2e-parallel.yml</code>), so the whole
+workflow — not any single job — targets a <strong>10-minute</strong> budget (see the
+Known gap below: not currently met in practice, closer to 15-20 minutes).</p>
 <p><strong>This section is the sole source of truth in this repository for e2e
 suite/job duration</strong> (per this project's testing policy). Any other file that
 needs to reference how long the suite takes should point here rather than
 restating a number.</p>
 <p><strong>Goal</strong>: the whole e2e workflow completes in about 10 minutes, split across
-the six concurrent jobs below.</p>
+the seven concurrent jobs below.</p>
 <h3 id="running-e2e-locally">Running E2E locally<a class="headerlink" href="#running-e2e-locally" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>make<span class="w"> </span>test-e2e-critical-path<span class="w">              </span><span class="c1"># HomeAssistant + sibling CRDs (10 specs)</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>make<span class="w"> </span>test-e2e-tls<span class="w">                        </span><span class="c1"># TLS ingress/gateway/native/webhook (5 specs)</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>make<span class="w"> </span>test-e2e-network-policy<span class="w">             </span><span class="c1"># NetworkPolicy enforcement (1 spec)</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>make<span class="w"> </span>test-e2e-pod-security<span class="w">                </span><span class="c1"># Pod Security Standards (2 specs)</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>make<span class="w"> </span>test-e2e-community-repository-a<span class="w">     </span><span class="c1"># HACS-style installs, group A (3 specs)</span>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>make<span class="w"> </span>test-e2e-community-repository-b<span class="w">     </span><span class="c1"># HACS-style installs, group B (4 specs)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>make<span class="w"> </span>test-e2e-critical-a<span class="w">                 </span><span class="c1"># HomeAssistant + sibling CRDs (10 specs)</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>make<span class="w"> </span>test-e2e-critical-b<span class="w">                 </span><span class="c1"># spec.alpha.devices device passthrough (1 spec)</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>make<span class="w"> </span>test-e2e-tls<span class="w">                        </span><span class="c1"># TLS ingress/gateway/native/webhook (5 specs)</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>make<span class="w"> </span>test-e2e-network-policy<span class="w">             </span><span class="c1"># NetworkPolicy enforcement (1 spec)</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>make<span class="w"> </span>test-e2e-pod-security<span class="w">                </span><span class="c1"># Pod Security Standards (2 specs)</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>make<span class="w"> </span>test-e2e-community-repository-a<span class="w">     </span><span class="c1"># HACS-style installs, group A (3 specs)</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>make<span class="w"> </span>test-e2e-community-repository-b<span class="w">     </span><span class="c1"># HACS-style installs, group B (4 specs)</span>
 </code></pre></div>
 <p>Each target creates its own fresh k3d cluster (<code>K3D_MEMORY_E2E=4g</code> by
 default), runs its <code>ginkgo run --label-filter=...</code> subset, and tears the
@@ -2114,7 +2138,7 @@ image once (the <code>build</code> job), uploads it as an artifact tagged <code>
 and every e2e job downloads and loads that same artifact — set
 <code>E2E_SKIP_IMAGE_BUILD=true</code> and <code>E2E_IMG=&lt;tag&gt;</code> to reproduce that
 skip-the-rebuild behavior locally against a pre-built image.</p>
-<h3 id="the-six-e2e-jobs">The six e2e jobs<a class="headerlink" href="#the-six-e2e-jobs" title="Permanent link">&para;</a></h3>
+<h3 id="the-seven-e2e-jobs">The seven e2e jobs<a class="headerlink" href="#the-seven-e2e-jobs" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -2126,10 +2150,16 @@ skip-the-rebuild behavior locally against a pre-built image.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>e2e-critical-path</code></td>
-<td><code>critical-path</code></td>
+<td><code>e2e-critical-a</code></td>
+<td><code>critical-path &amp;&amp; group-a</code></td>
 <td>10</td>
 <td>All CRDs' core lifecycle (see table below) — shares one HA bootstrap</td>
+</tr>
+<tr>
+<td><code>e2e-critical-b</code></td>
+<td><code>critical-path &amp;&amp; group-b</code></td>
+<td>1</td>
+<td><code>spec.alpha.devices</code> device passthrough — own cluster/instance, no shared bootstrap</td>
 </tr>
 <tr>
 <td><code>e2e-tls</code></td>
@@ -2163,12 +2193,38 @@ skip-the-rebuild behavior locally against a pre-built image.</p>
 </tr>
 </tbody>
 </table>
+<p><code>critical-path</code> and <code>community-repository</code> both use the generic
+<code>group-a</code>/<code>group-b</code> (and, if a group ever fills up, <code>group-c</code>, ...) label
+convention instead of a one-off job name per new spec — a future spec joins
+whichever group has time-budget/setup-cost headroom rather than requiring a
+brand-new CI job. <strong>The two features are NOT symmetric in how groups share
+state</strong>, though: community-repository's group-a and group-b specs live in one
+file/one <code>Ordered</code> block and share a single <code>BeforeAll</code> (their setup cost is
+similar either way), while critical-path's group-a (<code>e2e_critical_path_test.go</code>)
+and group-b (<code>e2e_device_passthrough_test.go</code>) are deliberately two separate
+files/<code>Describe</code> blocks with independent setup — group-a's specs need a fully
+real-onboarded HA instance (expensive, worth sharing across many specs),
+group-b's don't need onboarding at all (worth keeping cheap and independent).
+Adding a new group-a spec means a new <code>It</code> in the existing file; adding a new
+group-b-shaped spec (no onboarding needed) means either a new <code>It</code> in
+<code>e2e_device_passthrough_test.go</code> or, if its setup is different again, a new
+file with the same <code>critical-path</code>+<code>group-b</code> (or a new group) labels.</p>
 <p>The community-repository split (not an arbitrary half-and-half) keeps two
 spec pairs together: "keeps installedVersion..." reuses the CR created by the
 theme-install spec, and "removes the ConfigMap entry..." reuses the CR
 created by the python_script-install spec — each pair must run in the same
 Ginkgo process since separate CI jobs use separate clusters and cannot see
 each other's resources.</p>
+<p><code>e2e-critical-b</code> exists because a first attempt folded its one spec into
+<code>e2e-critical-a</code> (then still named <code>e2e-critical-path</code>) as an 11th spec, to
+avoid a new CI job, instead of giving it its own job from the start. A real CI
+run showed the combined job hitting its <code>timeout-minutes</code> and getting
+cancelled outright — no Ginkgo failure output, no diagnostic artifacts, since
+<code>if: failure()</code> steps don't run on cancellation. Splitting it into its own job
+(its bootstrap skips <code>spec.bootstrap</code> entirely, so it's cheaper to stand up
+than group-a's real-onboarding instance) both removed the time pressure from
+<code>e2e-critical-a</code> and made a future failure of this spec actually diagnosable
+instead of silently killed.</p>
 <p><strong>Known gap</strong>: real CI runs showed every job's cold-start overhead — and the
 community-repository specs' own runtime — running noticeably longer than
 initial estimates (extrapolated from a single long-running, cache-warm job)
@@ -2181,7 +2237,7 @@ minutes. Tightening this back down needs either genuine optimization (e.g.
 the per-spec activation-confirmation polling in community-repository, or the
 "Load Home Assistant image" step's own variability) or accepting a revised,
 honest target — not just more timeout increases.</p>
-<h3 id="e2e-critical-path-tests-10-specs"><code>e2e-critical-path</code> tests (10 specs)<a class="headerlink" href="#e2e-critical-path-tests-10-specs" title="Permanent link">&para;</a></h3>
+<h3 id="e2e-critical-a-tests-10-specs"><code>e2e-critical-a</code> tests (10 specs)<a class="headerlink" href="#e2e-critical-a-tests-10-specs" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -2246,9 +2302,36 @@ honest target — not just more timeout increases.</p>
 <p>This job's specs share one Home Assistant bootstrap (real onboarding) and run
 sequentially (<code>Ordered</code>), continuing even if one fails (<code>ContinueOnFailure</code>)
 so later CRDs are still exercised.</p>
+<h3 id="e2e-critical-b-tests-1-spec"><code>e2e-critical-b</code> tests (1 spec)<a class="headerlink" href="#e2e-critical-b-tests-1-spec" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>CRD</th>
+<th>What is verified</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>HomeAssistant</code> (<code>spec.alpha.devices</code>)</td>
+<td>Device mounted without <code>privileged: true</code> (<code>/dev/null</code>/<code>/dev/zero</code> stand-ins), missing device surfaced via <code>DevicesReady</code></td>
+</tr>
+</tbody>
+</table>
+<p>Originally folded into <code>e2e-critical-a</code> as an 11th spec to avoid a new CI
+job, but a real CI run showed the combined job exceeding its <code>timeout-minutes</code>
+and getting cancelled outright — no Ginkgo failure output, no diagnostic
+artifacts (<code>if: failure()</code> steps don't run on cancellation). Split into its
+own job/cluster instead: it skips <code>spec.bootstrap</code> entirely (the readiness
+probe only needs HTTP 200 on <code>/</code>, which HA serves before onboarding), so its
+own bootstrap cost is much lower than critical-path's real-onboarding
+instance, and its final step is free to leave the instance in a broken state
+(an intentionally unmountable device, to exercise the missing-device
+diagnostics) without affecting any other spec.</p>
 <h2 id="coverage-gap-record">Coverage Gap Record<a class="headerlink" href="#coverage-gap-record" title="Permanent link">&para;</a></h2>
 <p>No e2e scenario has been intentionally dropped from the gating workflow — all
-25 pre-existing specs are still verified, split across the six jobs above.
+26 specs are still verified, split across the seven jobs above.
 This section exists as the place to record it if a future change ever needs
 to drop a scenario from the gating path rather than fitting it into an
 existing (or new) job:</p>
