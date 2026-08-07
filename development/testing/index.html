@@ -2330,11 +2330,10 @@ instance, and its final step is free to leave the instance in a broken state
 (an intentionally unmountable device, to exercise the missing-device
 diagnostics) without affecting any other spec.</p>
 <h2 id="coverage-gap-record">Coverage Gap Record<a class="headerlink" href="#coverage-gap-record" title="Permanent link">&para;</a></h2>
-<p>No e2e scenario has been intentionally dropped from the gating workflow — all
-26 specs are still verified, split across the seven jobs above.
-This section exists as the place to record it if a future change ever needs
-to drop a scenario from the gating path rather than fitting it into an
-existing (or new) job:</p>
+<p>Every remaining e2e scenario is still verified — the 26 specs above are
+split across the seven jobs above. This section exists as the place to
+record it when a scenario is deliberately not e2e-gated, rather than fitting
+it into an existing (or new) job:</p>
 <table>
 <thead>
 <tr>
@@ -2345,9 +2344,14 @@ existing (or new) job:</p>
 </thead>
 <tbody>
 <tr>
-<td><em>(none currently)</em></td>
-<td></td>
-<td></td>
+<td><code>spec.scheduling</code> (nodeSelector/affinity/tolerations actually influencing real placement)</td>
+<td>An e2e job for this was built and run successfully, then deliberately removed: every piece of this operator's own logic (field copy onto the pod template, rollout-on-change diffing, the <code>SchedulingReady</code> condition mirroring the pod's own <code>PodScheduled</code> condition, admission validation) is already covered by envtest without a real scheduler. The only thing a real cluster adds is confirming that Kubernetes' own scheduler honors <code>nodeSelector</code>/affinity/taints — a stable, heavily-tested upstream API contract, not something specific to this operator (unlike e.g. device passthrough's hostPath mount, where non-<code>privileged</code> access to a device node is a container-runtime-default assumption, not a documented Kubernetes guarantee, and genuinely needs a real kubelet to confirm).</td>
+<td><code>internal/controller/scheduling_test.go</code> and <code>internal/webhook/v1/admission_envtest_test.go</code> (both envtest, real API server)</td>
+</tr>
+<tr>
+<td>Operator's own <code>allow-webhook-traffic</code> NetworkPolicy actually unblocking admission-webhook traffic under live CNI enforcement</td>
+<td>A live e2e assertion of the <em>allow</em> transition was attempted and abandoned: direct inspection of a dev k3d node's <code>iptables</code>/<code>ipset</code> state confirmed the CNI translates the policy into a textbook-correct rule (right ipset membership, right port, right chain wiring), but the live connection kept failing regardless of the correct rule, for reasons not conclusively identified (suspected same-node/bridge-netfilter interaction specific to that one machine's k3d networking setup, not this operator's own logic — the <em>block</em> side, i.e. traffic genuinely denied without the label, reproduced correctly and reliably on the same machine). The remaining uncertainty is about <code>NetworkPolicy</code>/CNI enforcement itself — a stable upstream contract this operator doesn't implement — not about whether the shipped rule is correctly shaped, which is what the static check below actually proves.</td>
+<td><code>hack/verify-network-policy.sh</code> (<code>make verify-network-policy</code>, no cluster) — asserts the rendered <code>NetworkPolicy</code> resources have the correct <code>podSelector</code>/port/namespace-label shape across every install path (kustomize and Helm); confirmed to fail when the rule is removed.</td>
 </tr>
 </tbody>
 </table>

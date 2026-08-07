@@ -2152,6 +2152,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#schedulingspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SchedulingSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#scriptaction" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3396,6 +3407,17 @@
     <span class="md-ellipsis">
       
         SceneEntity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schedulingspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SchedulingSpec
       
     </span>
   </a>
@@ -6275,6 +6297,12 @@ Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
 <td>Optional: {} <br /></td>
 </tr>
 <tr>
+<td><code>scheduling</code> <em><a href="#schedulingspec">SchedulingSpec</a></em></td>
+<td>Scheduling controls where the Home Assistant pod is eligible to run and<br />how it is treated under resource contention, using Kubernetes' own<br />well-tested scheduling primitives directly (node selector, node/pod<br />affinity and anti-affinity, tolerations, priority class) rather than a<br />project-specific abstraction. Ships on the stable spec (not<br />spec.alpha.*): the operator only passes these fields through to the<br />generated pod template unchanged, it does not implement any new<br />scheduling behavior of its own.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
 <td><code>alpha</code> <em><a href="#alphaspec">AlphaSpec</a></em></td>
 <td>Alpha groups experimental, unstable fields. Fields here may change or be<br />removed without a deprecation notice.</td>
 <td></td>
@@ -6844,6 +6872,49 @@ Home Assistant pod.</p>
 <td>Attributes contains additional entity-specific attributes<br />Examples: brightness, color_temp, rgb_color for lights<br />This is a flexible structure that accepts any valid Home Assistant entity attributes</td>
 <td></td>
 <td>Type: object <br />Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="schedulingspec">SchedulingSpec<a class="headerlink" href="#schedulingspec" title="Permanent link">&para;</a></h4>
+<p>SchedulingSpec declares Kubernetes-native pod scheduling constraints for
+the Home Assistant pod. Every field is optional and copied verbatim onto
+the generated StatefulSet's pod template; leaving all of them unset
+preserves today's freely-schedulable, default-priority behavior.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantspec">HomeAssistantSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nodeSelector</code> <em>object (keys:string, values:string)</em></td>
+<td>NodeSelector restricts the pod to nodes matching all of these labels.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>affinity</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#affinity-v1-core">Affinity</a></em></td>
+<td>Affinity declares node affinity/anti-affinity and pod<br />affinity/anti-affinity rules, using Kubernetes' own Affinity semantics<br />unchanged. Both node-level placement (e.g. "prefer nodes with local<br />NVMe storage") and pod-level positioning relative to other workloads<br />(e.g. "never share a node with this other deployment") are expressed<br />through this single field, matching how corev1.Affinity itself groups<br />NodeAffinity/PodAffinity/PodAntiAffinity together.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>tolerations</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#toleration-v1-core">Toleration</a> array</em></td>
+<td>Tolerations allows the pod to be scheduled onto nodes with matching<br />taints that would otherwise repel it.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>priorityClassName</code> <em>string</em></td>
+<td>PriorityClassName assigns a PriorityClass to the pod, influencing<br />scheduling preemption and eviction order under resource contention.<br />Must name an existing PriorityClass — validated at admission time.</td>
+<td></td>
+<td>Optional: {} <br /></td>
 </tr>
 </tbody>
 </table>
