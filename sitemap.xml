@@ -2,114 +2,114 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/development/architecture/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/development/contributing/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/development/testing/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/ecosystem/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/ecosystem/flux/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/ecosystem/secrets-management/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/getting-started/configuration/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/getting-started/installation/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/getting-started/quick-start/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/reference/api/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/reference/changelog/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/reference/faq/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/reference/troubleshooting/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/user-guide/automations/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/user-guide/backup/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/user-guide/bootstrap/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/user-guide/configuration/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/user-guide/homeassistant/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/user-guide/infrastructure/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/user-guide/integrations/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/user-guide/scenes/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/user-guide/scripts/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/user-guide/secrets/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/user-guide/security/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/user-guide/signed-releases/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/user-guide/tls/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
     <url>
          <loc>https://przemekhys.github.io/homeassistant-operator/user-guide/upgrade/</loc>
-         <lastmod>2026-08-07</lastmod>
+         <lastmod>2026-08-09</lastmod>
     </url>
 </urlset>

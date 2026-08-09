@@ -4691,9 +4691,9 @@ Home Assistant.</p>
 </tr>
 <tr>
 <td><code>id</code> <em>string</em></td>
-<td>ID is a unique identifier for the automation (used by Home Assistant)<br />If not specified, will be auto-generated from the CR name</td>
+<td>ID is a unique identifier for the automation (used by Home Assistant)<br />If not specified, will be auto-generated from the CR name<br />Must contain only lowercase letters, digits, and underscores. Existing<br />resources with an id predating this constraint (uppercase letters or<br />hyphens) keep working until their next update, which will then be<br />rejected until id is renamed to a conforming value.</td>
 <td></td>
-<td>Optional: {} <br /></td>
+<td>Pattern: <code>^[a-z][a-z0-9_]*$</code> <br />Optional: {} <br /></td>
 </tr>
 <tr>
 <td><code>alias</code> <em>string</em></td>
@@ -5728,9 +5728,9 @@ Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
 </tr>
 <tr>
 <td><code>id</code> <em>string</em></td>
-<td>ID is a unique identifier for the scene (used by Home Assistant)<br />If not specified, will be auto-generated from the CR name</td>
+<td>ID is a unique identifier for the scene (used by Home Assistant)<br />If not specified, will be auto-generated from the CR name<br />Must contain only lowercase letters, digits, and underscores. Existing<br />resources with an id predating this constraint (uppercase letters or<br />hyphens) keep working until their next update, which will then be<br />rejected until id is renamed to a conforming value.</td>
 <td></td>
-<td>Optional: {} <br /></td>
+<td>Pattern: <code>^[a-z][a-z0-9_]*$</code> <br />Optional: {} <br /></td>
 </tr>
 <tr>
 <td><code>name</code> <em>string</em></td>

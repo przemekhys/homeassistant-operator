@@ -1642,6 +1642,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#validating-webhooks-choosing-where-a-rule-belongs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validating webhooks: choosing where a rule belongs
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1894,6 +1905,17 @@
     <span class="md-ellipsis">
       
         Dependency injection for testing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validating-webhooks-choosing-where-a-rule-belongs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validating webhooks: choosing where a rule belongs
       
     </span>
   </a>
@@ -2155,6 +2177,64 @@ Resources owned by <code>HomeAssistantSecrets</code>: the aggregated <code>Confi
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">}</span>
 </code></pre></div>
 <p>Tests wire in an <code>httptest.Server</code> instead of a real HA instance, keeping unit tests fast and hermetic.</p>
+<h3 id="validating-webhooks-choosing-where-a-rule-belongs">Validating webhooks: choosing where a rule belongs<a class="headerlink" href="#validating-webhooks-choosing-where-a-rule-belongs" title="Permanent link">&para;</a></h3>
+<p>A new field-validation rule for any CRD has three possible homes: a <strong>CRD schema</strong>
+constraint (<code>Pattern</code>/<code>Enum</code>/<code>MinLength</code>, or an in-object <code>x-kubernetes-validations</code> CEL
+rule), a <strong><code>ValidatingWebhook</code></strong> (<code>internal/webhook/v1/</code>), or the <strong>reconcile loop</strong>
+(status condition + <code>RequeueAfter</code>). A rule is a good webhook candidate only when it
+satisfies all five of the following at once — the more of them it fails, the stronger the
+signal that it belongs somewhere else:</p>
+<ol>
+<li><strong>No external state beyond the object and, at most, a simple List of its siblings.</strong>
+   A webhook may read the object under validation and List/Get other objects through the
+   API server (e.g. sibling resources of the same Kind, already held in the manager's
+   cache), but it must never make an outbound network call (an HTTP request to Home
+   Assistant, a fetch from GitHub) or write anything.</li>
+<li><strong>Fast and side-effect-free.</strong> A webhook blocks <code>kubectl apply</code> synchronously, inside
+   the default ~10s admission timeout. Anything the reconcilers already do through
+   <code>haclient</code> (reload, Config Flow) is disqualified by definition.</li>
+<li><strong>Deterministic, independent of apply ordering.</strong> The outcome must never depend on
+   whether some other, related resource happens to exist yet — that concern belongs to
+   the reconcile loop's status-and-<code>RequeueAfter</code> pattern, never to a hard admission
+   reject.</li>
+<li><strong>A false reject costs more than a false accept only when the rule can be wrong.</strong>
+   When a rule's correctness genuinely depends on state that might still change, the
+   webhook must be <code>failurePolicy: Ignore</code> and/or return an <code>admission.Warning</code> instead of
+   rejecting. A hard reject is reserved for rules that are wrong unconditionally.</li>
+<li><strong>A cheaper mechanism doesn't already express it.</strong> If the rule can be written as a
+   <code>+kubebuilder:validation:Pattern</code> or an <code>x-kubernetes-validations</code> CEL rule on the
+   field itself (e.g. "exactly one of A/B/C must be set" — see <code>IntegrationValue</code> in
+   <code>api/v1/homeassistantintegration_types.go</code>), use that instead: a CRD schema constraint
+   is cheaper than a webhook round trip, since it's enforced directly by the API server
+   with no call into the operator at all.</li>
+</ol>
+<p><strong>Worked examples from this repository:</strong></p>
+<ul>
+<li><code>spec.id</code> on <code>HomeAssistantAutomation</code>/<code>Scene</code>/<code>Script</code>, restricted to a safe character
+  set → <strong>CRD <code>Pattern</code></strong>, not a webhook (criterion 5 — a constraint on the field itself,
+  no need to look at any other object).</li>
+<li>Two <code>HomeAssistantAutomation</code> resources colliding on the same effective identifier
+  (<code>spec.id</code>, or <code>metadata.name</code> when unset) for the same <code>HomeAssistant</code> → <strong>webhook</strong>
+  (<code>homeassistantautomation_webhook.go</code>) — needs a List of siblings in the same namespace,
+  but that's still a plain cache read, not a network call (criterion 1); a collision is
+  always wrong, so rejecting it (rather than only warning) is justified (criterion 4).
+  This remains a best-effort check, not a uniqueness guarantee: it reads the manager's
+  cache (which can lag a just-written sibling by a short, bounded window) and fails open
+  under <code>failurePolicy: Ignore</code>, so it catches the common case rather than closing every
+  possible race.</li>
+<li><code>HomeAssistantConfiguration.spec.recorder</code> with both <code>database</code> and <code>databaseSecretRef</code>
+  set → <strong>webhook, but a warning, not a reject</strong>
+  (<code>homeassistantconfiguration_webhook.go</code>) — both fields being set is legitimate,
+  already-documented behavior (<code>databaseSecretRef</code> takes precedence), so rejecting it
+  would break a valid configuration (criterion 4 cutting the other way).</li>
+<li><code>spec.homeAssistantRef.name</code> pointing at a <code>HomeAssistant</code> that doesn't exist yet →
+  <strong>reconcile loop</strong>, never a webhook (criterion 3 — apply ordering between related
+  resources is never guaranteed; a missing referent is a transient
+  <code>WaitingForConfiguration</code>-style state, not a user error).</li>
+<li>Validating a <code>HomeAssistantCommunityRepository</code>'s repository structure against HACS's
+  expected layout → <strong>reconcile loop</strong>, never a webhook (criterion 1 — requires fetching
+  a tarball from <code>codeload.github.com</code>).</li>
+</ul>
 <h2 id="package-structure">Package structure<a class="headerlink" href="#package-structure" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>api/v1/          CRD type definitions (edit here, then make manifests generate)
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cmd/main.go            Entry point — registers all controllers
