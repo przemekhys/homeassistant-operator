@@ -365,7 +365,15 @@ jobs:
   e2e-tls:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    # Kept at the original pre-split value (empirically tuned from real CI
+    # runs of the combined job) rather than tightened to match the ginkgo
+    # --timeout=7m budget below: this job now does strictly less work than
+    # before (the slow auto-revert spec moved to e2e-tls-revert), so 11
+    # minutes is a safe, conservative buffer for setup/image-load/diagnostics
+    # around the Ginkgo run until real post-split timing data justifies
+    # tightening it — a too-tight job timeout risks the run being cancelled
+    # outright before its own failure-diagnostics steps get to run.
+    timeout-minutes: 11
 
     steps:
       - name: Clone the code

@@ -38,8 +38,12 @@ http:
 	if !ok {
 		t.Fatalf("expected ok=true for a well-formed http: section")
 	}
-	if data.IPBanEnabled {
-		t.Errorf("expected IPBanEnabled=false, got true")
+	// ip_ban_enabled is *bool precisely so an explicit "false" in the YAML is
+	// distinguishable from the field never being mentioned at all (see
+	// haclient.HTTPConfigData's doc comment) — it must come back as a non-nil
+	// pointer to false, not nil.
+	if data.IPBanEnabled == nil || *data.IPBanEnabled {
+		t.Errorf("expected IPBanEnabled=pointer-to-false, got %v", data.IPBanEnabled)
 	}
 	if data.LoginAttemptsThreshold != 5 {
 		t.Errorf("expected LoginAttemptsThreshold=5, got %d", data.LoginAttemptsThreshold)
@@ -47,12 +51,12 @@ http:
 	if len(data.CORSAllowedOrigins) != 1 || data.CORSAllowedOrigins[0] != "https://example.com" {
 		t.Errorf("expected CORSAllowedOrigins=[https://example.com], got %v", data.CORSAllowedOrigins)
 	}
-	// Fields not present in the YAML must stay zero-valued, never guessed.
+	// Fields not present in the YAML must stay zero-valued/nil, never guessed.
 	if data.SSLProfile != "" {
 		t.Errorf("expected SSLProfile unset, got %q", data.SSLProfile)
 	}
-	if data.UseXFrameOptions {
-		t.Errorf("expected UseXFrameOptions unset (false), got true")
+	if data.UseXFrameOptions != nil {
+		t.Errorf("expected UseXFrameOptions unset (nil), got %v", data.UseXFrameOptions)
 	}
 	if data.ServerHost != nil {
 		t.Errorf("expected ServerHost unset, got %v", data.ServerHost)
@@ -113,6 +117,56 @@ func TestParseHTTPSectionFields_InvalidYAML(t *testing.T) {
 	}
 }
 
+func TestParseHTTPSectionFields_ExplicitFalseBoolsDistinguishedFromUnset(t *testing.T) {
+	configYAML := `
+http:
+  ip_ban_enabled: false
+  use_x_frame_options: false
+`
+	data, ok := parseHTTPSectionFields(configYAML)
+	if !ok {
+		t.Fatalf("expected ok=true")
+	}
+	if data.IPBanEnabled == nil || *data.IPBanEnabled {
+		t.Errorf("expected IPBanEnabled=pointer-to-false (explicitly configured), got %v", data.IPBanEnabled)
+	}
+	if data.UseXFrameOptions == nil || *data.UseXFrameOptions {
+		t.Errorf("expected UseXFrameOptions=pointer-to-false (explicitly configured), got %v", data.UseXFrameOptions)
+	}
+}
+
+func TestParseHTTPSectionFields_ScalarListFieldsNormalized(t *testing.T) {
+	configYAML := `
+http:
+  server_host: 0.0.0.0
+  cors_allowed_origins: https://example.com
+`
+	data, ok := parseHTTPSectionFields(configYAML)
+	if !ok {
+		t.Fatalf("expected ok=true for a scalar server_host/cors_allowed_origins, matching HA's own ensure_list schema")
+	}
+	if len(data.ServerHost) != 1 || data.ServerHost[0] != "0.0.0.0" {
+		t.Errorf("expected ServerHost=[0.0.0.0], got %v", data.ServerHost)
+	}
+	if len(data.CORSAllowedOrigins) != 1 || data.CORSAllowedOrigins[0] != "https://example.com" {
+		t.Errorf("expected CORSAllowedOrigins=[https://example.com], got %v", data.CORSAllowedOrigins)
+	}
+}
+
+func TestParseHTTPSectionFields_InvalidTypedValuePropagatesError(t *testing.T) {
+	configYAML := `
+http:
+  login_attempts_threshold: not-a-number
+`
+	data, ok := parseHTTPSectionFields(configYAML)
+	if ok {
+		t.Fatalf("expected ok=false when a typed field cannot be decoded, got data=%+v", data)
+	}
+	if data != nil {
+		t.Errorf("expected nil data on decode failure, got %+v", data)
+	}
+}
+
 func TestParseHTTPSectionFields_SSLPeerCertificate(t *testing.T) {
 	configYAML := `
 http:
@@ -126,7 +180,7 @@ http:
 	if data.SSLPeerCertificate != "/config/ssl/client-ca.crt" {
 		t.Errorf("expected SSLPeerCertificate set, got %q", data.SSLPeerCertificate)
 	}
-	if !data.UseXFrameOptions {
-		t.Errorf("expected UseXFrameOptions=true")
+	if data.UseXFrameOptions == nil || !*data.UseXFrameOptions {
+		t.Errorf("expected UseXFrameOptions=pointer-to-true, got %v", data.UseXFrameOptions)
 	}
 }

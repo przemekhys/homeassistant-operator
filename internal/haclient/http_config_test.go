@@ -148,6 +148,55 @@ var _ = Describe("HAClient http/config methods", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
+		It("sends an explicit false for ip_ban_enabled/use_x_frame_options, not omitting it", func() {
+			serveOnce(func(cmd map[string]interface{}, conn *websocket.Conn) {
+				config, ok := cmd["config"].(map[string]interface{})
+				Expect(ok).To(BeTrue())
+				// A field the operator omits here is not "kept unchanged" —
+				// http/config/configure replaces the whole stored config, so
+				// an omitted ip_ban_enabled/use_x_frame_options would fall
+				// back to HA's own schema default instead of the false the
+				// user actually configured. HaveKey (not just checking the
+				// value) is the point: omitempty on a plain bool would have
+				// dropped the key entirely for a false value.
+				Expect(config).To(HaveKeyWithValue("ip_ban_enabled", false))
+				Expect(config).To(HaveKeyWithValue("use_x_frame_options", false))
+				_ = conn.WriteJSON(map[string]interface{}{
+					"id":      cmd["id"],
+					"type":    "result",
+					"success": true,
+					"result":  map[string]interface{}{"restart": true},
+				})
+			})
+
+			falseVal := false
+			err := client.ConfigureHTTPConfig(ctx, "test-token", &HTTPConfigData{
+				IPBanEnabled:     &falseVal,
+				UseXFrameOptions: &falseVal,
+			})
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("omits ip_ban_enabled/use_x_frame_options entirely when never configured", func() {
+			serveOnce(func(cmd map[string]interface{}, conn *websocket.Conn) {
+				config, ok := cmd["config"].(map[string]interface{})
+				Expect(ok).To(BeTrue())
+				Expect(config).NotTo(HaveKey("ip_ban_enabled"))
+				Expect(config).NotTo(HaveKey("use_x_frame_options"))
+				_ = conn.WriteJSON(map[string]interface{}{
+					"id":      cmd["id"],
+					"type":    "result",
+					"success": true,
+					"result":  map[string]interface{}{"restart": true},
+				})
+			})
+
+			err := client.ConfigureHTTPConfig(ctx, "test-token", &HTTPConfigData{
+				SSLCertificate: "/config/ssl/tls.crt",
+			})
+			Expect(err).NotTo(HaveOccurred())
+		})
+
 		It("serializes cfg == nil as JSON null", func() {
 			serveOnce(func(cmd map[string]interface{}, conn *websocket.Conn) {
 				Expect(cmd).To(HaveKey("config"))

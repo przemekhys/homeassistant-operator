@@ -120,8 +120,11 @@ func httpConfigDataEqual(a, b *haclient.HTTPConfigData) bool {
 		reflect.DeepEqual(a.ServerHost, b.ServerHost) &&
 		reflect.DeepEqual(a.CORSAllowedOrigins, b.CORSAllowedOrigins) &&
 		a.LoginAttemptsThreshold == b.LoginAttemptsThreshold &&
-		a.IPBanEnabled == b.IPBanEnabled &&
-		a.UseXFrameOptions == b.UseXFrameOptions
+		// *bool: compare by value (nil vs non-nil, and the pointed-to value),
+		// not by pointer identity — plain == on *bool would only ever be true
+		// for two nils or the exact same pointer.
+		reflect.DeepEqual(a.IPBanEnabled, b.IPBanEnabled) &&
+		reflect.DeepEqual(a.UseXFrameOptions, b.UseXFrameOptions)
 }
 
 // nativeTLSVolume builds the pod Volume/VolumeMount for the native TLS Secret

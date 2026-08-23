@@ -60,26 +60,48 @@ func parseHTTPSectionFields(configYAML string) (*haclient.HTTPConfigData, bool) 
 	}
 
 	data := &haclient.HTTPConfigData{}
-	if v := nodeMappingValue(httpSection, "server_host"); v != nil {
-		_ = v.Decode(&data.ServerHost)
+	var decodeErr error
+	decode := func(field string, target interface{}) {
+		if decodeErr != nil {
+			return
+		}
+		if v := nodeMappingValue(httpSection, field); v != nil {
+			decodeErr = v.Decode(target)
+		}
 	}
-	if v := nodeMappingValue(httpSection, "cors_allowed_origins"); v != nil {
-		_ = v.Decode(&data.CORSAllowedOrigins)
+	// server_host and cors_allowed_origins accept either a single scalar or a
+	// list in HA's own schema (vol.All(cv.ensure_list, [cv.string])) — a bare
+	// scalar is normalized to a one-element list, not rejected.
+	decodeList := func(field string, target *[]string) {
+		if decodeErr != nil {
+			return
+		}
+		v := nodeMappingValue(httpSection, field)
+		if v == nil {
+			return
+		}
+		if v.Kind == yaml.ScalarNode {
+			var single string
+			if decodeErr = v.Decode(&single); decodeErr == nil {
+				*target = []string{single}
+			}
+			return
+		}
+		decodeErr = v.Decode(target)
 	}
-	if v := nodeMappingValue(httpSection, "login_attempts_threshold"); v != nil {
-		_ = v.Decode(&data.LoginAttemptsThreshold)
-	}
-	if v := nodeMappingValue(httpSection, "ip_ban_enabled"); v != nil {
-		_ = v.Decode(&data.IPBanEnabled)
-	}
-	if v := nodeMappingValue(httpSection, "ssl_profile"); v != nil {
-		_ = v.Decode(&data.SSLProfile)
-	}
-	if v := nodeMappingValue(httpSection, "use_x_frame_options"); v != nil {
-		_ = v.Decode(&data.UseXFrameOptions)
-	}
-	if v := nodeMappingValue(httpSection, "ssl_peer_certificate"); v != nil {
-		_ = v.Decode(&data.SSLPeerCertificate)
+
+	decodeList("server_host", &data.ServerHost)
+	decodeList("cors_allowed_origins", &data.CORSAllowedOrigins)
+	decode("login_attempts_threshold", &data.LoginAttemptsThreshold)
+	decode("ip_ban_enabled", &data.IPBanEnabled)
+	decode("ssl_profile", &data.SSLProfile)
+	decode("use_x_frame_options", &data.UseXFrameOptions)
+	decode("ssl_peer_certificate", &data.SSLPeerCertificate)
+	if decodeErr != nil {
+		// A field with a type HA itself would reject (e.g. a non-numeric
+		// login_attempts_threshold) — never guess or send a partial payload,
+		// treat this reconcile the same as WS being unsupported.
+		return nil, false
 	}
 	return data, true
 }

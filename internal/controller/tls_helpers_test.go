@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/websocket"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,10 +32,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/events"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
+	hav1alpha1 "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 	"github.com/przemekhys/homeassistant-operator/internal/haclient"
 )
 
@@ -60,6 +63,12 @@ func newTLSTestReconciler(t *testing.T, certManagerPresent bool, objs ...client.
 	}
 	if err := corev1.AddToScheme(scheme); err != nil {
 		t.Fatalf("add corev1 to scheme: %v", err)
+	}
+	if err := appsv1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add appsv1 to scheme: %v", err)
+	}
+	if err := hav1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add hav1alpha1 to scheme: %v", err)
 	}
 	// Register the cert-manager Certificate GVK as unstructured so the fake
 	// client can create/get it (the operator uses unstructured in production too).
@@ -413,6 +422,17 @@ func mockHTTPConfigServer(
 			return
 		}
 		resp := respond(cmd)
+		if resp == nil {
+			// respond callbacks report an unexpected command via t.Errorf (not
+			// t.Fatalf/t.Fatal — those must only be called from the goroutine
+			// running the test, never from this connection-handler goroutine)
+			// and return nil; fall back to a well-formed error response here
+			// instead of dereferencing/assigning into a nil map.
+			resp = map[string]interface{}{
+				"type": "result", "success": false,
+				"error": map[string]interface{}{"code": "unexpected_command", "message": "see t.Errorf output"},
+			}
+		}
 		resp["id"] = cmd["id"]
 		_ = conn.WriteJSON(resp)
 	}))
@@ -489,6 +509,26 @@ func TestDesiredHTTPConfigDataAndNeedsConfigure(t *testing.T) {
 	})
 }
 
+// TestHTTPConfigDataEqualComparesBoolPointersByValue guards against a
+// regression IPBanEnabled/UseXFrameOptions being *bool (needed so an
+// explicit false is distinguishable from the field never being configured,
+// see haclient.HTTPConfigData's doc comment) would otherwise reintroduce:
+// stable (freshly unmarshaled from HA's response) and desired (freshly
+// parsed from spec.configuration) always hold distinct *bool allocations
+// even when they agree on the value. Comparing those pointers with == would
+// report "different" on every single reconcile, sending a needless
+// http/config/configure — and triggering HA's own internal restart — forever.
+func TestHTTPConfigDataEqualComparesBoolPointersByValue(t *testing.T) {
+	a := &haclient.HTTPConfigData{IPBanEnabled: ptr.To(false), UseXFrameOptions: ptr.To(true)}
+	b := &haclient.HTTPConfigData{IPBanEnabled: ptr.To(false), UseXFrameOptions: ptr.To(true)}
+	if !httpConfigDataEqual(a, b) {
+		t.Fatal("expected equal HTTPConfigData for distinct *bool pointers holding the same values")
+	}
+	if httpConfigNeedsConfigure(a, b, true) {
+		t.Fatal("expected no configure needed: only pointer identity differs, not the configured value")
+	}
+}
+
 // TestReconcileNativeTLSViaWS_ConfigureSent covers the "configure" leg: a
 // stable config that doesn't match desired triggers ConfigureHTTPConfig and
 // TLSReady flips to False/TLSConfigPending, without any StatefulSet hash bump
@@ -516,7 +556,7 @@ func TestReconcileNativeTLSViaWS_ConfigureSent(t *testing.T) {
 			}
 			return map[string]interface{}{"type": "result", "success": true, "result": map[string]interface{}{"restart": true}}
 		default:
-			t.Fatalf("unexpected command: %v", cmd["type"])
+			t.Errorf("unexpected command: %v", cmd["type"])
 			return nil
 		}
 	})
@@ -614,7 +654,7 @@ func TestReconcileNativeTLSViaWS_ContentRotationSamePathTriggersConfigure(t *tes
 			configureCalled = true
 			return map[string]interface{}{"type": "result", "success": true, "result": map[string]interface{}{"restart": true}}
 		}
-		t.Fatalf("unexpected command: %v", cmd["type"])
+		t.Errorf("unexpected command: %v", cmd["type"])
 		return nil
 	})
 
@@ -799,7 +839,7 @@ func TestReconcileNativeTLSViaWS_NotRunning(t *testing.T) {
 				"error": map[string]interface{}{"code": "not_running", "message": "Home Assistant is starting up"},
 			}
 		}
-		t.Fatalf("unexpected command: %v", cmd["type"])
+		t.Errorf("unexpected command: %v", cmd["type"])
 		return nil
 	})
 
@@ -866,7 +906,7 @@ func TestReconcileNativeTLSViaWS_NoCachingAcrossReconciles(t *testing.T) {
 			configureCalled = true
 			return map[string]interface{}{"type": "result", "success": true, "result": map[string]interface{}{"restart": true}}
 		}
-		t.Fatalf("unexpected command: %v", cmd["type"])
+		t.Errorf("unexpected command: %v", cmd["type"])
 		return nil
 	})
 	r2 := newTLSTestReconciler(t, true, ha, secret, tokenSecretFor(ha))
@@ -1141,7 +1181,7 @@ func TestReconcileHTTPConfigViaWS_NonTLSInstanceGetsNonTLSFields(t *testing.T) {
 			}
 			return map[string]interface{}{"type": "result", "success": true, "result": map[string]interface{}{"restart": true}}
 		default:
-			t.Fatalf("unexpected command: %v", cmd["type"])
+			t.Errorf("unexpected command: %v", cmd["type"])
 			return nil
 		}
 	})
@@ -1202,7 +1242,7 @@ func TestReconcileHTTPConfigViaWS_MergesTLSAndNonTLSFields(t *testing.T) {
 			}
 			return map[string]interface{}{"type": "result", "success": true, "result": map[string]interface{}{"restart": true}}
 		default:
-			t.Fatalf("unexpected command: %v", cmd["type"])
+			t.Errorf("unexpected command: %v", cmd["type"])
 			return nil
 		}
 	})
@@ -1219,5 +1259,44 @@ func TestReconcileHTTPConfigViaWS_MergesTLSAndNonTLSFields(t *testing.T) {
 	cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
 	if cond == nil || cond.Status != metav1.ConditionFalse || cond.Reason != reasonTLSConfigPending {
 		t.Fatalf("expected TLSReady=False/%s, got %+v", reasonTLSConfigPending, cond)
+	}
+}
+
+// TestBuildStatefulSetPreservesNativeTLSHashAnnotationWhenWSManaged covers the
+// handover moment: a StatefulSet already deployed under the old K8s-managed
+// restart mechanism (nativeTLSHashAnnotationKey set to a real hash) must keep
+// that exact annotation value once TLSReady flips to a WS-managed reason,
+// rather than having it deleted. Deleting it here would itself look like a
+// pod-template change to needsUpdate and trigger a StatefulSet rollout racing
+// with HA's own internal restart from http/config/configure.
+func TestBuildStatefulSetPreservesNativeTLSHashAnnotationWhenWSManaged(t *testing.T) {
+	ha := nativeTLSHA("home")
+	meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
+		Type: conditionTLSReady, Status: metav1.ConditionFalse, Reason: reasonTLSConfigPending, Message: "pending",
+	})
+	secret := nativeTLSSecretFor(ha, "cert-v1")
+
+	const oldHash = "old-hash-from-before-ws-handover"
+	currentSts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{Name: ha.Name, Namespace: ha.Namespace},
+		Spec: appsv1.StatefulSetSpec{
+			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": ha.Name}},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{"app": ha.Name},
+					Annotations: map[string]string{nativeTLSHashAnnotationKey: oldHash},
+				},
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "home-assistant", Image: "old"}}},
+			},
+		},
+	}
+
+	r := newTLSTestReconciler(t, true, ha, secret, currentSts)
+	desired, err := r.buildStatefulSet(context.Background(), ha)
+	if err != nil {
+		t.Fatalf("buildStatefulSet error: %v", err)
+	}
+	if got := desired.Spec.Template.Annotations[nativeTLSHashAnnotationKey]; got != oldHash {
+		t.Fatalf("expected native-tls-hash annotation to stay %q while WS manages rotation, got %q", oldHash, got)
 	}
 }

@@ -846,10 +846,12 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 	// controller). Gating on the Secret's existence keeps the pod from getting
 	// stuck pending on a not-yet-issued certificate.
 	nativeTLSCertHash := ""
+	nativeTLSVolumeMounted := false
 	if vol, mount, hash, ok := r.nativeTLSVolume(ctx, ha); ok {
 		volumes = append(volumes, vol)
 		volumeMounts = append(volumeMounts, mount)
 		nativeTLSCertHash = hash
+		nativeTLSVolumeMounted = true
 	}
 
 	// Device passthrough (spec.alpha.devices): mount declared host device
@@ -897,11 +899,20 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 	}
 	// If StatefulSet doesn't exist (NotFound error), existingAnnotations will be empty - this is correct
 
-	// Native TLS certificate hash: set when active (rotation → rollout), removed
-	// when native TLS is disabled or the Secret is gone (so the pod reverts).
-	if nativeTLSCertHash != "" {
+	// Native TLS certificate hash: set when active under K8s-managed restart
+	// (rotation → rollout), removed when native TLS is disabled or the Secret
+	// is gone (so the pod reverts). Once WS manages rotation, nativeTLSVolume
+	// returns hash "" but the volume is still mounted (nativeTLSVolumeMounted
+	// stays true) — in that case the annotation must be left exactly as
+	// copied from the current StatefulSet above, not deleted: deleting it here
+	// would itself look like a pod-template change to needsUpdate and trigger
+	// a StatefulSet rollout racing with HA's own internal restart from
+	// http/config/configure, which is precisely the uncoordinated
+	// double-restart this feature is designed to avoid.
+	switch {
+	case nativeTLSCertHash != "":
 		existingAnnotations[nativeTLSHashAnnotationKey] = nativeTLSCertHash
-	} else {
+	case !nativeTLSVolumeMounted:
 		delete(existingAnnotations, nativeTLSHashAnnotationKey)
 	}
 

@@ -142,11 +142,13 @@ spec:
 		By("Changing cors_allowed_origins in spec.configuration (YAML HA would otherwise ignore post-migration)")
 		applyConfig("https://changed.example.com")
 
-		By("Confirming the CHANGED value reaches HA via http/config/configure, not the ignored YAML")
+		By("Confirming the CHANGED value reaches HA via http/config/configure, not the ignored YAML, " +
+			"and the old origin is actually gone (http/config/configure replaces the whole config, never merges)")
 		Eventually(func(g Gomega) {
 			origins, err := haHTTPStorageCORSOrigins(namespace, haName)
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(origins).To(ContainElement("https://changed.example.com"))
+			g.Expect(origins).NotTo(ContainElement("https://example.com"))
 		}, utils.HTTPConfigApplyTimeout, utils.DefaultEventuallyPollingInterval).Should(Succeed())
 
 		By("Confirming TLSReady was never set on an instance that never requested native TLS")

@@ -23,6 +23,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"os/exec"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -141,8 +142,10 @@ spec:
 		By("Rotating the native TLS certificate (deleting the Secret so cert-manager reissues it)")
 		firstCert := utils.GetResourceStatus("secret", certName, namespace, "{.data.tls\\.crt}")
 		Expect(utils.Kubectl("delete", "secret", certName, "-n", namespace)).NotTo(BeNil())
+		var rotatedCert string
 		Eventually(func() string {
-			return utils.GetResourceStatus("secret", certName, namespace, "{.data.tls\\.crt}")
+			rotatedCert = utils.GetResourceStatus("secret", certName, namespace, "{.data.tls\\.crt}")
+			return rotatedCert
 		}, utils.CertIssueTimeout, utils.DefaultEventuallyPollingInterval).ShouldNot(Or(BeEmpty(), Equal(firstCert)))
 
 		By("Confirming TLSReady returns to True after the rotation is applied")
@@ -150,6 +153,14 @@ spec:
 			return utils.GetResourceStatus("homeassistants", haName, namespace,
 				"{.status.conditions[?(@.type=='TLSReady')].status}")
 		}, utils.CertIssueTimeout, utils.DefaultEventuallyPollingInterval).Should(Equal("True"))
+
+		By("Confirming HA's own mounted certificate file reflects the rotated content " +
+			"(TLSReady=True alone doesn't prove which certificate is actually active)")
+		Eventually(func(g Gomega) {
+			mounted, err := haMountedCertBase64(namespace, haName)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(mounted).To(Equal(rotatedCert))
+		}, utils.CertIssueTimeout, utils.DefaultEventuallyPollingInterval).Should(Succeed())
 
 		By("Verifying no pod restart occurred (rotation went through WS, not a StatefulSet rollout)")
 		restartCountAfter := haPodRestartCount(namespace, haName)
@@ -219,8 +230,12 @@ spec:
 			Expect(utils.GetResourceStatus("homeassistants", haName, namespace,
 				"{.status.conditions[?(@.type=='TLSReady')].status}")).To(Equal("True"))
 
-			By("Confirming the Secret still carries the corrupted key (operator does not fight the rejection)")
+			By("Confirming the Secret still carries the corrupted key and untouched cert " +
+				"(operator does not fight the rejection)")
 			Expect(utils.GetResourceStatus("secret", certName, namespace, "{.data.tls\\.crt}")).To(Equal(goodCert))
+			Expect(utils.GetResourceStatus("secret", certName, namespace, "{.data.tls\\.key}")).
+				To(Equal(base64.StdEncoding.EncodeToString(mismatchedKeyPEM)),
+					"expected the operator to leave the mismatched key exactly as injected, never reverting it")
 		})
 })
 
@@ -230,6 +245,22 @@ func haPodRestartCount(namespace, haName string) string {
 	return utils.GetResourceStatus("pod", "", namespace,
 		"{.items[?(@.metadata.labels.app\\.kubernetes\\.io/instance=='"+haName+"')]"+
 			".status.containerStatuses[0].restartCount}")
+}
+
+// haMountedCertBase64 reads the native TLS certificate HA's own container
+// actually has mounted at the well-known ssl_certificate path and re-encodes
+// it as base64 — directly comparable to a Secret's raw .data.tls\.crt value
+// (also base64) — so a rotation assertion can confirm the pod's filesystem
+// reflects the new certificate content, not just that the operator's
+// TLSReady condition flipped back to True.
+func haMountedCertBase64(namespace, haName string) (string, error) {
+	cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
+		"cat", "/config/ssl/tls.crt")
+	out, err := utils.Run(cmd)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString([]byte(out)), nil
 }
 
 // generateMismatchedTLSKeyPEM returns a syntactically valid RSA private key

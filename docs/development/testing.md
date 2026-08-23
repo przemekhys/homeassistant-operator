@@ -170,7 +170,7 @@ Eventually(func(g Gomega) {
 
 ## E2E Tests
 
-**Location**: `test/e2e/*_test.go` (9 files, 26 specs total)
+**Location**: `test/e2e/*_test.go` (10 files, 28 specs total)
 **Framework**: Ginkgo v2 + real k3d cluster
 **Strategy**: Eight independently-labeled suites, run as eight concurrent
 GitHub Actions jobs (`.github/workflows/test-e2e-parallel.yml`), so the whole
@@ -274,7 +274,10 @@ initial estimates (extrapolated from a single long-running, cache-warm job)
 suggested, so per-job timeouts have been progressively widened rather than
 left to fail: `e2e-community-repository-b` up to 16 min, `-a` up to 14 min,
 `e2e-tls-revert` up to 12 min (mostly HA's own ~5-6 minute auto-revert wait,
-not cold-start overhead). **The whole workflow does not currently meet the
+not cold-start overhead). `e2e-tls` itself is kept at its original
+pre-split 11 min (rather than tightened to match its 6 remaining, lighter
+specs) until real post-split timing data justifies lowering it. **The whole
+workflow does not currently meet the
 10-minute goal** — with `build` (a few minutes) plus the slowest job
 (`e2e-community-repository-b`), real end-to-end time is closer to 15-20
 minutes. Tightening this back down needs either genuine optimization (e.g.
@@ -320,8 +323,8 @@ diagnostics) without affecting any other spec.
 
 ## Coverage Gap Record
 
-Every remaining e2e scenario is still verified — the 26 specs above are
-split across the seven jobs above. This section exists as the place to
+Every remaining e2e scenario is still verified — the 28 specs above are
+split across the eight jobs above. This section exists as the place to
 record it when a scenario is deliberately not e2e-gated, rather than fitting
 it into an existing (or new) job:
 

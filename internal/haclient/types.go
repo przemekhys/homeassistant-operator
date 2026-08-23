@@ -191,6 +191,16 @@ type HTTPConfig struct {
 // Error/ErrorMessage rather than resetting it to nil ("kept... but never
 // applied again") — Error != "" on Pending is the only correct signal that a
 // rotation was rejected, never Pending == nil.
+//
+// IPBanEnabled/UseXFrameOptions are *bool, not bool: http/config/configure
+// replaces the whole stored config (never a partial patch — see
+// desiredHTTPConfigData), so a field the operator omits here is not "kept
+// unchanged", it falls back to HA's own schema default. omitempty on a plain
+// bool cannot tell "user explicitly configured false" from "user never
+// mentioned this field" — both marshal to nothing — so an explicit false
+// would have been silently dropped and replaced by HA's default instead of
+// actually applied. A *bool's omitempty only checks pointer nilness, so a
+// non-nil pointer to false is still sent as `false`.
 type HTTPConfigData struct {
 	ServerPort             int      `json:"server_port,omitempty"`
 	ServerHost             []string `json:"server_host,omitempty"`
@@ -202,8 +212,8 @@ type HTTPConfigData struct {
 	TrustedProxies         []string `json:"trusted_proxies,omitempty"`
 	CORSAllowedOrigins     []string `json:"cors_allowed_origins,omitempty"`
 	LoginAttemptsThreshold int      `json:"login_attempts_threshold,omitempty"`
-	IPBanEnabled           bool     `json:"ip_ban_enabled,omitempty"`
-	UseXFrameOptions       bool     `json:"use_x_frame_options,omitempty"`
+	IPBanEnabled           *bool    `json:"ip_ban_enabled,omitempty"`
+	UseXFrameOptions       *bool    `json:"use_x_frame_options,omitempty"`
 	CreatedAt              string   `json:"created_at,omitempty"`
 	Error                  string   `json:"error,omitempty"`
 	ErrorMessage           string   `json:"error_message,omitempty"`
