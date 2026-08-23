@@ -36,6 +36,18 @@ const (
 	// material.
 	nativeTLSHashAnnotationKey = "ha.homeassistant.io/native-tls-hash"
 
+	// nativeTLSWSFingerprintAnnotationKey holds a hash of the native TLS Secret
+	// content (tls.crt+tls.key) last successfully activated via HA's WS
+	// http/config API, on the HomeAssistant object itself. ssl_certificate/
+	// ssl_key in http/config are file *paths*, which never change across a
+	// rotation (cert-manager/BYO always reuse the same mount path) — so
+	// comparing HTTPConfigData alone can never detect that the underlying file
+	// content changed. This annotation is the durable (survives operator
+	// restart — constitution principle IV), CRD-schema-free signal that lets
+	// reconcileHTTPConfigViaWS tell "same path, new certificate" from "nothing
+	// changed" and still trigger a fresh http/config/configure.
+	nativeTLSWSFingerprintAnnotationKey = "ha.homeassistant.io/native-tls-ws-fingerprint"
+
 	// Reload method names for status tracking
 	// Used by Configuration and Automation controllers
 	reloadMethodRestart   = "restart"
@@ -69,6 +81,12 @@ const (
 	reasonProvidedSecretInvalid   = "ProvidedSecretInvalid"
 	reasonExposureReady           = "ExposureReady"
 
+	// Native TLS via WS http/config/* condition reasons (TLSReady), added
+	// alongside the reasons above for the same condition.
+	reasonTLSConfigPending    = "TLSConfigPending"
+	reasonTLSConfigReverted   = "TLSConfigReverted"
+	reasonWSConfigUnsupported = "WSConfigUnsupported"
+
 	// TLS / cert-manager event reasons
 	eventCertManagerUnavailable = "CertManagerUnavailable"
 	eventCertificateRequested   = "CertificateRequested"
@@ -77,6 +95,13 @@ const (
 	eventNativeTLSEnabled       = "NativeTLSEnabled"
 	eventNativeTLSDisabled      = "NativeTLSDisabled"
 	eventExposureConfigured     = "ExposureConfigured"
+	eventTLSConfigReverted      = "TLSConfigReverted"
+
+	// nativeTLSCertPath/nativeTLSKeyPath are where the native TLS Secret is
+	// mounted in the HA pod — shared by the YAML injection path
+	// (injectNativeTLS) and the WS http/config payload (desiredHTTPConfigData).
+	nativeTLSCertPath = "/config/ssl/tls.crt"
+	nativeTLSKeyPath  = "/config/ssl/tls.key"
 
 	// certManagerGroup is the cert-manager API group used for detection and
 	// Certificate resources.

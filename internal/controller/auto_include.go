@@ -328,8 +328,8 @@ func injectNativeTLS(configYAML string) (string, error) {
 		return configYAML, nil
 	}
 
-	overrideNodeField(httpSection, "ssl_certificate", "/config/ssl/tls.crt", "!!str")
-	overrideNodeField(httpSection, "ssl_key", "/config/ssl/tls.key", "!!str")
+	overrideNodeField(httpSection, "ssl_certificate", nativeTLSCertPath, "!!str")
+	overrideNodeField(httpSection, "ssl_key", nativeTLSKeyPath, "!!str")
 
 	out, err := yaml.Marshal(doc)
 	if err != nil {

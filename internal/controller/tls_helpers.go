@@ -419,20 +419,7 @@ func (r *HomeAssistantReconciler) reconcileTLS(ctx context.Context, ha *hav1.Hom
 			Reason:             reasonCertManagerInstalled,
 			Message:            "cert-manager is installed",
 		})
-		if !nativeEnabled {
-			log.V(1).Info("reconcileTLS: cert-manager condition mutate (no native TLS)",
-				"changed", c, "resourceVersion", h.ResourceVersion, "generation", h.Generation)
-			return c
-		}
-		if certReady {
-			c = meta.SetStatusCondition(&h.Status.Conditions, metav1.Condition{
-				Type:               conditionTLSReady,
-				Status:             metav1.ConditionTrue,
-				ObservedGeneration: h.Generation,
-				Reason:             reasonTLSReady,
-				Message:            "Native TLS certificate issued by cert-manager",
-			}) || c
-		} else {
+		if !certReady {
 			c = meta.SetStatusCondition(&h.Status.Conditions, metav1.Condition{
 				Type:               conditionTLSReady,
 				Status:             metav1.ConditionFalse,
@@ -441,27 +428,37 @@ func (r *HomeAssistantReconciler) reconcileTLS(ctx context.Context, ha *hav1.Hom
 				Message:            "Waiting for cert-manager to issue the native TLS certificate",
 			}) || c
 		}
-		log.V(1).Info("reconcileTLS: native TLS condition mutate",
-			"changed", c, "certReady", certReady, "resourceVersion", h.ResourceVersion,
-			"generation", h.Generation, "conditionsCount", len(h.Status.Conditions))
+		log.V(1).Info("reconcileTLS: cert-manager/native TLS condition mutate",
+			"changed", c, "nativeEnabled", nativeEnabled, "certReady", certReady,
+			"resourceVersion", h.ResourceVersion, "generation", h.Generation)
 		return c
 	}); err != nil {
 		log.Error(err, "reconcileTLS: status update failed after retry")
 		return ctrl.Result{}, err
 	}
 
-	// Native TLS: ensure the certificate and reflect issuance in TLSReady.
-	// (Exposure — Ingress/Gateway — is layered on in a later phase.)
-	if nativeEnabled && !certReady {
+	if !nativeEnabled {
+		return ctrl.Result{}, nil
+	}
+	if !certReady {
 		// Poll until the certificate is issued.
 		return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 	}
+
+	// Certificate material ready: nothing left to do here. Activation
+	// (http/config/*, TLSReady from here on) is handled by
+	// reconcileHTTPConfigViaWS, called once per reconcile for every
+	// HomeAssistant from the main Reconcile() loop — that step is not gated
+	// on native TLS specifically, so it moved out of this TLS-only function.
 	return ctrl.Result{}, nil
 }
 
 // nativeTLSUsingProvidedSecret handles the bring-your-own native TLS case (a
-// user-provided Secret, no cert-manager). It records TLSReady and removes any
-// operator-managed certificate. Returns true when it handled the resource.
+// user-provided Secret, no cert-manager). It removes any operator-managed
+// certificate and, once the Secret is valid, hands off to the same WS-first
+// activation flow as the cert-manager path — identical behavior regardless
+// of certificate source. Returns true when it handled the resource (whether
+// or not the Secret was valid).
 func (r *HomeAssistantReconciler) nativeTLSUsingProvidedSecret(
 	ctx context.Context, ha *hav1.HomeAssistant,
 ) (bool, error) {
@@ -491,16 +488,7 @@ func (r *HomeAssistantReconciler) nativeTLSUsingProvidedSecret(
 	if err := r.deleteNativeCertificate(ctx, ha); err != nil {
 		return false, err
 	}
-	if err := r.updateHAStatusWithRetry(ctx, ha, func(h *hav1.HomeAssistant) bool {
-		return meta.SetStatusCondition(&h.Status.Conditions, metav1.Condition{
-			Type:               conditionTLSReady,
-			Status:             metav1.ConditionTrue,
-			ObservedGeneration: h.Generation,
-			Reason:             reasonUsingProvidedSecret,
-			Message:            "Native TLS uses the provided Secret " + secretName,
-		})
-	}); err != nil {
-		return true, err
-	}
+	// Secret valid: nothing left to do here — see the comment in reconcileTLS's
+	// cert-manager branch above (activation moved to reconcileHTTPConfigViaWS).
 	return true, nil
 }

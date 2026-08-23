@@ -323,6 +323,23 @@ func (r *HomeAssistantReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return statusResult, err
 	}
 
+	// Reconcile the full http: configuration via WS, unconditional for every
+	// HomeAssistant — not gated on native TLS — since HA's YAML-to-storage
+	// migration silently drops the whole http: section for every instance,
+	// not just TLS fields. Falls back to the existing YAML mechanism
+	// gracefully when WS isn't available. Runs after bootstrap/backup/status
+	// so that a WS hiccup here (e.g. HA not running http/config yet) never
+	// delays those unrelated, higher-priority reconcile steps — it needs the
+	// bootstrap API token anyway.
+	httpConfigResult, err := r.reconcileHTTPConfigViaWS(ctx, ha)
+	if err != nil {
+		log.Error(err, "Failed to reconcile http: configuration via WS")
+		return r.updateStatusFailed(ctx, ha, err)
+	}
+	if httpConfigResult.RequeueAfter > 0 {
+		return httpConfigResult, nil
+	}
+
 	// When bootstrap is complete, requeue at a bounded interval so that the
 	// post-bootstrap ban-detection health check in reconcileBootstrap fires
 	// periodically even when the cluster is otherwise idle.
@@ -829,25 +846,10 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 	// controller). Gating on the Secret's existence keeps the pod from getting
 	// stuck pending on a not-yet-issued certificate.
 	nativeTLSCertHash := ""
-	if n := nativeTLS(ha); n != nil && n.Enabled {
-		tlsSecretName := nativeTLSSecretName(ha)
-		tlsSecret := &corev1.Secret{}
-		getErr := r.Get(ctx, types.NamespacedName{Name: tlsSecretName, Namespace: ha.Namespace}, tlsSecret)
-		if getErr == nil {
-			volumes = append(volumes, corev1.Volume{
-				Name: "ha-native-tls",
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{SecretName: tlsSecretName},
-				},
-			})
-			volumeMounts = append(volumeMounts, corev1.VolumeMount{
-				Name:      "ha-native-tls",
-				MountPath: "/config/ssl",
-				ReadOnly:  true,
-			})
-			// Hash the certificate so rotation triggers a rolling restart.
-			nativeTLSCertHash = calculateConfigHash(string(tlsSecret.Data["tls.crt"]))
-		}
+	if vol, mount, hash, ok := r.nativeTLSVolume(ctx, ha); ok {
+		volumes = append(volumes, vol)
+		volumeMounts = append(volumeMounts, mount)
+		nativeTLSCertHash = hash
 	}
 
 	// Device passthrough (spec.alpha.devices): mount declared host device

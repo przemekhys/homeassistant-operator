@@ -1,6 +1,9 @@
 package haclient
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 // OnboardingStep represents a step in the onboarding array returned by GET /api/onboarding.
 type OnboardingStep struct {
@@ -169,4 +172,39 @@ type BackupConfigRequest struct {
 	Schedule     *BackupSchedule     `json:"schedule,omitempty"`
 	Retention    *BackupRetention    `json:"retention,omitempty"`
 	CreateBackup *BackupCreateConfig `json:"create_backup,omitempty"`
+}
+
+// HTTPConfig is the response of the "http/config" WebSocket command: the HA
+// core http integration's own user-managed config store (distinct from the
+// deprecated configuration.yaml http: block).
+type HTTPConfig struct {
+	Stable           HTTPConfigData  `json:"stable"`
+	Pending          *HTTPConfigData `json:"pending"`
+	RevertAt         *time.Time      `json:"revert_at"`
+	ActiveConfigType string          `json:"active_config_type"`
+}
+
+// HTTPConfigData mirrors HA core's ConfData/HTTP_STORAGE_SCHEMA (the http
+// integration's stored config). CreatedAt/Error/ErrorMessage are populated by
+// HA itself and only ever read by the operator, never set: after a pending
+// config fails its trial and auto-reverts, HA keeps Pending populated with
+// Error/ErrorMessage rather than resetting it to nil ("kept... but never
+// applied again") — Error != "" on Pending is the only correct signal that a
+// rotation was rejected, never Pending == nil.
+type HTTPConfigData struct {
+	ServerPort             int      `json:"server_port,omitempty"`
+	ServerHost             []string `json:"server_host,omitempty"`
+	SSLCertificate         string   `json:"ssl_certificate,omitempty"`
+	SSLKey                 string   `json:"ssl_key,omitempty"`
+	SSLPeerCertificate     string   `json:"ssl_peer_certificate,omitempty"`
+	SSLProfile             string   `json:"ssl_profile,omitempty"`
+	UseXForwardedFor       bool     `json:"use_x_forwarded_for,omitempty"`
+	TrustedProxies         []string `json:"trusted_proxies,omitempty"`
+	CORSAllowedOrigins     []string `json:"cors_allowed_origins,omitempty"`
+	LoginAttemptsThreshold int      `json:"login_attempts_threshold,omitempty"`
+	IPBanEnabled           bool     `json:"ip_ban_enabled,omitempty"`
+	UseXFrameOptions       bool     `json:"use_x_frame_options,omitempty"`
+	CreatedAt              string   `json:"created_at,omitempty"`
+	Error                  string   `json:"error,omitempty"`
+	ErrorMessage           string   `json:"error_message,omitempty"`
 }

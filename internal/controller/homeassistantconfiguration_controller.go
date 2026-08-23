@@ -1162,9 +1162,16 @@ func (r *HomeAssistantConfigurationReconciler) applyNativeTLSAndTrustedProxies(
 	return content, outcome, nil
 }
 
-// applyNativeTLS injects http.ssl_certificate/ssl_key into the configuration when
-// native TLS is enabled AND the TLS Secret already exists, so Home Assistant never
-// starts pointing at a certificate file that has not been provisioned yet.
+// applyNativeTLS injects http.ssl_certificate/ssl_key into the configuration
+// when native TLS is enabled, the TLS Secret already exists, AND HA's WS
+// http/config/* API is not (yet) managing rotation for this instance — once
+// reconcileHTTPConfigViaWS (tls_helpers.go/native_tls_ws.go) has confirmed WS
+// support, it owns http.ssl_certificate/ssl_key exclusively and this function
+// must not also write them to configuration.yaml, which HA ignores
+// post-migration anyway. Reusing
+// nativeTLSManagedByWS's status read here — rather than a second, independent
+// WS probe — keeps this decision consistent with the StatefulSet's restart
+// gating and free of an extra network round-trip on every reconcile.
 func (r *HomeAssistantConfigurationReconciler) applyNativeTLS(
 	ctx context.Context, ha *hav1.HomeAssistant, content string,
 ) (string, error) {
@@ -1173,6 +1180,9 @@ func (r *HomeAssistantConfigurationReconciler) applyNativeTLS(
 	}
 	n := nativeTLS(ha)
 	if n == nil || !n.Enabled {
+		return content, nil
+	}
+	if nativeTLSManagedByWS(ha) {
 		return content, nil
 	}
 	s := &corev1.Secret{}

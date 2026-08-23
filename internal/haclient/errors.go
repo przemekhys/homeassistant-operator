@@ -13,6 +13,14 @@ const (
 	ErrorTypeAuth            ErrorType = "Auth"            // Authentication error
 	ErrorTypeLoginNoUser     ErrorType = "LoginNoUser"     // Login flow returned type=form (no user exists yet)
 	ErrorTypeBanned          ErrorType = "Banned"          // Operator IP banned by HA ip_bans.yaml
+	// ErrorTypeUnknownCommand maps to HA's WS "unknown_command" error code,
+	// returned when a WebSocket command doesn't exist on that core version
+	// (e.g. http/config/* on a core version predating that API).
+	ErrorTypeUnknownCommand ErrorType = "UnknownCommand"
+	// ErrorTypeNotRunning maps to HA's WS "not_running" error code, returned by
+	// http/config/configure when hass.state is not yet CoreState.running (e.g.
+	// during bootstrap).
+	ErrorTypeNotRunning ErrorType = "NotRunning"
 )
 
 // Error represents a Home Assistant API error
@@ -65,6 +73,24 @@ func IsBanned(err error) bool {
 func IsLoginNoUser(err error) bool {
 	if haErr, ok := err.(*Error); ok {
 		return haErr.Type == ErrorTypeLoginNoUser
+	}
+	return false
+}
+
+// IsUnknownCommand returns true if a WebSocket command doesn't exist on this
+// HA core version (e.g. http/config/* predating that API).
+func IsUnknownCommand(err error) bool {
+	if haErr, ok := err.(*Error); ok {
+		return haErr.Type == ErrorTypeUnknownCommand
+	}
+	return false
+}
+
+// IsNotRunning returns true if http/config/configure was rejected because HA
+// has not yet reached CoreState.running (e.g. during bootstrap).
+func IsNotRunning(err error) bool {
+	if haErr, ok := err.(*Error); ok {
+		return haErr.Type == ErrorTypeNotRunning
 	}
 	return false
 }

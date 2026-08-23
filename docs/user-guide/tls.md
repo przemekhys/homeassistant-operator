@@ -55,9 +55,9 @@ issuerRef:
 ## Native TLS (alpha)
 
 Home Assistant terminates TLS itself, serving HTTPS on its existing port (`8123`) —
-no reverse proxy required. The operator provisions a certificate, mounts the Secret
-into the pod at `/config/ssl`, sets `http.ssl_certificate`/`ssl_key` in the generated
-configuration, and switches its own connection to Home Assistant to HTTPS (trusting
+no reverse proxy required. The operator provisions a certificate (or uses a
+bring-your-own Secret via `secretName`, identically), mounts it into the pod at
+`/config/ssl`, and switches its own connection to Home Assistant to HTTPS (trusting
 the issued CA — certificate verification is never disabled).
 
 !!! warning "This is an `spec.alpha` feature"
@@ -85,11 +85,64 @@ spec:
 
 The operator always adds the in-cluster Service FQDN
 (`<name>.<namespace>.svc.cluster.local`) to the certificate's SANs so it can verify
-Home Assistant over HTTPS. When cert-manager rotates the certificate, the pod is
-rolled to pick up the new material.
+Home Assistant over HTTPS.
 
 The pod switches to HTTPS only **after** the certificate is issued, so enabling the
 mode never leaves Home Assistant stuck without a certificate.
+
+### How certificate rotation is applied
+
+Recent Home Assistant core versions migrate the `http:` integration's configuration
+out of `configuration.yaml` into an internal, UI-managed store — once migrated, HA
+silently ignores the `http:` YAML block. To keep rotation working regardless, the
+operator applies a new certificate through HA's WebSocket API
+(`http/config`/`http/config/configure`/`http/config/promote`) whenever it's
+available, falling back to the legacy YAML injection (with a pod restart, as
+before) only when it isn't — an older HA core version, or an instance that hasn't
+finished bootstrapping yet. Which path is active is re-checked on every reconcile,
+so an HA upgrade is picked up automatically without operator intervention.
+
+On the WebSocket path, Home Assistant restarts its own process to apply the new
+certificate — the operator does **not** also restart the pod, avoiding a redundant,
+racy double restart. Before confirming the new certificate, the operator verifies
+HA is actually reachable over HTTPS with it (a health-check, never an optimistic
+confirmation). If Home Assistant rejects the new certificate, it reverts to the
+previous one on its own within a few minutes; the operator observes this and
+reports it via a `TLSConfigReverted` condition reason and a warning Event, without
+retrying the same rejected configuration in a loop — Home Assistant is never left
+unavailable by a bad rotation.
+
+| `TLSReady` reason | Meaning |
+|---|---|
+| `TLSReady` | Active certificate confirmed (either path). |
+| `TLSConfigPending` | A new configuration was sent via WebSocket; waiting for Home Assistant to restart and confirm it. |
+| `TLSConfigReverted` | The last rotation attempt was rejected and Home Assistant reverted to the previous certificate on its own. |
+| `WSConfigUnsupported` | Home Assistant doesn't support the WebSocket config API yet; using the legacy YAML injection path instead. |
+
+### Other `http:` settings are managed the same way — even without native TLS
+
+HA's YAML-to-storage migration silently drops the **entire** `http:` section, not
+just the TLS-related keys — this affects every `HomeAssistant`, whether or not
+`spec.alpha.tls.native` is enabled. So the operator applies the rest of your
+`http:` block through the same WebSocket mechanism, for every instance:
+`server_host`, `cors_allowed_origins`, `login_attempts_threshold`,
+`ip_ban_enabled`, `ssl_profile`, `use_x_frame_options`, and `ssl_peer_certificate`.
+It reads these straight out of the `http:` block you already wrote in
+`HomeAssistantConfiguration.spec.configuration` — there's no separate field to
+set them again. If a field is absent from your `http:` block, the operator never
+invents a value for it.
+
+If your `http:` block can't be safely read this way (for example, it uses an
+`!include` tag to pull in a separate file), the operator falls back to leaving
+that reconcile's `http:` handling to the legacy YAML mechanism rather than
+guessing at partial settings.
+
+On an instance without native TLS, this happens silently in the background —
+there's no dedicated status condition for it (that's what `TLSReady` above is
+for, and it only means something when native TLS is actually requested). If you
+want to confirm a change went through, check Home Assistant's own effective
+configuration (Developer Tools, or `http/config` over the WebSocket API) rather
+than a Kubernetes status field.
 
 ## Ingress / API Gateway exposure
 

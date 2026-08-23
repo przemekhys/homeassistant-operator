@@ -72,4 +72,17 @@ const (
 	// Ready (Secret populated) in TLS E2E tests. Self-signed/CA issuers are fast;
 	// ACME issuers can be much slower and should override this locally.
 	CertIssueTimeout = 2 * time.Minute
+
+	// NativeTLSAutoRevertTimeout bounds how long native-TLS-via-WS e2e tests
+	// wait for HA's own WS http/config auto-revert (a fixed 5-minute window on
+	// the HA core side) to fire after a rejected rotation.
+	NativeTLSAutoRevertTimeout = 6 * time.Minute
+
+	// HTTPConfigApplyTimeout bounds how long e2e tests wait for a non-TLS
+	// http: field change (ip_ban_enabled, cors_allowed_origins, ...) to reach
+	// HA through http/config/configure and persist to .storage/http — same
+	// order of magnitude as CertIssueTimeout since both cover a WS
+	// configure+internal-restart round trip, kept separate so its name does
+	// not imply a TLS certificate is involved.
+	HTTPConfigApplyTimeout = 2 * time.Minute
 )

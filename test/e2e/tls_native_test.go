@@ -17,6 +17,11 @@ limitations under the License.
 package e2e
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -129,5 +134,114 @@ spec:
 		Eventually(func() string {
 			return utils.GetResourceStatus("secret", certName, namespace, "{.data.tls\\.crt}")
 		}, utils.CertIssueTimeout, utils.DefaultEventuallyPollingInterval).ShouldNot(BeEmpty())
+
+		By("Capturing the pod restart count before rotation (WS rotation must not restart the pod)")
+		restartCountBefore := haPodRestartCount(namespace, haName)
+
+		By("Rotating the native TLS certificate (deleting the Secret so cert-manager reissues it)")
+		firstCert := utils.GetResourceStatus("secret", certName, namespace, "{.data.tls\\.crt}")
+		Expect(utils.Kubectl("delete", "secret", certName, "-n", namespace)).NotTo(BeNil())
+		Eventually(func() string {
+			return utils.GetResourceStatus("secret", certName, namespace, "{.data.tls\\.crt}")
+		}, utils.CertIssueTimeout, utils.DefaultEventuallyPollingInterval).ShouldNot(Or(BeEmpty(), Equal(firstCert)))
+
+		By("Confirming TLSReady returns to True after the rotation is applied")
+		Eventually(func() string {
+			return utils.GetResourceStatus("homeassistants", haName, namespace,
+				"{.status.conditions[?(@.type=='TLSReady')].status}")
+		}, utils.CertIssueTimeout, utils.DefaultEventuallyPollingInterval).Should(Equal("True"))
+
+		By("Verifying no pod restart occurred (rotation went through WS, not a StatefulSet rollout)")
+		restartCountAfter := haPodRestartCount(namespace, haName)
+		Expect(restartCountAfter).To(Equal(restartCountBefore),
+			"native TLS rotation via WS must not restart the HA pod")
 	})
+
+	// Labeled "slow" (on top of the Describe-level "tls"/"native" labels) so
+	// it can run in its own CI job/Makefile target instead of the main tls
+	// job: it is the only e2e spec in this repo that waits out HA's ~5-6
+	// minute internal auto-revert timer, which repeatedly blew the shared
+	// tls job's local/CI time budget once combined with the other tls specs.
+	It("keeps HA available on the old certificate when a rotation is rejected (auto-revert)",
+		Label("slow"), func() {
+			By("Creating a HomeAssistant with native TLS enabled")
+			haYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
+kind: HomeAssistant
+metadata:
+  name: %s
+  namespace: %s
+spec:
+  storage:
+    size: 1Gi
+  service:
+    type: ClusterIP
+    port: 8123
+  alpha:
+    tls:
+      native:
+        enabled: true
+        issuerRef:
+          name: %s
+          kind: ClusterIssuer
+        dnsNames:
+          - %s.example.com
+  %s`, haName, namespace, clusterIssuer, haName, utils.GetDefaultHAResourceRequests())
+			Expect(utils.ApplyYAML(haYAML, namespace)).To(Succeed())
+
+			certName := haName + "-native-tls"
+			By("Waiting for the HomeAssistant to report TLSReady on the original certificate")
+			Eventually(func() string {
+				return utils.GetResourceStatus("homeassistants", haName, namespace,
+					"{.status.conditions[?(@.type=='TLSReady')].status}")
+			}, utils.CertIssueTimeout, utils.DefaultEventuallyPollingInterval).Should(Equal("True"))
+			goodCert := utils.GetResourceStatus("secret", certName, namespace, "{.data.tls\\.crt}")
+
+			By("Swapping in a syntactically valid but mismatched TLS key (fails the handshake, not process startup)")
+			// A syntactically invalid key (random bytes) tends to make aiohttp's
+			// SSL context creation raise at process startup, crash-looping the
+			// whole container before HA's own WS-internal trial/revert bookkeeping
+			// (which lives in the HA process's event loop) ever gets a chance to
+			// run for the full auto-revert window. A well-formed key that simply
+			// doesn't match the certificate is the more realistic "rejected
+			// rotation" fault: the process starts, but the specific new config is
+			// unusable — the case HA's own auto-revert handling is designed for.
+			mismatchedKeyPEM := generateMismatchedTLSKeyPEM()
+			patch := fmt.Sprintf(`{"data":{"tls.key":%q}}`, base64.StdEncoding.EncodeToString(mismatchedKeyPEM))
+			Expect(utils.PatchResource("secret", certName, namespace, "merge", patch)).To(Succeed())
+
+			By("Waiting for HA to auto-revert and the operator to report TLSConfigReverted")
+			Eventually(func() string {
+				return utils.GetResourceStatus("homeassistants", haName, namespace,
+					"{.status.conditions[?(@.type=='TLSReady')].reason}")
+			}, utils.NativeTLSAutoRevertTimeout, utils.DefaultEventuallyPollingInterval).Should(Equal("TLSConfigReverted"))
+
+			By("Confirming HA is still reachable/TLSReady=True throughout (never permanently unavailable)")
+			Expect(utils.GetResourceStatus("homeassistants", haName, namespace,
+				"{.status.conditions[?(@.type=='TLSReady')].status}")).To(Equal("True"))
+
+			By("Confirming the Secret still carries the corrupted key (operator does not fight the rejection)")
+			Expect(utils.GetResourceStatus("secret", certName, namespace, "{.data.tls\\.crt}")).To(Equal(goodCert))
+		})
 })
+
+// haPodRestartCount reads the HA pod's first-container restart count, used to
+// assert that native TLS rotation via WS never restarts the pod.
+func haPodRestartCount(namespace, haName string) string {
+	return utils.GetResourceStatus("pod", "", namespace,
+		"{.items[?(@.metadata.labels.app\\.kubernetes\\.io/instance=='"+haName+"')]"+
+			".status.containerStatuses[0].restartCount}")
+}
+
+// generateMismatchedTLSKeyPEM returns a syntactically valid RSA private key
+// (PEM-encoded, PKCS#1) that does not correspond to any certificate HA has —
+// a well-formed key HA's TLS stack can load without crashing, but that fails
+// the actual handshake, used to exercise the auto-revert scenario without
+// crash-looping the whole HA process (see the "Swapping in..." step above).
+func generateMismatchedTLSKeyPEM() []byte {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	Expect(err).NotTo(HaveOccurred())
+	return pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(key),
+	})
+}

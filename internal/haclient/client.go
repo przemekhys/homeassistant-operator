@@ -576,6 +576,57 @@ func (c *Client) ConfigureBackup(
 	return err
 }
 
+// GetHTTPConfig retrieves HA core's http integration user-managed config
+// (stable/pending/revert_at/active_config_type) via WebSocket. Returns
+// ErrorTypeUnknownCommand when this HA core version doesn't support
+// http/config (predates the YAML-to-storage migration) — callers use this to
+// fall back to the legacy configuration.yaml http: block.
+func (c *Client) GetHTTPConfig(ctx context.Context, token string) (*HTTPConfig, error) {
+	result, code, err := c.sendWebSocketCommandWithCode(ctx, token, "http/config", nil)
+	if err != nil {
+		if code == "unknown_command" {
+			return nil, &Error{
+				Type: ErrorTypeUnknownCommand, Message: "http/config not supported by this HA core version", Err: err,
+			}
+		}
+		return nil, err
+	}
+
+	var config HTTPConfig
+	if err := json.Unmarshal(result, &config); err != nil {
+		return nil, &Error{Type: ErrorTypeInvalidResponse, Message: "failed to parse http config", Err: err}
+	}
+	return &config, nil
+}
+
+// ConfigureHTTPConfig sets a new pending http integration config via
+// http/config/configure. HA verifies it can bind the config and, if accepted,
+// restarts itself to apply it. Returns ErrorTypeNotRunning when HA has not yet
+// reached CoreState.running (e.g. during bootstrap) — callers fall back to the
+// legacy configuration.yaml http: block in that case, same as
+// ErrorTypeUnknownCommand.
+func (c *Client) ConfigureHTTPConfig(ctx context.Context, token string, cfg *HTTPConfigData) error {
+	_, code, err := c.sendWebSocketCommandWithCode(
+		ctx, token, "http/config/configure", map[string]interface{}{"config": cfg},
+	)
+	if err != nil {
+		if code == "not_running" {
+			return &Error{Type: ErrorTypeNotRunning, Message: "HA is not yet running; cannot configure http/config", Err: err}
+		}
+		return err
+	}
+	return nil
+}
+
+// PromoteHTTPConfig promotes the pending http integration config to stable via
+// http/config/promote. Callers MUST have already confirmed HA is reachable
+// over the new config (health-check) before calling this — HA itself never
+// verifies that for the caller.
+func (c *Client) PromoteHTTPConfig(ctx context.Context, token string) error {
+	_, err := c.SendWebSocketCommand(ctx, token, "http/config/promote", nil)
+	return err
+}
+
 // SetCoreConfig configures location and core settings during onboarding
 func (c *Client) SetCoreConfig(ctx context.Context, accessToken string, req *CoreConfigRequest) error {
 	body, err := json.Marshal(req)

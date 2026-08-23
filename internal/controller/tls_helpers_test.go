@@ -18,9 +18,12 @@ package controller
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/gorilla/websocket"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
+	"github.com/przemekhys/homeassistant-operator/internal/haclient"
 )
 
 // restMapperWithCertManager returns a RESTMapper that either knows or does not
@@ -315,14 +319,31 @@ func TestReconcileTLSNativeReady(t *testing.T) {
 	_ = unstructured.SetNestedSlice(cert.Object, []interface{}{
 		map[string]interface{}{"type": "Ready", "status": "True"},
 	}, "status", "conditions")
+	// cert-manager always populates the Secret before flipping the Certificate
+	// to Ready — reconcileHTTPConfigViaWS (called once certReady is true) reads
+	// it directly to fingerprint the certificate content, so a realistic
+	// fixture needs it present too.
+	secret := nativeTLSSecretFor(ha, "cert-v1")
 
-	r := newTLSTestReconciler(t, true, ha, cert)
+	r := newTLSTestReconciler(t, true, ha, cert, secret)
 	if _, err := r.reconcileTLS(context.Background(), ha); err != nil {
 		t.Fatalf("reconcileTLS error: %v", err)
 	}
+	// reconcileTLS itself only provisions the Certificate/CertManagerAvailable
+	// now — activation moved to reconcileHTTPConfigViaWS, called unconditionally
+	// from the main Reconcile() loop for every HA.
+	if _, err := r.reconcileHTTPConfigViaWS(context.Background(), ha); err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	// No API token Secret exists in this fixture (bootstrap not done yet), so
+	// reconcileHTTPConfigViaWS cannot attempt WS at all and falls back to the
+	// YAML-mechanism contract (reasonWSConfigUnsupported) — NOT reasonTLSReady,
+	// which nativeTLSManagedByWS would otherwise treat as "WS already owns
+	// this" and cause applyNativeTLS to wrongly skip YAML injection during
+	// this exact window (fix: found via manual e2e reproduction).
 	tlsCond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
-	if tlsCond == nil || tlsCond.Status != metav1.ConditionTrue || tlsCond.Reason != reasonTLSReady {
-		t.Fatalf("expected TLSReady=True/%s, got %+v", reasonTLSReady, tlsCond)
+	if tlsCond == nil || tlsCond.Status != metav1.ConditionTrue || tlsCond.Reason != reasonWSConfigUnsupported {
+		t.Fatalf("expected TLSReady=True/%s, got %+v", reasonWSConfigUnsupported, tlsCond)
 	}
 }
 
@@ -344,12 +365,522 @@ func TestReconcileTLSNativeBYO(t *testing.T) {
 	if _, err := r.reconcileTLS(context.Background(), ha); err != nil {
 		t.Fatalf("reconcileTLS error: %v", err)
 	}
+	if _, err := r.reconcileHTTPConfigViaWS(context.Background(), ha); err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	// No API token Secret exists in this fixture, so reconcileHTTPConfigViaWS
+	// cannot attempt WS at all and falls back to the YAML-mechanism contract
+	// (reasonWSConfigUnsupported), matching TestReconcileTLSNativeReady in the
+	// same situation — not the old reasonUsingProvidedSecret (which no longer
+	// distinguishes source once the WS-first flow is the sole writer of
+	// TLSReady).
 	tlsCond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
-	if tlsCond == nil || tlsCond.Status != metav1.ConditionTrue || tlsCond.Reason != reasonUsingProvidedSecret {
-		t.Fatalf("expected TLSReady=True/%s, got %+v", reasonUsingProvidedSecret, tlsCond)
+	if tlsCond == nil || tlsCond.Status != metav1.ConditionTrue || tlsCond.Reason != reasonWSConfigUnsupported {
+		t.Fatalf("expected TLSReady=True/%s, got %+v", reasonWSConfigUnsupported, tlsCond)
 	}
 	if _, err := getCertificate(t, r, ha); err == nil {
 		t.Fatal("expected no operator-managed Certificate for bring-your-own secret")
+	}
+}
+
+// --- Native TLS via WS http/config/* ---
+//
+// mockHTTPConfigServer starts a WS test server performing the standard
+// auth_required/auth_ok handshake once per connection, then replies to
+// exactly one command using respond(cmd). haclient opens a fresh connection
+// per command ("one-shot" pattern), so respond may be called more than once
+// across a single reconcileHTTPConfigViaWS call (e.g. GetHTTPConfig then
+// ConfigureHTTPConfig) — switch on cmd["type"] to distinguish them.
+func mockHTTPConfigServer(
+	t *testing.T, respond func(cmd map[string]interface{}) map[string]interface{},
+) *httptest.Server {
+	t.Helper()
+	upgrader := websocket.Upgrader{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+
+		_ = conn.WriteJSON(map[string]interface{}{"type": "auth_required"})
+		var authMsg map[string]interface{}
+		_ = conn.ReadJSON(&authMsg)
+		_ = conn.WriteJSON(map[string]interface{}{"type": "auth_ok"})
+
+		var cmd map[string]interface{}
+		if err := conn.ReadJSON(&cmd); err != nil {
+			return
+		}
+		resp := respond(cmd)
+		resp["id"] = cmd["id"]
+		_ = conn.WriteJSON(resp)
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+// tokenSecretFor creates the API token Secret getAPIToken expects, so
+// reconcileHTTPConfigViaWS can proceed past the "bootstrap not done" fallback.
+func tokenSecretFor(ha *hav1.HomeAssistant) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: ha.Name + "-homeassistant-api-token", Namespace: ha.Namespace},
+		Data:       map[string][]byte{"token": []byte("test-token")},
+	}
+}
+
+func wsURL(server *httptest.Server) string {
+	return "ws" + strings.TrimPrefix(server.URL, "http")
+}
+
+// nativeTLSSecretFor builds the native-TLS Secret reconcileHTTPConfigViaWS reads
+// to compute its content fingerprint. Different crtContent values simulate a
+// rotation (same mount path, different bytes) — exactly the case
+// ssl_certificate/ssl_key's static path alone cannot detect.
+func nativeTLSSecretFor(ha *hav1.HomeAssistant, crtContent string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: nativeTLSSecretName(ha), Namespace: ha.Namespace},
+		Data:       map[string][]byte{"tls.crt": []byte(crtContent), "tls.key": []byte(crtContent + "-key")},
+	}
+}
+
+// withConfirmedNativeTLSFingerprint marks secret's content as already
+// confirmed-active on ha, simulating a prior successful promote.
+func withConfirmedNativeTLSFingerprint(ha *hav1.HomeAssistant, secret *corev1.Secret) {
+	if ha.Annotations == nil {
+		ha.Annotations = map[string]string{}
+	}
+	ha.Annotations[nativeTLSWSFingerprintAnnotationKey] = nativeTLSSecretFingerprint(secret)
+}
+
+// TestDesiredHTTPConfigDataAndNeedsConfigure covers the fingerprint/diff
+// helper behind the WS-first flow, including the fix for the bug the e2e
+// rotation scenario caught — ssl_certificate/ssl_key are static file *paths*
+// that never change across a rotation, so a matching Stable is NOT enough;
+// only a confirmed content fingerprint proves the current certificate was
+// actually applied.
+func TestDesiredHTTPConfigDataAndNeedsConfigure(t *testing.T) {
+	ha := nativeTLSHA("home")
+	desired, _ := desiredHTTPConfigData(ha, "", true, true)
+	if desired.SSLCertificate != nativeTLSCertPath || desired.SSLKey != nativeTLSKeyPath {
+		t.Fatalf("unexpected desired cert/key paths: %+v", desired)
+	}
+	if desired.UseXForwardedFor || len(desired.TrustedProxies) != 0 {
+		t.Fatalf("expected no trusted-proxies defaults without ingress/gateway exposure: %+v", desired)
+	}
+
+	t.Run("no configure when stable matches AND fingerprint already confirmed", func(t *testing.T) {
+		if httpConfigNeedsConfigure(desired, desired, true) {
+			t.Fatal("expected no configure needed")
+		}
+	})
+
+	t.Run("configure needed when stable matches but fingerprint unconfirmed (rotation, same path)", func(t *testing.T) {
+		if !httpConfigNeedsConfigure(desired, desired, false) {
+			t.Fatal("expected configure needed: matching path does not prove the current content was applied")
+		}
+	})
+
+	t.Run("configure needed when stable differs, regardless of fingerprint", func(t *testing.T) {
+		stable := &haclient.HTTPConfigData{SSLCertificate: "/old/tls.crt"}
+		if !httpConfigNeedsConfigure(stable, desired, true) {
+			t.Fatal("expected configure needed: stable fields differ from desired")
+		}
+	})
+}
+
+// TestReconcileNativeTLSViaWS_ConfigureSent covers the "configure" leg: a
+// stable config that doesn't match desired triggers ConfigureHTTPConfig and
+// TLSReady flips to False/TLSConfigPending, without any StatefulSet hash bump
+// (this function never touches ConfigMap/StatefulSet at all).
+func TestReconcileNativeTLSViaWS_ConfigureSent(t *testing.T) {
+	ha := nativeTLSHA("home")
+	var configureCalled bool
+	server := mockHTTPConfigServer(t, func(cmd map[string]interface{}) map[string]interface{} {
+		switch cmd["type"] {
+		case "http/config":
+			return map[string]interface{}{
+				"type": "result", "success": true,
+				"result": map[string]interface{}{
+					"stable":             map[string]interface{}{"ssl_certificate": "/old/tls.crt"},
+					"pending":            nil,
+					"revert_at":          nil,
+					"active_config_type": "stable",
+				},
+			}
+		case "http/config/configure":
+			configureCalled = true
+			config, _ := cmd["config"].(map[string]interface{})
+			if config["ssl_certificate"] != nativeTLSCertPath {
+				t.Errorf("expected configure with ssl_certificate=%s, got %v", nativeTLSCertPath, config)
+			}
+			return map[string]interface{}{"type": "result", "success": true, "result": map[string]interface{}{"restart": true}}
+		default:
+			t.Fatalf("unexpected command: %v", cmd["type"])
+			return nil
+		}
+	})
+
+	secret := nativeTLSSecretFor(ha, "cert-v1")
+	r := newTLSTestReconciler(t, true, ha, secret, tokenSecretFor(ha))
+	r.NewHAClient = func(string) *haclient.Client { return haclient.NewClient(wsURL(server)) }
+
+	res, err := r.reconcileHTTPConfigViaWS(context.Background(), ha)
+	if err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	if !configureCalled {
+		t.Fatal("expected ConfigureHTTPConfig to be called")
+	}
+	if res.RequeueAfter <= 0 {
+		t.Fatalf("expected a requeue to poll for health-check, got %v", res)
+	}
+	cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
+	if cond == nil || cond.Status != metav1.ConditionFalse || cond.Reason != reasonTLSConfigPending {
+		t.Fatalf("expected TLSReady=False/%s, got %+v", reasonTLSConfigPending, cond)
+	}
+}
+
+// TestReconcileNativeTLSViaWS_SteadyState covers the "already applied" leg:
+// stable already matches desired, no pending, AND the current Secret content
+// fingerprint was already confirmed active — the only combination that should
+// produce true steady state with no configure call.
+func TestReconcileNativeTLSViaWS_SteadyState(t *testing.T) {
+	ha := nativeTLSHA("home")
+	desired, _ := desiredHTTPConfigData(ha, "", true, true)
+	secret := nativeTLSSecretFor(ha, "cert-v1")
+	withConfirmedNativeTLSFingerprint(ha, secret)
+	server := mockHTTPConfigServer(t, func(cmd map[string]interface{}) map[string]interface{} {
+		if cmd["type"] == "http/config/configure" {
+			t.Fatal("expected no configure call once fingerprint is already confirmed")
+		}
+		return map[string]interface{}{
+			"type": "result", "success": true,
+			"result": map[string]interface{}{
+				"stable": map[string]interface{}{
+					"ssl_certificate": desired.SSLCertificate,
+					"ssl_key":         desired.SSLKey,
+				},
+				"pending":            nil,
+				"revert_at":          nil,
+				"active_config_type": "stable",
+			},
+		}
+	})
+
+	r := newTLSTestReconciler(t, true, ha, secret, tokenSecretFor(ha))
+	r.NewHAClient = func(string) *haclient.Client { return haclient.NewClient(wsURL(server)) }
+
+	if _, err := r.reconcileHTTPConfigViaWS(context.Background(), ha); err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
+	if cond == nil || cond.Status != metav1.ConditionTrue || cond.Reason != reasonTLSReady {
+		t.Fatalf("expected TLSReady=True/%s, got %+v", reasonTLSReady, cond)
+	}
+}
+
+// TestReconcileNativeTLSViaWS_ContentRotationSamePathTriggersConfigure is the
+// regression test for the bug the e2e rotation scenario caught: HA's
+// ssl_certificate/ssl_key are static file *paths* that never change across a
+// rotation (cert-manager reissues into the same mount path), so a Stable that
+// already matches desired's paths must NOT be treated as "nothing to do" when
+// the underlying Secret content has actually changed since the last confirmed
+// fingerprint — a fresh configure must still be sent.
+func TestReconcileNativeTLSViaWS_ContentRotationSamePathTriggersConfigure(t *testing.T) {
+	ha := nativeTLSHA("home")
+	desired, _ := desiredHTTPConfigData(ha, "", true, true)
+	oldSecret := nativeTLSSecretFor(ha, "cert-v1")
+	withConfirmedNativeTLSFingerprint(ha, oldSecret) // confirmed for the OLD content
+	newSecret := nativeTLSSecretFor(ha, "cert-v2")   // rotated: same path, different bytes
+
+	var configureCalled bool
+	server := mockHTTPConfigServer(t, func(cmd map[string]interface{}) map[string]interface{} {
+		switch cmd["type"] {
+		case "http/config":
+			return map[string]interface{}{
+				"type": "result", "success": true,
+				"result": map[string]interface{}{
+					// Stable already reports the same static paths desired
+					// wants — this is exactly the case that used to be
+					// (incorrectly) treated as "already applied".
+					"stable":             map[string]interface{}{"ssl_certificate": desired.SSLCertificate, "ssl_key": desired.SSLKey},
+					"pending":            nil,
+					"revert_at":          nil,
+					"active_config_type": "stable",
+				},
+			}
+		case "http/config/configure":
+			configureCalled = true
+			return map[string]interface{}{"type": "result", "success": true, "result": map[string]interface{}{"restart": true}}
+		}
+		t.Fatalf("unexpected command: %v", cmd["type"])
+		return nil
+	})
+
+	r := newTLSTestReconciler(t, true, ha, newSecret, tokenSecretFor(ha))
+	r.NewHAClient = func(string) *haclient.Client { return haclient.NewClient(wsURL(server)) }
+
+	res, err := r.reconcileHTTPConfigViaWS(context.Background(), ha)
+	if err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	if !configureCalled {
+		t.Fatal("expected ConfigureHTTPConfig to be called despite matching stable paths — content fingerprint changed")
+	}
+	if res.RequeueAfter <= 0 {
+		t.Fatalf("expected a requeue to poll for health-check, got %v", res)
+	}
+	cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
+	if cond == nil || cond.Status != metav1.ConditionFalse || cond.Reason != reasonTLSConfigPending {
+		t.Fatalf("expected TLSReady=False/%s, got %+v", reasonTLSConfigPending, cond)
+	}
+}
+
+// TestReconcileNativeTLSViaWS_Reverted covers the case where HA keeps a
+// failed pending populated with Error/ErrorMessage rather than resetting it to
+// nil. reconcileHTTPConfigViaWS must detect this via Pending.Error != "" (never
+// Pending == nil), report TLSConfigReverted, and emit exactly one Event
+// without ever calling PromoteHTTPConfig or re-sending configure.
+func TestReconcileNativeTLSViaWS_Reverted(t *testing.T) {
+	ha := nativeTLSHA("home")
+	desired, _ := desiredHTTPConfigData(ha, "", true, true)
+	var promoteCalled, configureCalled bool
+	server := mockHTTPConfigServer(t, func(cmd map[string]interface{}) map[string]interface{} {
+		switch cmd["type"] {
+		case "http/config":
+			return map[string]interface{}{
+				"type": "result", "success": true,
+				"result": map[string]interface{}{
+					"stable": map[string]interface{}{"ssl_certificate": "/old/tls.crt"},
+					"pending": map[string]interface{}{
+						"ssl_certificate": desired.SSLCertificate,
+						"ssl_key":         desired.SSLKey,
+						"error":           "apply_failed",
+						"error_message":   "Failed to bind to the configured address",
+					},
+					"revert_at":          nil,
+					"active_config_type": "stable",
+				},
+			}
+		case "http/config/configure":
+			configureCalled = true
+		case "http/config/promote":
+			promoteCalled = true
+		}
+		return map[string]interface{}{"type": "result", "success": true, "result": nil}
+	})
+
+	r := newTLSTestReconciler(t, true, ha, nativeTLSSecretFor(ha, "cert-v1"), tokenSecretFor(ha))
+	r.NewHAClient = func(string) *haclient.Client { return haclient.NewClient(wsURL(server)) }
+
+	if _, err := r.reconcileHTTPConfigViaWS(context.Background(), ha); err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	if configureCalled || promoteCalled {
+		t.Fatal("expected no configure/promote call once a reverted pending is observed")
+	}
+	cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
+	if cond == nil || cond.Status != metav1.ConditionTrue || cond.Reason != reasonTLSConfigReverted {
+		t.Fatalf("expected TLSReady=True/%s, got %+v", reasonTLSConfigReverted, cond)
+	}
+	if !strings.Contains(cond.Message, "Failed to bind to the configured address") {
+		t.Fatalf("expected Pending.ErrorMessage surfaced in condition message, got %q", cond.Message)
+	}
+	select {
+	case ev := <-r.Recorder.(*events.FakeRecorder).Events:
+		if !strings.Contains(ev, eventTLSConfigReverted) {
+			t.Fatalf("expected a %s event, got %q", eventTLSConfigReverted, ev)
+		}
+	default:
+		t.Fatal("expected an Event to be recorded for the reverted rotation")
+	}
+}
+
+// TestReconcileNativeTLSViaWS_BringYourOwnSecret covers the case where the WS
+// flow behaves identically for a bring-your-own Secret as for a
+// cert-manager-issued one — same mechanism, reached via
+// nativeTLSUsingProvidedSecret instead of the cert-manager branch.
+func TestReconcileNativeTLSViaWS_BringYourOwnSecret(t *testing.T) {
+	ha := &hav1.HomeAssistant{
+		ObjectMeta: metav1.ObjectMeta{Name: "home", Namespace: "default"},
+		Spec: hav1.HomeAssistantSpec{Alpha: &hav1.AlphaSpec{TLS: &hav1.TLSAlphaSpec{
+			Native: &hav1.NativeTLSAlphaSpec{Enabled: true, SecretName: "my-tls"},
+		}}},
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "my-tls", Namespace: "default"},
+		Data:       map[string][]byte{"tls.crt": []byte("cert"), "tls.key": []byte("key")},
+	}
+	var configureCalled bool
+	server := mockHTTPConfigServer(t, func(cmd map[string]interface{}) map[string]interface{} {
+		switch cmd["type"] {
+		case "http/config":
+			return map[string]interface{}{
+				"type": "result", "success": true,
+				"result": map[string]interface{}{
+					"stable":             map[string]interface{}{"ssl_certificate": "/old/tls.crt"},
+					"pending":            nil,
+					"revert_at":          nil,
+					"active_config_type": "stable",
+				},
+			}
+		case "http/config/configure":
+			configureCalled = true
+			return map[string]interface{}{"type": "result", "success": true, "result": map[string]interface{}{"restart": true}}
+		}
+		return map[string]interface{}{"type": "result", "success": true, "result": nil}
+	})
+
+	r := newTLSTestReconciler(t, false, ha, secret, tokenSecretFor(ha)) // cert-manager absent — must not matter
+	r.NewHAClient = func(string) *haclient.Client { return haclient.NewClient(wsURL(server)) }
+
+	if _, err := r.reconcileTLS(context.Background(), ha); err != nil {
+		t.Fatalf("reconcileTLS error: %v", err)
+	}
+	if _, err := r.reconcileHTTPConfigViaWS(context.Background(), ha); err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	if !configureCalled {
+		t.Fatal("expected ConfigureHTTPConfig to be called for the bring-your-own Secret path too")
+	}
+	cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
+	if cond == nil || cond.Status != metav1.ConditionFalse || cond.Reason != reasonTLSConfigPending {
+		t.Fatalf("expected TLSReady=False/%s, got %+v", reasonTLSConfigPending, cond)
+	}
+}
+
+// TestReconcileNativeTLSViaWS_Unsupported covers the WS-unavailable leg:
+// GetHTTPConfig failing with unknown_command falls back to the "material
+// ready" contract with reasonWSConfigUnsupported, without retrying in a loop.
+func TestReconcileNativeTLSViaWS_Unsupported(t *testing.T) {
+	ha := nativeTLSHA("home")
+	server := mockHTTPConfigServer(t, func(cmd map[string]interface{}) map[string]interface{} {
+		return map[string]interface{}{
+			"type": "result", "success": false,
+			"error": map[string]interface{}{"code": "unknown_command", "message": "Unknown command"},
+		}
+	})
+
+	r := newTLSTestReconciler(t, true, ha, nativeTLSSecretFor(ha, "cert-v1"), tokenSecretFor(ha))
+	r.NewHAClient = func(string) *haclient.Client { return haclient.NewClient(wsURL(server)) }
+
+	res, err := r.reconcileHTTPConfigViaWS(context.Background(), ha)
+	if err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	if res.RequeueAfter != 0 {
+		t.Fatalf("expected no special requeue when falling back to YAML, got %v", res)
+	}
+	cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
+	if cond == nil || cond.Status != metav1.ConditionTrue || cond.Reason != reasonWSConfigUnsupported {
+		t.Fatalf("expected TLSReady=True/%s, got %+v", reasonWSConfigUnsupported, cond)
+	}
+}
+
+// TestReconcileNativeTLSViaWS_NotRunning covers the case where HA rejects
+// configure with not_running (bootstrap in progress), which falls back the
+// same way as unknown_command.
+func TestReconcileNativeTLSViaWS_NotRunning(t *testing.T) {
+	ha := nativeTLSHA("home")
+	server := mockHTTPConfigServer(t, func(cmd map[string]interface{}) map[string]interface{} {
+		switch cmd["type"] {
+		case "http/config":
+			return map[string]interface{}{
+				"type": "result", "success": true,
+				"result": map[string]interface{}{
+					"stable": map[string]interface{}{"ssl_certificate": "/old/tls.crt"}, "pending": nil,
+					"revert_at": nil, "active_config_type": "stable",
+				},
+			}
+		case "http/config/configure":
+			return map[string]interface{}{
+				"type": "result", "success": false,
+				"error": map[string]interface{}{"code": "not_running", "message": "Home Assistant is starting up"},
+			}
+		}
+		t.Fatalf("unexpected command: %v", cmd["type"])
+		return nil
+	})
+
+	r := newTLSTestReconciler(t, true, ha, nativeTLSSecretFor(ha, "cert-v1"), tokenSecretFor(ha))
+	r.NewHAClient = func(string) *haclient.Client { return haclient.NewClient(wsURL(server)) }
+
+	res, err := r.reconcileHTTPConfigViaWS(context.Background(), ha)
+	if err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	if res.RequeueAfter != nativeTLSPollInterval {
+		t.Fatalf("expected a retry requeue on a transient configure failure, got %v", res)
+	}
+}
+
+// TestReconcileNativeTLSViaWS_NoCachingAcrossReconciles covers the case where
+// an HA that rejected http/config as unknown_command on one reconcile must be
+// tried again fresh on the next — the operator never remembers "WS
+// unsupported" in memory. Two independent reconciler instances
+// (simulating two separate reconcile passes, each re-deriving everything from
+// the current ha object with no shared state) are used deliberately to prove
+// nothing but ha.Status carries information forward.
+func TestReconcileNativeTLSViaWS_NoCachingAcrossReconciles(t *testing.T) {
+	ha := nativeTLSHA("home")
+
+	unsupportedServer := mockHTTPConfigServer(t, func(cmd map[string]interface{}) map[string]interface{} {
+		return map[string]interface{}{
+			"type": "result", "success": false,
+			"error": map[string]interface{}{"code": "unknown_command", "message": "Unknown command"},
+		}
+	})
+	secret := nativeTLSSecretFor(ha, "cert-v1")
+	r1 := newTLSTestReconciler(t, true, ha, secret, tokenSecretFor(ha))
+	r1.NewHAClient = func(string) *haclient.Client { return haclient.NewClient(wsURL(unsupportedServer)) }
+	if _, err := r1.reconcileHTTPConfigViaWS(context.Background(), ha); err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
+	if cond == nil || cond.Reason != reasonWSConfigUnsupported {
+		t.Fatalf("expected first pass to report %s, got %+v", reasonWSConfigUnsupported, cond)
+	}
+
+	// "HA was upgraded" — a fresh reconciler (no shared state with r1) against
+	// a server that now supports http/config and already reports matching
+	// paths. Since this instance's fingerprint was never confirmed via WS
+	// (the previous pass never got past "unsupported"), a fresh configure is
+	// still expected — matching paths alone must not be mistaken for "already
+	// applied" (see TestReconcileNativeTLSViaWS_ContentRotationSamePathTriggersConfigure).
+	desired, _ := desiredHTTPConfigData(ha, "", true, true)
+	var configureCalled bool
+	supportedServer := mockHTTPConfigServer(t, func(cmd map[string]interface{}) map[string]interface{} {
+		switch cmd["type"] {
+		case "http/config":
+			return map[string]interface{}{
+				"type": "result", "success": true,
+				"result": map[string]interface{}{
+					"stable": map[string]interface{}{
+						"ssl_certificate": desired.SSLCertificate, "ssl_key": desired.SSLKey,
+					},
+					"pending": nil, "revert_at": nil, "active_config_type": "stable",
+				},
+			}
+		case "http/config/configure":
+			configureCalled = true
+			return map[string]interface{}{"type": "result", "success": true, "result": map[string]interface{}{"restart": true}}
+		}
+		t.Fatalf("unexpected command: %v", cmd["type"])
+		return nil
+	})
+	r2 := newTLSTestReconciler(t, true, ha, secret, tokenSecretFor(ha))
+	r2.NewHAClient = func(string) *haclient.Client { return haclient.NewClient(wsURL(supportedServer)) }
+	if _, err := r2.reconcileHTTPConfigViaWS(context.Background(), ha); err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	if !configureCalled {
+		t.Fatal("expected the second pass to send a fresh configure (fingerprint never confirmed for this instance)")
+	}
+	cond = meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
+	if cond == nil || cond.Status != metav1.ConditionFalse || cond.Reason != reasonTLSConfigPending {
+		t.Fatalf("expected second pass to pick up newly-available WS support and start configuring (%s), got %+v",
+			reasonTLSConfigPending, cond)
 	}
 }
 
@@ -370,6 +901,72 @@ func TestReconcileTLSNativeBYOMissingSecret(t *testing.T) {
 	tlsCond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
 	if tlsCond == nil || tlsCond.Status != metav1.ConditionFalse || tlsCond.Reason != reasonProvidedSecretInvalid {
 		t.Fatalf("expected TLSReady=False/%s, got %+v", reasonProvidedSecretInvalid, tlsCond)
+	}
+}
+
+// TestApplyNativeTLSSkipsYAMLWhenWSManaged covers the case where, once
+// nativeTLSManagedByWS(ha) is true (TLSReady set by reconcileHTTPConfigViaWS),
+// HomeAssistantConfigurationReconciler.applyNativeTLS must not also inject
+// ssl_certificate/ssl_key into configuration.yaml — WS owns http: exclusively
+// from that point on. No live HA/WS call is needed for this decision: it is
+// read straight from status, kept in sync with the identical gate used for
+// the StatefulSet restart annotation (nativeTLSManagedByWS).
+func TestApplyNativeTLSSkipsYAMLWhenWSManaged(t *testing.T) {
+	ha := nativeTLSHA("home")
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: nativeTLSCertificateName(ha), Namespace: ha.Namespace},
+		Data:       map[string][]byte{"tls.crt": []byte("cert"), "tls.key": []byte("key")},
+	}
+	meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
+		Type: conditionTLSReady, Status: metav1.ConditionTrue,
+		Reason: reasonTLSReady, Message: "confirmed active via WS",
+	})
+
+	scheme := runtime.NewScheme()
+	if err := hav1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add hav1: %v", err)
+	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add corev1: %v", err)
+	}
+	cl := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ha, secret).Build()
+	r := &HomeAssistantConfigurationReconciler{Client: cl, Scheme: scheme}
+
+	out, err := r.applyNativeTLS(context.Background(), ha, "default_config:\n")
+	if err != nil {
+		t.Fatalf("applyNativeTLS error: %v", err)
+	}
+	if out != "default_config:\n" {
+		t.Fatalf("expected content unchanged (WS owns http:), got:\n%s", out)
+	}
+}
+
+// TestApplyNativeTLSInjectsYAMLWhenWSUnsupported: the pre-existing YAML
+// injection path stays intact when WS is not (yet) confirmed active — no
+// TLSReady condition at all (fresh HA) behaves exactly as before this feature.
+func TestApplyNativeTLSInjectsYAMLWhenWSUnsupported(t *testing.T) {
+	ha := nativeTLSHA("home")
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: nativeTLSCertificateName(ha), Namespace: ha.Namespace},
+		Data:       map[string][]byte{"tls.crt": []byte("cert"), "tls.key": []byte("key")},
+	}
+
+	scheme := runtime.NewScheme()
+	if err := hav1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add hav1: %v", err)
+	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add corev1: %v", err)
+	}
+	cl := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ha, secret).Build()
+	r := &HomeAssistantConfigurationReconciler{Client: cl, Scheme: scheme}
+
+	out, err := r.applyNativeTLS(context.Background(), ha, "default_config:\n")
+	if err != nil {
+		t.Fatalf("applyNativeTLS error: %v", err)
+	}
+	if !strings.Contains(out, "ssl_certificate: "+nativeTLSCertPath) {
+		t.Fatalf("expected YAML injection when WS is not confirmed active, got:\n%s", out)
 	}
 }
 
@@ -485,4 +1082,142 @@ func TestInjectNativeTLS(t *testing.T) {
 			t.Fatalf("expected include preserved, got:\n%s", out)
 		}
 	})
+}
+
+// generatedConfigConfigMap builds the ConfigMap generatedHTTPConfigYAML reads
+// (owned in production by HomeAssistantConfigurationReconciler, faked here so
+// reconcileHTTPConfigViaWS can pick up the http: fields under test).
+func generatedConfigConfigMap(ha *hav1.HomeAssistant, configYAML string) *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: ha.Name + generatedConfigmapSuffix, Namespace: ha.Namespace},
+		Data:       map[string]string{configurationYamlKey: configYAML},
+	}
+}
+
+// TestReconcileHTTPConfigViaWS_NonTLSInstanceGetsNonTLSFields covers the case
+// where an HA that never requested native TLS still gets its non-TLS http:
+// fields (ip_ban_enabled, cors_allowed_origins, ...) applied via
+// http/config/configure once WS is available — the mechanism is not gated on
+// spec.alpha.tls.native.enabled at all.
+//
+// TLSReady is intentionally left untouched here (stays absent), rather than
+// reaching reasonTLSReady — reconcileHTTPConfigViaWS's maybeSetCondition only
+// writes TLSReady when native TLS was actually requested (see its definition
+// in native_tls_ws.go), to avoid a misleading "TLSReady" status on an
+// instance that never asked for TLS. ConfigureHTTPConfig being called with
+// exactly the right fields is the actual signal this test verifies.
+func TestReconcileHTTPConfigViaWS_NonTLSInstanceGetsNonTLSFields(t *testing.T) {
+	ha := &hav1.HomeAssistant{
+		ObjectMeta: metav1.ObjectMeta{Name: "home", Namespace: "default"},
+	}
+	configYAML := "http:\n  ip_ban_enabled: true\n  cors_allowed_origins:\n    - https://example.com\n"
+	cm := generatedConfigConfigMap(ha, configYAML)
+
+	var configureCalled bool
+	server := mockHTTPConfigServer(t, func(cmd map[string]interface{}) map[string]interface{} {
+		switch cmd["type"] {
+		case "http/config":
+			return map[string]interface{}{
+				"type": "result", "success": true,
+				"result": map[string]interface{}{
+					"stable":             map[string]interface{}{},
+					"pending":            nil,
+					"revert_at":          nil,
+					"active_config_type": "stable",
+				},
+			}
+		case "http/config/configure":
+			configureCalled = true
+			config, _ := cmd["config"].(map[string]interface{})
+			if ipBan, _ := config["ip_ban_enabled"].(bool); !ipBan {
+				t.Errorf("expected ip_ban_enabled=true in configure payload, got %v", config["ip_ban_enabled"])
+			}
+			origins, _ := config["cors_allowed_origins"].([]interface{})
+			if len(origins) != 1 || origins[0] != "https://example.com" {
+				t.Errorf("expected cors_allowed_origins=[https://example.com], got %v", config["cors_allowed_origins"])
+			}
+			if _, present := config["ssl_certificate"]; present {
+				t.Errorf("expected no ssl_certificate in payload for a non-TLS instance, got %v", config["ssl_certificate"])
+			}
+			return map[string]interface{}{"type": "result", "success": true, "result": map[string]interface{}{"restart": true}}
+		default:
+			t.Fatalf("unexpected command: %v", cmd["type"])
+			return nil
+		}
+	})
+
+	r := newTLSTestReconciler(t, false, ha, cm, tokenSecretFor(ha))
+	r.NewHAClient = func(string) *haclient.Client { return haclient.NewClient(wsURL(server)) }
+
+	if _, err := r.reconcileHTTPConfigViaWS(context.Background(), ha); err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	if !configureCalled {
+		t.Fatal("expected ConfigureHTTPConfig to be called for a non-TLS instance with custom http: fields")
+	}
+	if cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady); cond != nil {
+		t.Fatalf("expected no TLSReady condition on a non-TLS instance, got %+v", cond)
+	}
+}
+
+// TestReconcileHTTPConfigViaWS_MergesTLSAndNonTLSFields covers the case where,
+// with native TLS enabled AND custom non-TLS http: fields present, a single
+// http/config/configure call must carry both — never two competing calls.
+func TestReconcileHTTPConfigViaWS_MergesTLSAndNonTLSFields(t *testing.T) {
+	ha := nativeTLSHA("home")
+	configYAML := "http:\n  ip_ban_enabled: true\n  login_attempts_threshold: 7\n"
+	cm := generatedConfigConfigMap(ha, configYAML)
+	secret := nativeTLSSecretFor(ha, "cert-v1")
+
+	var configureCalled bool
+	server := mockHTTPConfigServer(t, func(cmd map[string]interface{}) map[string]interface{} {
+		switch cmd["type"] {
+		case "http/config":
+			return map[string]interface{}{
+				"type": "result", "success": true,
+				"result": map[string]interface{}{
+					"stable":             map[string]interface{}{},
+					"pending":            nil,
+					"revert_at":          nil,
+					"active_config_type": "stable",
+				},
+			}
+		case "http/config/configure":
+			configureCalled = true
+			config, _ := cmd["config"].(map[string]interface{})
+			if config["ssl_certificate"] != nativeTLSCertPath {
+				t.Errorf("expected merged configure to carry ssl_certificate=%s, got %v",
+					nativeTLSCertPath, config["ssl_certificate"])
+			}
+			if config["ssl_key"] != nativeTLSKeyPath {
+				t.Errorf("expected merged configure to carry ssl_key=%s, got %v", nativeTLSKeyPath, config["ssl_key"])
+			}
+			if ipBan, _ := config["ip_ban_enabled"].(bool); !ipBan {
+				t.Errorf("expected merged configure to carry ip_ban_enabled=true, got %v", config["ip_ban_enabled"])
+			}
+			threshold, _ := config["login_attempts_threshold"].(float64)
+			if threshold != 7 {
+				t.Errorf("expected merged configure to carry login_attempts_threshold=7, got %v",
+					config["login_attempts_threshold"])
+			}
+			return map[string]interface{}{"type": "result", "success": true, "result": map[string]interface{}{"restart": true}}
+		default:
+			t.Fatalf("unexpected command: %v", cmd["type"])
+			return nil
+		}
+	})
+
+	r := newTLSTestReconciler(t, true, ha, secret, cm, tokenSecretFor(ha))
+	r.NewHAClient = func(string) *haclient.Client { return haclient.NewClient(wsURL(server)) }
+
+	if _, err := r.reconcileHTTPConfigViaWS(context.Background(), ha); err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	if !configureCalled {
+		t.Fatal("expected a single merged ConfigureHTTPConfig call")
+	}
+	cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
+	if cond == nil || cond.Status != metav1.ConditionFalse || cond.Reason != reasonTLSConfigPending {
+		t.Fatalf("expected TLSReady=False/%s, got %+v", reasonTLSConfigPending, cond)
+	}
 }
