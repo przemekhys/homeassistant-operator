@@ -20,10 +20,14 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"math/big"
 	"os/exec"
+	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -81,6 +85,21 @@ spec:
     default_config:
 `, configName, namespace, haName)
 		Expect(utils.ApplyYAML(configYAML, namespace)).To(Succeed())
+
+		By("Creating bootstrap credentials Secret (reconcileHTTPConfigViaWS needs the bootstrap " +
+			"API token to attempt http/config at all — without it every reconcile short-circuits " +
+			"straight to reasonWSConfigUnsupported, regardless of what HA is actually doing)")
+		credsYAML := fmt.Sprintf(`apiVersion: v1
+kind: Secret
+metadata:
+  name: ha-native-creds
+  namespace: %s
+type: Opaque
+stringData:
+  username: admin
+  password: e2e-native-tls-pwd-123456
+`, namespace)
+		Expect(utils.ApplyYAML(credsYAML, namespace)).To(Succeed())
 	})
 
 	AfterEach(func() {
@@ -88,7 +107,8 @@ spec:
 	})
 
 	It("issues a native TLS certificate and reports TLSReady", func() {
-		By("Creating a HomeAssistant with native TLS enabled")
+		By("Creating a HomeAssistant with native TLS enabled and bootstrap enabled " +
+			"(reconcileHTTPConfigViaWS needs the bootstrap API token to call http/config at all)")
 		haYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistant
 metadata:
@@ -109,8 +129,24 @@ spec:
           kind: ClusterIssuer
         dnsNames:
           - %s.example.com
-  %s`, haName, namespace, clusterIssuer, haName, utils.GetDefaultHAResourceRequests())
+  bootstrap:
+    enabled: true
+    credentials:
+      secretRef:
+        name: ha-native-creds
+    createApiToken: true
+    apiTokenSecretName: %s-homeassistant-api-token
+    ownerName: "E2E Native TLS"
+    language: "en"
+  %s`, haName, namespace, clusterIssuer, haName, haName, utils.GetDefaultHAResourceRequests())
 		Expect(utils.ApplyYAML(haYAML, namespace)).To(Succeed())
+
+		By("Waiting for bootstrap to complete (reconcileHTTPConfigViaWS needs the API token)")
+		Eventually(func(g Gomega) {
+			output := utils.Kubectl("get", "ha", haName, "-n", namespace,
+				"-o", "jsonpath={.status.bootstrap.completed}")
+			g.Expect(output).To(Equal("true"))
+		}, utils.BootstrapTimeout, utils.DefaultEventuallyPollingInterval).Should(Succeed())
 
 		By("Waiting for the operator to report cert-manager available")
 		Eventually(func() string {
@@ -175,7 +211,36 @@ spec:
 	// tls job's local/CI time budget once combined with the other tls specs.
 	It("keeps HA available on the old certificate when a rotation is rejected (auto-revert)",
 		Label("slow"), func() {
-			By("Creating a HomeAssistant with native TLS enabled")
+			// Bring-your-own (spec.alpha.tls.native.secretName), not
+			// cert-manager: cert-manager watches its own issued Secrets and
+			// re-issues fresh material the moment it notices the stored key
+			// no longer matches the certificate — which is exactly the fault
+			// this test injects below. That self-healing races the thing
+			// actually under test (HA's own WS-based auto-revert) and
+			// silently overwrites the injected key before the assertions
+			// below can observe it. A Secret cert-manager never owns doesn't
+			// have that problem.
+			certName := haName + "-byo-tls"
+			By("Creating a self-signed bring-your-own TLS Secret (kept outside cert-manager on purpose)")
+			certPEM, keyPEM := generateSelfSignedCertPEM(haName + "." + namespace + ".svc.cluster.local")
+			secretYAML := fmt.Sprintf(`apiVersion: v1
+kind: Secret
+metadata:
+  name: %s
+  namespace: %s
+type: kubernetes.io/tls
+stringData:
+  tls.crt: |
+%s
+  tls.key: |
+%s
+  ca.crt: |
+%s
+`, certName, namespace, indentPEM(certPEM), indentPEM(keyPEM), indentPEM(certPEM))
+			Expect(utils.ApplyYAML(secretYAML, namespace)).To(Succeed())
+
+			By("Creating a HomeAssistant with bring-your-own native TLS enabled and bootstrap enabled " +
+				"(reconcileHTTPConfigViaWS needs the bootstrap API token to call http/config at all)")
 			haYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistant
 metadata:
@@ -191,15 +256,26 @@ spec:
     tls:
       native:
         enabled: true
-        issuerRef:
-          name: %s
-          kind: ClusterIssuer
-        dnsNames:
-          - %s.example.com
-  %s`, haName, namespace, clusterIssuer, haName, utils.GetDefaultHAResourceRequests())
+        secretName: %s
+  bootstrap:
+    enabled: true
+    credentials:
+      secretRef:
+        name: ha-native-creds
+    createApiToken: true
+    apiTokenSecretName: %s-homeassistant-api-token
+    ownerName: "E2E Native TLS Revert"
+    language: "en"
+  %s`, haName, namespace, certName, haName, utils.GetDefaultHAResourceRequests())
 			Expect(utils.ApplyYAML(haYAML, namespace)).To(Succeed())
 
-			certName := haName + "-native-tls"
+			By("Waiting for bootstrap to complete (reconcileHTTPConfigViaWS needs the API token)")
+			Eventually(func(g Gomega) {
+				output := utils.Kubectl("get", "ha", haName, "-n", namespace,
+					"-o", "jsonpath={.status.bootstrap.completed}")
+				g.Expect(output).To(Equal("true"))
+			}, utils.BootstrapTimeout, utils.DefaultEventuallyPollingInterval).Should(Succeed())
+
 			By("Waiting for the HomeAssistant to report TLSReady on the original certificate")
 			Eventually(func() string {
 				return utils.GetResourceStatus("homeassistants", haName, namespace,
@@ -218,6 +294,7 @@ spec:
 			// unusable — the case HA's own auto-revert handling is designed for.
 			mismatchedKeyPEM := generateMismatchedTLSKeyPEM()
 			patch := fmt.Sprintf(`{"data":{"tls.key":%q}}`, base64.StdEncoding.EncodeToString(mismatchedKeyPEM))
+			restartCountBefore := haPodRestartCount(namespace, haName)
 			Expect(utils.PatchResource("secret", certName, namespace, "merge", patch)).To(Succeed())
 
 			By("Waiting for HA to auto-revert and the operator to report TLSConfigReverted")
@@ -230,6 +307,12 @@ spec:
 			Expect(utils.GetResourceStatus("homeassistants", haName, namespace,
 				"{.status.conditions[?(@.type=='TLSReady')].status}")).To(Equal("True"))
 
+			By("Confirming the pod was never restarted (LivenessProbe must not kill the container while " +
+				"HA is still running its own internal auto-revert timer)")
+			Expect(haPodRestartCount(namespace, haName)).To(Equal(restartCountBefore),
+				"a liveness-probe-triggered restart would cut HA's in-process auto-revert timer short, "+
+					"forcing the same failed trial to start over on every boot")
+
 			By("Confirming the Secret still carries the corrupted key and untouched cert " +
 				"(operator does not fight the rejection)")
 			Expect(utils.GetResourceStatus("secret", certName, namespace, "{.data.tls\\.crt}")).To(Equal(goodCert))
@@ -238,6 +321,45 @@ spec:
 					"expected the operator to leave the mismatched key exactly as injected, never reverting it")
 		})
 })
+
+// generateSelfSignedCertPEM returns a self-signed leaf certificate (also
+// usable as its own trust root, IsCA: true) and its matching private key, PEM
+// encoded, valid for dnsName. Used for the bring-your-own native TLS Secret in
+// the auto-revert test — kept outside cert-manager on purpose, see that It's
+// own comment for why.
+func generateSelfSignedCertPEM(dnsName string) (certPEM, keyPEM []byte) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	Expect(err).NotTo(HaveOccurred())
+
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: dnsName},
+		DNSNames:              []string{dnsName},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	Expect(err).NotTo(HaveOccurred())
+
+	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+	return certPEM, keyPEM
+}
+
+// indentPEM re-indents PEM content by 4 spaces so it nests correctly under a
+// YAML literal block scalar (`key: |`) inside a Secret manifest built with
+// fmt.Sprintf.
+func indentPEM(pemBytes []byte) string {
+	lines := strings.Split(strings.TrimRight(string(pemBytes), "\n"), "\n")
+	for i, l := range lines {
+		lines[i] = "    " + l
+	}
+	return strings.Join(lines, "\n")
+}
 
 // haPodRestartCount reads the HA pod's first-container restart count, used to
 // assert that native TLS rotation via WS never restarts the pod.

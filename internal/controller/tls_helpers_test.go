@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/events"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -1298,5 +1299,71 @@ func TestBuildStatefulSetPreservesNativeTLSHashAnnotationWhenWSManaged(t *testin
 	}
 	if got := desired.Spec.Template.Annotations[nativeTLSHashAnnotationKey]; got != oldHash {
 		t.Fatalf("expected native-tls-hash annotation to stay %q while WS manages rotation, got %q", oldHash, got)
+	}
+}
+
+// TestBuildStatefulSetLivenessProbeUsesTCPSocket covers a live-cluster
+// finding: an HTTPGet liveness probe pointed at the same port/scheme HA
+// serves lets Kubernetes kill+restart the container within ~30-60s of a
+// native TLS rotation temporarily breaking the served protocol — far
+// short of HA's own ~5 minute internal auto-revert timer, so the container
+// never survives long enough for HA to self-heal. LivenessProbe must use
+// TCPSocket (protocol-agnostic: only "is anything listening") regardless of
+// whether native TLS is active; ReadinessProbe stays HTTPGet/protocol-aware
+// so the pod is still pulled out of Service traffic immediately when it's
+// actually serving the wrong protocol.
+func TestBuildStatefulSetLivenessProbeUsesTCPSocket(t *testing.T) {
+	for _, ha := range []*hav1.HomeAssistant{
+		{ObjectMeta: metav1.ObjectMeta{Name: "plain", Namespace: "default"}},
+		nativeTLSHA("tls-active"),
+	} {
+		t.Run(ha.Name, func(t *testing.T) {
+			var objs []client.Object
+			if nativeTLS(ha) != nil {
+				objs = append(objs, nativeTLSSecretFor(ha, "cert-v1"))
+				meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
+					Type: conditionTLSReady, Status: metav1.ConditionTrue, Reason: reasonTLSReady, Message: "ready",
+				})
+			}
+			r := newTLSTestReconciler(t, true, append(objs, ha)...)
+			sts, err := r.buildStatefulSet(context.Background(), ha)
+			if err != nil {
+				t.Fatalf("buildStatefulSet error: %v", err)
+			}
+			container := sts.Spec.Template.Spec.Containers[0]
+
+			lp := container.LivenessProbe
+			if lp == nil || lp.TCPSocket == nil {
+				t.Fatalf("expected LivenessProbe.TCPSocket to be set, got %+v", lp)
+			}
+			if lp.HTTPGet != nil {
+				t.Fatalf("expected LivenessProbe to NOT use HTTPGet (protocol-sensitive), got %+v", lp.HTTPGet)
+			}
+			if lp.TCPSocket.Port.IntValue() != defaultPort {
+				t.Fatalf("expected LivenessProbe.TCPSocket.Port=%d, got %v", defaultPort, lp.TCPSocket.Port)
+			}
+
+			rp := container.ReadinessProbe
+			if rp == nil || rp.HTTPGet == nil {
+				t.Fatalf("expected ReadinessProbe.HTTPGet to remain set, got %+v", rp)
+			}
+		})
+	}
+}
+
+// TestProbesEqualDetectsTCPSocketDifference guards the needsUpdate comparison
+// path for the TCPSocket handler introduced above: without comparing this
+// field, two probes with different ports would be reported as equal (silently
+// skipping a real rollout the same way the pre-fix HTTPGet-only comparison
+// would have for LivenessProbe).
+func TestProbesEqualDetectsTCPSocketDifference(t *testing.T) {
+	a := &corev1.Probe{ProbeHandler: corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt(8123)}}}
+	b := &corev1.Probe{ProbeHandler: corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt(8124)}}}
+	if probesEqual(a, b) {
+		t.Fatal("expected probesEqual to detect differing TCPSocket ports")
+	}
+	c := &corev1.Probe{ProbeHandler: corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt(8123)}}}
+	if !probesEqual(a, c) {
+		t.Fatal("expected probesEqual to treat identical TCPSocket probes as equal")
 	}
 }

@@ -916,9 +916,10 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 		delete(existingAnnotations, nativeTLSHashAnnotationKey)
 	}
 
-	// Probes must speak whatever scheme HA is actually serving: once native TLS
-	// is active, HA listens with HTTPS on the same port, and a plain-HTTP probe
-	// would just see a TLS handshake and fail the pod.
+	// Readiness must speak whatever scheme HA is actually serving: once native
+	// TLS is active, HA listens with HTTPS on the same port, and a plain-HTTP
+	// probe would just see a TLS handshake and fail the pod. LivenessProbe
+	// below deliberately does NOT use this — see its own comment.
 	probeScheme := corev1.URISchemeHTTP
 	if nativeTLSActive(ha) {
 		probeScheme = corev1.URISchemeHTTPS
@@ -947,12 +948,24 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 				},
 			},
 			VolumeMounts: volumeMounts,
+			// TCPSocket, not HTTPGet: liveness must only detect "the process is
+			// dead", never "the process is serving the wrong protocol". A
+			// native TLS rotation that HA itself is in the middle of
+			// reverting (its own ~5 minute internal auto-revert timer) can
+			// leave the port briefly answering with the wrong scheme (e.g.
+			// plain HTTP while a protocol-aware probe expects HTTPS) — an
+			// HTTPGet liveness probe here would see that as unhealthy and
+			// have kubelet kill+restart the container within ~30-60s,
+			// destroying HA's in-process state long before its own revert
+			// logic can finish and starting the same failed trial over on
+			// every fresh boot. ReadinessProbe below stays protocol-aware
+			// (HTTPGet) on purpose: an HA serving the wrong protocol must
+			// still be pulled out of Service traffic immediately — this
+			// only changes when Kubernetes is allowed to kill the container.
 			LivenessProbe: &corev1.Probe{
 				ProbeHandler: corev1.ProbeHandler{
-					HTTPGet: &corev1.HTTPGetAction{
-						Path:   "/",
-						Port:   intstr.FromInt(defaultPort),
-						Scheme: probeScheme,
+					TCPSocket: &corev1.TCPSocketAction{
+						Port: intstr.FromInt(defaultPort),
 					},
 				},
 				InitialDelaySeconds: 30,
@@ -1951,6 +1964,17 @@ func probesEqual(current, desired *corev1.Probe) bool {
 		if current.HTTPGet.Path != desired.HTTPGet.Path ||
 			current.HTTPGet.Port != desired.HTTPGet.Port ||
 			current.HTTPGet.Scheme != desired.HTTPGet.Scheme {
+			return false
+		}
+	}
+
+	// Compare TCPSocket handler (liveness uses this — see buildStatefulSet)
+	if (current.TCPSocket == nil) != (desired.TCPSocket == nil) {
+		return false
+	}
+	if current.TCPSocket != nil && desired.TCPSocket != nil {
+		if current.TCPSocket.Port != desired.TCPSocket.Port ||
+			current.TCPSocket.Host != desired.TCPSocket.Host {
 			return false
 		}
 	}
