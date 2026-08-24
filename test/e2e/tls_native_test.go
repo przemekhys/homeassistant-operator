@@ -106,7 +106,21 @@ stringData:
 		Expect(utils.ForceDeleteNamespace(namespace)).To(Succeed())
 	})
 
-	It("issues a native TLS certificate and reports TLSReady", func() {
+	// Labeled "bootstrap" (on top of the Describe-level "tls"/"native" labels)
+	// so it can run in its own CI job/Makefile target: this is the only tls
+	// spec that combines spec.bootstrap with spec.alpha.tls.native on the same
+	// instance, a combination no other spec exercises. haScheme(ha) flips to
+	// "https" as soon as TLSReady is True — which reconcileHTTPConfigViaWS
+	// sets via the WSConfigUnsupported fallback the moment cert-manager issues
+	// the certificate, before the pod has necessarily picked up and restarted
+	// onto the injected YAML ssl_certificate/ssl_key. Bootstrap's own
+	// scheme-aware HTTP client then has to wait out that separate,
+	// asynchronous YAML-injection-plus-restart cycle before its first
+	// successful health check — real extra latency a plain-HTTP bootstrap
+	// never pays. Combined with 4-5 other tls specs sharing a job, this pushed
+	// a real CI run to blow a 13-minute budget before bootstrap ever
+	// completed.
+	It("issues a native TLS certificate and reports TLSReady", Label("bootstrap"), func() {
 		By("Creating a HomeAssistant with native TLS enabled and bootstrap enabled " +
 			"(reconcileHTTPConfigViaWS needs the bootstrap API token to call http/config at all)")
 		haYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1

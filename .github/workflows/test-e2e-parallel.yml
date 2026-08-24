@@ -63,9 +63,9 @@ jobs:
           path: ha-image.tar
           retention-days: 1
 
-      # Built once here rather than in each of the 8 e2e-* jobs below: those
+      # Built once here rather than in each of the 9 e2e-* jobs below: those
       # all `needs: build` and start together right after this job finishes,
-      # so a per-job cache (keyed on K3D_VERSION) would race — none of the 8
+      # so a per-job cache (keyed on K3D_VERSION) would race — none of the 9
       # can see another's cache write mid-flight, meaning every one of them
       # would independently pay the compile cost on the same cache-miss (a
       # fresh K3D_VERSION bump, or the very first run). Building once here and
@@ -82,10 +82,10 @@ jobs:
           path: ~/go/bin/k3d
           retention-days: 1
 
-  # Jobs 2-9: the e2e suite split across eight jobs that run concurrently,
+  # Jobs 2-10: the e2e suite split across nine jobs that run concurrently,
   # each selecting a scoped subset of ./test/e2e/ via Ginkgo's --label-filter.
-  # Because all eight `needs: build`, the workflow's real end-to-end time is
-  # build's own duration PLUS the slowest of the eight e2e jobs — not just
+  # Because all nine `needs: build`, the workflow's real end-to-end time is
+  # build's own duration PLUS the slowest of the nine e2e jobs — not just
   # the slowest job in isolation. See docs/development/testing.md (the sole
   # source of truth for e2e suite/job duration) for the current target and
   # the rationale behind this split (previously one long sequential job).
@@ -367,11 +367,10 @@ jobs:
     runs-on: ubuntu-latest
     # Widened from 11 to 13 (and the Ginkgo --timeout below from 7m to 9m)
     # after a real CI run hit [TIMEDOUT] mid-bootstrap-wait in the native TLS
-    # spec: both tls_native_test.go specs now provision a real HA bootstrap
-    # (admin user + long-lived token) so reconcileHTTPConfigViaWS can get an
-    # API token at all, which is meaningfully slower than the old
-    # bootstrap-less fixture and, combined with this job's other 4-5 specs,
-    # no longer reliably fits the old 7-minute suite budget.
+    # spec — that spec has since moved to its own e2e-tls-bootstrap job (see
+    # its Label("bootstrap") comment in tls_native_test.go for the real root
+    # cause), but the budget is kept here rather than tightened back down
+    # until real post-split timing data justifies it.
     timeout-minutes: 13
 
     steps:
@@ -452,7 +451,7 @@ jobs:
           make ginkgo
           ./bin/ginkgo run \
             -v \
-            --label-filter="tls && !slow" \
+            --label-filter="tls && !slow && !bootstrap" \
             --timeout=9m \
             ./test/e2e/
 
@@ -647,6 +646,143 @@ jobs:
       - name: Cleanup k3d cluster
         if: always()
         run: k3d cluster delete e2e-tls-revert
+
+  # Split out of e2e-tls: the only tls spec that combines spec.bootstrap with
+  # spec.alpha.tls.native on the same instance. haScheme(ha) flips to "https"
+  # as soon as TLSReady is True — which reconcileHTTPConfigViaWS sets via the
+  # WSConfigUnsupported fallback the moment cert-manager issues the
+  # certificate, before the pod has necessarily picked up and restarted onto
+  # the injected YAML ssl_certificate/ssl_key. Bootstrap's own scheme-aware
+  # HTTP client then has to wait out that separate, asynchronous
+  # YAML-injection-plus-restart cycle before its first successful health
+  # check — real extra latency a plain-HTTP bootstrap never pays. Combined
+  # with e2e-tls's other specs this blew a 13-minute job budget with no clean
+  # Ginkgo timeout message (bootstrap's own Eventually uses a deliberately
+  # generous 45-minute timeout, relying on the job wrapper as the real
+  # backstop) — on its own cluster/job it gets headroom without inflating
+  # e2e-tls's or risking the same starvation for the other specs there.
+  e2e-tls-bootstrap:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+
+    steps:
+      - name: Clone the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+
+      - name: Cache Ginkgo CLI
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: bin/ginkgo*
+          key: ginkgo-${{ hashFiles('go.mod', 'Makefile') }}
+          restore-keys: |
+            ginkgo-
+
+      - name: Download k3d binary artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: k3d-binary
+          path: /tmp/k3d-bin
+
+      - name: Install k3d from artifact
+        run: |
+          chmod +x /tmp/k3d-bin/k3d
+          echo "/tmp/k3d-bin" >> "$GITHUB_PATH"
+
+      - name: Verify k3d installation
+        run: k3d version
+
+      - name: Download operator image artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: operator-image
+
+      - name: Download Home Assistant image artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ha-image
+
+      - name: Create k3d cluster
+        run: |
+          k3d cluster create e2e-tls-bootstrap \
+            --image rancher/k3s:${{ env.K3S_VERSION }} \
+            --agents 0 \
+            --servers-memory 4g \
+            --wait \
+            --timeout 5m
+
+      - name: Load operator image into k3d
+        run: |
+          docker load -i operator-e2e.tar
+          k3d image import operator:e2e -c e2e-tls-bootstrap
+
+      - name: Load Home Assistant image into k3d
+        run: |
+          docker load -i ha-image.tar
+          k3d image import ghcr.io/home-assistant/home-assistant:${{ env.HA_VERSION }} -c e2e-tls-bootstrap
+
+      - name: Verify cluster is ready
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Run E2E native TLS + bootstrap test
+        env:
+          K3D_CLUSTER: e2e-tls-bootstrap
+          HA_VERSION: ${{ env.HA_VERSION }}
+          CERT_MANAGER_VERSION: ${{ env.CERT_MANAGER_VERSION }}
+          E2E_IMG: "operator:e2e"
+          E2E_SKIP_IMAGE_BUILD: "true"
+        run: |
+          make ginkgo
+          ./bin/ginkgo run \
+            -v \
+            --label-filter="tls && bootstrap" \
+            --timeout=10m \
+            ./test/e2e/
+
+      - name: Collect controller logs on failure
+        if: failure()
+        run: |
+          kubectl logs -n homeassistant-operator-system \
+            -l control-plane=controller-manager \
+            --tail=-1 --prefix | tee controller-manager.log || true
+
+      - name: Upload controller logs artifact on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: controller-manager-logs-tls-bootstrap
+          path: controller-manager.log
+          retention-days: 7
+
+      - name: Collect Kubernetes events on failure
+        if: failure()
+        run: |
+          echo "=== Kubernetes Events ==="
+          kubectl get events --all-namespaces \
+            --sort-by=.lastTimestamp || true
+
+      - name: Collect resource status on failure
+        if: failure()
+        run: |
+          echo "=== HomeAssistant Resources ==="
+          kubectl get homeassistants --all-namespaces -o wide || true
+          echo "=== Pods ==="
+          kubectl get pods --all-namespaces -o wide || true
+          echo "=== StatefulSets ==="
+          kubectl get statefulsets --all-namespaces -o wide || true
+
+      - name: Cleanup k3d cluster
+        if: always()
+        run: k3d cluster delete e2e-tls-bootstrap
 
   e2e-network-policy:
     needs: build

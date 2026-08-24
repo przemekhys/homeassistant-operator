@@ -172,7 +172,7 @@ Eventually(func(g Gomega) {
 
 **Location**: `test/e2e/*_test.go` (10 files, 28 specs total)
 **Framework**: Ginkgo v2 + real k3d cluster
-**Strategy**: Eight independently-labeled suites, run as eight concurrent
+**Strategy**: Nine independently-labeled suites, run as nine concurrent
 GitHub Actions jobs (`.github/workflows/test-e2e-parallel.yml`), so the whole
 workflow — not any single job — targets a **10-minute** budget (see the
 Known gap below: not currently met in practice, closer to 15-20 minutes).
@@ -183,15 +183,16 @@ needs to reference how long the suite takes should point here rather than
 restating a number.
 
 **Goal**: the whole e2e workflow completes in about 10 minutes, split across
-the eight concurrent jobs below.
+the nine concurrent jobs below.
 
 ### Running E2E locally
 
 ```bash
 make test-e2e-critical-a                 # HomeAssistant + sibling CRDs (10 specs)
 make test-e2e-critical-b                 # spec.alpha.devices device passthrough (1 spec)
-make test-e2e-tls                        # TLS ingress/gateway/native/webhook/http-config (6 specs)
+make test-e2e-tls                        # TLS ingress/gateway/native/webhook/http-config (5 specs)
 make test-e2e-tls-revert                 # Native TLS auto-revert on rejected rotation (1 spec, ~6min wait)
+make test-e2e-tls-bootstrap              # Native TLS + real HA bootstrap on the same instance (1 spec)
 make test-e2e-network-policy             # NetworkPolicy enforcement (1 spec)
 make test-e2e-pod-security                # Pod Security Standards (2 specs)
 make test-e2e-community-repository-a     # HACS-style installs, group A (3 specs)
@@ -209,14 +210,15 @@ and every e2e job downloads and loads that same artifact — set
 `E2E_SKIP_IMAGE_BUILD=true` and `E2E_IMG=<tag>` to reproduce that
 skip-the-rebuild behavior locally against a pre-built image.
 
-### The eight e2e jobs
+### The nine e2e jobs
 
 | Job | Label filter | Specs | What is verified |
 |---|---|---|---|
 | `e2e-critical-a` | `critical-path && group-a` | 10 | All CRDs' core lifecycle (see table below) — shares one HA bootstrap |
 | `e2e-critical-b` | `critical-path && group-b` | 1 | `spec.alpha.devices` device passthrough — own cluster/instance, no shared bootstrap |
-| `e2e-tls` | `tls && !slow` | 6 | TLS via Ingress, Gateway API, native HA TLS issuance/rotation, the validating webhook, and non-TLS `http:` fields via WS |
+| `e2e-tls` | `tls && !slow && !bootstrap` | 5 | TLS via Ingress, Gateway API, native HA TLS rotation, the validating webhook, and non-TLS `http:` fields via WS |
 | `e2e-tls-revert` | `tls && slow` | 1 | Native TLS auto-revert: a rejected rotation reverts on its own, HA stays reachable on the old cert throughout |
+| `e2e-tls-bootstrap` | `tls && bootstrap` | 1 | Native TLS issuance combined with a real HA bootstrap on the same instance |
 | `e2e-network-policy` | `network-policy` | 1 | `spec.alpha.networkPolicy` actually restricts traffic, not just that the object exists |
 | `e2e-pod-security` | `pod-security` | 2 | Operator namespace enforces the `restricted` Pod Security Standard |
 | `e2e-community-repository-a` | `community-repository && group-a` | 3 | `HomeAssistantCommunityRepository`: integration + theme install, theme ref-update |
@@ -258,29 +260,51 @@ than group-a's real-onboarding instance) both removed the time pressure from
 instead of silently killed.
 
 `e2e-tls-revert` exists for the same reason as `e2e-critical-b`: a single spec
-(native TLS auto-revert) was originally folded into `e2e-tls` alongside six
-faster specs, but it is the only e2e spec in the repo that waits out HA's own
-~5-6 minute internal auto-revert timer (a rejected native-TLS rotation
-reverting to the last-known-good certificate on its own), which repeatedly
-pushed the combined job over its time budget. It is labeled `slow` at the
-`It` level (on top of the Describe-level `tls`/`native` labels) so `e2e-tls`
-excludes it (`tls && !slow`) while `e2e-tls-revert` selects only it
+(native TLS auto-revert) was originally folded into `e2e-tls` alongside the
+other, faster specs, but it is the only e2e spec in the repo that waits out
+HA's own ~5-6 minute internal auto-revert timer (a rejected native-TLS
+rotation reverting to the last-known-good certificate on its own), which
+repeatedly pushed the combined job over its time budget. It is labeled `slow`
+at the `It` level (on top of the Describe-level `tls`/`native` labels) so
+`e2e-tls` excludes it (`tls && !slow`) while `e2e-tls-revert` selects only it
 (`tls && slow`) — same pattern as `group-a`/`group-b`, but for time budget
 rather than shared setup state.
+
+`e2e-tls-bootstrap` was split out for a different, more subtle reason: it is
+the only tls spec that combines `spec.bootstrap` with
+`spec.alpha.tls.native` on the same instance. `haScheme(ha)` flips to
+`"https"` as soon as `TLSReady` is `True` — which `reconcileHTTPConfigViaWS`
+sets via the `WSConfigUnsupported` fallback the moment cert-manager issues
+the certificate, before the pod has necessarily picked up and restarted onto
+the injected YAML `ssl_certificate`/`ssl_key`. Bootstrap's own scheme-aware
+HTTP client then has to wait out that separate, asynchronous
+YAML-injection-plus-restart cycle before its first successful health check —
+real extra latency a plain-HTTP bootstrap never pays, and combined with
+`e2e-tls`'s other specs it blew that job's budget with no clean Ginkgo
+timeout message (bootstrap's own `Eventually` uses a deliberately generous
+45-minute timeout, relying on the job wrapper as the real backstop — so the
+job's own `timeout-minutes` cancellation was the only thing that ever
+stopped it, losing all diagnostics in the process). It is labeled
+`bootstrap` at the `It` level, selected via `tls && bootstrap`, excluded from
+`e2e-tls` via `tls && !slow && !bootstrap`.
 
 **Known gap**: real CI runs showed every job's cold-start overhead — and the
 community-repository specs' own runtime — running noticeably longer than
 initial estimates (extrapolated from a single long-running, cache-warm job)
 suggested, so per-job timeouts have been progressively widened rather than
 left to fail: `e2e-community-repository-b` up to 16 min, `-a` up to 14 min,
-`e2e-tls-revert` up to 16 min, `e2e-tls` up to 13 min (Ginkgo `--timeout=9m`).
-Both `e2e-tls*` jobs were widened a second time after tls_native_test.go's
-specs started provisioning a real HA bootstrap (needed so
-reconcileHTTPConfigViaWS can get an API token at all) — a real CI run showed
-`e2e-tls` hitting `[TIMEDOUT]` mid-bootstrap-wait on the old 7-minute budget,
-and `e2e-tls-revert` getting cancelled seconds after its spec had already
-fully passed, purely on the old 12-minute job timeout. **The whole workflow
-does not currently meet the
+`e2e-tls-revert` up to 16 min, `e2e-tls` up to 13 min (Ginkgo `--timeout=9m`),
+`e2e-tls-bootstrap` up to 14 min (Ginkgo `--timeout=10m`, no real timing data
+yet since it was split out before ever running standalone in CI). Both
+`e2e-tls`/`e2e-tls-revert` were widened a second time after
+tls_native_test.go's specs started provisioning a real HA bootstrap (needed
+so `reconcileHTTPConfigViaWS` can get an API token at all) — a real CI run
+showed `e2e-tls` hitting `[TIMEDOUT]` mid-bootstrap-wait on the old 7-minute
+budget, and `e2e-tls-revert` getting cancelled seconds after its spec had
+already fully passed, purely on the old 12-minute job timeout; the
+bootstrap+native-TLS spec was then split into its own `e2e-tls-bootstrap`
+job rather than a third round of blind widening. **The whole workflow does
+not currently meet the
 10-minute goal** — with `build` (a few minutes) plus the slowest job
 (`e2e-community-repository-b`), real end-to-end time is closer to 15-20
 minutes. Tightening this back down needs either genuine optimization (e.g.
@@ -327,7 +351,7 @@ diagnostics) without affecting any other spec.
 ## Coverage Gap Record
 
 Every remaining e2e scenario is still verified — the 28 specs above are
-split across the eight jobs above. This section exists as the place to
+split across the nine jobs above. This section exists as the place to
 record it when a scenario is deliberately not e2e-gated, rather than fitting
 it into an existing (or new) job:
 

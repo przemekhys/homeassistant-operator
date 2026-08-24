@@ -183,7 +183,7 @@ test-e2e-tls: manifests generate fmt vet ginkgo ## Run the tls e2e job locally (
 	trap '$(MAKE) cleanup-test-e2e' EXIT INT TERM; \
 	$(MAKE) setup-test-e2e; \
 	K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run \
-		-v --label-filter="tls && !slow" --timeout=9m ./test/e2e/ | tee test-e2e.log
+		-v --label-filter="tls && !slow && !bootstrap" --timeout=9m ./test/e2e/ | tee test-e2e.log
 
 .PHONY: test-e2e-tls-revert
 test-e2e-tls-revert: manifests generate fmt vet ginkgo ## Run the tls auto-revert e2e job locally (installs cert-manager, ~6min wait)
@@ -191,6 +191,13 @@ test-e2e-tls-revert: manifests generate fmt vet ginkgo ## Run the tls auto-rever
 	$(MAKE) setup-test-e2e; \
 	K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run \
 		-v --label-filter="tls && slow" --timeout=9m ./test/e2e/ | tee test-e2e.log
+
+.PHONY: test-e2e-tls-bootstrap
+test-e2e-tls-bootstrap: manifests generate fmt vet ginkgo ## Run the native-TLS+bootstrap e2e job locally (installs cert-manager)
+	trap '$(MAKE) cleanup-test-e2e' EXIT INT TERM; \
+	$(MAKE) setup-test-e2e; \
+	K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run \
+		-v --label-filter="tls && bootstrap" --timeout=10m ./test/e2e/ | tee test-e2e.log
 
 .PHONY: test-e2e-network-policy
 test-e2e-network-policy: manifests generate fmt vet ginkgo ## Run the network-policy e2e job locally
