@@ -273,11 +273,14 @@ community-repository specs' own runtime — running noticeably longer than
 initial estimates (extrapolated from a single long-running, cache-warm job)
 suggested, so per-job timeouts have been progressively widened rather than
 left to fail: `e2e-community-repository-b` up to 16 min, `-a` up to 14 min,
-`e2e-tls-revert` up to 12 min (mostly HA's own ~5-6 minute auto-revert wait,
-not cold-start overhead). `e2e-tls` itself is kept at its original
-pre-split 11 min (rather than tightened to match its 6 remaining, lighter
-specs) until real post-split timing data justifies lowering it. **The whole
-workflow does not currently meet the
+`e2e-tls-revert` up to 16 min, `e2e-tls` up to 13 min (Ginkgo `--timeout=9m`).
+Both `e2e-tls*` jobs were widened a second time after tls_native_test.go's
+specs started provisioning a real HA bootstrap (needed so
+reconcileHTTPConfigViaWS can get an API token at all) — a real CI run showed
+`e2e-tls` hitting `[TIMEDOUT]` mid-bootstrap-wait on the old 7-minute budget,
+and `e2e-tls-revert` getting cancelled seconds after its spec had already
+fully passed, purely on the old 12-minute job timeout. **The whole workflow
+does not currently meet the
 10-minute goal** — with `build` (a few minutes) plus the slowest job
 (`e2e-community-repository-b`), real end-to-end time is closer to 15-20
 minutes. Tightening this back down needs either genuine optimization (e.g.

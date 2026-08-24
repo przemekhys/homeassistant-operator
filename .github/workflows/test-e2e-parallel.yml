@@ -365,15 +365,14 @@ jobs:
   e2e-tls:
     needs: build
     runs-on: ubuntu-latest
-    # Kept at the original pre-split value (empirically tuned from real CI
-    # runs of the combined job) rather than tightened to match the ginkgo
-    # --timeout=7m budget below: this job now does strictly less work than
-    # before (the slow auto-revert spec moved to e2e-tls-revert), so 11
-    # minutes is a safe, conservative buffer for setup/image-load/diagnostics
-    # around the Ginkgo run until real post-split timing data justifies
-    # tightening it — a too-tight job timeout risks the run being cancelled
-    # outright before its own failure-diagnostics steps get to run.
-    timeout-minutes: 11
+    # Widened from 11 to 13 (and the Ginkgo --timeout below from 7m to 9m)
+    # after a real CI run hit [TIMEDOUT] mid-bootstrap-wait in the native TLS
+    # spec: both tls_native_test.go specs now provision a real HA bootstrap
+    # (admin user + long-lived token) so reconcileHTTPConfigViaWS can get an
+    # API token at all, which is meaningfully slower than the old
+    # bootstrap-less fixture and, combined with this job's other 4-5 specs,
+    # no longer reliably fits the old 7-minute suite budget.
+    timeout-minutes: 13
 
     steps:
       - name: Clone the code
@@ -454,7 +453,7 @@ jobs:
           ./bin/ginkgo run \
             -v \
             --label-filter="tls && !slow" \
-            --timeout=7m \
+            --timeout=9m \
             ./test/e2e/
 
       - name: Collect controller logs on failure
@@ -522,7 +521,14 @@ jobs:
   e2e-tls-revert:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    # Widened from 12 to 16 after a real CI run showed the spec itself
+    # completing (all assertions passed, teardown already starting) at
+    # ~12m45s — a real HA bootstrap (needed since native_tls_test.go's specs
+    # now provision one so reconcileHTTPConfigViaWS can get an API token) adds
+    # meaningful setup time on top of the ~6-7 minute auto-revert wait itself,
+    # and 12 minutes left no margin at all: the job was cancelled seconds
+    # after the test had already succeeded, purely on the job-level timeout.
+    timeout-minutes: 16
 
     steps:
       - name: Clone the code
