@@ -39,6 +39,16 @@ import (
 // existing cert-manager issuance poll in reconcileTLS.
 const nativeTLSPollInterval = 15 * time.Second
 
+// bootstrapPending reports whether ha has bootstrap configured and it has not
+// finished yet, i.e. the API token genuinely may not exist yet through no
+// fault of the http/config WS mechanism.
+func bootstrapPending(ha *hav1.HomeAssistant) bool {
+	if ha.Spec.Bootstrap == nil || !ha.Spec.Bootstrap.Enabled {
+		return false
+	}
+	return ha.Status.Bootstrap == nil || !ha.Status.Bootstrap.Completed
+}
+
 // desiredHTTPConfigData builds the full desired http: payload for the WS
 // http/config/configure command: whatever non-TLS fields the user set in
 // spec.configuration (parsed out of configYAML by parseHTTPSectionFields),
@@ -300,13 +310,28 @@ func (r *HomeAssistantReconciler) reconcileHTTPConfigViaWS(
 
 	token, tokenErr := getAPIToken(ctx, r.Client, ha)
 	if tokenErr != nil {
-		// Bootstrap hasn't produced a token yet — cannot even attempt WS, so
-		// this reconcile must fall back to the YAML path exactly like
+		if bootstrapPending(ha) {
+			// Bootstrap is configured and still running (no token yet is
+			// expected here, not an error condition). Leave TLSReady exactly
+			// as-is instead of stamping WSConfigUnsupported=True: that reason
+			// still reads as "no active rotation" to nativeTLSActive, but it
+			// would flip haScheme()/nativeTLSActive to https for THIS
+			// reconciler's own HA clients (notably reconcileBootstrap's
+			// health-check) the moment cert-manager issues a certificate —
+			// long before the pod has actually picked up the YAML-injected
+			// TLS material and restarted onto HTTPS. That poisons every
+			// subsequent reconcile's bootstrap client (status conditions
+			// persist across calls) and stalls bootstrap for as long as the
+			// pod needs to restart and come back up, found via a live CI
+			// timing comparison. Just requeue and re-check next pass.
+			return ctrl.Result{RequeueAfter: nativeTLSPollInterval}, nil
+		}
+		// Bootstrap absent/disabled/already completed: a still-missing token
+		// is unexpected, so fall back to the YAML path exactly like
 		// reasonWSConfigUnsupported (fix: this used to reuse reasonTLSReady,
 		// which nativeTLSManagedByWS treats as "WS already owns this" —
-		// applyNativeTLS would then wrongly skip YAML injection during the
-		// bootstrap window before a token exists, leaving HA on plain HTTP
-		// with no TLS configured through either mechanism).
+		// applyNativeTLS would then wrongly skip YAML injection, leaving HA
+		// on plain HTTP with no TLS configured through either mechanism).
 		return ctrl.Result{}, maybeSetCondition(metav1.ConditionTrue, reasonWSConfigUnsupported,
 			"HA API token not yet available to attempt http/config; using configuration.yaml for now")
 	}

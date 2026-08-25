@@ -856,6 +856,57 @@ func TestReconcileNativeTLSViaWS_NotRunning(t *testing.T) {
 	}
 }
 
+// TestReconcileNativeTLSViaWS_NoTokenYetBootstrapPending covers the scheme-flip
+// regression: while bootstrap is configured and still in progress, a missing
+// API token is expected (not an error), so this reconcile must leave TLSReady
+// untouched and just requeue — never stamp WSConfigUnsupported=True, which
+// would prematurely flip haScheme()/nativeTLSActive to https for the
+// reconciler's own HA clients before the pod has even restarted onto HTTPS.
+func TestReconcileNativeTLSViaWS_NoTokenYetBootstrapPending(t *testing.T) {
+	ha := nativeTLSHA("home")
+	ha.Spec.Bootstrap = &hav1.BootstrapSpec{Enabled: true}
+	ha.Status.Bootstrap = &hav1.BootstrapStatus{Completed: false}
+
+	// No token secret provided, and no WS server needed — the reconcile must
+	// return before ever attempting to dial HA.
+	r := newTLSTestReconciler(t, true, ha, nativeTLSSecretFor(ha, "cert-v1"))
+
+	res, err := r.reconcileHTTPConfigViaWS(context.Background(), ha)
+	if err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	if res.RequeueAfter != nativeTLSPollInterval {
+		t.Fatalf("expected a plain requeue while bootstrap is pending, got %v", res)
+	}
+	if cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady); cond != nil {
+		t.Fatalf("expected TLSReady to remain unset while bootstrap is pending, got %+v", cond)
+	}
+}
+
+// TestReconcileNativeTLSViaWS_NoTokenBootstrapCompletedFallsBackToYAML covers
+// the case where bootstrap has already finished but the token is still
+// missing for some other reason (e.g. Secret deleted out-of-band) — this is
+// unexpected, so the existing YAML-fallback behavior must still apply.
+func TestReconcileNativeTLSViaWS_NoTokenBootstrapCompletedFallsBackToYAML(t *testing.T) {
+	ha := nativeTLSHA("home")
+	ha.Spec.Bootstrap = &hav1.BootstrapSpec{Enabled: true}
+	ha.Status.Bootstrap = &hav1.BootstrapStatus{Completed: true}
+
+	r := newTLSTestReconciler(t, true, ha, nativeTLSSecretFor(ha, "cert-v1"))
+
+	res, err := r.reconcileHTTPConfigViaWS(context.Background(), ha)
+	if err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	if res.RequeueAfter != 0 {
+		t.Fatalf("expected no requeue on the immediate YAML-fallback path, got %v", res)
+	}
+	cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
+	if cond == nil || cond.Reason != reasonWSConfigUnsupported {
+		t.Fatalf("expected %s, got %+v", reasonWSConfigUnsupported, cond)
+	}
+}
+
 // TestReconcileNativeTLSViaWS_NoCachingAcrossReconciles covers the case where
 // an HA that rejected http/config as unknown_command on one reconcile must be
 // tried again fresh on the next — the operator never remembers "WS
