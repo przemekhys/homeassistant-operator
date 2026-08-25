@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -840,7 +841,94 @@ spec:
 		}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
 	})
 
+	// -------------------------------------------------------------------------
+	// 11. http: configuration via WS — non-TLS instance
+	// -------------------------------------------------------------------------
+	// Placed last (Ordered) so changing the shared HomeAssistantConfiguration's
+	// http: block here can't affect any earlier spec's assumptions about the
+	// pod's configHash/UID. Reuses this suite's already-bootstrapped instance
+	// instead of standing up its own: this scenario doesn't need native TLS or
+	// its own bootstrap at all, and creating/tearing down a whole separate HA
+	// lifecycle for it (as it previously did, sharing e2e-tls's small
+	// single-node k3d cluster with several other full HA lifecycles) left it
+	// exposed to cumulative resource pressure from those other pods'
+	// churn — real CI runs saw its bootstrap wait hang for 5+ minutes there
+	// despite the same mechanism completing in ~90s here, against a cluster
+	// that only ever stands up one instance for the whole suite.
+	It("http: config — non-TLS instance gets cors_allowed_origins applied via WS", func() {
+		applyHTTPConfig := func(origin string) {
+			configYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
+kind: HomeAssistantConfiguration
+metadata:
+  name: %s
+  namespace: %s
+spec:
+  homeAssistantRef:
+    name: %s
+  reloadStrategy: auto
+  configuration: |
+    automation: !include automations.yaml
+    scene: !include scenes.yaml
+    script: !include scripts.yaml
+    http:
+      cors_allowed_origins:
+        - %s
+`, configName, namespace, haName, origin)
+			Expect(utils.ApplyYAML(configYAML, namespace)).To(Succeed())
+		}
+
+		By("Applying an http: block with a custom cors_allowed_origins to the shared HomeAssistantConfiguration")
+		applyHTTPConfig("https://example.com")
+
+		By("Confirming cors_allowed_origins reaches HA's own http config storage via WS")
+		Eventually(func(g Gomega) {
+			origins, err := haHTTPStorageCORSOrigins(namespace, haName)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(origins).To(ContainElement("https://example.com"))
+		}, utils.HTTPConfigApplyTimeout, utils.DefaultEventuallyPollingInterval).Should(Succeed())
+
+		By("Changing cors_allowed_origins and confirming the change reaches HA via WS, " +
+			"not the ignored YAML, and the old origin is actually gone " +
+			"(http/config/configure replaces the whole config, never merges)")
+		applyHTTPConfig("https://changed.example.com")
+		Eventually(func(g Gomega) {
+			origins, err := haHTTPStorageCORSOrigins(namespace, haName)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(origins).To(ContainElement("https://changed.example.com"))
+			g.Expect(origins).NotTo(ContainElement("https://example.com"))
+		}, utils.HTTPConfigApplyTimeout, utils.DefaultEventuallyPollingInterval).Should(Succeed())
+
+		By("Confirming TLSReady was never set on an instance that never requested native TLS")
+		cond := utils.GetResourceStatus("homeassistants", haName, namespace,
+			"{.status.conditions[?(@.type=='TLSReady')].status}")
+		Expect(cond).To(BeEmpty())
+	})
 })
+
+// haHTTPStorageCORSOrigins reads HA's own http/config-managed storage file
+// (.storage/http, HA_STORAGE_KEY "http") straight out of the pod and returns
+// stable.cors_allowed_origins — the field HA itself confirms is active,
+// independent of anything the operator believes it sent.
+func haHTTPStorageCORSOrigins(namespace, haName string) ([]string, error) {
+	cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
+		"cat", "/config/.storage/http")
+	out, err := utils.Run(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	var parsed struct {
+		Data struct {
+			Stable struct {
+				CORSAllowedOrigins []string `json:"cors_allowed_origins"`
+			} `json:"stable"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		return nil, fmt.Errorf("parsing .storage/http: %w (raw: %s)", err, out)
+	}
+	return parsed.Data.Stable.CORSAllowedOrigins, nil
+}
 
 // collectCriticalPathDebugInfo gathers diagnostic information on failure.
 func collectCriticalPathDebugInfo(namespace, haName, configName string) {

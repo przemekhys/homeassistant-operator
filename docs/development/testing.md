@@ -170,7 +170,7 @@ Eventually(func(g Gomega) {
 
 ## E2E Tests
 
-**Location**: `test/e2e/*_test.go` (10 files, 28 specs total)
+**Location**: `test/e2e/*_test.go` (9 files, 28 specs total)
 **Framework**: Ginkgo v2 + real k3d cluster
 **Strategy**: Nine independently-labeled suites, run as nine concurrent
 GitHub Actions jobs (`.github/workflows/test-e2e-parallel.yml`), so the whole
@@ -188,9 +188,9 @@ the nine concurrent jobs below.
 ### Running E2E locally
 
 ```bash
-make test-e2e-critical-a                 # HomeAssistant + sibling CRDs (10 specs)
+make test-e2e-critical-a                 # HomeAssistant + sibling CRDs, incl. http: config via WS (11 specs)
 make test-e2e-critical-b                 # spec.alpha.devices device passthrough (1 spec)
-make test-e2e-tls                        # TLS ingress/gateway/native/webhook/http-config (5 specs)
+make test-e2e-tls                        # TLS ingress/gateway/native/webhook (4 specs)
 make test-e2e-tls-revert                 # Native TLS auto-revert on rejected rotation (1 spec, ~6min wait)
 make test-e2e-tls-bootstrap              # Native TLS + real HA bootstrap on the same instance (1 spec)
 make test-e2e-network-policy             # NetworkPolicy enforcement (1 spec)
@@ -214,9 +214,9 @@ skip-the-rebuild behavior locally against a pre-built image.
 
 | Job | Label filter | Specs | What is verified |
 |---|---|---|---|
-| `e2e-critical-a` | `critical-path && group-a` | 10 | All CRDs' core lifecycle (see table below) — shares one HA bootstrap |
+| `e2e-critical-a` | `critical-path && group-a` | 11 | All CRDs' core lifecycle plus non-TLS `http:` config via WS (see table below) — shares one HA bootstrap |
 | `e2e-critical-b` | `critical-path && group-b` | 1 | `spec.alpha.devices` device passthrough — own cluster/instance, no shared bootstrap |
-| `e2e-tls` | `tls && !slow && !bootstrap` | 5 | TLS via Ingress, Gateway API, native HA TLS rotation, the validating webhook, and non-TLS `http:` fields via WS |
+| `e2e-tls` | `tls && !slow && !bootstrap` | 4 | TLS via Ingress, Gateway API, native HA TLS rotation, and the validating webhook |
 | `e2e-tls-revert` | `tls && slow` | 1 | Native TLS auto-revert: a rejected rotation reverts on its own, HA stays reachable on the old cert throughout |
 | `e2e-tls-bootstrap` | `tls && bootstrap` | 1 | Native TLS issuance combined with a real HA bootstrap on the same instance |
 | `e2e-network-policy` | `network-policy` | 1 | `spec.alpha.networkPolicy` actually restricts traffic, not just that the object exists |
@@ -312,7 +312,7 @@ the per-spec activation-confirmation polling in community-repository, or the
 "Load Home Assistant image" step's own variability) or accepting a revised,
 honest target — not just more timeout increases.
 
-### `e2e-critical-a` tests (10 specs)
+### `e2e-critical-a` tests (11 specs)
 
 | # | CRD | What is verified |
 |---|-----|-----------------|
@@ -326,10 +326,18 @@ honest target — not just more timeout increases.
 | 8 | `HomeAssistantFloor` | Created via WebSocket registry API, deleted |
 | 9 | `HomeAssistantLabel` | Created via WebSocket registry API, deleted |
 | 10 | `HomeAssistantArea` | Created via WebSocket registry API, deleted |
+| 11 | `HomeAssistant` (non-TLS `http:` config) | `cors_allowed_origins` applied and re-applied via WS (`reconcileHTTPConfigViaWS`), `TLSReady` never set |
 
 This job's specs share one Home Assistant bootstrap (real onboarding) and run
 sequentially (`Ordered`), continuing even if one fails (`ContinueOnFailure`)
-so later CRDs are still exercised.
+so later CRDs are still exercised. Spec 11 moved here from its own
+`http_config_test.go`/`e2e-tls` spec after a real CI run showed its bootstrap
+wait hanging for 5+ minutes there: `e2e-tls`'s cluster stands up and tears
+down several *separate* full HA lifecycles for its other specs before this
+one's turn, and the cumulative resource pressure on that small single-node
+k3d cluster made bootstrap unreliably slow — the exact same mechanism
+completes in ~90s here, on a cluster that only ever stands up one instance
+for the whole suite.
 
 ### `e2e-critical-b` tests (1 spec)
 
