@@ -883,6 +883,51 @@ func TestReconcileNativeTLSViaWS_NoTokenYetBootstrapPending(t *testing.T) {
 	}
 }
 
+// TestReconcileNativeTLSViaWS_NoTokenBringYourOwnBootstrapPendingFallsBackToYAML
+// covers the deadlock this feature must never reintroduce: for a
+// bring-your-own Secret, the certificate already exists before the pod's
+// first boot (no cert-manager issuance gap to wait out), so the pod serves
+// HTTPS from birth. Suppressing the TLSReady flip while bootstrap is pending
+// would make haScheme()/the readiness probe insist on http against an
+// HTTPS-only pod for as long as bootstrap remains pending — bootstrap's own
+// HTTP client would then never reach the pod, hanging forever (confirmed
+// live in CI). So bring-your-own must keep the old immediate-fallback
+// behavior regardless of bootstrap state.
+func TestReconcileNativeTLSViaWS_NoTokenBringYourOwnBootstrapPendingFallsBackToYAML(t *testing.T) {
+	ha := &hav1.HomeAssistant{
+		ObjectMeta: metav1.ObjectMeta{Name: "home", Namespace: "default"},
+		Spec: hav1.HomeAssistantSpec{
+			Alpha: &hav1.AlphaSpec{
+				TLS: &hav1.TLSAlphaSpec{
+					Native: &hav1.NativeTLSAlphaSpec{Enabled: true, SecretName: "byo-tls"},
+				},
+			},
+			Bootstrap: &hav1.BootstrapSpec{Enabled: true},
+		},
+		Status: hav1.HomeAssistantStatus{
+			Bootstrap: &hav1.BootstrapStatus{Completed: false},
+		},
+	}
+	byoSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "byo-tls", Namespace: "default"},
+		Data:       map[string][]byte{"tls.crt": []byte("cert-v1"), "tls.key": []byte("key-v1")},
+	}
+
+	r := newTLSTestReconciler(t, true, ha, byoSecret)
+
+	res, err := r.reconcileHTTPConfigViaWS(context.Background(), ha)
+	if err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	if res.RequeueAfter != 0 {
+		t.Fatalf("expected the immediate YAML-fallback path for bring-your-own, got %v", res)
+	}
+	cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
+	if cond == nil || cond.Reason != reasonWSConfigUnsupported {
+		t.Fatalf("expected %s, got %+v", reasonWSConfigUnsupported, cond)
+	}
+}
+
 // TestReconcileNativeTLSViaWS_NoTokenBootstrapCompletedFallsBackToYAML covers
 // the case where bootstrap has already finished but the token is still
 // missing for some other reason (e.g. Secret deleted out-of-band) — this is

@@ -41,7 +41,9 @@ const nativeTLSPollInterval = 15 * time.Second
 
 // bootstrapPending reports whether ha has bootstrap configured and it has not
 // finished yet, i.e. the API token genuinely may not exist yet through no
-// fault of the http/config WS mechanism.
+// fault of the http/config WS mechanism. On its own this does not imply it is
+// safe to delay the TLSReady fallback — see the certManagerRequired check at
+// its call site for why a bring-your-own Secret must NOT be gated on this.
 func bootstrapPending(ha *hav1.HomeAssistant) bool {
 	if ha.Spec.Bootstrap == nil || !ha.Spec.Bootstrap.Enabled {
 		return false
@@ -310,20 +312,33 @@ func (r *HomeAssistantReconciler) reconcileHTTPConfigViaWS(
 
 	token, tokenErr := getAPIToken(ctx, r.Client, ha)
 	if tokenErr != nil {
-		if bootstrapPending(ha) {
-			// Bootstrap is configured and still running (no token yet is
-			// expected here, not an error condition). Leave TLSReady exactly
-			// as-is instead of stamping WSConfigUnsupported=True: that reason
-			// still reads as "no active rotation" to nativeTLSActive, but it
-			// would flip haScheme()/nativeTLSActive to https for THIS
-			// reconciler's own HA clients (notably reconcileBootstrap's
-			// health-check) the moment cert-manager issues a certificate —
-			// long before the pod has actually picked up the YAML-injected
-			// TLS material and restarted onto HTTPS. That poisons every
-			// subsequent reconcile's bootstrap client (status conditions
-			// persist across calls) and stalls bootstrap for as long as the
-			// pod needs to restart and come back up, found via a live CI
-			// timing comparison. Just requeue and re-check next pass.
+		if bootstrapPending(ha) && certManagerRequired(ha) {
+			// Bootstrap is configured and still running, AND this instance's
+			// certificate comes from cert-manager: there is a genuine async
+			// gap between cert-manager issuing the certificate (Secret
+			// appears) and the pod actually restarting onto HTTPS once the
+			// configuration controller injects it into configuration.yaml.
+			// Leave TLSReady exactly as-is instead of stamping
+			// WSConfigUnsupported=True: doing so would flip
+			// haScheme()/nativeTLSActive to https for THIS reconciler's own
+			// HA clients (notably reconcileBootstrap's health-check, and the
+			// pod's own ReadinessProbe scheme) the moment the certificate is
+			// issued — before the pod has actually picked it up. That
+			// poisons every subsequent reconcile's bootstrap client (status
+			// conditions persist across calls) and stalls bootstrap for as
+			// long as the pod needs to restart and come back up, found via a
+			// live CI timing comparison. Just requeue and re-check next pass.
+			//
+			// This does NOT apply to a bring-your-own Secret (certManagerRequired
+			// false): there, the Secret must already exist for native TLS to
+			// be usable at all, so it is already present before the pod's
+			// first boot — the pod serves HTTPS from birth, with no
+			// restart-transition gap to wait out. Suppressing the flip in
+			// that case would instead make haScheme/the readiness probe
+			// insist on http against an HTTPS-only pod for as long as
+			// bootstrap remains pending — a real deadlock, confirmed live in
+			// CI (bootstrap never completes because its own HTTP client
+			// speaks the wrong scheme).
 			return ctrl.Result{RequeueAfter: nativeTLSPollInterval}, nil
 		}
 		// Bootstrap absent/disabled/already completed: a still-missing token
