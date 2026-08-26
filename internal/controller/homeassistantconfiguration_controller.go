@@ -1185,6 +1185,20 @@ func (r *HomeAssistantConfigurationReconciler) applyNativeTLS(
 	if nativeTLSManagedByWS(ha) {
 		return content, nil
 	}
+	if bootstrapPending(ha) {
+		// Bootstrap hasn't completed yet: injecting TLS now would make the pod
+		// HTTPS-only before reconcileHTTPConfigViaWS ever gets a chance to run —
+		// homeassistant_controller.go's Reconcile() short-circuits right after
+		// reconcileBootstrap on every not-yet-ready pass, so the one function
+		// that could set TLSReady/flip haScheme+the readiness probe to https
+		// never executes while bootstrap is stuck. For a bring-your-own Secret
+		// (which, unlike a cert-manager one, already exists before the
+		// HomeAssistant CR itself) that is a permanent deadlock: the operator's
+		// own HTTP health check can never reach an HTTPS-only pod, confirmed
+		// live in CI. Keep serving plain HTTP until bootstrap completes; TLS
+		// activation resumes (via WS or this same YAML path) the moment it does.
+		return content, nil
+	}
 	s := &corev1.Secret{}
 	if err := r.Get(ctx, client.ObjectKey{Name: nativeTLSSecretName(ha), Namespace: ha.Namespace}, s); err != nil {
 		if errors.IsNotFound(err) {

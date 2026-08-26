@@ -1107,6 +1107,54 @@ func TestApplyNativeTLSInjectsYAMLWhenWSUnsupported(t *testing.T) {
 	}
 }
 
+// TestApplyNativeTLSSkipsYAMLWhileBootstrapPending covers the deadlock found
+// live in CI: a bring-your-own Secret already exists before the HomeAssistant
+// CR is even created, so without this gate applyNativeTLS would inject TLS
+// into configuration.yaml on the pod's very first boot — before
+// reconcileHTTPConfigViaWS ever runs (Reconcile() short-circuits right after
+// reconcileBootstrap on every not-yet-ready pass), so nothing ever flips
+// TLSReady/haScheme/the readiness probe to https. The operator's own HTTP
+// health check then can never reach the HTTPS-only pod, and bootstrap never
+// completes. Serving plain HTTP until bootstrap completes breaks that cycle.
+func TestApplyNativeTLSSkipsYAMLWhileBootstrapPending(t *testing.T) {
+	ha := &hav1.HomeAssistant{
+		ObjectMeta: metav1.ObjectMeta{Name: "home", Namespace: "default"},
+		Spec: hav1.HomeAssistantSpec{
+			Alpha: &hav1.AlphaSpec{
+				TLS: &hav1.TLSAlphaSpec{
+					Native: &hav1.NativeTLSAlphaSpec{Enabled: true, SecretName: "byo-tls"},
+				},
+			},
+			Bootstrap: &hav1.BootstrapSpec{Enabled: true},
+		},
+		Status: hav1.HomeAssistantStatus{
+			Bootstrap: &hav1.BootstrapStatus{Completed: false},
+		},
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "byo-tls", Namespace: ha.Namespace},
+		Data:       map[string][]byte{"tls.crt": []byte("cert"), "tls.key": []byte("key")},
+	}
+
+	scheme := runtime.NewScheme()
+	if err := hav1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add hav1: %v", err)
+	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add corev1: %v", err)
+	}
+	cl := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ha, secret).Build()
+	r := &HomeAssistantConfigurationReconciler{Client: cl, Scheme: scheme}
+
+	out, err := r.applyNativeTLS(context.Background(), ha, "default_config:\n")
+	if err != nil {
+		t.Fatalf("applyNativeTLS error: %v", err)
+	}
+	if out != "default_config:\n" {
+		t.Fatalf("expected content unchanged while bootstrap is pending, got:\n%s", out)
+	}
+}
+
 // TestReconcileTLSCleanupOnDisable: disabling native TLS deletes the managed cert.
 func TestReconcileTLSCleanupOnDisable(t *testing.T) {
 	ha := &hav1.HomeAssistant{ObjectMeta: metav1.ObjectMeta{Name: "home", Namespace: "default"}}
