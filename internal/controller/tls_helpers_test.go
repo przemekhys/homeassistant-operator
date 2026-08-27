@@ -660,6 +660,98 @@ func TestReconcileNativeTLSViaWS_PendingHealthCheckUsesHTTPSScheme(t *testing.T)
 	}
 }
 
+// TestNewHAPodClientForHA_UsesPodIPAndFixedContainerPort guards the actual
+// URL construction newHAPodClientForHA hands to NewHAClient: it must resolve
+// to the pod's own IP (never the Service DNS name) on the container's fixed
+// listening port (defaultPort) — never spec.service.port, which only
+// controls what the Service exposes externally and can legitimately differ
+// from what the container itself binds to.
+func TestNewHAPodClientForHA_UsesPodIPAndFixedContainerPort(t *testing.T) {
+	ha := nativeTLSHA("home")
+	ha.Spec.Service = &hav1.ServiceSpec{Port: 9999}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: ha.Name + "-0", Namespace: ha.Namespace},
+		Status:     corev1.PodStatus{PodIP: "10.1.2.3"},
+	}
+	r := newTLSTestReconciler(t, true, ha, pod)
+
+	var gotURL string
+	r.NewHAClient = func(url string) *haclient.Client {
+		gotURL = url
+		return haclient.NewClient(url)
+	}
+
+	newHAPodClientForHA(context.Background(), r.Client, ha, r.NewHAClient, true)
+	if want := "https://10.1.2.3:8123"; gotURL != want {
+		t.Fatalf("expected pod-direct URL %q, got %q", want, gotURL)
+	}
+}
+
+// TestReconcileNativeTLSViaWS_GetHTTPConfigFallsBackToHTTPSWhenPodIsMidRestart
+// is the regression test for a deadlock found live in CI: reconcileHTTPConfigViaWS
+// normally talks to HA using whatever scheme nativeTLSActive(ha)/TLSReady
+// currently implies — but a previous reconcile may already have sent a
+// http/config/configure that made HA restart itself into live-trialing the
+// pending (HTTPS) config, before TLSReady (and therefore that scheme guess)
+// had any chance to catch up. Getting this wrong means every subsequent
+// GetHTTPConfig attempt uses the wrong scheme forever, so the pending trial
+// is never observed, promote is never called, and TLSReady never becomes
+// True. getHTTPConfigViaPod must fall back to HTTPS when the initial
+// (http-scheme) attempt fails and native TLS is actually in play.
+//
+// The fake NewHAClient override models exactly that: an "http://" URL (the
+// scheme nativeTLSActive(ha)==false implies here) is routed to an
+// unreachable address (connection refused, like the real Service ClusterIP
+// once the pod fails its readiness probe for serving the wrong protocol),
+// while an "https://" URL routes to the WS mock server standing in for HA
+// already running on HTTPS. Before the fallback existed, this reconcile
+// would only ever try the http-scheme client and fail forever.
+func TestReconcileNativeTLSViaWS_GetHTTPConfigFallsBackToHTTPSWhenPodIsMidRestart(t *testing.T) {
+	ha := nativeTLSHA("home")
+	secret := nativeTLSSecretFor(ha, "cert-v1")
+	withConfirmedNativeTLSFingerprint(ha, secret)
+
+	wsServer := mockHTTPConfigServer(t, func(cmd map[string]interface{}) map[string]interface{} {
+		switch cmd["type"] {
+		case "http/config":
+			return map[string]interface{}{
+				"type": "result", "success": true,
+				"result": map[string]interface{}{
+					"stable": map[string]interface{}{
+						"ssl_certificate": nativeTLSCertPath, "ssl_key": nativeTLSKeyPath,
+					},
+					"pending":            nil,
+					"revert_at":          nil,
+					"active_config_type": "stable",
+				},
+			}
+		default:
+			t.Errorf("unexpected command: %v", cmd["type"])
+			return nil
+		}
+	})
+
+	r := newTLSTestReconciler(t, true, ha, secret, tokenSecretFor(ha))
+	r.NewHAClient = func(url string) *haclient.Client {
+		if strings.HasPrefix(url, "https://") {
+			return haclient.NewClient(wsURL(wsServer))
+		}
+		return haclient.NewClient("http://127.0.0.1:1") // nothing listens here: connection refused
+	}
+
+	res, err := r.reconcileHTTPConfigViaWS(context.Background(), ha)
+	if err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	if res.RequeueAfter != 0 {
+		t.Fatalf("expected steady state (no requeue) once the HTTPS fallback succeeds, got %v", res)
+	}
+	cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
+	if cond == nil || cond.Status != metav1.ConditionTrue || cond.Reason != reasonTLSReady {
+		t.Fatalf("expected TLSReady=True/%s via the HTTPS fallback, got %+v", reasonTLSReady, cond)
+	}
+}
+
 // TestReconcileNativeTLSViaWS_SteadyState covers the "already applied" leg:
 // stable already matches desired, no pending, AND the current Secret content
 // fingerprint was already confirmed active — the only combination that should

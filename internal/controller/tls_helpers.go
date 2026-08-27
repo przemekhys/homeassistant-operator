@@ -122,11 +122,60 @@ func newHAClientForHAScheme(
 	ctx context.Context, c client.Client, ha *hav1.HomeAssistant, override func(string) *haclient.Client,
 	useHTTPS bool,
 ) *haclient.Client {
-	scheme := "http"
-	if useHTTPS {
-		scheme = "https"
+	return buildHAClient(ctx, c, ha, override, buildHomeAssistantURLWithScheme(ha, schemeName(useHTTPS)), useHTTPS)
+}
+
+// haPodIP returns the IP of the HA pod (<ha-name>-0), or "" when the pod or
+// its IP isn't known yet (caller treats that like any other unreachable
+// address — the resulting dial failure is handled the same way as today).
+func haPodIP(ctx context.Context, c client.Client, ha *hav1.HomeAssistant) string {
+	pod := &corev1.Pod{}
+	if err := c.Get(ctx, client.ObjectKey{Name: ha.Name + "-0", Namespace: ha.Namespace}, pod); err != nil {
+		return ""
 	}
-	url := buildHomeAssistantURLWithScheme(ha, scheme)
+	return pod.Status.PodIP
+}
+
+// newHAPodClientForHA is newHAClientForHAScheme addressed directly at the HA
+// pod's IP on its fixed container port (defaultPort) instead of through the
+// Service ClusterIP. reconcileHTTPConfigViaWS and nativeTLSHealthy use this
+// instead of newHAClientForHA/newHAClientForHAScheme: HA can restart its own
+// process in response to http/config/configure ("restart": true per the
+// contract), and while it is live-trialing a pending native-TLS config the
+// resulting protocol change makes the pod (correctly, by design — see
+// buildStatefulSet's ReadinessProbe comment) fail its Service readiness
+// probe. That removes it from the Service's endpoints, and a Service with
+// zero ready endpoints has its ClusterIP actively refuse new connections
+// (kube-proxy's standard behavior) — unreachable exactly when this code most
+// needs to reach HA to confirm and promote that same pending config. Talking
+// to the pod's own IP sidesteps the Service entirely, since observing and
+// fixing that state is this code's whole job. Not used by any other
+// controller: everything else legitimately wants "is HA reachable as a
+// normal, ready backend", which the Service already answers correctly.
+func newHAPodClientForHA(
+	ctx context.Context, c client.Client, ha *hav1.HomeAssistant, override func(string) *haclient.Client,
+	useHTTPS bool,
+) *haclient.Client {
+	url := fmt.Sprintf("%s://%s:%d", schemeName(useHTTPS), haPodIP(ctx, c, ha), defaultPort)
+	return buildHAClient(ctx, c, ha, override, url, useHTTPS)
+}
+
+// schemeName converts useHTTPS to the "http"/"https" URL scheme literal.
+func schemeName(useHTTPS bool) string {
+	if useHTTPS {
+		return "https"
+	}
+	return "http"
+}
+
+// buildHAClient is the shared client-construction tail of
+// newHAClientForHAScheme/newHAPodClientForHA: apply override (or the real
+// haclient constructor) to url, then attach CA trust when useHTTPS.
+// InsecureSkipVerify is never used.
+func buildHAClient(
+	ctx context.Context, c client.Client, ha *hav1.HomeAssistant, override func(string) *haclient.Client,
+	url string, useHTTPS bool,
+) *haclient.Client {
 	var cl *haclient.Client
 	if override != nil {
 		cl = override(url)

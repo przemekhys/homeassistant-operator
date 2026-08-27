@@ -250,10 +250,18 @@ func (r *HomeAssistantReconciler) recordNativeTLSFingerprint(
 // flip to True would then never be allowed to speak HTTPS in the first
 // place, deadlocking forever (found live in CI once bootstrap itself no
 // longer deadlocked ahead of it).
+//
+// Addressed directly at the pod (newHAPodClientForHA), not through the
+// Service: HA is, by construction, mid-restart into serving exactly the
+// protocol this check is trying to confirm, which is exactly when the
+// Service's readiness-gated ClusterIP is least likely to be reachable (see
+// newHAPodClientForHA's doc comment) — a second deadlock layered on top of
+// the TLSReady one above, found live in CI once that one no longer blocked
+// this function from ever running.
 func nativeTLSHealthy(
 	ctx context.Context, r *HomeAssistantReconciler, ha *hav1.HomeAssistant, useHTTPS bool,
 ) bool {
-	cl := newHAClientForHAScheme(ctx, r.Client, ha, r.NewHAClient, useHTTPS)
+	cl := newHAPodClientForHA(ctx, r.Client, ha, r.NewHAClient, useHTTPS)
 	return cl.CheckHealth(ctx) == nil
 }
 
@@ -270,6 +278,36 @@ func generatedHTTPConfigYAML(ctx context.Context, cl client.Reader, ha *hav1.Hom
 		return ""
 	}
 	return cm.Data[configurationYamlKey]
+}
+
+// getHTTPConfigViaPod calls GetHTTPConfig addressed directly at the HA pod
+// (see newHAPodClientForHA's doc comment for why not the Service), trying
+// the scheme nativeTLSActive(ha) currently implies first and, only when
+// native TLS is actually in play (nativeEnabled && sslReady) and that scheme
+// was http, falling back to https. The fallback covers the one ambiguous
+// window this function cannot otherwise resolve: HA may have already
+// restarted into live-trialing an earlier reconcile's pending TLS
+// configure, before TLSReady (and therefore nativeTLSActive) has had any
+// chance to catch up. Returns the client whose scheme actually worked, so
+// the caller reuses it for ConfigureHTTPConfig/PromoteHTTPConfig within the
+// same reconcile instead of re-guessing.
+func (r *HomeAssistantReconciler) getHTTPConfigViaPod(
+	ctx context.Context, ha *hav1.HomeAssistant, token string, nativeEnabled, sslReady bool,
+) (*haclient.Client, *haclient.HTTPConfig, error) {
+	primaryHTTPS := nativeTLSActive(ha)
+	primary := newHAPodClientForHA(ctx, r.Client, ha, r.NewHAClient, primaryHTTPS)
+	cfg, err := primary.GetHTTPConfig(ctx, token)
+	if err == nil {
+		return primary, cfg, nil
+	}
+	if primaryHTTPS || !nativeEnabled || !sslReady {
+		return primary, nil, err
+	}
+	fallback := newHAPodClientForHA(ctx, r.Client, ha, r.NewHAClient, true)
+	if fallbackCfg, fallbackErr := fallback.GetHTTPConfig(ctx, token); fallbackErr == nil {
+		return fallback, fallbackCfg, nil
+	}
+	return primary, nil, err
 }
 
 // reconcileHTTPConfigViaWS drives the entire http: configuration (TLS when
@@ -361,8 +399,7 @@ func (r *HomeAssistantReconciler) reconcileHTTPConfigViaWS(
 			"HA API token not yet available to attempt http/config; using configuration.yaml for now")
 	}
 
-	cl := newHAClientForHA(ctx, r.Client, ha, r.NewHAClient)
-	httpCfg, err := cl.GetHTTPConfig(ctx, token)
+	cl, httpCfg, err := r.getHTTPConfigViaPod(ctx, ha, token, nativeEnabled, sslReady)
 	if err != nil {
 		if haclient.IsUnknownCommand(err) || haclient.IsNotRunning(err) {
 			return ctrl.Result{}, maybeSetCondition(metav1.ConditionTrue, reasonWSConfigUnsupported,
