@@ -317,20 +317,23 @@ func (r *HomeAssistantReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, nil
 	}
 
-	// Update status based on StatefulSet status
-	statusResult, err := r.updateStatusFromStatefulSet(ctx, ha)
-	if err != nil || statusResult.RequeueAfter > 0 {
-		return statusResult, err
-	}
-
 	// Reconcile the full http: configuration via WS, unconditional for every
 	// HomeAssistant — not gated on native TLS — since HA's YAML-to-storage
 	// migration silently drops the whole http: section for every instance,
 	// not just TLS fields. Falls back to the existing YAML mechanism
-	// gracefully when WS isn't available. Runs after bootstrap/backup/status
-	// so that a WS hiccup here (e.g. HA not running http/config yet) never
-	// delays those unrelated, higher-priority reconcile steps — it needs the
-	// bootstrap API token anyway.
+	// gracefully when WS isn't available. Runs after bootstrap/backup (needs
+	// the bootstrap API token) but deliberately BEFORE updateStatusFromStatefulSet:
+	// once HA accepts a native-TLS http/config/configure, it immediately starts
+	// serving the pending (HTTPS) config live as its own trial — before this
+	// function ever gets to confirm it and call promote — so the pod's
+	// ReadinessProbe (still HTTP, since TLSReady is still False) correctly
+	// starts failing by design (see buildStatefulSet's ReadinessProbe comment).
+	// That flips ha.Status.Ready to false, and updateStatusFromStatefulSet
+	// requeues without ever falling through further in Reconcile() — if this
+	// call were gated behind that check, it would then never run again, and
+	// nothing else can ever flip TLSReady back to True to fix the probe's
+	// scheme: a permanent deadlock, found live in CI once bootstrap itself no
+	// longer deadlocked ahead of it.
 	httpConfigResult, err := r.reconcileHTTPConfigViaWS(ctx, ha)
 	if err != nil {
 		log.Error(err, "Failed to reconcile http: configuration via WS")
@@ -338,6 +341,12 @@ func (r *HomeAssistantReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	if httpConfigResult.RequeueAfter > 0 {
 		return httpConfigResult, nil
+	}
+
+	// Update status based on StatefulSet status
+	statusResult, err := r.updateStatusFromStatefulSet(ctx, ha)
+	if err != nil || statusResult.RequeueAfter > 0 {
+		return statusResult, err
 	}
 
 	// When bootstrap is complete, requeue at a bounded interval so that the
