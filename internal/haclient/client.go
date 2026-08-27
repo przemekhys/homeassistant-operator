@@ -444,6 +444,15 @@ func (c *Client) wsAuthConnect(ctx context.Context, token string) (*websocket.Co
 	dialer := websocket.Dialer{
 		HandshakeTimeout: 10 * time.Second,
 	}
+	// Reuse whatever TLS trust WithRootCAs configured on the HTTP transport —
+	// this dialer otherwise has its own independent, unconfigured TLS config,
+	// so a wss:// connection (native TLS) would silently fall back to Go's
+	// default system root CAs and reject any cert-manager or bring-your-own
+	// certificate that isn't in the system trust store, even though the
+	// operator was explicitly told (via WithRootCAs) to trust it.
+	if t, ok := c.httpClient.Transport.(*http.Transport); ok && t.TLSClientConfig != nil {
+		dialer.TLSClientConfig = t.TLSClientConfig
+	}
 
 	conn, _, err := dialer.DialContext(ctx, wsURL, nil)
 	if err != nil {
