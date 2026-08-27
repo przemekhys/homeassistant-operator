@@ -108,14 +108,32 @@ func loadNativeTLSCA(ctx context.Context, c client.Client, ha *hav1.HomeAssistan
 func newHAClientForHA(
 	ctx context.Context, c client.Client, ha *hav1.HomeAssistant, override func(string) *haclient.Client,
 ) *haclient.Client {
-	url := buildHomeAssistantURL(ha)
+	return newHAClientForHAScheme(ctx, c, ha, override, nativeTLSActive(ha))
+}
+
+// newHAClientForHAScheme is newHAClientForHA with the https/http decision
+// supplied explicitly (useHTTPS) instead of derived from
+// nativeTLSActive(ha)/TLSReady. Needed by nativeTLSHealthy: it runs while
+// TLSReady is still False (a http/config/configure rotation is in flight),
+// so gating its own scheme on TLSReady would be circular — the health check
+// that must succeed BEFORE TLSReady can flip to True would then never be
+// allowed to speak HTTPS in the first place.
+func newHAClientForHAScheme(
+	ctx context.Context, c client.Client, ha *hav1.HomeAssistant, override func(string) *haclient.Client,
+	useHTTPS bool,
+) *haclient.Client {
+	scheme := "http"
+	if useHTTPS {
+		scheme = "https"
+	}
+	url := buildHomeAssistantURLWithScheme(ha, scheme)
 	var cl *haclient.Client
 	if override != nil {
 		cl = override(url)
 	} else {
 		cl = haclient.NewClient(url)
 	}
-	if nativeTLSActive(ha) {
+	if useHTTPS {
 		if ca := loadNativeTLSCA(ctx, c, ha); len(ca) > 0 {
 			cl = cl.WithRootCAs(ca)
 		}

@@ -582,6 +582,84 @@ func TestReconcileNativeTLSViaWS_ConfigureSent(t *testing.T) {
 	}
 }
 
+// TestReconcileNativeTLSViaWS_PendingHealthCheckUsesHTTPSScheme is the
+// regression test for a deadlock found live in CI: while a http/config
+// rotation is Pending (HA restarting to pick up the new certificate),
+// nativeTLSHealthy must probe HA over HTTPS — derived from nativeEnabled &&
+// sslReady, i.e. what was actually just configured — never from
+// nativeTLSActive(ha)/TLSReady, which is precisely the condition this health
+// check exists to unblock (and is still False at this point by
+// construction). Getting this wrong means the health check can never
+// succeed once HA has actually restarted onto HTTPS-only, so promote is
+// never called and TLSReady never becomes True.
+//
+// The fake NewHAClient override distinguishes the two clients
+// reconcileHTTPConfigViaWS builds purely by the scheme prefix of the URL it
+// is handed: an "http://" URL (the WS client used for GetHTTPConfig/
+// PromoteHTTPConfig, always built with nativeTLSActive(ha)==false here)
+// routes to the WS mock server, while an "https://" URL (nativeTLSHealthy's
+// client, expected once nativeEnabled && sslReady) routes to a plain HTTP
+// server standing in for HA's real /api/ health endpoint. Before the fix,
+// nativeTLSHealthy also produced an "http://" URL, so its CheckHealth call
+// would hit the WS mock server's plain-HTTP-upgrade handler and fail
+// forever — this test would then time out waiting for PromoteHTTPConfig.
+func TestReconcileNativeTLSViaWS_PendingHealthCheckUsesHTTPSScheme(t *testing.T) {
+	ha := nativeTLSHA("home")
+	secret := nativeTLSSecretFor(ha, "cert-v1")
+
+	var promoteCalled bool
+	wsServer := mockHTTPConfigServer(t, func(cmd map[string]interface{}) map[string]interface{} {
+		switch cmd["type"] {
+		case "http/config":
+			return map[string]interface{}{
+				"type": "result", "success": true,
+				"result": map[string]interface{}{
+					"stable": map[string]interface{}{},
+					"pending": map[string]interface{}{
+						"ssl_certificate": nativeTLSCertPath,
+						"ssl_key":         nativeTLSKeyPath,
+					},
+					"revert_at":          nil,
+					"active_config_type": "pending",
+				},
+			}
+		case "http/config/promote":
+			promoteCalled = true
+			return map[string]interface{}{"type": "result", "success": true, "result": nil}
+		default:
+			t.Errorf("unexpected command: %v", cmd["type"])
+			return nil
+		}
+	})
+	healthServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(healthServer.Close)
+
+	r := newTLSTestReconciler(t, true, ha, secret, tokenSecretFor(ha))
+	r.NewHAClient = func(url string) *haclient.Client {
+		if strings.HasPrefix(url, "https://") {
+			return haclient.NewClient(healthServer.URL)
+		}
+		return haclient.NewClient(wsURL(wsServer))
+	}
+
+	res, err := r.reconcileHTTPConfigViaWS(context.Background(), ha)
+	if err != nil {
+		t.Fatalf("reconcileHTTPConfigViaWS error: %v", err)
+	}
+	if !promoteCalled {
+		t.Fatal("expected PromoteHTTPConfig to be called once the HTTPS health-check succeeds")
+	}
+	if res.RequeueAfter != 0 {
+		t.Fatalf("expected no further requeue once promoted, got %v", res)
+	}
+	cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady)
+	if cond == nil || cond.Status != metav1.ConditionTrue || cond.Reason != reasonTLSReady {
+		t.Fatalf("expected TLSReady=True/%s, got %+v", reasonTLSReady, cond)
+	}
+}
+
 // TestReconcileNativeTLSViaWS_SteadyState covers the "already applied" leg:
 // stable already matches desired, no pending, AND the current Secret content
 // fingerprint was already confirmed active — the only combination that should

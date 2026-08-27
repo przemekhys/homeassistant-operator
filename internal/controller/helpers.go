@@ -106,6 +106,14 @@ func calculateConfigHash(content string) string {
 // buildHomeAssistantURL builds the internal cluster URL for Home Assistant service
 // Used by automation and scene controllers for hot-reload
 func buildHomeAssistantURL(ha *hav1.HomeAssistant) string {
+	return buildHomeAssistantURLWithScheme(ha, haScheme(ha))
+}
+
+// buildHomeAssistantURLWithScheme is buildHomeAssistantURL with the scheme
+// supplied explicitly instead of derived from haScheme(ha)/TLSReady — needed
+// by callers that must decide the scheme from something other than the
+// persisted TLSReady condition (see nativeTLSHealthy's use of it).
+func buildHomeAssistantURLWithScheme(ha *hav1.HomeAssistant, scheme string) string {
 	// Use internal Kubernetes service DNS name
 	// Format: <service-name>.<namespace>.svc.cluster.local:<port>
 	serviceName := ha.Name
@@ -113,7 +121,7 @@ func buildHomeAssistantURL(ha *hav1.HomeAssistant) string {
 	if ha.Spec.Service != nil && ha.Spec.Service.Port != 0 {
 		port = int(ha.Spec.Service.Port)
 	}
-	return fmt.Sprintf("%s://%s.%s.svc.cluster.local:%d", haScheme(ha), serviceName, ha.Namespace, port)
+	return fmt.Sprintf("%s://%s.%s.svc.cluster.local:%d", scheme, serviceName, ha.Namespace, port)
 }
 
 // getAPIToken retrieves the Home Assistant API token from Secret.

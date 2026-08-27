@@ -236,14 +236,24 @@ func (r *HomeAssistantReconciler) recordNativeTLSFingerprint(
 	})
 }
 
-// nativeTLSHealthy reports whether HA responds over HTTPS with the
-// currently-mounted native TLS certificate — the only reliable way to tell
-// "HA is still restarting" from "HA restarted but the new cert doesn't work"
-// (promote must never be optimistic).
+// nativeTLSHealthy reports whether HA responds with the certificate mounted
+// by the just-sent/currently-pending http/config payload — the only reliable
+// way to tell "HA is still restarting" from "HA restarted but the new cert
+// doesn't work" (promote must never be optimistic).
+//
+// useHTTPS is passed explicitly by the caller (nativeEnabled && sslReady,
+// i.e. whether the pending configuration actually mounts ssl_certificate/
+// ssl_key) rather than derived from nativeTLSActive(ha)/TLSReady: this
+// function runs precisely while TLSReady is still False
+// (reasonTLSConfigPending), so gating its own scheme on TLSReady would be
+// circular — the health check that must succeed before TLSReady can ever
+// flip to True would then never be allowed to speak HTTPS in the first
+// place, deadlocking forever (found live in CI once bootstrap itself no
+// longer deadlocked ahead of it).
 func nativeTLSHealthy(
-	ctx context.Context, r *HomeAssistantReconciler, ha *hav1.HomeAssistant,
+	ctx context.Context, r *HomeAssistantReconciler, ha *hav1.HomeAssistant, useHTTPS bool,
 ) bool {
-	cl := newHAClientForHA(ctx, r.Client, ha, r.NewHAClient)
+	cl := newHAClientForHAScheme(ctx, r.Client, ha, r.NewHAClient, useHTTPS)
 	return cl.CheckHealth(ctx) == nil
 }
 
@@ -378,7 +388,7 @@ func (r *HomeAssistantReconciler) reconcileHTTPConfigViaWS(
 		}
 
 		// Pending with no error yet: HA may still be restarting.
-		if !nativeTLSHealthy(ctx, r, ha) {
+		if !nativeTLSHealthy(ctx, r, ha, nativeEnabled && sslReady) {
 			if err := maybeSetCondition(metav1.ConditionFalse, reasonTLSConfigPending,
 				"Waiting for HA to restart and become reachable with the new http: configuration"); err != nil {
 				return ctrl.Result{}, err
