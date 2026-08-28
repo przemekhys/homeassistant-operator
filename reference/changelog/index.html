@@ -1377,6 +1377,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#changed" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1572,7 +1583,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixed" class="md-nav__link">
+  <a href="#fixed_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -1683,7 +1694,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_1" class="md-nav__link">
+  <a href="#fixed_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -1722,7 +1733,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_2" class="md-nav__link">
+  <a href="#fixed_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -1761,7 +1772,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixed_3" class="md-nav__link">
+  <a href="#fixed_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -1800,7 +1811,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_4" class="md-nav__link">
+  <a href="#fixed_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -1878,7 +1889,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixed_5" class="md-nav__link">
+  <a href="#fixed_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -2266,6 +2277,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#changed" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2461,7 +2483,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixed" class="md-nav__link">
+  <a href="#fixed_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -2572,7 +2594,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_1" class="md-nav__link">
+  <a href="#fixed_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -2611,7 +2633,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_2" class="md-nav__link">
+  <a href="#fixed_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -2650,7 +2672,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixed_3" class="md-nav__link">
+  <a href="#fixed_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -2689,7 +2711,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_4" class="md-nav__link">
+  <a href="#fixed_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -2767,7 +2789,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixed_5" class="md-nav__link">
+  <a href="#fixed_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fixed
@@ -3033,6 +3055,10 @@
 <p>The format is based on <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
 <h2 id="unreleased"><a href="https://github.com/przemekhys/homeassistant-operator/compare/v1.2.0...HEAD">Unreleased</a><a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>HomeAssistantCommunityRepository</code> no longer rejects repositories over a per-file size limit</strong> — validating a repository whose source tree contains a file larger than 20 MiB failed outright with <code>tar entry ... is too large</code>, which blocked real HACS integrations: map-rendering integrations legitimately ship a single generated Python source holding tens of megabytes of base64-encoded map tiles and icons (<code>Tasshack/dreame-vacuum</code> was the reported case, at ~26 MiB in one file). The per-file limit is gone. The operator only ever reads the content of small metadata files (<code>hacs.json</code>, <code>custom_components/*/manifest.json</code>) and merely checks that everything else exists, so a larger file is now indexed without holding its content in memory — which also cuts the operator's peak memory use while validating a large repository (~9 MiB instead of ~37 MiB for the repository above), relevant under the chart's default 128Mi limit. Three archive-wide limits are enforced instead, all fixed and none requiring you to raise the operator's memory limit: 100 MiB cumulative (matching the limit the in-pod init-container/sidecar applies when materializing the same files, so validation and installation agree), 20 000 entries, and a new 32 MiB ceiling on content actually held in memory — that last one covers the archive shape the cumulative limit cannot see (thousands of small files, each cheap, adding up), so such a repository now fails with a diagnosable status on its own resource rather than getting the operator OOM-killed and restarting every reconciler in the cluster. Only pre-release builds of the community-repository feature were affected; see <a href="https://przemekhys.github.io/homeassistant-operator/reference/troubleshooting/">Troubleshooting</a> for the errors these limits produce.</li>
+</ul>
 <h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>E2E test suite optimization</strong> — CI e2e tests now run faster; see <code>docs/development/testing.md</code> (and <code>.claude/TESTING.md</code> for AI guidance) for details.</li>
@@ -3141,7 +3167,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 </li>
 </ul>
 <h2 id="v0101-2026-04-26"><a href="https://github.com/przemekhys/homeassistant-operator/compare/v0.10.0...v0.10.1">v0.10.1</a> - 2026-04-26<a class="headerlink" href="#v0101-2026-04-26" title="Permanent link">&para;</a></h2>
-<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>
 <p><strong>Helm chart OCI path collision</strong> — <code>helm push</code> was publishing the chart to <code>oci://ghcr.io/przemekhys/homeassistant-operator</code>, overwriting the Docker image tag. Chart is now published to <code>oci://ghcr.io/przemekhys/charts/homeassistant-operator</code>. Install command updated accordingly.</p>
@@ -3216,7 +3242,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <p><strong><code>logger</code> added to hot-reloadable config sections</strong> — <code>logger</code> was documented as hot-reloadable but missing from <code>reloadableSections</code> map, causing the controller to trigger a full pod restart instead of calling <code>ReloadCoreConfig</code> when it was added or modified.</p>
 </li>
 </ul>
-<h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_2">Fixed<a class="headerlink" href="#fixed_2" title="Permanent link">&para;</a></h3>
 <ul>
 <li>
 <p><strong>Bootstrap infinite loop on slow CI runners</strong> — two interacting bugs caused <code>LoginRecoveryAttempts</code> to never advance past 1, trapping bootstrap in an infinite <code>LoginNoUser</code> cycle. (1) The "first seen OnboardingDone" handler reset <code>LoginRecoveryAttempts = 0</code> on every cycle, undoing any progress. (2) <code>LoginNoUser</code> (<code>type=form</code>) is a transient startup race where onboarding routes have not yet registered — it is not a credential failure and should not count toward the retry limit. Fixed: the counter is no longer reset in the first-seen handler, and <code>LoginNoUser</code> does not increment it. The loop now continues until onboarding routes load and <code>CheckOnboardingStatus</code> returns nil.</p>
@@ -3256,7 +3282,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li>Condition: <code>BackupConfigured</code> with reasons: <code>BackupConfigured</code>, <code>BackupConfigFailed</code>, <code>TokenNotAvailable</code></li>
 <li>Events: <code>BackupConfigured</code> (Normal), <code>BackupConfigFailed</code> (Warning)</li>
 </ul>
-<h3 id="fixed_2">Fixed<a class="headerlink" href="#fixed_2" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_3">Fixed<a class="headerlink" href="#fixed_3" title="Permanent link">&para;</a></h3>
 <ul>
 <li>
 <p><strong>Bootstrap fails when onboarding already completed</strong> — <code>CheckOnboardingStatus</code> did not handle HTTP 404 (which HA returns when onboarding is fully done, as the endpoint is unregistered). Also, when onboarding was already done, the operator tried to delete the pod (which doesn't reset PVC data) instead of logging in with credentials. Fixed: 404 is now correctly detected as "onboarding done", partial onboarding (user step done) is detected from the step array, and <code>handleOnboardingAlreadyDone</code> now logs in via HA's auth flow and creates the API token instead of deleting the pod.</p>
@@ -3288,7 +3314,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li>Bump <code>k8s.io/api</code>, <code>k8s.io/apimachinery</code>, <code>k8s.io/client-go</code> from v0.35.2 to v0.35.3</li>
 </ul>
 <h2 id="v071-2026-03-19"><a href="https://github.com/przemekhys/homeassistant-operator/compare/v0.7.0...v0.7.1">v0.7.1</a> - 2026-03-19<a class="headerlink" href="#v071-2026-03-19" title="Permanent link">&para;</a></h2>
-<h3 id="fixed_3">Fixed<a class="headerlink" href="#fixed_3" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_4">Fixed<a class="headerlink" href="#fixed_4" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong><code>auto_include</code> strips <code>!include</code> tags after YAML round-trip</strong> — when <code>injectLocation</code> re-serialised <code>configuration.yaml</code>, the <code>!include</code> YAML tag was lost (e.g. <code>automation: !include automations.yaml</code> became <code>automation: automations.yaml</code>). HA treated the bare filename as a literal string and disabled all automations. <code>ensureAutoIncludes</code> now detects bare filenames and restores the <code>!include</code> directive in-place.</li>
 </ul>
@@ -3306,7 +3332,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li><strong><code>spec.hostNetwork</code> for HomeAssistant CR</strong> — enables host networking for IoT device discovery (mDNS/SSDP/DHCP). When enabled, sets <code>hostNetwork: true</code> and <code>dnsPolicy: ClusterFirstWithHostNet</code> on the pod.</li>
 <li><strong>Config Entry Flow API methods in haclient</strong> — <code>ListConfigEntries</code>, <code>IsIntegrationConfigured</code>, <code>StartConfigFlow</code>, <code>SubmitConfigFlow</code>, <code>SubmitConfigFlowUntilDone</code>, <code>RemoveConfigEntry</code>.</li>
 </ul>
-<h3 id="fixed_4">Fixed<a class="headerlink" href="#fixed_4" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_5">Fixed<a class="headerlink" href="#fixed_5" title="Permanent link">&para;</a></h3>
 <ul>
 <li>
 <p><strong>Auto-inject <code>!include</code> directives</strong> — the operator now automatically appends <code>automation: !include automations.yaml</code>, <code>scene: !include scenes.yaml</code>, and <code>script: !include scripts.yaml</code> to <code>configuration.yaml</code> if not already present. HA 2025.x requires explicit includes for PVC-managed files.</p>
@@ -3335,7 +3361,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <p><strong>Note for existing deployments</strong>: when upgrading from v0.5.x to v0.6.0, the operator will automatically remove the old aggregation ConfigMaps (<code>&lt;ha-name&gt;-automations</code>, <code>&lt;ha-name&gt;-scenes</code>, <code>&lt;ha-name&gt;-scripts</code>) and their volume mounts from the Home Assistant StatefulSet. <strong>The HA pod will be restarted once</strong> during this migration. After restart, existing automations/scenes/scripts CRs will be re-synced to HA via the REST API.</p>
 </blockquote>
 <h2 id="v051-2026-03-07"><a href="https://github.com/przemekhys/homeassistant-operator/releases/tag/v0.5.1">v0.5.1</a> - 2026-03-07<a class="headerlink" href="#v051-2026-03-07" title="Permanent link">&para;</a></h2>
-<h3 id="fixed_5">Fixed<a class="headerlink" href="#fixed_5" title="Permanent link">&para;</a></h3>
+<h3 id="fixed_6">Fixed<a class="headerlink" href="#fixed_6" title="Permanent link">&para;</a></h3>
 <ul>
 <li>
 <p><strong>HomeAssistantConfiguration: restart not triggered after adding new integration (e.g. <code>prometheus:</code>)</strong> — when a reconcile attempt updated the ConfigMap content but failed before saving status, a subsequent retry would read <code>oldConfig == newConfig</code> and incorrectly choose hot-reload instead of restart. The controller now defaults to restart when the ConfigMap is already synced but status hash is stale.</p>

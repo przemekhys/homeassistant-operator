@@ -1363,6 +1363,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#homeassistantcommunityrepository-fails-with-an-extraction-limit-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantCommunityRepository fails with an extraction limit error
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1661,6 +1672,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#homeassistantcommunityrepository-fails-with-an-extraction-limit-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantCommunityRepository fails with an extraction limit error
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1783,6 +1805,33 @@
   Secret exists. Confirm the Secret (<code>&lt;name&gt;-native-tls</code>) is populated and that the
   StatefulSet rolled out.</li>
 </ul>
+<h2 id="homeassistantcommunityrepository-fails-with-an-extraction-limit-error">HomeAssistantCommunityRepository fails with an extraction limit error<a class="headerlink" href="#homeassistantcommunityrepository-fails-with-an-extraction-limit-error" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>homeassistantcommunityrepository<span class="w"> </span>&lt;name&gt;<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.status.lastError}&#39;</span>
+</code></pre></div>
+<p>There is <strong>no per-file size limit</strong> — a single multi-megabyte source file (some
+integrations ship map or icon assets as base64-encoded Python constants) installs
+normally. Three archive-wide limits can still reject a repository:</p>
+<ul>
+<li><strong><code>archive exceeds the cumulative extraction limit</code></strong> — the repository's contents
+  add up to more than <strong>100 MiB</strong> once decompressed. The same limit applies again
+  inside the Home Assistant pod when the files are written to the config volume, so a
+  larger repository could not be installed anyway.</li>
+<li><strong><code>archive holds more than ... bytes of small files</code></strong> — the repository consists of
+  so many small files (below 1 MiB each) that reading them exceeds the <strong>32 MiB</strong> the
+  operator keeps in memory while validating. Large files cost no memory here (only
+  their presence is recorded), so this is reached by repositories with thousands of
+  small files rather than by large ones.</li>
+<li><strong><code>archive has too many entries</code></strong> — more than 20 000 entries in the tar archive.
+  Every entry counts, not just files: directories, and symlinks and other special
+  entries the operator otherwise skips, all count towards the limit. This is well
+  beyond any HACS-compatible extension; check <code>spec.repository</code> points at the
+  extension itself and not at a monorepo or a mirror.</li>
+</ul>
+<p>If you hit one of these, pin <code>spec.ref</code> to a release tag rather than a branch: source
+tarballs of release tags are usually far smaller than a <code>main</code> snapshot carrying full
+documentation and media. Note that raising the operator's own memory limit does not
+lift these limits — they are fixed, so that one oversized repository fails on its own
+resource instead of exhausting the operator process shared by every other resource.</p>
 
 
 
