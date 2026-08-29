@@ -1373,7 +1373,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Unreleased">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v130-2026-08-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v1.3.0 - 2026-08-29
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v1.3.0 - 2026-08-29">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2273,7 +2284,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Unreleased">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v130-2026-08-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v1.3.0 - 2026-08-29
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v1.3.0 - 2026-08-29">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -3054,7 +3076,8 @@
 <p>All notable changes to this project will be documented in this file.</p>
 <p>The format is based on <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
-<h2 id="unreleased"><a href="https://github.com/przemekhys/homeassistant-operator/compare/v1.2.0...HEAD">Unreleased</a><a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h2 id="unreleased"><a href="https://github.com/przemekhys/homeassistant-operator/compare/v1.3.0...HEAD">Unreleased</a><a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h2 id="v130-2026-08-29"><a href="https://github.com/przemekhys/homeassistant-operator/compare/v1.2.0...v1.3.0">v1.3.0</a> - 2026-08-29<a class="headerlink" href="#v130-2026-08-29" title="Permanent link">&para;</a></h2>
 <h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong><code>HomeAssistantCommunityRepository</code> no longer rejects repositories over a per-file size limit</strong> — validating a repository whose source tree contains a file larger than 20 MiB failed outright with <code>tar entry ... is too large</code>, which blocked real HACS integrations: map-rendering integrations legitimately ship a single generated Python source holding tens of megabytes of base64-encoded map tiles and icons (<code>Tasshack/dreame-vacuum</code> was the reported case, at ~26 MiB in one file). The per-file limit is gone. The operator only ever reads the content of small metadata files (<code>hacs.json</code>, <code>custom_components/*/manifest.json</code>) and merely checks that everything else exists, so a larger file is now indexed without holding its content in memory — which also cuts the operator's peak memory use while validating a large repository (~9 MiB instead of ~37 MiB for the repository above), relevant under the chart's default 128Mi limit. Three archive-wide limits are enforced instead, all fixed and none requiring you to raise the operator's memory limit: 100 MiB cumulative (matching the limit the in-pod init-container/sidecar applies when materializing the same files, so validation and installation agree), 20 000 entries, and a new 32 MiB ceiling on content actually held in memory — that last one covers the archive shape the cumulative limit cannot see (thousands of small files, each cheap, adding up), so such a repository now fails with a diagnosable status on its own resource rather than getting the operator OOM-killed and restarting every reconciler in the cluster. Only pre-release builds of the community-repository feature were affected; see <a href="https://przemekhys.github.io/homeassistant-operator/reference/troubleshooting/">Troubleshooting</a> for the errors these limits produce.</li>
