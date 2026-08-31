@@ -1543,6 +1543,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#automated-dependency-updates-renovate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automated dependency updates (Renovate)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#release-candidates" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1713,6 +1724,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#automated-dependency-updates-renovate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automated dependency updates (Renovate)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#release-candidates" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1859,6 +1881,22 @@ cycle and <code>dev</code> does not drift:</p>
 <p>Resolve any conflicts in favour of keeping both the fix and the in-progress
 feature work. Never rebase <code>dev</code> onto <code>main</code> or force-push either branch —
 both are shared.</p>
+<h2 id="automated-dependency-updates-renovate">Automated dependency updates (Renovate)<a class="headerlink" href="#automated-dependency-updates-renovate" title="Permanent link">&para;</a></h2>
+<p>Renovate (<code>renovate.json</code>) watches <strong>both</strong> long-lived branches
+(<code>baseBranches: ["main", "dev"]</code>) and opens separate PRs per branch:</p>
+<ul>
+<li><strong><code>main</code></strong> receives only non-breaking updates — <code>minor</code>, <code>patch</code>, <code>digest</code>,
+  <code>pin</code>. These merge like any other fix and ship as a patch release; the
+  <code>main</code> → <code>dev</code> sync above then carries them forward.</li>
+<li><strong><code>dev</code></strong> additionally receives <code>major</code> / breaking dependency bumps, so they
+  are integrated and tested during the feature cycle and only reach <code>main</code>
+  through an RC — never as a surprise on the released line.</li>
+<li>Security fixes (<code>osvVulnerabilityAlerts</code>) are raised against whichever
+  branch carries the vulnerable version, without waiting for a release cycle.</li>
+</ul>
+<p>When <code>main</code> and <code>dev</code> hold the same dependency state you will get two
+near-identical PRs; merge the <code>main</code> one, and the routine <code>git merge --no-ff
+main</code> into <code>dev</code> makes Renovate close the redundant <code>dev</code> PR on its next run.</p>
 <h2 id="release-candidates">Release candidates<a class="headerlink" href="#release-candidates" title="Permanent link">&para;</a></h2>
 <ul>
 <li>RC tags follow SemVer prerelease syntax: <code>v1.4.0-rc.1</code>, <code>v1.4.0-rc.2</code>, …</li>
