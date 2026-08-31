@@ -16,7 +16,7 @@
         <link rel="prev" href="../../reference/changelog/">
       
       
-        <link rel="next" href="../architecture/">
+        <link rel="next" href="../branching/">
       
       
         
@@ -1585,6 +1585,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../branching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branching & Releases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../architecture/" class="md-nav__link">
         
   
@@ -1869,7 +1897,11 @@ Community contributions — bug reports, feature requests, and code — are very
 <p>Every submission helps shape the project.</p>
 <h2 id="pull-request-guidelines">Pull Request Guidelines<a class="headerlink" href="#pull-request-guidelines" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Fork &amp; PR</strong> — work on your fork and submit a Pull Request against <code>main</code></li>
+<li><strong>Fork &amp; PR</strong> — work on your fork and pick the right target branch
+   (see <a href="../branching/">Branching &amp; Releases</a>):</li>
+<li>new functionality (<code>feat:</code>, anything <code>spec.alpha.*</code> / <code>v1alpha1</code>,
+     breaking changes) → target <strong><code>dev</code></strong></li>
+<li>bug fixes for the current release (<code>fix:</code>, <code>docs:</code>, <code>perf:</code>) → target <strong><code>main</code></strong></li>
 <li><strong>One PR = one change</strong> — don't mix unrelated changes</li>
 <li><strong>Tests required</strong> — <code>make test</code> must pass; new behavior needs new tests</li>
 <li><strong>Linting</strong> — <code>make lint</code> must report no errors</li>

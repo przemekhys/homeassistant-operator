@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://przemekhys.github.io/homeassistant-operator/user-guide/integrations/">
+        <link rel="canonical" href="https://przemekhys.github.io/homeassistant-operator/development/branching/">
       
       
-        <link rel="prev" href="../scripts/">
+        <link rel="prev" href="../contributing/">
       
       
-        <link rel="next" href="../infrastructure/">
+        <link rel="next" href="../architecture/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Integrations - Home Assistant Operator</title>
+        <title>Branching & Releases - Home Assistant Operator</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#integrations" class="md-skip">
+        <a href="#branching-release-model" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Integrations
+              Branching & Releases
             
           </span>
         </div>
@@ -258,13 +258,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../homeassistant/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../user-guide/homeassistant/" class="md-tabs__link">
           
   
   
@@ -320,11 +318,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../development/contributing/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../contributing/" class="md-tabs__link">
           
   
   
@@ -563,31 +563,28 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
@@ -605,7 +602,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -623,7 +620,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../homeassistant/" class="md-nav__link">
+      <a href="../../user-guide/homeassistant/" class="md-nav__link">
         
   
   
@@ -651,7 +648,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bootstrap/" class="md-nav__link">
+      <a href="../../user-guide/bootstrap/" class="md-nav__link">
         
   
   
@@ -679,7 +676,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../secrets/" class="md-nav__link">
+      <a href="../../user-guide/secrets/" class="md-nav__link">
         
   
   
@@ -707,7 +704,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../configuration/" class="md-nav__link">
+      <a href="../../user-guide/configuration/" class="md-nav__link">
         
   
   
@@ -735,7 +732,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../automations/" class="md-nav__link">
+      <a href="../../user-guide/automations/" class="md-nav__link">
         
   
   
@@ -763,7 +760,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../scenes/" class="md-nav__link">
+      <a href="../../user-guide/scenes/" class="md-nav__link">
         
   
   
@@ -791,7 +788,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../scripts/" class="md-nav__link">
+      <a href="../../user-guide/scripts/" class="md-nav__link">
         
   
   
@@ -816,37 +813,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Integrations
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../user-guide/integrations/" class="md-nav__link">
         
   
   
@@ -862,181 +832,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#use-cases" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Use cases
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-it-works" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How it works
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#mqtt-example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        MQTT example
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#recorder-example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Recorder example
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#spec-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Spec reference
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Spec reference">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#specdomain" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        spec.domain
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#specconfiguration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        spec.configuration
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#status-and-conditions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Status and conditions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Status and conditions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#condition-reasons" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Condition reasons
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#events" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Events
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#reconfiguring" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reconfiguring
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#limitations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Limitations
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#deleting-an-integration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Deleting an integration
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1049,7 +844,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../infrastructure/" class="md-nav__link">
+      <a href="../../user-guide/infrastructure/" class="md-nav__link">
         
   
   
@@ -1077,7 +872,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backup/" class="md-nav__link">
+      <a href="../../user-guide/backup/" class="md-nav__link">
         
   
   
@@ -1105,7 +900,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../security/" class="md-nav__link">
+      <a href="../../user-guide/security/" class="md-nav__link">
         
   
   
@@ -1133,7 +928,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tls/" class="md-nav__link">
+      <a href="../../user-guide/tls/" class="md-nav__link">
         
   
   
@@ -1161,7 +956,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../signed-releases/" class="md-nav__link">
+      <a href="../../user-guide/signed-releases/" class="md-nav__link">
         
   
   
@@ -1189,7 +984,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../upgrade/" class="md-nav__link">
+      <a href="../../user-guide/upgrade/" class="md-nav__link">
         
   
   
@@ -1539,28 +1334,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
-        
-          
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
@@ -1578,7 +1376,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1596,7 +1394,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/contributing/" class="md-nav__link">
+      <a href="../contributing/" class="md-nav__link">
         
   
   
@@ -1621,10 +1419,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../development/branching/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branching & Releases
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1640,6 +1465,98 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#branches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Branches
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#new-functionality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New functionality
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bug-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#keeping-dev-in-sync-with-main" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keeping dev in sync with main
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#release-candidates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Release candidates
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1652,7 +1569,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/architecture/" class="md-nav__link">
+      <a href="../architecture/" class="md-nav__link">
         
   
   
@@ -1680,7 +1597,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/testing/" class="md-nav__link">
+      <a href="../testing/" class="md-nav__link">
         
   
   
@@ -1735,10 +1652,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#use-cases" class="md-nav__link">
+  <a href="#branches" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Use cases
+        Branches
       
     </span>
   </a>
@@ -1746,55 +1663,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-it-works" class="md-nav__link">
+  <a href="#flow" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How it works
+        Flow
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#mqtt-example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        MQTT example
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#recorder-example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Recorder example
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#spec-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Spec reference
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Spec reference">
+    <nav class="md-nav" aria-label="Flow">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#specdomain" class="md-nav__link">
+  <a href="#new-functionality" class="md-nav__link">
     <span class="md-ellipsis">
       
-        spec.domain
+        New functionality
       
     </span>
   </a>
@@ -1802,10 +1686,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#specconfiguration" class="md-nav__link">
+  <a href="#bug-fixes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        spec.configuration
+        Bug fixes
       
     </span>
   </a>
@@ -1818,49 +1702,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#status-and-conditions" class="md-nav__link">
+  <a href="#keeping-dev-in-sync-with-main" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Status and conditions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Status and conditions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#condition-reasons" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Condition reasons
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#events" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Events
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#reconfiguring" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reconfiguring
+        Keeping dev in sync with main
       
     </span>
   </a>
@@ -1868,21 +1713,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#limitations" class="md-nav__link">
+  <a href="#release-candidates" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Limitations
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#deleting-an-integration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Deleting an integration
+        Release candidates
       
     </span>
   </a>
@@ -1932,10 +1766,10 @@
     
     
       <li class="md-path__item">
-        <a href="../homeassistant/" class="md-path__link">
+        <a href="../contributing/" class="md-path__link">
           
   <span class="md-ellipsis">
-    User Guide
+    Development
   </span>
 
         </a>
@@ -1954,7 +1788,7 @@
 
 
   
-    <a href="https://github.com/przemekhys/homeassistant-operator/edit/main/docs/user-guide/integrations.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/przemekhys/homeassistant-operator/edit/main/docs/development/branching.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1962,180 +1796,88 @@
   
 
 
-<h1 id="integrations">Integrations<a class="headerlink" href="#integrations" title="Permanent link">&para;</a></h1>
-<p><code>HomeAssistantIntegration</code> registers a Home Assistant integration through the <a href="https://developers.home-assistant.io/docs/config_entries_config_flow_handler">Config Flow API</a> — declaratively, as a Kubernetes resource. It does <strong>not</strong> deploy any containers; it only tells Home Assistant to configure an integration.</p>
-<h2 id="use-cases">Use cases<a class="headerlink" href="#use-cases" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Register MQTT broker after deploying Mosquitto via Helm</li>
-<li>Configure ESPHome, recorder, or other single-step integrations</li>
-<li>Adopt an integration that was configured manually in the HA UI</li>
-</ul>
-<h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>StartConfigFlow(domain) → SubmitConfigFlow(configuration) → save entryID in status
-</code></pre></div>
-<p>On subsequent reconciles the operator verifies the entry still exists in HA (idempotent). If <code>spec.configuration</code> changes, the operator removes the old entry and re-runs the flow.</p>
-<p><strong>Adopt pattern</strong>: if the integration already exists in HA (configured via UI) but the CR has no <code>status.entryID</code>, the operator adopts it without reconfiguring.</p>
-<p>Requires a bootstrap API token.</p>
-<h2 id="mqtt-example">MQTT example<a class="headerlink" href="#mqtt-example" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># 1. Deploy broker (e.g. via Helm)</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># helm install mosquitto eclipse-mosquitto/mosquitto</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># 2. Register integration</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistantIntegration</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="nt">metadata</span><span class="p">:</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mqtt</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span><span class="nt">homeAssistantRef</span><span class="p">:</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mqtt</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">  </span><span class="nt">configuration</span><span class="p">:</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span><span class="nt">broker</span><span class="p">:</span>
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;mosquitto.default.svc.cluster.local&quot;</span>
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">    </span><span class="nt">port</span><span class="p">:</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1883&quot;</span>
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="nt">username</span><span class="p">:</span>
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">      </span><span class="nt">secretKeyRef</span><span class="p">:</span>
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mqtt-credentials</span>
-<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">username</span>
-<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">    </span><span class="nt">password</span><span class="p">:</span>
-<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">      </span><span class="nt">secretKeyRef</span><span class="p">:</span>
-<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mqtt-credentials</span>
-<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">password</span>
-</code></pre></div>
-<h2 id="recorder-example">Recorder example<a class="headerlink" href="#recorder-example" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistantIntegration</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">metadata</span><span class="p">:</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">recorder</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">homeAssistantRef</span><span class="p">:</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">recorder</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span><span class="nt">configuration</span><span class="p">:</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="nt">db_url</span><span class="p">:</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">      </span><span class="nt">secretKeyRef</span><span class="p">:</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">database-credentials</span>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">db_url</span>
-</code></pre></div>
-<h2 id="spec-reference">Spec reference<a class="headerlink" href="#spec-reference" title="Permanent link">&para;</a></h2>
-<h3 id="specdomain"><code>spec.domain</code><a class="headerlink" href="#specdomain" title="Permanent link">&para;</a></h3>
-<p>The integration domain as recognised by Home Assistant (e.g. <code>mqtt</code>, <code>esphome</code>, <code>recorder</code>).</p>
-<h3 id="specconfiguration"><code>spec.configuration</code><a class="headerlink" href="#specconfiguration" title="Permanent link">&para;</a></h3>
-<p>Key-value map of configuration values passed to the Config Flow. Each value is either:</p>
-<ul>
-<li><strong>Plain text</strong>: <code>value: "some-string"</code></li>
-<li><strong>Secret reference</strong>: resolved from a Kubernetes Secret at reconcile time</li>
-</ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">configuration</span><span class="p">:</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">broker</span><span class="p">:</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;mosquitto.default.svc.cluster.local&quot;</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">password</span><span class="p">:</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="nt">secretKeyRef</span><span class="p">:</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mqtt-credentials</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">      </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">password</span>
-</code></pre></div>
-<h2 id="status-and-conditions">Status and conditions<a class="headerlink" href="#status-and-conditions" title="Permanent link">&para;</a></h2>
-<p><div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>haint<span class="w"> </span>mqtt
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>NAME   HOMEASSISTANT   DOMAIN   READY   AGE
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>mqtt   home            mqtt     True    5m
-</code></pre></div></p>
-<p><div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>describe<span class="w"> </span>haint<span class="w"> </span>mqtt
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>Status:
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>  Entry ID:     abc123def456
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>  Config Hash:  sha256:...
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  Conditions:
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    IntegrationReady: True (reason: IntegrationConfigured)
-</code></pre></div></p>
-<h3 id="condition-reasons">Condition reasons<a class="headerlink" href="#condition-reasons" title="Permanent link">&para;</a></h3>
+<h1 id="branching-release-model">Branching &amp; Release Model<a class="headerlink" href="#branching-release-model" title="Permanent link">&para;</a></h1>
+<p>This project uses a two-branch model: a stable branch (<code>main</code>) and an
+integration branch (<code>dev</code>).</p>
+<h2 id="branches">Branches<a class="headerlink" href="#branches" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Reason</th>
-<th>Meaning</th>
+<th>Branch</th>
+<th>Purpose</th>
+<th>Direct PR target for</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>IntegrationConfigured</code></td>
-<td>Config flow completed successfully</td>
+<td><code>main</code></td>
+<td>Always reflects the latest released (or hotfix-pending) state. Stable and final release tags are cut from here.</td>
+<td>Bug fixes for the current release (<code>fix:</code>, <code>docs:</code>, <code>perf:</code> on existing behaviour)</td>
 </tr>
 <tr>
-<td><code>AlreadyConfigured</code></td>
-<td>Integration existed in HA; adopted without reconfiguring</td>
-</tr>
-<tr>
-<td><code>TokenNotAvailable</code></td>
-<td>Bootstrap token not yet created; requeuing</td>
-</tr>
-<tr>
-<td><code>HANotReady</code></td>
-<td>HA instance not ready; requeuing</td>
-</tr>
-<tr>
-<td><code>ConfigFlowFailed</code></td>
-<td>Config Flow returned an error</td>
-</tr>
-<tr>
-<td><code>SecretResolutionFailed</code></td>
-<td>Referenced Kubernetes Secret not found</td>
+<td><code>dev</code></td>
+<td>Accumulates the next feature release. May contain unreleased, still-changing APIs.</td>
+<td>New functionality (<code>feat:</code>), anything touching <code>spec.alpha.*</code> / <code>v1alpha1</code>, breaking changes</td>
 </tr>
 </tbody>
 </table>
-<h3 id="events">Events<a class="headerlink" href="#events" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Event</th>
-<th>Type</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>IntegrationConfigured</code></td>
-<td>Normal</td>
-<td>Config flow succeeded</td>
-</tr>
-<tr>
-<td><code>IntegrationAdopted</code></td>
-<td>Normal</td>
-<td>Existing entry adopted</td>
-</tr>
-<tr>
-<td><code>IntegrationReconfigured</code></td>
-<td>Normal</td>
-<td>Spec changed; re-registered</td>
-</tr>
-<tr>
-<td><code>IntegrationFailed</code></td>
-<td>Warning</td>
-<td>Flow or API error</td>
-</tr>
-<tr>
-<td><code>IntegrationRemoved</code></td>
-<td>Normal</td>
-<td>Entry deleted (finalizer)</td>
-</tr>
-</tbody>
-</table>
-<h2 id="reconfiguring">Reconfiguring<a class="headerlink" href="#reconfiguring" title="Permanent link">&para;</a></h2>
-<p>To change the integration configuration, update <code>spec.configuration</code>. The operator detects the hash change, removes the existing config entry, and runs a new Config Flow.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>kubectl<span class="w"> </span>patch<span class="w"> </span>haint<span class="w"> </span>mqtt<span class="w"> </span>--type<span class="o">=</span>merge<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>-p<span class="w"> </span><span class="s1">&#39;{&quot;spec&quot;:{&quot;configuration&quot;:{&quot;port&quot;:{&quot;value&quot;:&quot;1884&quot;}}}}&#39;</span>
+<h2 id="flow">Flow<a class="headerlink" href="#flow" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>feat/my-feature ──PR──▶ dev ──(RC cut, then)──▶ main ──tag──▶ release
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>fix/some-bug    ──PR──▶ main ──tag──▶ patch release
 </code></pre></div>
-<h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h2>
+<h3 id="new-functionality">New functionality<a class="headerlink" href="#new-functionality" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Branch from <code>dev</code>, open the PR <strong>against <code>dev</code></strong>.</li>
+<li>It merges into <code>dev</code> once CI is green and review is done.</li>
+<li><code>dev</code> keeps collecting features until the maintainer decides the next
+   minor/major is ready.</li>
+<li>The maintainer cuts a release candidate from <code>dev</code> (<code>vX.Y.0-rc.N</code> tag).</li>
+<li>After the RC is validated, <code>dev</code> is merged into <code>main</code> and the final
+   <code>vX.Y.0</code> tag is cut from <code>main</code>.</li>
+</ol>
+<h3 id="bug-fixes">Bug fixes<a class="headerlink" href="#bug-fixes" title="Permanent link">&para;</a></h3>
+<p>Fixes for the <strong>currently released version</strong> always go straight to <code>main</code>,
+even while a <code>dev</code> cycle is in progress:</p>
+<ol>
+<li>Branch from <code>main</code>, open the PR <strong>against <code>main</code></strong>.</li>
+<li>On merge, the maintainer cuts a patch release (<code>vX.Y.Z</code>) from <code>main</code>.</li>
+<li>The maintainer then merges <code>main</code> back into <code>dev</code> so the fix is not lost
+   in the next feature release and <code>dev</code> does not drift.</li>
+</ol>
+<p>Once the next feature version has shipped (<code>dev</code> → <code>main</code> completed), there is
+nothing special about the state — fixes simply continue to target <code>main</code>, and
+the next feature cycle starts fresh on <code>dev</code>.</p>
+<h2 id="keeping-dev-in-sync-with-main">Keeping <code>dev</code> in sync with <code>main</code><a class="headerlink" href="#keeping-dev-in-sync-with-main" title="Permanent link">&para;</a></h2>
+<p>After every release cut from <code>main</code> (patch or final), the maintainer merges
+<code>main</code> back into <code>dev</code> so the released fixes are carried into the next feature
+cycle and <code>dev</code> does not drift:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>dev
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>git<span class="w"> </span>pull<span class="w"> </span>--ff-only
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>git<span class="w"> </span>merge<span class="w"> </span>--no-ff<span class="w"> </span>main
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>dev
+</code></pre></div>
+<p>Resolve any conflicts in favour of keeping both the fix and the in-progress
+feature work. Never rebase <code>dev</code> onto <code>main</code> or force-push either branch —
+both are shared.</p>
+<h2 id="release-candidates">Release candidates<a class="headerlink" href="#release-candidates" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Only <strong>single-step</strong> Config Flows are supported (MQTT, ESPHome, recorder, etc.)</li>
-<li>Multi-step flows (ZHA, Zigbee2MQTT) require physical device interaction — not automatable</li>
-<li>The operator passes <code>spec.configuration</code> values as-is; field names must match what HA expects for that domain</li>
+<li>RC tags follow SemVer prerelease syntax: <code>v1.4.0-rc.1</code>, <code>v1.4.0-rc.2</code>, …</li>
+<li>RC tags are cut from <code>dev</code> (the only case where a tag does not come from <code>main</code>).</li>
+<li>Prerelease status on the GitHub release:<ul>
+<li><strong>Expected path</strong> — after pushing the tag, create the release in the
+  GitHub UI and <strong>save it as a draft</strong> with "Set as a pre-release" ticked
+  for an RC. The release workflow attaches the signed checksums and
+  publishes that draft as-is; whatever prerelease/latest flags the draft
+  carries are preserved, so the draft must be configured correctly.</li>
+<li><strong>Fallback path</strong> — if no draft exists when the workflow runs (race lost,
+  or skipped for a quick release), it creates the release fresh and derives
+  prerelease status from the tag: a SemVer prerelease identifier
+  (<code>vX.Y.Z-…</code>) is marked as a pre-release, anything else is not.</li>
 </ul>
-<h2 id="deleting-an-integration">Deleting an integration<a class="headerlink" href="#deleting-an-integration" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>haint<span class="w"> </span>mqtt
-</code></pre></div>
-<p>The finalizer calls <code>DELETE /api/config/config_entries/entry/{entryID}</code> before removing the CR. If HA is unavailable, the finalizer completes anyway (best-effort).</p>
+</li>
+<li>Only after the RC is accepted does <code>dev</code> merge into <code>main</code> and the final
+  tag get cut.</li>
+</ul>
 
 
 
