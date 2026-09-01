@@ -2216,9 +2216,8 @@
 <h4 id="default-trusted-proxies">Default trusted proxies<a class="headerlink" href="#default-trusted-proxies" title="Permanent link">&para;</a></h4>
 <p>Home Assistant rejects every request with <code>400 Bad Request</code> unless it is told
 to trust the proxy in front of it. Whenever <code>spec.ingress.enabled</code> or
-<code>spec.gateway.enabled</code> is <code>true</code>, the operator automatically adds the
-following to the generated <code>configuration.yaml</code>, unless the keys are already
-present:</p>
+<code>spec.gateway.enabled</code> is <code>true</code>, the operator automatically supplies the
+following, unless the keys are already present:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">http</span><span class="p">:</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">use_x_forwarded_for</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nt">trusted_proxies</span><span class="p">:</span>
@@ -2226,6 +2225,11 @@ present:</p>
 <a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">172.16.0.0/12</span>
 <a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">192.168.0.0/16</span>
 </code></pre></div>
+<p>On Home Assistant 2026.8+ these are delivered through the http config API rather
+than written into <code>configuration.yaml</code> (see
+<a href="../configuration/#http-configuration-on-home-assistant-20268">Configuration → HTTP configuration</a>),
+with no change to the outcome. On older Home Assistant they go into the generated
+<code>configuration.yaml</code>.</p>
 <p>These are the RFC1918 private address ranges — a conservative default, not an
 autodetection of the real cluster pod/service CIDR (which cannot be reliably
 read from the Kubernetes API). Each key is added independently: if you have

@@ -1670,10 +1670,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#e2e-critical-a-tests-10-specs" class="md-nav__link">
+  <a href="#e2e-critical-a-tests-11-specs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        e2e-critical-a tests (10 specs)
+        e2e-critical-a tests (11 specs)
       
     </span>
   </a>
@@ -1884,10 +1884,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#e2e-critical-a-tests-10-specs" class="md-nav__link">
+  <a href="#e2e-critical-a-tests-11-specs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        e2e-critical-a tests (10 specs)
+        e2e-critical-a tests (11 specs)
       
     </span>
   </a>
@@ -2136,7 +2136,7 @@ Coverage Gap Record below rather than the scenario silently going untested.</p>
 </code></pre></div></p>
 <hr />
 <h2 id="e2e-tests">E2E Tests<a class="headerlink" href="#e2e-tests" title="Permanent link">&para;</a></h2>
-<p><strong>Location</strong>: <code>test/e2e/*_test.go</code> (9 files, 26 specs total)
+<p><strong>Location</strong>: <code>test/e2e/*_test.go</code> (8 files, 26 specs total)
 <strong>Framework</strong>: Ginkgo v2 + real k3d cluster
 <strong>Strategy</strong>: Seven independently-labeled suites, run as seven concurrent
 GitHub Actions jobs (<code>.github/workflows/test-e2e-parallel.yml</code>), so the whole
@@ -2149,9 +2149,9 @@ restating a number.</p>
 <p><strong>Goal</strong>: the whole e2e workflow completes in about 10 minutes, split across
 the seven concurrent jobs below.</p>
 <h3 id="running-e2e-locally">Running E2E locally<a class="headerlink" href="#running-e2e-locally" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>make<span class="w"> </span>test-e2e-critical-a<span class="w">                 </span><span class="c1"># HomeAssistant + sibling CRDs (10 specs)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>make<span class="w"> </span>test-e2e-critical-a<span class="w">                 </span><span class="c1"># HomeAssistant + sibling CRDs (11 specs)</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>make<span class="w"> </span>test-e2e-critical-b<span class="w">                 </span><span class="c1"># spec.alpha.devices device passthrough (1 spec)</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>make<span class="w"> </span>test-e2e-tls<span class="w">                        </span><span class="c1"># TLS ingress/gateway/native/webhook (5 specs)</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>make<span class="w"> </span>test-e2e-tls<span class="w">                        </span><span class="c1"># TLS ingress/gateway/webhook (4 specs)</span>
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>make<span class="w"> </span>test-e2e-network-policy<span class="w">             </span><span class="c1"># NetworkPolicy enforcement (1 spec)</span>
 <a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>make<span class="w"> </span>test-e2e-pod-security<span class="w">                </span><span class="c1"># Pod Security Standards (2 specs)</span>
 <a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>make<span class="w"> </span>test-e2e-community-repository-a<span class="w">     </span><span class="c1"># HACS-style installs, group A (3 specs)</span>
@@ -2180,7 +2180,7 @@ skip-the-rebuild behavior locally against a pre-built image.</p>
 <tr>
 <td><code>e2e-critical-a</code></td>
 <td><code>critical-path &amp;&amp; group-a</code></td>
-<td>10</td>
+<td>11</td>
 <td>All CRDs' core lifecycle (see table below) — shares one HA bootstrap</td>
 </tr>
 <tr>
@@ -2192,8 +2192,8 @@ skip-the-rebuild behavior locally against a pre-built image.</p>
 <tr>
 <td><code>e2e-tls</code></td>
 <td><code>tls</code></td>
-<td>5</td>
-<td>TLS via Ingress, Gateway API, native HA TLS, and the validating webhook</td>
+<td>4</td>
+<td>TLS via Ingress, Gateway API, and the validating webhook</td>
 </tr>
 <tr>
 <td><code>e2e-network-policy</code></td>
@@ -2265,7 +2265,7 @@ minutes. Tightening this back down needs either genuine optimization (e.g.
 the per-spec activation-confirmation polling in community-repository, or the
 "Load Home Assistant image" step's own variability) or accepting a revised,
 honest target — not just more timeout increases.</p>
-<h3 id="e2e-critical-a-tests-10-specs"><code>e2e-critical-a</code> tests (10 specs)<a class="headerlink" href="#e2e-critical-a-tests-10-specs" title="Permanent link">&para;</a></h3>
+<h3 id="e2e-critical-a-tests-11-specs"><code>e2e-critical-a</code> tests (11 specs)<a class="headerlink" href="#e2e-critical-a-tests-11-specs" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -2284,6 +2284,11 @@ honest target — not just more timeout increases.</p>
 <td>2</td>
 <td><code>HomeAssistantConfiguration</code></td>
 <td>ConfigMap generated, hot-reload on config change</td>
+</tr>
+<tr>
+<td>2b</td>
+<td><code>HomeAssistantConfiguration</code> (<code>http:</code>)</td>
+<td><code>http:</code> delivered via the HA http config API, omitted from <code>configuration.yaml</code>, no hash churn on repeated reconciles</td>
 </tr>
 <tr>
 <td>3</td>
@@ -2330,6 +2335,11 @@ honest target — not just more timeout increases.</p>
 <p>This job's specs share one Home Assistant bootstrap (real onboarding) and run
 sequentially (<code>Ordered</code>), continuing even if one fails (<code>ContinueOnFailure</code>)
 so later CRDs are still exercised.</p>
+<p>The <code>http:</code> spec (2b) was added here rather than as a new job because it reuses
+the shared bootstrap and adds only a few seconds — unlike <code>e2e-critical-b</code>,
+whose spec needs its own instance. If this job starts brushing its
+<code>timeout-minutes</code> after the addition, move spec 2b to <code>group-b</code> (or a new group)
+per the group convention above rather than widening the timeout.</p>
 <h3 id="e2e-critical-b-tests-1-spec"><code>e2e-critical-b</code> tests (1 spec)<a class="headerlink" href="#e2e-critical-b-tests-1-spec" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -2380,6 +2390,16 @@ it into an existing (or new) job:</p>
 <td>Operator's own <code>allow-webhook-traffic</code> NetworkPolicy actually unblocking admission-webhook traffic under live CNI enforcement</td>
 <td>A live e2e assertion of the <em>allow</em> transition was attempted and abandoned: direct inspection of a dev k3d node's <code>iptables</code>/<code>ipset</code> state confirmed the CNI translates the policy into a textbook-correct rule (right ipset membership, right port, right chain wiring), but the live connection kept failing regardless of the correct rule, for reasons not conclusively identified (suspected same-node/bridge-netfilter interaction specific to that one machine's k3d networking setup, not this operator's own logic — the <em>block</em> side, i.e. traffic genuinely denied without the label, reproduced correctly and reliably on the same machine). The remaining uncertainty is about <code>NetworkPolicy</code>/CNI enforcement itself — a stable upstream contract this operator doesn't implement — not about whether the shipped rule is correctly shaped, which is what the static check below actually proves.</td>
 <td><code>hack/verify-network-policy.sh</code> (<code>make verify-network-policy</code>, no cluster) — asserts the rendered <code>NetworkPolicy</code> resources have the correct <code>podSelector</code>/port/namespace-label shape across every install path (kustomize and Helm); confirmed to fail when the rule is removed.</td>
+</tr>
+<tr>
+<td>Transitional cleanup after the removed native TLS feature (an upgraded instance that had <code>spec.alpha.tls</code> reverting to HTTP: orphaned <code>Certificate</code> deleted, obsolete <code>TLSReady</code> condition stripped, one <code>NativeTLSRemoved</code> warning event)</td>
+<td>The whole feature being removed had one e2e spec; keeping (or adding) an e2e for its <em>removal</em> would need a cluster running the previous operator version, a real cert-manager issuance and an operator swap — expensive setup for a one-shot code path that is itself scheduled for deletion in a later minor. Every branch of the cleanup (delete-if-present, condition removal gated on <code>certManagerRequired</code>, exactly-one-event, idempotent re-run, silence for instances that never used the feature) is covered by <code>TestReconcileNativeTLSRemoval</code>. The remaining gap is only the one-line wiring into <code>Reconcile()</code>.</td>
+<td><code>internal/controller/tls_helpers_test.go</code> (<code>TestReconcileNativeTLSRemoval</code>, controller-runtime fake client)</td>
+</tr>
+<tr>
+<td><code>http:</code> YAML fallback path on a Home Assistant <em>older than 2026.8</em> (no http config API — the section keeps going into <code>configuration.yaml</code>, <code>status.httpConfigSource</code> = <code>Yaml</code>, no writes attempted)</td>
+<td>The e2e job's shared Home Assistant image is pinned at 2026.8+, which has the API. Pinning a second, older image just for this one assertion would double the image-load time of <code>e2e-critical-a</code> for a branch that is pure "do nothing new". The path decision (<code>unknown_command</code> → YAML, no <code>configure</code>/<code>promote</code>, <code>ManagedInYaml</code> condition) and the API↔YAML switch across a version change — decided fresh every reconcile with no carried state — are covered against a stubbed Home Assistant.</td>
+<td><code>internal/controller/http_config_test.go</code> (<code>TestReconcileHTTPConfig_YAMLPath</code>, <code>TestReconcileHTTPConfig_PathSwitchIsStateless</code>) and <code>internal/haclient/http_config_test.go</code> (<code>TestGetHTTPConfig_Unsupported</code>)</td>
 </tr>
 </tbody>
 </table>

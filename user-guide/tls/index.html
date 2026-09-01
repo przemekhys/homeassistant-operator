@@ -1013,17 +1013,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#native-tls-alpha" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Native TLS (alpha)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#ingress-api-gateway-exposure" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1059,6 +1048,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migrating-from-native-tls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrating from native TLS
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1735,17 +1735,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#native-tls-alpha" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Native TLS (alpha)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#ingress-api-gateway-exposure" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1781,6 +1770,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migrating-from-native-tls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrating from native TLS
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1920,24 +1920,31 @@
 
 <h1 id="tls-with-cert-manager">TLS with cert-manager<a class="headerlink" href="#tls-with-cert-manager" title="Permanent link">&para;</a></h1>
 <p>The operator integrates with <a href="https://cert-manager.io/">cert-manager</a> to provision
-TLS certificates for three independent use cases:</p>
+TLS certificates for two independent use cases:</p>
 <ul>
-<li><strong>Native TLS</strong> — Home Assistant serves HTTPS itself, on its existing port.</li>
 <li><strong>Ingress / API Gateway</strong> — the operator manages the edge routing and its certificate.</li>
 <li><strong>Webhook</strong> — the operator's validating admission webhook serves over TLS.</li>
 </ul>
+<p>TLS is always terminated <strong>at the edge</strong> (an Ingress controller or an API Gateway).
+The Home Assistant pod itself always speaks plain HTTP inside the cluster.</p>
 <div class="admonition info">
 <p class="admonition-title">cert-manager is an optional, external dependency</p>
 <p>Neither the operator nor its Helm chart ever installs cert-manager. You install
 it (and provide an <code>Issuer</code>/<code>ClusterIssuer</code>) yourself. If cert-manager is <strong>not</strong>
-present, native TLS and Ingress/API Gateway reconciliation degrade gracefully:
-the corresponding mode simply stays inactive and the resource reports a status
+present, Ingress / API Gateway reconciliation degrades gracefully: the
+corresponding mode simply stays inactive and the resource reports a status
 condition — nothing fails or loops. A cert-manager installed <em>after</em> the
 operator is picked up automatically.</p>
 <p>This graceful degradation does <strong>not</strong> cover the webhook's cert-manager
 override (<code>--set webhook.certManager.enabled=true</code>): that path renders an
 <code>Issuer</code>/<code>Certificate</code> directly via Helm, which requires the cert-manager CRDs
 to exist at install time. Only enable it when cert-manager is already installed.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Native TLS has been removed</p>
+<p>Earlier versions offered an experimental <code>spec.alpha.tls</code> mode where Home
+Assistant terminated HTTPS itself on port <code>8123</code>. It has been removed — see
+<a href="#migrating-from-native-tls">Migrating from native TLS</a> below.</p>
 </div>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1966,73 +1973,39 @@ to exist at install time. Only enable it when cert-manager is already installed.
 yourself. When set, it <strong>takes precedence over <code>issuerRef</code></strong> and the operator
 does not create a cert-manager <code>Certificate</code>.</p>
 </div>
-<h2 id="native-tls-alpha">Native TLS (alpha)<a class="headerlink" href="#native-tls-alpha" title="Permanent link">&para;</a></h2>
-<p>Home Assistant terminates TLS itself, serving HTTPS on its existing port (<code>8123</code>) —
-no reverse proxy required. The operator provisions a certificate, mounts the Secret
-into the pod at <code>/config/ssl</code>, sets <code>http.ssl_certificate</code>/<code>ssl_key</code> in the generated
-configuration, and switches its own connection to Home Assistant to HTTPS (trusting
-the issued CA — certificate verification is never disabled).</p>
-<div class="admonition warning">
-<p class="admonition-title">This is an <code>spec.alpha</code> feature</p>
-<p>Native TLS changes how Home Assistant serves traffic and how the operator
-connects to it, so it lives under <code>spec.alpha</code> and is <strong>off by default</strong>. Alpha
-fields may change or be removed without a deprecation notice.</p>
-</div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistant</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">metadata</span><span class="p">:</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">alpha</span><span class="p">:</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="nt">tls</span><span class="p">:</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">      </span><span class="nt">native</span><span class="p">:</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">        </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">        </span><span class="nt">issuerRef</span><span class="p">:</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">          </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">          </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">        </span><span class="nt">dnsNames</span><span class="p">:</span>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.example.com</span>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">        </span><span class="c1"># secretName: my-tls   # bring-your-own; overrides issuerRef</span>
-</code></pre></div>
-<p>The operator always adds the in-cluster Service FQDN
-(<code>&lt;name&gt;.&lt;namespace&gt;.svc.cluster.local</code>) to the certificate's SANs so it can verify
-Home Assistant over HTTPS. When cert-manager rotates the certificate, the pod is
-rolled to pick up the new material.</p>
-<p>The pod switches to HTTPS only <strong>after</strong> the certificate is issued, so enabling the
-mode never leaves Home Assistant stuck without a certificate.</p>
 <h2 id="ingress-api-gateway-exposure">Ingress / API Gateway exposure<a class="headerlink" href="#ingress-api-gateway-exposure" title="Permanent link">&para;</a></h2>
 <p>The operator manages the edge routing resources <strong>and</strong> their certificate.</p>
 <h3 id="ingress">Ingress<a class="headerlink" href="#ingress" title="Permanent link">&para;</a></h3>
 <p>Enable <code>spec.ingress</code> and add an <code>issuerRef</code> under <code>tls</code>. The operator creates the
 <code>Ingress</code> and a <code>Certificate</code> whose Secret backs the Ingress TLS.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">ingress</span><span class="p">:</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.example.com</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="nt">ingressClassName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="nt">tls</span><span class="p">:</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">      </span><span class="nt">issuerRef</span><span class="p">:</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">ingress</span><span class="p">:</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.example.com</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="nt">ingressClassName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="nt">tls</span><span class="p">:</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">      </span><span class="nt">issuerRef</span><span class="p">:</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">        </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span>
 </code></pre></div>
 <h3 id="gateway-api">Gateway API<a class="headerlink" href="#gateway-api" title="Permanent link">&para;</a></h3>
 <p><code>spec.gateway</code> (a stable opt-in) makes the operator manage a <code>HTTPRoute</code> that routes
 to Home Assistant, and — when <code>manageGateway: true</code> — a <code>Gateway</code> with an HTTPS
 listener. Attach the route to an existing <code>Gateway</code> via <code>parentRef</code>, or let the
 operator create one.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">gateway</span><span class="p">:</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.example.com</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">issuerRef</span><span class="p">:</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">      </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="nt">parentRef</span><span class="p">:</span><span class="w">                 </span><span class="c1"># attach to an existing Gateway listener</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik-gateway</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">      </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gateway</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">      </span><span class="nt">sectionName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https</span>
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="c1"># manageGateway: true      # ...or let the operator create the Gateway</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">gateway</span><span class="p">:</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.example.com</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="nt">issuerRef</span><span class="p">:</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca-issuer</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">      </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="nt">parentRef</span><span class="p">:</span><span class="w">                 </span><span class="c1"># attach to an existing Gateway listener</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik-gateway</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">      </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gateway</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">      </span><span class="nt">sectionName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span><span class="c1"># manageGateway: true      # ...or let the operator create the Gateway</span>
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">What the operator does not manage</p>
@@ -2040,11 +2013,30 @@ operator create one.</p>
 controller itself — those are provided by your platform. It only manages the
 routing resources and the certificate.</p>
 </div>
+<h2 id="migrating-from-native-tls">Migrating from native TLS<a class="headerlink" href="#migrating-from-native-tls" title="Permanent link">&para;</a></h2>
+<p><code>spec.alpha.tls</code> (native HTTPS inside the Home Assistant pod) has been removed.
+It was an experimental <code>spec.alpha</code> feature; the maintenance cost of switching the
+pod between HTTP and HTTPS, mounting the certificate and having the operator trust
+Home Assistant over HTTPS outweighed its value next to mature edge termination.</p>
+<p>To keep HTTPS:</p>
+<ol>
+<li>Drop the <code>spec.alpha.tls</code> block from your <code>HomeAssistant</code> manifest. (Newer
+   operators ignore an unknown field, so a stale manifest applies without error and
+   <code>kubectl diff</code> shows no drift.)</li>
+<li>Enable <strong>Ingress</strong> (<code>spec.ingress.tls</code>) or <strong>API Gateway</strong> (<code>spec.gateway</code>) as
+   shown above — both terminate TLS at the edge, in front of the Service.</li>
+<li>If your automation waited on the <code>TLSReady</code> condition, switch it to
+   <code>ExposureReady</code> instead.</li>
+</ol>
+<p>On upgrade, an instance that had native TLS enabled reverts to HTTP automatically
+on the first reconcile, the operator-managed <code>&lt;name&gt;-native-tls</code> Certificate is
+deleted, and a single <code>Warning</code> event (<code>NativeTLSRemoved</code>) is emitted. A TLS Secret
+you provided yourself (<code>secretName</code>) is never deleted — only unmounted.</p>
 <h2 id="webhook">Webhook<a class="headerlink" href="#webhook" title="Permanent link">&para;</a></h2>
 <p>The operator ships a validating admission webhook that checks the coherence of your
-configuration at apply time (for example, it rejects native TLS enabled without an
-<code>issuerRef</code> or <code>secretName</code>). It is <strong>enabled by default (opt-out)</strong> — more
-validations will be added over time; disable it with <code>--set webhook.enabled=false</code>
+configuration at apply time (for example, it rejects <code>spec.ingress.tls</code> enabled
+without an <code>issuerRef</code> or <code>secretName</code>). It is <strong>enabled by default (opt-out)</strong> —
+more validations will be added over time; disable it with <code>--set webhook.enabled=false</code>
 if it ever gets in your way.</p>
 <h3 id="self-managed-serving-certificate-default-no-cert-manager">Self-managed serving certificate (default — no cert-manager)<a class="headerlink" href="#self-managed-serving-certificate-default-no-cert-manager" title="Permanent link">&para;</a></h3>
 <p>By default the <strong>operator manages its own serving certificate</strong>: it generates a
@@ -2080,8 +2072,8 @@ the same on Helm, Kustomize and plain manifests.</p>
 <h3 id="cert-manager-opt-in-override">cert-manager (opt-in override)<a class="headerlink" href="#cert-manager-opt-in-override" title="Permanent link">&para;</a></h3>
 <p>If you prefer cert-manager to issue and rotate the serving certificate (for example
 to centralize certificate policy), opt in:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>ha-operator<span class="w"> </span>...<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--set<span class="w"> </span>webhook.certManager.enabled<span class="o">=</span><span class="nb">true</span><span class="w">   </span><span class="c1"># requires cert-manager installed</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>ha-operator<span class="w"> </span>...<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>--set<span class="w"> </span>webhook.certManager.enabled<span class="o">=</span><span class="nb">true</span><span class="w">   </span><span class="c1"># requires cert-manager installed</span>
 </code></pre></div>
 <div class="admonition info">
 <p class="admonition-title">Installation never requires cert-manager</p>
@@ -2111,29 +2103,25 @@ down, or disable the webhook entirely.</p>
 <td>Whether cert-manager was detected on the cluster</td>
 </tr>
 <tr>
-<td><code>TLSReady</code></td>
-<td>Whether the certificate for the enabled TLS mode has been issued</td>
-</tr>
-<tr>
 <td><code>ExposureReady</code></td>
 <td>Whether the Ingress/Gateway exposure resources are reconciled</td>
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>homeassistant<span class="w"> </span>home<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.status.conditions}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>homeassistant<span class="w"> </span>home<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.status.conditions}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq
 </code></pre></div>
 <h2 id="behavior-without-cert-manager">Behavior without cert-manager<a class="headerlink" href="#behavior-without-cert-manager" title="Permanent link">&para;</a></h2>
 <p>If you enable a cert-manager-backed TLS mode while cert-manager is absent:</p>
 <ul>
 <li>The resource reports <code>CertManagerAvailable=False</code> (reason <code>CertManagerNotInstalled</code>)
-  and <code>TLSReady=Unknown</code>, and emits a <code>CertManagerUnavailable</code> event.</li>
+  and emits a <code>CertManagerUnavailable</code> event.</li>
 <li>Home Assistant keeps serving over HTTP; exposure keeps working over HTTP.</li>
 <li>No error is raised and reconciliation does not loop.</li>
 <li>Once you install cert-manager, the operator provisions the certificate automatically.</li>
 </ul>
 <p>See also: <a href="../../reference/troubleshooting/">Troubleshooting</a> and the
 <a href="https://github.com/przemekhys/homeassistant-operator/tree/main/config/samples"><code>config/samples/</code></a>
-directory (<code>ha_v1_native_tls.yaml</code>, <code>ha_v1_ingress_tls.yaml</code>, <code>ha_v1_gateway_managed_tls.yaml</code>).</p>
+directory (<code>ha_v1_ingress_tls.yaml</code>, <code>ha_v1_gateway_managed_tls.yaml</code>).</p>
 
 
 

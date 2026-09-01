@@ -1481,6 +1481,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#httpconfigsource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPConfigSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#httpheader" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2108,17 +2119,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#nativetlsalphaspec" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        NativeTLSAlphaSpec
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#networkpolicyalphaspec" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2244,17 +2244,6 @@
     <span class="md-ellipsis">
       
         StorageSpec
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#tlsalphaspec" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        TLSAlphaSpec
       
     </span>
   </a>
@@ -2771,6 +2760,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#httpconfigsource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPConfigSource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#httpheader" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3398,17 +3398,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#nativetlsalphaspec" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        NativeTLSAlphaSpec
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#networkpolicyalphaspec" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3534,17 +3523,6 @@
     <span class="md-ellipsis">
       
         StorageSpec
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#tlsalphaspec" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        TLSAlphaSpec
       
     </span>
   </a>
@@ -3683,12 +3661,6 @@ default false) -&gt; stable default false -&gt; stable default true -&gt; mandat
 <tr>
 <td><code>networkPolicy</code> <em><a href="#networkpolicyalphaspec">NetworkPolicyAlphaSpec</a></em></td>
 <td>NetworkPolicy controls whether the operator creates a NetworkPolicy<br />restricting ingress to the Home Assistant pod.</td>
-<td></td>
-<td>Optional: {} <br /></td>
-</tr>
-<tr>
-<td><code>tls</code> <em><a href="#tlsalphaspec">TLSAlphaSpec</a></em></td>
-<td>TLS groups experimental TLS integration with cert-manager. Native TLS<br />changes the Home Assistant pod networking/config, so it starts in<br />spec.alpha until it stabilizes.</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>
@@ -4168,6 +4140,29 @@ lives at the top level rather than under spec.alpha.</p>
 <td>UseXForwardedFor enables usage of X-Forwarded-For header</td>
 <td></td>
 <td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
+<h4 id="httpconfigsource">HTTPConfigSource<a class="headerlink" href="#httpconfigsource" title="Permanent link">&para;</a></h4>
+<p><em>Underlying type:</em> <em>string</em></p>
+<p>HTTPConfigSource is the channel the operator uses for the http: configuration.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantconfigurationstatus">HomeAssistantConfigurationStatus</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Api</code></td>
+<td>HTTPConfigSourceAPI: delivered through the Home Assistant http config API.<br /></td>
+</tr>
+<tr>
+<td><code>Yaml</code></td>
+<td>HTTPConfigSourceYAML: written into configuration.yaml (older Home Assistant).<br /></td>
 </tr>
 </tbody>
 </table>
@@ -5052,6 +5047,12 @@ Home Assistant.</p>
 <td>TrustedProxiesDefaulted reports whether the operator's default<br />http.trusted_proxies / http.use_x_forwarded_for values are currently<br />active in the generated configuration for the referenced HomeAssistant.<br />false covers every case where they are not active (not exposed via<br />Ingress/Gateway, opted out via spec.disableDefaultTrustedProxies, or the<br />user already manages these keys themselves) — see the HomeAssistant's own<br />ExposureReady condition message for which of those it is.</td>
 <td></td>
 <td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>httpConfigSource</code> <em><a href="#httpconfigsource">HTTPConfigSource</a></em></td>
+<td>HTTPConfigSource reports which channel the operator uses to deliver the<br />http: configuration to the referenced HomeAssistant: "Api" on Home<br />Assistant 2026.8+ (the http config WebSocket API), "Yaml" on older<br />versions (the http: block in configuration.yaml). Empty until the operator<br />has been able to determine it (the instance not yet reachable).</td>
+<td></td>
+<td>Enum: [Api Yaml] <br />Optional: {} <br /></td>
 </tr>
 </tbody>
 </table>
@@ -6602,8 +6603,7 @@ Exactly one of Value, JSONValue, or SecretKeyRef must be set.</p>
 operator only references issuers — it never creates application issuers.</p>
 <p><em>Appears in:</em>
 - <a href="#gatewayspec">GatewaySpec</a>
-- <a href="#ingresstlsspec">IngressTLSSpec</a>
-- <a href="#nativetlsalphaspec">NativeTLSAlphaSpec</a></p>
+- <a href="#ingresstlsspec">IngressTLSSpec</a></p>
 <table>
 <thead>
 <tr>
@@ -6762,46 +6762,6 @@ operator only references issuers — it never creates application issuers.</p>
 <td><code>keepAlive</code> <em>integer</em></td>
 <td>KeepAlive defines MQTT keep-alive interval in seconds</td>
 <td>60</td>
-<td>Optional: {} <br /></td>
-</tr>
-</tbody>
-</table>
-<h4 id="nativetlsalphaspec">NativeTLSAlphaSpec<a class="headerlink" href="#nativetlsalphaspec" title="Permanent link">&para;</a></h4>
-<p>NativeTLSAlphaSpec configures native TLS termination inside Home Assistant.</p>
-<p><em>Appears in:</em>
-- <a href="#tlsalphaspec">TLSAlphaSpec</a></p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-<th>Default</th>
-<th>Validation</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>enabled</code> <em>boolean</em></td>
-<td>Enabled turns on native TLS. Home Assistant serves HTTPS on its existing<br />port (8123); the Service port is unchanged. Requires cert-manager to be<br />installed (or a bring-your-own SecretName). When cert-manager is absent,<br />the operator reports a status condition and keeps serving HTTP.<br />Deliberately without omitempty (see NetworkPolicyAlphaSpec.Enabled).</td>
-<td>false</td>
-<td>Optional: {} <br /></td>
-</tr>
-<tr>
-<td><code>issuerRef</code> <em><a href="#issuerreference">IssuerReference</a></em></td>
-<td>IssuerRef references an existing cert-manager Issuer/ClusterIssuer used to<br />issue the certificate. Required unless SecretName (bring-your-own) is set.</td>
-<td></td>
-<td>Optional: {} <br /></td>
-</tr>
-<tr>
-<td><code>dnsNames</code> <em>string array</em></td>
-<td>DNSNames are additional SANs for the certificate. The operator always adds<br />the in-cluster Service FQDN so it can trust HA over HTTPS.</td>
-<td></td>
-<td>Optional: {} <br /></td>
-</tr>
-<tr>
-<td><code>secretName</code> <em>string</em></td>
-<td>SecretName references a user-provided TLS Secret (bring-your-own). When<br />set, the operator does not create a cert-manager Certificate and this<br />Secret takes precedence over IssuerRef.</td>
-<td></td>
 <td>Optional: {} <br /></td>
 </tr>
 </tbody>
@@ -7143,28 +7103,6 @@ This is a flexible structure that accepts any valid Home Assistant field configu
 <tr>
 <td><code>initContainer</code> <em><a href="#initcontainerspec">InitContainerSpec</a></em></td>
 <td>InitContainer configures the init container that pre-creates required YAML files<br />(automations.yaml, scenes.yaml, scripts.yaml) on the PVC before Home Assistant starts.<br />This prevents HA from entering recovery mode when the !include directives are present<br />but the files do not yet exist.</td>
-<td></td>
-<td>Optional: {} <br /></td>
-</tr>
-</tbody>
-</table>
-<h4 id="tlsalphaspec">TLSAlphaSpec<a class="headerlink" href="#tlsalphaspec" title="Permanent link">&para;</a></h4>
-<p>TLSAlphaSpec groups the (alpha) TLS integration modes backed by cert-manager.</p>
-<p><em>Appears in:</em>
-- <a href="#alphaspec">AlphaSpec</a></p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-<th>Default</th>
-<th>Validation</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>native</code> <em><a href="#nativetlsalphaspec">NativeTLSAlphaSpec</a></em></td>
-<td>Native enables Home Assistant to serve HTTPS natively (TLS terminated in<br />HA itself on the same port), using a certificate issued by cert-manager.</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>

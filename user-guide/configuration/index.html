@@ -861,6 +861,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#http-configuration-on-home-assistant-20268" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTP configuration on Home Assistant 2026.8+
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#gitops-ownership" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1801,6 +1812,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#http-configuration-on-home-assistant-20268" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTP configuration on Home Assistant 2026.8+
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#gitops-ownership" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1956,7 +1978,7 @@
 <tbody>
 <tr>
 <td><code>auto</code> (default)</td>
-<td>Hot-reload for <code>automation</code>, <code>script</code>, <code>scene</code>, <code>logger</code>, <code>input_*</code>, <code>template</code>, <code>zone</code>. Restart for <code>homeassistant</code>, <code>http</code>, <code>mqtt</code>, and unknown sections.</td>
+<td>Hot-reload for <code>automation</code>, <code>script</code>, <code>scene</code>, <code>logger</code>, <code>input_*</code>, <code>template</code>, <code>zone</code>. Restart for <code>homeassistant</code>, <code>mqtt</code>, and unknown sections. <code>http</code> triggers a pod restart <strong>only on the YAML delivery path</strong> (older Home Assistant); on the API path Home Assistant restarts its own process when needed and the operator does not roll the pod.</td>
 </tr>
 <tr>
 <td><code>hot-reload</code></td>
@@ -1974,7 +1996,7 @@
 <p>When <code>reloadStrategy: auto</code> is set, the operator parses the YAML diff between the old and new configuration:</p>
 <ul>
 <li><strong>Hot-reload</strong> (no restart): <code>automation</code>, <code>script</code>, <code>scene</code>, <code>logger</code>, <code>input_boolean</code>, <code>input_number</code>, <code>input_text</code>, <code>input_select</code>, <code>input_datetime</code>, <code>template</code>, <code>zone</code></li>
-<li><strong>Restart</strong> (rolling restart): <code>homeassistant</code>, <code>http</code>, <code>mqtt</code>, and any unknown top-level key</li>
+<li><strong>Restart</strong> (rolling restart): <code>homeassistant</code>, <code>mqtt</code>, and any unknown top-level key. <code>http</code> too — <strong>but only on the YAML delivery path</strong>. On Home Assistant 2026.8+ the <code>http:</code> section is delivered through the API (see <a href="#http-configuration-on-home-assistant-20268">HTTP configuration</a>) and is excluded from this diff entirely; Home Assistant restarts its own process if the change needs it, without a pod rollout from the operator.</li>
 </ul>
 <p>If a single change touches both categories, the operator restarts (safer path).</p>
 <h2 id="auto-include">Auto-include<a class="headerlink" href="#auto-include" title="Permanent link">&para;</a></h2>
@@ -1984,6 +2006,37 @@
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nt">script</span><span class="p">:</span><span class="w"> </span><span class="kt">!include</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scripts.yaml</span>
 </code></pre></div>
 <p>These lines are required for Home Assistant to load resources managed by <code>HomeAssistantAutomation</code>, <code>HomeAssistantScene</code>, and <code>HomeAssistantScript</code>. You do not need to add them manually.</p>
+<h2 id="http-configuration-on-home-assistant-20268">HTTP configuration on Home Assistant 2026.8+<a class="headerlink" href="#http-configuration-on-home-assistant-20268" title="Permanent link">&para;</a></h2>
+<p>Home Assistant 2026.8 moved the <code>http</code> integration out of <code>configuration.yaml</code>
+into its own store, managed from the UI under <strong>Settings → System → Network</strong>.
+The YAML <code>http:</code> block is ignored after Home Assistant's one-time import, and
+stops working entirely in Home Assistant 2027.2.0.</p>
+<p>You keep writing <code>http:</code> in <code>spec.configuration</code> exactly as before — nothing in
+your resource changes. On a Home Assistant that supports the new API the operator:</p>
+<ul>
+<li>applies the <code>http:</code> section (plus its default <code>trusted_proxies</code> /
+  <code>use_x_forwarded_for</code> for Ingress/Gateway-exposed instances) through that API;</li>
+<li><strong>omits <code>http:</code> from the generated <code>configuration.yaml</code></strong>, so Home Assistant
+  does not raise a "remove the http: block" repair issue;</li>
+<li>reports which channel it used in <code>status.httpConfigSource</code> (<code>Api</code> or <code>Yaml</code>)
+  and whether it took effect in the <code>HTTPConfigReady</code> condition.</li>
+</ul>
+<p>On older Home Assistant the <code>http:</code> block still goes into <code>configuration.yaml</code>
+as it always has. Switching Home Assistant versions in either direction is
+picked up automatically, with no operator restart.</p>
+<div class="admonition warning">
+<p class="admonition-title">The resource is the source of truth</p>
+<p>The operator enforces the <code>http</code> configuration from the resource. A change
+made in the Home Assistant UI (Settings → System → Network) to a setting the
+resource covers is <strong>reverted on the next reconcile</strong> — even though Home
+Assistant itself points you at that UI. Edit <code>spec.configuration</code>, not the
+Home Assistant UI, for these settings. The operator never confirms a pending
+change it did not send, so a change you start in the UI is left for you (or
+Home Assistant's 5-minute auto-revert) to resolve.</p>
+<p>If your <code>http:</code> section is an <code>!include</code> of a separate file, the operator
+cannot read it to deliver via the API — it stays in <code>configuration.yaml</code> and
+Home Assistant's warning remains until you inline the keys.</p>
+</div>
 <h2 id="gitops-ownership">GitOps ownership<a class="headerlink" href="#gitops-ownership" title="Permanent link">&para;</a></h2>
 <p>The generated ConfigMap is owned exclusively by the operator. Any direct edits to the ConfigMap are detected and reverted on the next reconcile. <strong>Always edit the <code>HomeAssistantConfiguration</code> CR</strong>, not the ConfigMap.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Correct workflow</span>

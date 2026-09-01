@@ -1825,13 +1825,11 @@
 <li><strong><code>CertManagerAvailable=False</code> (<code>CertManagerNotInstalled</code>)</strong> — cert-manager is not
   installed. Home Assistant keeps serving over HTTP; install cert-manager and the
   operator picks it up automatically (no restart needed).</li>
-<li><strong><code>TLSReady=False</code> (<code>CertificateNotIssued</code>)</strong> — the <code>Certificate</code> exists but has not
-  been issued. Inspect it: <code>kubectl describe certificate &lt;name&gt;-native-tls</code> (or
-  <code>-ingress-tls</code> / <code>-gateway-tls</code>) and check the referenced <code>Issuer</code>/<code>ClusterIssuer</code>
-  is Ready.</li>
-<li><strong>Native TLS pod not switching to HTTPS</strong> — the pod switches only after the TLS
-  Secret exists. Confirm the Secret (<code>&lt;name&gt;-native-tls</code>) is populated and that the
-  StatefulSet rolled out.</li>
+<li><strong>Edge certificate not issued</strong> — the <code>Certificate</code> exists but has not been issued.
+  Inspect it: <code>kubectl describe certificate &lt;name&gt;-ingress-tls</code> (or <code>-gateway-tls</code>)
+  and check the referenced <code>Issuer</code>/<code>ClusterIssuer</code> is Ready.</li>
+<li><strong><code>spec.alpha.tls</code> seems to be ignored</strong> — native TLS was removed. Move to
+  <code>spec.ingress.tls</code> or <code>spec.gateway</code> (see the <a href="../../user-guide/tls/">TLS guide</a>).</li>
 </ul>
 <h2 id="homeassistantcommunityrepository-fails-with-an-extraction-limit-error">HomeAssistantCommunityRepository fails with an extraction limit error<a class="headerlink" href="#homeassistantcommunityrepository-fails-with-an-extraction-limit-error" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>homeassistantcommunityrepository<span class="w"> </span>&lt;name&gt;<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.status.lastError}&#39;</span>
