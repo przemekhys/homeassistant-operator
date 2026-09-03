@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.21.0
+    controller-gen.kubebuilder.io/version: v0.22.0
   name: homeassistants.ha.homeassistant.io
 spec:
   group: ha.homeassistant.io
@@ -112,6 +112,11 @@ spec:
                           silently re-defaulted to true by the API server once that happens.
                         type: boolean
                     type: object
+                type: object
+              annotations:
+                additionalProperties:
+                  type: string
+                description: Additional annotations for the StatefulSet and Pod
                 type: object
               backup:
                 description: |-
@@ -635,6 +640,11 @@ spec:
                           (bring-your-own) and takes precedence over IssuerRef.
                         type: string
                     type: object
+                type: object
+              labels:
+                additionalProperties:
+                  type: string
+                description: Additional labels for the StatefulSet and Pod
                 type: object
               resources:
                 description: Resources defines CPU and memory requests/limits
