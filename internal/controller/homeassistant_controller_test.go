@@ -1618,6 +1618,221 @@ var _ = Describe("HomeAssistant Controller", func() {
 		})
 	})
 
+	Context("When Spec.AdditionalVolumes is configured", func() {
+		const (
+			resourceName    = "test-hass"
+			pvcName         = "test-pvc"
+			volumeName      = "test-volume"
+			volumeMountPath = "/foo/bar"
+			namespace       = "default"
+			timeout         = time.Second * 10
+			interval        = time.Millisecond * 250
+		)
+
+		AfterEach(func() {
+			// Cleanup HomeAssistantConfiguration resources
+			configList := &hav1.HomeAssistantConfigurationList{}
+			_ = k8sClient.List(ctx, configList, &client.ListOptions{Namespace: namespace})
+			for _, config := range configList.Items {
+				_ = k8sClient.Delete(ctx, &config)
+			}
+
+			// Cleanup all HomeAssistant resources
+			haList := &hav1.HomeAssistantList{}
+			_ = k8sClient.List(ctx, haList, &client.ListOptions{Namespace: namespace})
+			for _, ha := range haList.Items {
+				_ = k8sClient.Delete(ctx, &ha)
+			}
+
+			// Cleanup all ConfigMaps
+			cmList := &corev1.ConfigMapList{}
+			_ = k8sClient.List(ctx, cmList, &client.ListOptions{Namespace: namespace})
+			for _, cm := range cmList.Items {
+				_ = k8sClient.Delete(ctx, &cm)
+			}
+
+			// Wait for resources to be deleted
+			Eventually(func() int {
+				haList := &hav1.HomeAssistantList{}
+				_ = k8sClient.List(ctx, haList, &client.ListOptions{Namespace: namespace})
+				return len(haList.Items)
+			}, timeout, interval).Should(Equal(0))
+		})
+
+		It("should render the volume configs in the StatefulSet", func() {
+			By("Defining a volume spec and mount")
+			volume := corev1.Volume{
+				Name: volumeName,
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: pvcName,
+					},
+				},
+			}
+			volumeMount := corev1.VolumeMount{
+				Name:      volumeName,
+				MountPath: volumeMountPath,
+			}
+
+			By("Creating a new HomeAssistant")
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName,
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantSpec{
+					Version: "2024.1",
+					AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+						Volumes:      []corev1.Volume{volume},
+						VolumeMounts: []corev1.VolumeMount{volumeMount},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+
+			By("Creating HomeAssistantConfiguration")
+			haConfig := &hav1.HomeAssistantConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName + "-config",
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantConfigurationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{
+						Name: resourceName,
+					},
+					Configuration: "homeassistant:\n  name: Home\n",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haConfig)).To(Succeed())
+
+			By("Reconciling the resource")
+			reconciler := &HomeAssistantReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      resourceName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying StatefulSet was created with the configured volumes")
+			Eventually(func(g Gomega) {
+				sts := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      resourceName,
+					Namespace: namespace,
+				}, sts)).To(Succeed())
+				g.Expect(sts.Spec.Template.Spec.Volumes).To(ContainElement(volume))
+				g.Expect(sts.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElement(volumeMount))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should update the StatefulSet on changes", func() {
+			By("Defining a volume spec and mount")
+			volume := corev1.Volume{
+				Name: volumeName,
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: pvcName,
+						ReadOnly:  false,
+					},
+				},
+			}
+			volumeMount := corev1.VolumeMount{
+				Name:      volumeName,
+				MountPath: volumeMountPath,
+			}
+
+			By("Creating a new HomeAssistant")
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName,
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantSpec{
+					Version: "2024.1",
+					AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+						Volumes:      []corev1.Volume{volume},
+						VolumeMounts: []corev1.VolumeMount{volumeMount},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+
+			By("Creating HomeAssistantConfiguration")
+			haConfig := &hav1.HomeAssistantConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName + "-config",
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantConfigurationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{
+						Name: resourceName,
+					},
+					Configuration: "homeassistant:\n  name: Home\n",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haConfig)).To(Succeed())
+
+			By("Reconciling the resource")
+			reconciler := &HomeAssistantReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      resourceName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying StatefulSet was created with the configured volumes")
+			Eventually(func(g Gomega) {
+				sts := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      resourceName,
+					Namespace: namespace,
+				}, sts)).To(Succeed())
+				g.Expect(sts.Spec.Template.Spec.Volumes).To(ContainElement(volume))
+				g.Expect(sts.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElement(volumeMount))
+			}, timeout, interval).Should(Succeed())
+
+			By("Changing the volume config")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name:      resourceName,
+				Namespace: namespace,
+			}, ha)).To(Succeed())
+			Expect(ha.Spec.AdditionalVolumes.Volumes).To(ConsistOf(volume))
+
+			volume.PersistentVolumeClaim.ReadOnly = true
+			ha.Spec.AdditionalVolumes.Volumes = []corev1.Volume{volume}
+			Expect(k8sClient.Update(ctx, ha)).To(Succeed())
+
+			By("Reconciling the updated config")
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      resourceName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying StatefulSet was updated to match the new volume config")
+			Eventually(func(g Gomega) {
+				sts := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      resourceName,
+					Namespace: namespace,
+				}, sts)).To(Succeed())
+				g.Expect(sts.Spec.Template.Spec.Volumes).To(ContainElement(volume))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
 	Context("When spec.alpha.networkPolicy is configured", func() {
 		const (
 			testName  = "test-netpol"

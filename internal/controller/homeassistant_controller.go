@@ -29,6 +29,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -732,6 +733,10 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 		},
 	}
 
+	if ha.Spec.AdditionalVolumes != nil && ha.Spec.AdditionalVolumes.VolumeMounts != nil {
+		volumeMounts = append(volumeMounts, ha.Spec.AdditionalVolumes.VolumeMounts...)
+	}
+
 	// Build volumes
 	volumes := []corev1.Volume{
 		{
@@ -742,6 +747,10 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 				},
 			},
 		},
+	}
+
+	if ha.Spec.AdditionalVolumes != nil && ha.Spec.AdditionalVolumes.Volumes != nil {
+		volumes = append(volumes, ha.Spec.AdditionalVolumes.Volumes...)
 	}
 
 	// Add ConfigMap volume for configuration.yaml
@@ -1912,47 +1921,27 @@ func securityContextsEqual(current, desired *corev1.SecurityContext) bool {
 	return currentPrivileged == desiredPrivileged
 }
 
-// hostPathsEqual compares the fields of a hostPath volume source that
-// buildStatefulSet sets for spec.alpha.devices entries (Path, Type).
-func hostPathsEqual(current, desired *corev1.HostPathVolumeSource) bool {
-	if (current == nil) != (desired == nil) {
-		return false
-	}
-	if current == nil {
-		return true
-	}
-	currentType := corev1.HostPathUnset
-	if current.Type != nil {
-		currentType = *current.Type
-	}
-	desiredType := corev1.HostPathUnset
-	if desired.Type != nil {
-		desiredType = *desired.Type
-	}
-	return current.Path == desired.Path && currentType == desiredType
-}
-
-// volumeContentDiffers compares volume HostPath and VolumeMount MountPath
-// content index-by-index across all of the pod template's volumes/mounts
-// (e.g. a spec.alpha.devices entry's hostPath or containerPath edited in
-// place, where the volume count itself is unchanged). Callers must already
-// have confirmed the volume and mount counts match. Split out of
-// needsUpdate to keep its cyclomatic complexity in check.
+// volumeContentDiffers compares Volume and VolumeMount content index-by-index
+// across all of the pod template's volumes/mount. Callers must already have
+// confirmed the volume and mount counts match. Split out of needsUpdate to keep
+// its cyclomatic complexity in check.
 func volumeContentDiffers(
-	current, desired *appsv1.StatefulSet, currentContainer, desiredContainer corev1.Container,
+	current, desired *appsv1.StatefulSet,
+	currentContainer, desiredContainer corev1.Container,
 ) bool {
 	log := logf.Log.WithName("needsUpdate")
 	for i, cv := range current.Spec.Template.Spec.Volumes {
 		dv := desired.Spec.Template.Spec.Volumes[i]
-		if !hostPathsEqual(cv.HostPath, dv.HostPath) {
-			log.V(1).Info("Volume HostPath differs", "index", i)
+		if !equality.Semantic.DeepDerivative(cv, dv) {
+			log.V(1).Info("Volume differs", "index", i, "name", dv.Name)
 			return true
 		}
 	}
+
 	for i, cm := range currentContainer.VolumeMounts {
-		if cm.MountPath != desiredContainer.VolumeMounts[i].MountPath {
-			log.V(1).Info("VolumeMount MountPath differs",
-				"index", i, "current", cm.MountPath, "desired", desiredContainer.VolumeMounts[i].MountPath)
+		dm := desiredContainer.VolumeMounts[i]
+		if !equality.Semantic.DeepDerivative(cm, dm) {
+			log.V(1).Info("VolumeMount differs", "index", i)
 			return true
 		}
 	}

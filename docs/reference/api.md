@@ -35,6 +35,23 @@ Package v1 contains API Schema definitions for the ha v1 API group.
 
 
 
+#### AdditionalVolumesSpec
+
+
+
+AdditionalVolumesSpec defines additional volumes to mount in the Home Assistant pod.
+
+
+
+_Appears in:_
+- [HomeAssistantSpec](#homeassistantspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#volume-v1-core) array_ | Volumes to attach to each Home Assistant pod |  | Optional: \{\} <br /> |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#volumemount-v1-core) array_ | VolumeMounts to attach to each Home Assistant container |  | Optional: \{\} <br /> |
+
+
 #### AlphaSpec
 
 
@@ -1272,6 +1289,7 @@ _Appears in:_
 | `version` _string_ | Version is the Home Assistant version/tag to deploy (e.g., "2024.1.0", "stable", "latest") | stable | Optional: \{\} <br /> |
 | `image` _string_ | Image allows overriding the default Home Assistant image | ghcr.io/home-assistant/home-assistant | Optional: \{\} <br /> |
 | `storage` _[StorageSpec](#storagespec)_ | Storage configuration for Home Assistant data |  | Optional: \{\} <br /> |
+| `additionalVolumes` _[AdditionalVolumesSpec](#additionalvolumesspec)_ | Additional volumes and mounts for the Home Assistant pod |  | Optional: \{\} <br /> |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#resourcerequirements-v1-core)_ | Resources defines CPU and memory requests/limits |  | Optional: \{\} <br /> |
 | `service` _[ServiceSpec](#servicespec)_ | Service configuration for exposing Home Assistant |  | Optional: \{\} <br /> |
 | `ingress` _[IngressSpec](#ingressspec)_ | Ingress configuration for external access |  | Optional: \{\} <br /> |
