@@ -4,8 +4,8 @@
 #
 # Verifies, for one published version tag: the container image signature, the
 # Helm chart OCI artifact signature, and the signed checksums.txt.sigstore.json
-# attached to the GitHub Release — all keyless (Sigstore/cosign), pinned to
-# this repository's own release workflow identity.
+# attached to the GitHub Release. It also validates the release installation
+# manifest against the signed checksum, all pinned to the release workflow identity.
 #
 # Requires: cosign, gh, crane (or skopeo) to resolve the image manifest digest.
 set -euo pipefail
@@ -48,14 +48,16 @@ cosign verify \
   --certificate-oidc-issuer "$ISSUER" \
   "${CHART_REF#oci://}@${CHART_DIGEST}"
 
-echo "==> Verifying checksums.txt bundle from the ${VERSION} GitHub Release"
+echo "==> Verifying checksums.txt bundle and installation manifest from the ${VERSION} GitHub Release"
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
-gh release download "$VERSION" --repo "$REPO" -p 'checksums.txt*' --dir "$WORKDIR"
+gh release download "$VERSION" --repo "$REPO" -p 'install.yaml' -p 'checksums.txt*' --dir "$WORKDIR"
 cosign verify-blob \
   --bundle "$WORKDIR/checksums.txt.sigstore.json" \
   --certificate-identity-regexp "$IDENTITY_REGEXP" \
   --certificate-oidc-issuer "$ISSUER" \
   "$WORKDIR/checksums.txt"
+awk '$2 == "kustomize-manifest" && $3 == "install.yaml" { print substr($1, 8) "  install.yaml"; found = 1 } END { exit !found }' \
+  "$WORKDIR/checksums.txt" | (cd "$WORKDIR" && sha256sum -c -)
 
-echo "✅ all signatures verified for ${VERSION} (image, chart, checksums bundle)."
+echo "✅ all signatures verified for ${VERSION} (image, chart, checksums bundle, installation manifest)."

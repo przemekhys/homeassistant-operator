@@ -32,6 +32,7 @@ go.work
 # Local logs and temporary files
 *.log
 *.tmp
+dist/
 .DS_Store
 Thumbs.db
 
