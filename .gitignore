@@ -27,7 +27,21 @@ go.work
 *~
 
 # env file
-.env
+.env*
+
+# Local logs and temporary files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Local Kubernetes credentials and secrets
+*.secret.yaml
+secrets/
+.kube/
+kubeconfig*
+*.key
+*.crt
 
 .devcontainer/
 

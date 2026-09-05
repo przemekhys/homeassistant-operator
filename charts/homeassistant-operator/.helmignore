@@ -1,4 +1,5 @@
 .DS_Store
+Thumbs.db
 .git
 .gitignore
 .idea/
@@ -6,6 +7,9 @@
 *.swp
 *.bak
 *.orig
+*.tmp
+*.log
+.env*
 *.tmproj
 OWNERS
 OWNERS_ALIASES

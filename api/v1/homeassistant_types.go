@@ -225,6 +225,16 @@ type GatewaySpec struct {
 	// +optional
 	ManageGateway bool `json:"manageGateway,omitempty"`
 
+	// GatewayClassName names the existing GatewayClass used by the
+	// operator-created Gateway. Defaults to "traefik" when omitted. Ignored when
+	// ParentRef is set.
+	// +optional
+	// +kubebuilder:default=traefik
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+	GatewayClassName string `json:"gatewayClassName,omitempty"`
+
 	// Filters are HTTP route-level behaviors (header modification, redirect, URL
 	// rewrite) applied, in order, to the single HTTPRoute rule the operator
 	// manages for this instance. Omitted/empty leaves the route unchanged from

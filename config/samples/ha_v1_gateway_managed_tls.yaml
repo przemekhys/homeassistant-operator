@@ -11,9 +11,9 @@
 # - Gateway API CRDs + a controller (e.g. Traefik v3)
 # - cert-manager + a ready Issuer/ClusterIssuer (referenced below)
 #
-# Attach to an existing Gateway via parentRef, OR set manageGateway: true to let
-# the operator create the Gateway (referencing an existing GatewayClass by name
-# equal to metadata.name — adjust to your environment).
+# Set manageGateway: true to let the operator create the Gateway and select an
+# existing GatewayClass with gatewayClassName. Alternatively, use parentRef to
+# attach the HTTPRoute to an existing Gateway.
 #
 # This example also shows spec.gateway.filters: route-level behaviors (header
 # modification, redirect, URL rewrite) applied to the route, without needing a
@@ -36,13 +36,14 @@ spec:
     issuerRef:
       name: letsencrypt-prod
       kind: ClusterIssuer
-    # Attach the HTTPRoute to an existing Gateway listener:
-    parentRef:
-      name: traefik-gateway
-      namespace: gateway
-      sectionName: https
-    # ...or let the operator create a Gateway instead of parentRef:
-    # manageGateway: true
+    manageGateway: true
+    # gatewayClassName defaults to traefik when omitted.
+    gatewayClassName: traefik
+    # Alternatively, attach the HTTPRoute to an existing Gateway listener:
+    # parentRef:
+    #   name: traefik-gateway
+    #   namespace: gateway
+    #   sectionName: https
     # secretName: my-existing-tls   # bring-your-own; overrides issuerRef
     # Route-level filters (optional): applied, in order, to the single route
     # the operator manages for this instance. Supported types:

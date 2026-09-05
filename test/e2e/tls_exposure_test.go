@@ -140,6 +140,7 @@ spec:
       name: %s
       kind: ClusterIssuer
     manageGateway: true
+    gatewayClassName: traefik
     filters:
       - type: RequestRedirect
         requestRedirect:
@@ -152,6 +153,11 @@ spec:
               value: SAMEORIGIN
   %s`, haName, namespace, haName, clusterIssuer, utils.GetDefaultHAResourceRequests())
 		Expect(utils.ApplyYAML(haYAML, namespace)).To(Succeed())
+
+		By("Verifying the managed Gateway selects the configured class")
+		Eventually(func() string {
+			return utils.GetResourceStatus("gateway", haName+"-gateway", namespace, "{.spec.gatewayClassName}")
+		}, utils.ResourceTimeout, utils.DefaultEventuallyPollingInterval).Should(Equal("traefik"))
 
 		By("Verifying the HTTPRoute is created with the correct hostname")
 		Eventually(func() string {
@@ -202,6 +208,22 @@ spec:
 
 		Expect(utils.GetResourceStatus("pod", haName+"-0", namespace, "{.status.startTime}")).
 			To(Equal(podStartBefore), "changing spec.gateway.filters must not restart the HA pod")
+
+		By("Changing the selected GatewayClass in place")
+		Expect(utils.PatchResource("homeassistants", haName, namespace, "merge",
+			`{"spec":{"gateway":{"gatewayClassName":"cilium"}}}`)).To(Succeed())
+		Eventually(func() string {
+			return utils.GetResourceStatus("gateway", haName+"-gateway", namespace, "{.spec.gatewayClassName}")
+		}, utils.ResourceTimeout, utils.DefaultEventuallyPollingInterval).Should(Equal("cilium"))
+
+		By("Removing the selection and restoring the default class")
+		Expect(utils.PatchResource("homeassistants", haName, namespace, "merge",
+			`{"spec":{"gateway":{"gatewayClassName":null}}}`)).To(Succeed())
+		Eventually(func() string {
+			return utils.GetResourceStatus("gateway", haName+"-gateway", namespace, "{.spec.gatewayClassName}")
+		}, utils.ResourceTimeout, utils.DefaultEventuallyPollingInterval).Should(Equal("traefik"))
+		Expect(utils.GetResourceStatus("pod", haName+"-0", namespace, "{.status.startTime}")).
+			To(Equal(podStartBefore), "changing spec.gateway.gatewayClassName must not restart the HA pod")
 	})
 })
 
