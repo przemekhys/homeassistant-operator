@@ -311,6 +311,7 @@ _Appears in:_
 | `secretName` _string_ | SecretName references a bring-your-own TLS Secret for the listener.<br />Takes precedence over IssuerRef. |  | Optional: \{\} <br /> |
 | `parentRef` _[GatewayParentRef](#gatewayparentref)_ | ParentRef references an existing Gateway/listener to attach the HTTPRoute<br />to. When empty and ManageGateway is true, the operator creates a Gateway. |  | Optional: \{\} <br /> |
 | `manageGateway` _boolean_ | ManageGateway controls whether the operator also creates a Gateway<br />resource (not just the HTTPRoute). GatewayClass and the gateway controller<br />remain the platform's responsibility. | false | Optional: \{\} <br /> |
+| `gatewayClassName` _string_ | GatewayClassName names the existing GatewayClass used by the<br />operator-created Gateway. Defaults to "traefik" when omitted. Ignored when<br />ParentRef is set. | traefik | MaxLength: 253 <br />MinLength: 1 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$` <br />Optional: \{\} <br /> |
 | `filters` _[HTTPRouteFilter](#httproutefilter) array_ | Filters are HTTP route-level behaviors (header modification, redirect, URL<br />rewrite) applied, in order, to the single HTTPRoute rule the operator<br />manages for this instance. Omitted/empty leaves the route unchanged from<br />its default shape. |  | Optional: \{\} <br /> |
 
 

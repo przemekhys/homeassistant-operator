@@ -2602,6 +2602,16 @@ spec:
                       - type
                       type: object
                     type: array
+                  gatewayClassName:
+                    default: traefik
+                    description: |-
+                      GatewayClassName names the existing GatewayClass used by the
+                      operator-created Gateway. Defaults to "traefik" when omitted. Ignored when
+                      ParentRef is set.
+                    maxLength: 253
+                    minLength: 1
+                    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                    type: string
                   host:
                     description: Host is the hostname for the route and certificate.
                     type: string
