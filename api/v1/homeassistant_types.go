@@ -34,6 +34,14 @@ type HomeAssistantSpec struct {
 	// +optional
 	Image string `json:"image,omitempty"`
 
+	// Additional labels for the StatefulSet and Pod
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+
+	// Additional annotations for the StatefulSet and Pod
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
+
 	// Storage configuration for Home Assistant data
 	// +optional
 	Storage *StorageSpec `json:"storage,omitempty"`

@@ -872,17 +872,22 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 
 	// Preserve existing pod template annotations from current StatefulSet
 	// This is critical to avoid infinite reconciliation loops when config hash annotations exist
-	existingAnnotations := make(map[string]string)
+	annotations := make(map[string]string)
 	currentSts := &appsv1.StatefulSet{}
 	if err = r.Get(ctx, types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, currentSts); err == nil {
 		// StatefulSet exists - preserve its pod template annotations
 		if currentSts.Spec.Template.Annotations != nil {
 			for k, v := range currentSts.Spec.Template.Annotations {
-				existingAnnotations[k] = v
+				annotations[k] = v
 			}
 		}
 	}
-	// If StatefulSet doesn't exist (NotFound error), existingAnnotations will be empty - this is correct
+	// If StatefulSet doesn't exist (NotFound error), annotations will be empty - this is correct
+
+	// Apply any configured annotations
+	if ha.Spec.Annotations != nil {
+		maps.Copy(annotations, ha.Spec.Annotations)
+	}
 
 	// Probes always speak plain HTTP: HA serves HTTP inside the cluster and TLS
 	// is terminated at the edge (Ingress / Gateway API), never in the HA pod.
@@ -976,7 +981,7 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      labels,
-					Annotations: existingAnnotations,
+					Annotations: annotations,
 				},
 				Spec: corev1.PodSpec{
 					AutomountServiceAccountToken: &automountSAToken,
@@ -1214,11 +1219,15 @@ func (r *HomeAssistantReconciler) buildNetworkPolicy(ha *hav1.HomeAssistant) *ne
 
 // labelsForHomeAssistant returns the labels for selecting resources belonging to the given HomeAssistant CR
 func (r *HomeAssistantReconciler) labelsForHomeAssistant(ha *hav1.HomeAssistant) map[string]string {
-	return map[string]string{
+	labels := map[string]string{
 		labelAppName:      "homeassistant",
 		labelAppInstance:  ha.Name,
 		labelAppManagedBy: "homeassistant-operator",
 	}
+	if ha.Spec.Labels != nil {
+		maps.Copy(labels, ha.Spec.Labels)
+	}
+	return labels
 }
 
 // updateHAStatusWithRetry applies mutate to ha's status and persists it via the

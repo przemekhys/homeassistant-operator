@@ -1292,6 +1292,134 @@ var _ = Describe("HomeAssistant Controller", func() {
 			Expect(desired.Spec.Template.Annotations["some-other-annotation"]).To(Equal("some-value"))
 		})
 
+		It("should apply configured annotations to the StatefulSet", func() {
+			// Use unique name to avoid conflicts
+			testName := resourceName + "-annotations"
+
+			By("Defining some annotations")
+			annotations := map[string]string{
+				"foo.example": "foo",
+				"bar.example": "bar",
+			}
+
+			By("Creating HomeAssistant and HomeAssistantConfiguration")
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testName,
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantSpec{
+					Version:     "2024.1",
+					Annotations: annotations,
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+
+			haConfig := &hav1.HomeAssistantConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testName + "-config",
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantConfigurationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{
+						Name: testName,
+					},
+					Configuration: "automation: []\nscript: []\n",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haConfig)).To(Succeed())
+
+			By("Reconciling HomeAssistant to create StatefulSet")
+			reconciler := &HomeAssistantReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for StatefulSet to be created with annotations")
+			Eventually(func(g Gomega) {
+				sts := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				}, sts)).To(Succeed())
+
+				g.Expect(sts.Spec.Template.Annotations).NotTo(BeNil())
+				g.Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("foo.example", "foo"))
+				g.Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("bar.example", "bar"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should apply configured labels to the StatefulSet", func() {
+			// Use unique name to avoid conflicts
+			testName := resourceName + "-labels"
+
+			By("Defining some labels")
+			labels := map[string]string{
+				"foo.example": "foo",
+				"bar.example": "bar",
+			}
+
+			By("Creating HomeAssistant and HomeAssistantConfiguration")
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testName,
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantSpec{
+					Version: "2024.1",
+					Labels:  labels,
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+
+			haConfig := &hav1.HomeAssistantConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testName + "-config",
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantConfigurationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{
+						Name: testName,
+					},
+					Configuration: "automation: []\nscript: []\n",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haConfig)).To(Succeed())
+
+			By("Reconciling HomeAssistant to create StatefulSet")
+			reconciler := &HomeAssistantReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for StatefulSet to be created with labels")
+			Eventually(func(g Gomega) {
+				sts := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				}, sts)).To(Succeed())
+
+				g.Expect(sts.Spec.Template.Labels).NotTo(BeNil())
+				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("foo.example", "foo"))
+				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("bar.example", "bar"))
+			}, timeout, interval).Should(Succeed())
+		})
+
 		It("should not trigger update when config hash is unchanged", func() {
 			// Use unique name to avoid conflicts
 			testName := resourceName + "-nochange"
