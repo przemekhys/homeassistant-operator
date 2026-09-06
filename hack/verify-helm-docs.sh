@@ -28,7 +28,7 @@ if ! diff -u "$backup" "$readme" >"$docs_diff" 2>&1; then
   echo "❌ Chart README is out of date with values.yaml:" >&2
   sed 's/^/   /' "$docs_diff" >&2
   echo "" >&2
-  echo "👉 Run 'make helm-docs' and commit charts/homeassistant-operator/README.md." >&2
+  echo "👉 Run 'make helm-docs', review charts/homeassistant-operator/README.md, then rerun 'make docs-verify'." >&2
   exit 1
 fi
 

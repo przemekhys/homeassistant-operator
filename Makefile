@@ -271,17 +271,17 @@ docs-setup: ## Create Python venv and install MkDocs dependencies
 	fi
 
 .PHONY: docs-serve
-docs-serve: docs-api ## Serve documentation locally (http://127.0.0.1:8000)
+docs-serve: docs-api helm-docs ## Serve documentation locally (http://127.0.0.1:8000)
 	@$(MAKE) docs-setup
 	$(DOCS_VENV)/bin/mkdocs serve --strict
 
 .PHONY: docs-build
-docs-build: docs-api ## Build documentation to site/ (regenerates API reference first)
+docs-build: docs-api helm-docs ## Build documentation to site/ (regenerates API and Helm references first)
 	@$(MAKE) docs-setup
 	$(DOCS_VENV)/bin/mkdocs build --strict
 
 .PHONY: docs-verify
-docs-verify: docs-build ## Pre-PR gate for docs: strict build (links + anchors), self-contained check, pasteable shell snippets
+docs-verify: helm-verify-docs docs-build ## Pre-PR gate for docs: generated-reference drift, strict build, self-contained check, pasteable shell snippets
 	./hack/verify-docs-selfcontained.sh
 	./hack/verify-docs-shell.sh
 
