@@ -71,10 +71,10 @@ jobs:
         run: git diff --exit-code -- docs/reference/api.md
 
       - name: Fail if the committed Helm values reference drifted from chart defaults
-        run: make helm-verify-docs HELM_DOCS=helm-docs
+        run: make helm-verify-docs HELM_DOCS=/usr/local/bin/helm-docs
 
       - name: Generate Helm values reference
-        run: make helm-docs HELM_DOCS=helm-docs
+        run: make helm-docs HELM_DOCS=/usr/local/bin/helm-docs
 
       # mkdocs offers no "error" level for link validation, only warn/info —
       # --strict is what turns those warnings into a failing build.
@@ -102,6 +102,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
@@ -123,7 +124,11 @@ jobs:
         run: make docs-api
 
       - name: Generate Helm values reference
-        run: make helm-docs HELM_DOCS=helm-docs
+        run: make helm-docs HELM_DOCS=/usr/local/bin/helm-docs
 
       - name: Deploy to GitHub Pages
-        run: mkdocs gh-deploy --force
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          mkdocs gh-deploy --force
