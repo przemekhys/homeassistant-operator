@@ -22,6 +22,7 @@ import (
 	"maps"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -704,7 +705,7 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 	ctx context.Context,
 	ha *hav1.HomeAssistant,
 ) (*appsv1.StatefulSet, error) {
-	labels := r.labelsForHomeAssistant(ha)
+	matchLabels := r.labelsForHomeAssistant(ha)
 	replicas := int32(1)
 
 	image := defaultImage
@@ -861,24 +862,33 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 		homeAssistantSecurityContext = &corev1.SecurityContext{Privileged: ptr.To(false)}
 	}
 
-	// Preserve existing pod template annotations from current StatefulSet
-	// This is critical to avoid infinite reconciliation loops when config hash annotations exist
-	annotations := make(map[string]string)
 	currentSts := &appsv1.StatefulSet{}
-	if err = r.Get(ctx, types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, currentSts); err == nil {
-		// StatefulSet exists - preserve its pod template annotations
-		if currentSts.Spec.Template.Annotations != nil {
-			for k, v := range currentSts.Spec.Template.Annotations {
-				annotations[k] = v
-			}
+	r.Get(ctx, types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, currentSts)
+
+	currentManagedAnnotations := make(map[string]struct{})
+	if anns, ok := currentSts.ObjectMeta.Annotations[userAnnotationsAnnotationKey]; ok {
+		for _, ann := range strings.Split(anns, ",") {
+			currentManagedAnnotations[ann] = struct{}{}
 		}
 	}
-	// If StatefulSet doesn't exist (NotFound error), annotations will be empty - this is correct
 
-	// Apply any configured annotations
-	if ha.Spec.Annotations != nil {
-		maps.Copy(annotations, ha.Spec.Annotations)
+	currentManagedLabels := make(map[string]struct{})
+	if lbls, ok := currentSts.ObjectMeta.Annotations[userLabelsAnnotationKey]; ok {
+		for _, lbl := range strings.Split(lbls, ",") {
+			currentManagedLabels[lbl] = struct{}{}
+		}
 	}
+
+	podAnnotations := reconcileMaps(currentSts.Spec.Template.ObjectMeta.Annotations, ha.Spec.Annotations, currentManagedAnnotations)
+	podLabels := reconcileMaps(currentSts.Spec.Template.ObjectMeta.Labels, ha.Spec.Labels, currentManagedLabels)
+	maps.Copy(podLabels, matchLabels)
+
+	stsAnnotations := reconcileMaps(currentSts.ObjectMeta.Annotations, ha.Spec.Annotations, currentManagedAnnotations)
+	stsLabels := reconcileMaps(currentSts.ObjectMeta.Labels, ha.Spec.Labels, currentManagedLabels)
+	maps.Copy(stsLabels, matchLabels)
+
+	stsAnnotations[userAnnotationsAnnotationKey] = strings.Join(slices.Sorted(maps.Keys(ha.Spec.Annotations)), ",")
+	stsAnnotations[userLabelsAnnotationKey] = strings.Join(slices.Sorted(maps.Keys(ha.Spec.Labels)), ",")
 
 	// Probes always speak plain HTTP: HA serves HTTP inside the cluster and TLS
 	// is terminated at the edge (Ingress / Gateway API), never in the HA pod.
@@ -959,20 +969,21 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ha.Name,
-			Namespace: ha.Namespace,
-			Labels:    labels,
+			Name:        ha.Name,
+			Namespace:   ha.Namespace,
+			Labels:      stsLabels,
+			Annotations: stsAnnotations,
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
+				MatchLabels: matchLabels,
 			},
 			ServiceName: ha.Name,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      labels,
-					Annotations: annotations,
+					Labels:      podLabels,
+					Annotations: podAnnotations,
 				},
 				Spec: corev1.PodSpec{
 					AutomountServiceAccountToken: &automountSAToken,
@@ -1008,6 +1019,20 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 	}
 
 	return sts, nil
+}
+
+// Preserve any values in `current` that are not in `managedKeys`, then overlay the values in `desired`.
+func reconcileMaps(current, desired map[string]string, managedKeys map[string]struct{}) map[string]string {
+	result := make(map[string]string)
+
+	for key, val := range current {
+		if _, managed := managedKeys[key]; !managed {
+			result[key] = val
+		}
+	}
+
+	maps.Copy(result, desired)
+	return result
 }
 
 // reconcileService ensures the Service exists and is up to date
@@ -1210,15 +1235,11 @@ func (r *HomeAssistantReconciler) buildNetworkPolicy(ha *hav1.HomeAssistant) *ne
 
 // labelsForHomeAssistant returns the labels for selecting resources belonging to the given HomeAssistant CR
 func (r *HomeAssistantReconciler) labelsForHomeAssistant(ha *hav1.HomeAssistant) map[string]string {
-	labels := map[string]string{
+	return map[string]string{
 		labelAppName:      "homeassistant",
 		labelAppInstance:  ha.Name,
 		labelAppManagedBy: "homeassistant-operator",
 	}
-	if ha.Spec.Labels != nil {
-		maps.Copy(labels, ha.Spec.Labels)
-	}
-	return labels
 }
 
 // updateHAStatusWithRetry applies mutate to ha's status and persists it via the
@@ -1661,7 +1682,7 @@ func needsUpdate(current, desired *appsv1.StatefulSet) bool {
 	currentContainer := current.Spec.Template.Spec.Containers[0]
 	desiredContainer := desired.Spec.Template.Spec.Containers[0]
 
-	// Check pod template annotations (Faza 2: for config hash changes)
+	// Check pod template annotations and labels (Faza 2: for config hash changes)
 	// This triggers pod restart when configuration changes
 	currentAnnotations := current.Spec.Template.Annotations
 	desiredAnnotations := desired.Spec.Template.Annotations
@@ -1678,6 +1699,43 @@ func needsUpdate(current, desired *appsv1.StatefulSet) bool {
 	if currentHash != desiredHash {
 		log.V(1).Info("Config hash differs",
 			"current", currentHash, "desired", desiredHash)
+		return true
+	}
+
+	// Check user-managed annotations and labels
+	currentManagedAnnotations := make(map[string]string)
+	desiredManagedAnnotations := make(map[string]string)
+	if anns, ok := current.ObjectMeta.Annotations[userAnnotationsAnnotationKey]; ok {
+		for _, ann := range strings.Split(anns, ",") {
+			currentManagedAnnotations[ann] = current.ObjectMeta.Annotations[ann]
+		}
+	}
+	if anns, ok := desired.ObjectMeta.Annotations[userAnnotationsAnnotationKey]; ok {
+		for _, ann := range strings.Split(anns, ",") {
+			desiredManagedAnnotations[ann] = desired.ObjectMeta.Annotations[ann]
+		}
+	}
+
+	if !maps.Equal(currentManagedAnnotations, desiredManagedAnnotations) {
+		log.V(1).Info("Managed annotations differ", "current", currentManagedAnnotations, "desired", desiredManagedAnnotations)
+		return true
+	}
+
+	currentManagedLabels := make(map[string]string)
+	desiredManagedLabels := make(map[string]string)
+	if lbls, ok := current.ObjectMeta.Annotations[userLabelsAnnotationKey]; ok {
+		for _, lbl := range strings.Split(lbls, ",") {
+			currentManagedLabels[lbl] = current.ObjectMeta.Labels[lbl]
+		}
+	}
+	if lbls, ok := desired.ObjectMeta.Annotations[userLabelsAnnotationKey]; ok {
+		for _, lbl := range strings.Split(lbls, ",") {
+			desiredManagedLabels[lbl] = desired.ObjectMeta.Labels[lbl]
+		}
+	}
+
+	if !maps.Equal(currentManagedLabels, desiredManagedLabels) {
+		log.V(1).Info("Managed labels differ", "current", currentManagedLabels, "desired", desiredManagedLabels)
 		return true
 	}
 
