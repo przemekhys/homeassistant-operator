@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Operator-managed Gateways could not select a cluster GatewayClass (#202).**
+  `spec.gateway.gatewayClassName` now selects an existing class without any
+  GatewayClass lookup or ownership. The field defaults to `traefik` when
+  omitted; clusters using another Gateway controller must select its class
+  explicitly.
+
 ## [v1.4.0] - 2026-09-01
 
 ### Fixed
@@ -88,7 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **E2E test suite optimization** — CI e2e tests now run faster; see `docs/development/testing.md` (and `.claude/TESTING.md` for AI guidance) for details.
+- **E2E test suite optimization** — CI e2e tests now run faster; see `docs/development/testing.md` for details.
 
 ### Added
 

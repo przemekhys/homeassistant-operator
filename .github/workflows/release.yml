@@ -194,15 +194,27 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+
       - name: Install Cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           # renovate: datasource=github-releases depName=sigstore/cosign
           cosign-release: v3.1.3
 
-      # One line per artifact: <sha256-digest>  <artifact-type>  <artifact-reference>,
-      # image before chart. Keep this order/format stable — docs and
-      # hack/verify-signatures.sh parse it by position.
+      - name: Generate release installation manifest
+        env:
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        run: |
+          IMAGE="$(echo "$IMAGE_REF" | tr '[:upper:]' '[:lower:]')"
+          make build-installer IMG="${IMAGE}:${GITHUB_REF_NAME#v}"
+
+      # One line per artifact: <sha256-digest>  <artifact-type>  <artifact-reference>.
+      # Keep this format stable: docs and hack/verify-signatures.sh select entries
+      # by their artifact type and reference.
       - name: Generate checksums manifest
         env:
           IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
@@ -211,9 +223,11 @@ jobs:
           CHART_DIGEST: ${{ needs.helm-publish.outputs.chart-digest }}
         run: |
           IMAGE="$(echo "$IMAGE_REF" | tr '[:upper:]' '[:lower:]')"
+          MANIFEST_SHA256="$(sha256sum dist/install.yaml | awk '{print $1}')"
           cat > checksums.txt <<EOF
           ${IMAGE_DIGEST}  container-image  ${IMAGE}
           ${CHART_DIGEST}  helm-chart       ${CHART_REF}
+          sha256:${MANIFEST_SHA256}  kustomize-manifest  install.yaml
           EOF
 
       # cosign >=3.0 dropped --output-signature/--output-certificate for
@@ -247,7 +261,7 @@ jobs:
             if [ "$IS_DRAFT" = "true" ]; then
               # Expected path: draft created via the UI, nothing else to do
               # but attach assets and publish.
-              gh release upload "$TAG" checksums.txt checksums.txt.sigstore.json --repo "$REPO"
+              gh release upload "$TAG" dist/install.yaml checksums.txt checksums.txt.sigstore.json --repo "$REPO"
               gh release edit "$TAG" --repo "$REPO" --draft=false
             else
               # Published directly instead of left as a draft. Do NOT try to
@@ -279,7 +293,7 @@ jobs:
               --title "$TAG" \
               --generate-notes \
               "${PRERELEASE_ARGS[@]}" \
-              checksums.txt checksums.txt.sigstore.json
+              dist/install.yaml checksums.txt checksums.txt.sigstore.json
           fi
 
   smoke-oci:
@@ -343,12 +357,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release download "${GITHUB_REF_NAME}" --repo "${{ github.repository }}" \
-            -p 'checksums.txt*' --clobber
+            -p 'install.yaml' -p 'checksums.txt*' --clobber
           cosign verify-blob \
             --bundle checksums.txt.sigstore.json \
             --certificate-identity-regexp "$IDENTITY_REGEXP" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             checksums.txt
+          awk '$2 == "kustomize-manifest" && $3 == "install.yaml" { print substr($1, 8) "  install.yaml"; found = 1 } END { exit !found }' checksums.txt | sha256sum -c -
 
       - name: Smoke test the published OCI chart
         id: smoke

@@ -1,6 +1,34 @@
-# External Secret Management
+# External secret management
 
-`HomeAssistantSecrets` only ever consumes a plain Kubernetes `Secret` (via [`spec.secretRefs`](../user-guide/secrets.md#specsecretrefs)) — it doesn't care how that Secret got created. Instead of `kubectl create secret` by hand, these are common patterns for sourcing it from an external secret manager or a Git-safe encrypted format.
+*Ecosystem guide — how external secret tooling works together with the operator. Not part of the operator's supported API.*
+
+Source the Kubernetes Secrets that Home Assistant needs from a secret manager or
+a Git-safe encrypted format, instead of creating them by hand with
+`kubectl create secret`.
+
+!!! note "Not part of the supported API"
+    This guide shows one way to integrate the operator with another tool in the
+    Kubernetes ecosystem. Unlike the rest of this documentation, it is **not**
+    part of the operator's supported API — it reflects the state at the time of
+    writing and may need adjusting for a different tool version or cluster setup.
+
+**Tested with**: External Secrets Operator 0.12, Sealed Secrets 0.27,
+Vault Secrets Operator 0.9, operator 1.x.
+
+## What this gives you
+
+`HomeAssistantSecrets` only ever reads a plain Kubernetes
+[`Secret`](../reference/api.md#homeassistantsecretsspec) — it does not care how
+that Secret came to exist. That is what makes all of these work without the
+operator knowing anything about them.
+
+## Security considerations
+
+Whatever you put in front of it, the values end up in a Kubernetes Secret and
+then, composed into `secrets.yaml`, on the instance's volume. These tools change
+where the secret is *stored and rotated*, not how exposed it is once Home
+Assistant is using it — see
+[the security model](../explanation/security-model.md).
 
 ## External Secrets Operator
 
@@ -116,5 +144,7 @@ HashiCorp Vault is supported through two different mechanisms — pick one, they
 
 ## See also
 
-- [Secrets Management](../user-guide/secrets.md) for the full `HomeAssistantSecrets` spec (`spec.secretRefs`, `spec.autoRestart`, key filtering).
+- [Manage secrets](../how-to/manage-secrets.md) for the task itself, and the
+  [API reference](../reference/api.md#homeassistantsecretsspec) for every field of
+  `HomeAssistantSecrets`.
 - [CRD API Reference](../reference/api.md) for every field on every CRD.

@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -77,6 +78,142 @@ func getUnstructured(
 	u := &unstructured.Unstructured{}
 	u.SetGroupVersionKind(gvk)
 	return u, r.Get(context.Background(), client.ObjectKey{Name: name, Namespace: "default"}, u)
+}
+
+func managedGatewayHA(name, gatewayClassName string) *hav1.HomeAssistant {
+	return &hav1.HomeAssistant{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
+		Spec: hav1.HomeAssistantSpec{Gateway: &hav1.GatewaySpec{
+			Enabled:          true,
+			Host:             name + ".example.com",
+			ManageGateway:    true,
+			GatewayClassName: gatewayClassName,
+		}},
+	}
+}
+
+func TestReconcileExposureManagedGatewayClass(t *testing.T) {
+	t.Run("copies a selected class without looking it up", func(t *testing.T) {
+		ha := managedGatewayHA("home", "traefik")
+		r := newExposureReconciler(t, false, ha)
+
+		if err := r.reconcileExposure(context.Background(), ha); err != nil {
+			t.Fatalf("reconcileExposure error: %v", err)
+		}
+		gateway, err := getUnstructured(t, r, gatewayGVK, managedGatewayName(ha))
+		if err != nil {
+			t.Fatalf("expected managed Gateway created: %v", err)
+		}
+		className, _, _ := unstructured.NestedString(gateway.Object, "spec", "gatewayClassName")
+		if className != "traefik" {
+			t.Fatalf("expected gatewayClassName traefik, got %q", className)
+		}
+	})
+
+	t.Run("allows two instances to share a selected class", func(t *testing.T) {
+		first := managedGatewayHA("first", "traefik")
+		second := managedGatewayHA("second", "traefik")
+		r := newExposureReconciler(t, false, first, second)
+
+		for _, ha := range []*hav1.HomeAssistant{first, second} {
+			if err := r.reconcileExposure(context.Background(), ha); err != nil {
+				t.Fatalf("reconcileExposure(%s) error: %v", ha.Name, err)
+			}
+			gateway, err := getUnstructured(t, r, gatewayGVK, managedGatewayName(ha))
+			if err != nil {
+				t.Fatalf("expected managed Gateway for %s: %v", ha.Name, err)
+			}
+			className, _, _ := unstructured.NestedString(gateway.Object, "spec", "gatewayClassName")
+			if className != "traefik" {
+				t.Fatalf("expected %s Gateway to use traefik, got %q", ha.Name, className)
+			}
+		}
+	})
+}
+
+func TestReconcileExposureManagedGatewayDefaultClass(t *testing.T) {
+	t.Run("omitted class defaults to traefik", func(t *testing.T) {
+		ha := managedGatewayHA("legacy-home", "")
+		r := newExposureReconciler(t, false, ha)
+
+		if err := r.reconcileExposure(context.Background(), ha); err != nil {
+			t.Fatalf("reconcileExposure error: %v", err)
+		}
+		gateway, err := getUnstructured(t, r, gatewayGVK, managedGatewayName(ha))
+		if err != nil {
+			t.Fatalf("expected managed Gateway created: %v", err)
+		}
+		className, _, _ := unstructured.NestedString(gateway.Object, "spec", "gatewayClassName")
+		if className != defaultGatewayClassName {
+			t.Fatalf("expected default gatewayClassName %q, got %q", defaultGatewayClassName, className)
+		}
+	})
+
+	t.Run("external parent takes precedence over managed class", func(t *testing.T) {
+		ha := managedGatewayHA("external-home", "cilium")
+		ha.Spec.Gateway.ParentRef = &hav1.GatewayParentRef{
+			Name: "shared-gateway", Namespace: "gateway-system", SectionName: "https",
+		}
+		r := newExposureReconciler(t, false, ha)
+
+		if err := r.reconcileExposure(context.Background(), ha); err != nil {
+			t.Fatalf("reconcileExposure error: %v", err)
+		}
+		if _, err := getUnstructured(t, r, gatewayGVK, managedGatewayName(ha)); err == nil {
+			t.Fatal("expected no managed Gateway when parentRef is configured")
+		}
+		route, err := getUnstructured(t, r, httpRouteGVK, ha.Name)
+		if err != nil {
+			t.Fatalf("expected HTTPRoute created: %v", err)
+		}
+		parents, _, _ := unstructured.NestedSlice(route.Object, "spec", "parentRefs")
+		if len(parents) != 1 {
+			t.Fatalf("expected one external parentRef, got %#v", parents)
+		}
+		parent, ok := parents[0].(map[string]interface{})
+		if !ok || parent["name"] != "shared-gateway" || parent["namespace"] != "gateway-system" {
+			t.Fatalf("unexpected external parentRef: %#v", parents)
+		}
+	})
+}
+
+func TestReconcileExposureManagedGatewayClassUpdatesInPlace(t *testing.T) {
+	ha := managedGatewayHA("mutable-home", "")
+	gateway := &unstructured.Unstructured{}
+	gateway.SetGroupVersionKind(gatewayGVK)
+	gateway.SetName(managedGatewayName(ha))
+	gateway.SetNamespace(ha.Namespace)
+	gateway.SetUID(types.UID("managed-gateway-uid"))
+	gateway.Object["spec"] = map[string]interface{}{}
+	r := newExposureReconciler(t, false, ha, gateway)
+
+	transitions := []struct {
+		configuredClass string
+		wantClass       string
+	}{
+		{wantClass: defaultGatewayClassName},
+		{configuredClass: "traefik", wantClass: "traefik"},
+		{configuredClass: "cilium", wantClass: "cilium"},
+		{wantClass: defaultGatewayClassName},
+	}
+	for _, transition := range transitions {
+		ha.Spec.Gateway.GatewayClassName = transition.configuredClass
+		wantClass := transition.wantClass
+		if err := r.reconcileExposure(context.Background(), ha); err != nil {
+			t.Fatalf("reconcileExposure for class %q: %v", wantClass, err)
+		}
+		current, err := getUnstructured(t, r, gatewayGVK, managedGatewayName(ha))
+		if err != nil {
+			t.Fatalf("get managed Gateway: %v", err)
+		}
+		if current.GetUID() != types.UID("managed-gateway-uid") {
+			t.Fatalf("expected Gateway UID to remain stable, got %q", current.GetUID())
+		}
+		className, _, _ := unstructured.NestedString(current.Object, "spec", "gatewayClassName")
+		if className != wantClass {
+			t.Fatalf("expected gatewayClassName %q, got %q", wantClass, className)
+		}
+	}
 }
 
 // TestReconcileExposureIngress: Ingress enabled with an issuerRef and

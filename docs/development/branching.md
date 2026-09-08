@@ -1,5 +1,7 @@
 # Branching & Release Model
 
+*For contributors — how branches and releases work in this repository. Not needed to use the operator.*
+
 This project uses a two-branch model: a stable branch (`main`) and an
 integration branch (`dev`).
 

@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -39,6 +41,67 @@ import (
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
 )
+
+func TestGatewayClassNameAdmission(t *testing.T) {
+	k8sClient, _, cleanup := setupWebhookTestEnv(t)
+	defer cleanup()
+
+	tests := []struct {
+		name                    string
+		gatewayClassName        string
+		includeGatewayClassName bool
+		wantAccepted            bool
+		wantDefault             string
+	}{
+		{name: "valid", gatewayClassName: "traefik", includeGatewayClassName: true, wantAccepted: true},
+		{name: "maximum length", gatewayClassName: strings.Repeat("a", 253),
+			includeGatewayClassName: true, wantAccepted: true},
+		{name: "explicit empty", includeGatewayClassName: true, wantAccepted: false},
+		{name: "malformed", gatewayClassName: "Traefik", includeGatewayClassName: true, wantAccepted: false},
+		{name: "over maximum length", gatewayClassName: strings.Repeat("a", 254),
+			includeGatewayClassName: true, wantAccepted: false},
+		{name: "omission applies default", wantAccepted: true, wantDefault: "traefik"},
+	}
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			gateway := map[string]interface{}{
+				"enabled":       true,
+				"host":          "ha.example.com",
+				"manageGateway": true,
+			}
+			if tt.includeGatewayClassName {
+				gateway["gatewayClassName"] = tt.gatewayClassName
+			}
+			obj := &unstructured.Unstructured{Object: map[string]interface{}{
+				"apiVersion": hav1.GroupVersion.String(),
+				"kind":       "HomeAssistant",
+				"metadata": map[string]interface{}{
+					"name":      fmt.Sprintf("gateway-class-%d", i),
+					"namespace": "default",
+				},
+				"spec": map[string]interface{}{
+					"gateway": gateway,
+				},
+			}}
+
+			err := k8sClient.Create(context.Background(), obj)
+			if tt.wantAccepted {
+				g.Expect(err).NotTo(HaveOccurred())
+				if tt.wantDefault != "" {
+					className, found, nestedErr := unstructured.NestedString(obj.Object,
+						"spec", "gateway", "gatewayClassName")
+					g.Expect(nestedErr).NotTo(HaveOccurred())
+					g.Expect(found).To(BeTrue())
+					g.Expect(className).To(Equal(tt.wantDefault))
+				}
+			} else {
+				g.Expect(err).To(HaveOccurred())
+			}
+		})
+	}
+}
 
 // setupWebhookTestEnv spins up a real envtest API server, a real
 // ValidatingWebhookConfiguration, and a real webhook server (the same wiring

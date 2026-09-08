@@ -1,14 +1,11 @@
-# Automations
+# Manage automations
 
-`HomeAssistantAutomation` manages a single Home Assistant automation as a Kubernetes resource. The operator pushes it directly to HA via the REST config API — no ConfigMap aggregation. HA stores the automation in `automations.yaml` on the PVC, so it survives pod restarts.
+*How-to — create, change and delete Home Assistant automations as Kubernetes resources. Assumes a running instance.*
 
-## How it works
 
-- **Create/Update**: `POST /api/config/automation/config/{id}` — idempotent (HA uses POST, not PUT, for this endpoint)
-- **Delete**: finalizer calls `DELETE /api/config/automation/config/{id}`
-- **Hot-reload**: `POST /api/services/automation/reload` after each write
+## Prerequisites
 
-Requires a bootstrap API token (`<ha-name>-api-token` Secret). If the token is missing, the operator requeues until it becomes available.
+- A running Home Assistant instance with [bootstrap completed](bootstrap-instance.md) — the operator needs its API token
 
 ## Basic example
 
@@ -87,44 +84,6 @@ spec:
   mode: restart
 ```
 
-## Spec reference
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `homeAssistantRef.name` | string | Name of the `HomeAssistant` CR |
-| `alias` | string | Human-readable name shown in the HA UI |
-| `description` | string | Optional description |
-| `id` | string | Automation ID in HA. Defaults to `metadata.name` if empty |
-| `triggers` | list | Trigger objects (HA trigger syntax) |
-| `conditions` | list | Condition objects (all must pass) |
-| `actions` | list | Action objects to execute |
-| `mode` | string | `single`, `restart`, `queued`, `parallel` |
-| `max` | int | Max concurrent runs (for `queued`/`parallel`) |
-| `maxExceeded` | string | Log level when max exceeded: `silent`, `info`, `warning`, `error` |
-| `initialState` | bool | State on HA startup |
-| `autoReload` | bool | Hot-reload after changes. Default: `true` |
-| `enabled` | bool | Enable/disable the automation. Default: `true` |
-
-## Status and events
-
-```sh
-kubectl get haauto lights-at-sunset
-```
-```
-NAME               HOMEASSISTANT   READY   AGE
-lights-at-sunset   home            True    3m
-```
-
-```sh
-kubectl describe haauto lights-at-sunset
-```
-```
-Conditions:
-  ReloadReady: True
-Events:
-  ReloadSuccessful   Automation reloaded successfully (ReloadID: abc123)
-```
-
 ## Disabling without deleting
 
 ```yaml
@@ -141,3 +100,34 @@ kubectl delete haauto lights-at-sunset
 ```
 
 The finalizer calls `DELETE /api/config/automation/config/lights-at-sunset` before removing the CR. If HA is unavailable, the finalizer still completes (best-effort) to avoid stuck CRs.
+
+## Verify
+
+```sh
+kubectl get haauto lights-at-sunset
+```
+```
+NAME               HOMEASSISTANT   ALIAS                      ENABLED   READY   AGE
+lights-at-sunset   home            Turn on lights at sunset   true      True    3m
+```
+
+```sh
+kubectl describe haauto lights-at-sunset
+```
+```
+Conditions:
+  Type:     ReloadReady
+  Status:   True
+  Reason:   ReloadSuccessful
+  Message:  Automation applied via REST API
+  Type:     Ready
+  Status:   True
+  Reason:   AutomationGenerated
+Last Reload Method:  api
+```
+
+## Every field
+
+This guide shows the fields you need for the task. For the complete list of
+`HomeAssistantAutomation` fields, with types and defaults, see the
+[API reference](../reference/api.md#homeassistantautomationspec).

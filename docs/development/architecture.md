@@ -1,5 +1,7 @@
 # Architecture
 
+*For contributors — how the operator is put together internally. Not needed to use the operator.*
+
 ## Overview
 
 Home Assistant Operator is a [Kubebuilder v4](https://book.kubebuilder.io/) operator that manages Home Assistant instances on Kubernetes declaratively. It bridges the gap between Kubernetes resource management and the Home Assistant REST/WebSocket API.

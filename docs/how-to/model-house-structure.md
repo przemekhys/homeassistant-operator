@@ -1,8 +1,16 @@
-# Infrastructure (Floor / Label / Area)
+# Model your house structure
 
-Three CRDs manage the physical structure of your home as code — floors, labels, and areas. This is particularly valuable for disaster recovery: when rebuilding a HA instance, the operator automatically recreates the full room hierarchy without any manual UI work.
+*How-to — describe floors, labels and areas as Kubernetes resources. Assumes a running instance.*
 
-These resources use the Home Assistant **WebSocket registry API** (no REST equivalent).
+Home Assistant's floor, label and area registries have no REST endpoints, so the
+operator drives them over Home Assistant's WebSocket API. That detail matters
+only if something fails: the errors you would see come from the WebSocket
+connection, not from HTTP.
+
+
+## Prerequisites
+
+- A running Home Assistant instance with [bootstrap completed](bootstrap-instance.md) — the operator needs its API token
 
 ## Dependency order
 
@@ -140,17 +148,18 @@ spec:
 | `icon` | string | Material Design icon |
 | `labels` | list | Label names (matching `spec.name` of `HomeAssistantLabel` CRs) |
 
-## Recommended apply order
+
+## Deleting infrastructure
+
+Each CR has a finalizer that removes the entity from HA before the CR is deleted. Delete areas before floors/labels to avoid dangling references.
 
 ```sh
-# 1. Floors and Labels (independent, apply together)
-kubectl apply -f floors.yaml -f labels.yaml
-
-# 2. Areas (resolve floors/labels by name)
-kubectl apply -f areas.yaml
+kubectl delete haar --all
+kubectl delete hafl --all
+kubectl delete halb --all
 ```
 
-## Status
+## Verify
 
 ```sh
 kubectl get hafl
@@ -174,23 +183,4 @@ kubectl get haar
 ```
 NAME           HOMEASSISTANT   NAME           FLOOR          READY   AGE
 living-room    home            Living Room    Ground Floor   True    1m
-```
-
-## Conditions
-
-| Resource | Condition | Meaning |
-|----------|-----------|---------|
-| Floor | `Ready: True` | Floor created/updated in HA |
-| Label | `Ready: True` | Label created/updated in HA |
-| Area | `Ready: True` | Area created/updated with resolved floor and labels |
-| Area | `Ready: False / FloorNotFound` | Referenced floor name not found; requeuing every 30 s |
-
-## Deleting infrastructure
-
-Each CR has a finalizer that removes the entity from HA before the CR is deleted. Delete areas before floors/labels to avoid dangling references.
-
-```sh
-kubectl delete haar --all
-kubectl delete hafl --all
-kubectl delete halb --all
 ```

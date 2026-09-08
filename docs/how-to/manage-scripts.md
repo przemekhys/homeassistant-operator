@@ -1,13 +1,11 @@
-# Scripts
+# Manage scripts
 
-`HomeAssistantScript` manages a single Home Assistant script as a Kubernetes resource. Scripts are reusable sequences of actions that can accept input parameters and be called from automations, dashboards, or the HA UI.
+*How-to — create, change and delete Home Assistant scripts as Kubernetes resources. Assumes a running instance.*
 
-## How it works
 
-- **Create/Update**: `POST /api/config/script/config/{id}` — HA applies the script immediately; no separate reload call is made. The controller records `LastReloadMethod: api` on success.
-- **Delete**: finalizer calls `DELETE /api/config/script/config/{id}`
+## Prerequisites
 
-Requires a bootstrap API token.
+- A running Home Assistant instance with [bootstrap completed](bootstrap-instance.md) — the operator needs its API token
 
 ## Basic example
 
@@ -85,22 +83,6 @@ spec:
   autoReload: true
 ```
 
-## Spec reference
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `homeAssistantRef.name` | string | Name of the `HomeAssistant` CR |
-| `alias` | string | Script name displayed in the HA UI |
-| `description` | string | Optional description |
-| `id` | string | Script ID in HA. Defaults to `metadata.name` |
-| `icon` | string | Material Design icon |
-| `mode` | string | `single`, `restart`, `queued`, `parallel` |
-| `max` | int | Max concurrent/queued runs |
-| `maxExceeded` | string | Log level when max exceeded: `silent`, `info`, `warning`, `error` |
-| `fields` | map | Named input parameters with selector definitions |
-| `sequence` | list | Sequence of HA actions |
-| `autoReload` | bool | Hot-reload after changes. Default: `true` |
-
 ## Execution modes
 
 | Mode | Behaviour |
@@ -120,14 +102,14 @@ actions:
       message: "Front door opened"
 ```
 
-## Status and events
+## Verify
 
 ```sh
 kubectl get hascp notify-mobile
 ```
 ```
-NAME            HOMEASSISTANT   READY   AGE
-notify-mobile   home            True    2m
+NAME            HOMEASSISTANT   ALIAS                   MODE     READY   AGE
+notify-mobile   home            Notify Mobile Devices   queued   True    2m
 ```
 
 ```sh
@@ -135,7 +117,16 @@ kubectl describe hascp notify-mobile
 ```
 ```
 Conditions:
-  ReloadReady: True
-Events:
-  ReloadSuccessful   Script reloaded successfully
+  Type:     ReloadReady
+  Status:   True
+  Reason:   ReloadSuccessful
+  Type:     Ready
+  Status:   True
+  Reason:   ScriptGenerated
 ```
+
+## Every field
+
+This guide shows the fields you need for the task. For the complete list of
+`HomeAssistantScript` fields, with types and defaults, see the
+[API reference](../reference/api.md#homeassistantscriptspec).

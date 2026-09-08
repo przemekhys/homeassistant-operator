@@ -78,6 +78,19 @@ spec:
 | `HomeAssistantFloor` | `hafl` | House floor registry |
 | `HomeAssistantLabel` | `halb` | Entity label registry |
 | `HomeAssistantArea` | `haar` | Room/area registry with floor + label refs |
+| `HomeAssistantCommunityRepository` | `hacr` | Install HACS-compatible extensions (experimental, `v1alpha1`) |
 
-[Get started →](getting-started/installation.md){ .md-button .md-button--primary }
+## Finding your way around
+
+This documentation is split by what you came here to do:
+
+| If you want to… | Go to |
+|-----------------|-------|
+| Learn how this works by doing it | **[Tutorials](tutorials/index.md)** — start with [your first instance](tutorials/first-instance.md) |
+| Get one specific job done | **[How-to guides](how-to/index.md)** |
+| Look up a field, condition or value | **[Reference](reference/index.md)** |
+| Understand why it behaves this way | **[Explanation](explanation/index.md)** |
+| Wire the operator into Flux, Vault or another tool | **[Ecosystem guides](ecosystem/index.md)** |
+
+[Start the tutorial →](tutorials/first-instance.md){ .md-button .md-button--primary }
 [View on GitHub →](https://github.com/przemekhys/homeassistant-operator){ .md-button }

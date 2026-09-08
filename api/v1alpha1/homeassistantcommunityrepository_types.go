@@ -61,8 +61,9 @@ type HomeAssistantCommunityRepositorySpec struct {
 
 	// Ref is the tag, branch, or commit SHA to install. Pinned and explicit — this
 	// operator never tracks a "latest" release automatically. Restricted to
-	// characters valid in a git ref (no URL-reserved or path-separator characters
-	// that could alter the codeload request path).
+	// characters valid in a git ref: word characters, dot, dash and slash, so
+	// branch names such as release/v1 are accepted. URL-reserved characters that
+	// could alter the codeload request path are not.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=`^[\w][\w.\-/]*$`
@@ -96,7 +97,9 @@ type HomeAssistantCommunityRepositoryStatus struct {
 
 	// ResolvedTarget is the install target computed from the source repository's own
 	// manifest (the integration domain, or the theme/script/template/plugin file name).
-	// Used together with Category as the conflict-detection key.
+	// Together with the referenced HomeAssistant name and Category it forms the
+	// conflict-detection key, so the same target may be installed into two
+	// different instances.
 	// +optional
 	ResolvedTarget string `json:"resolvedTarget,omitempty"`
 

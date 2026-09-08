@@ -15,8 +15,11 @@ limitations under the License.
 */
 
 // Package v1alpha1 contains API Schema definitions for the ha v1alpha1 API group.
-// Resources in this package are experimental: they carry no guarantee of API
-// stability between releases (see spec.alpha lifecycle discussion in CLAUDE.md).
+// Resources in this package are experimental: fields may change shape or be
+// removed in a minor release, with no deprecation period. That is the trade-off
+// for shipping a capability whose real-world behaviour cannot be settled by
+// tests alone; it graduates to a stable group once it has been exercised on
+// hardware the maintainers do not have.
 // +kubebuilder:object:generate=true
 // +groupName=ha.homeassistant.io
 package v1alpha1

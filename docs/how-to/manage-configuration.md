@@ -1,6 +1,11 @@
-# Configuration Management
+# Manage configuration.yaml declaratively
 
-`HomeAssistantConfiguration` manages `configuration.yaml` as a Kubernetes resource. The operator generates a ConfigMap from `spec.configuration` and mounts it into the HA pod. When the configuration changes, the operator either hot-reloads specific components or triggers a rolling restart — depending on which sections changed and the chosen `reloadStrategy`.
+*How-to — describe Home Assistant's `configuration.yaml` as a Kubernetes resource. Assumes a running instance.*
+
+
+## Prerequisites
+
+- A running Home Assistant instance ([deploy one](deploy-instance.md))
 
 ## Example
 
@@ -29,45 +34,7 @@ spec:
       default: info
       logs:
         homeassistant.components.mqtt: warning
-
-    http:
-      use_x_forwarded_for: true
-      trusted_proxies:
-        - 10.42.0.0/16
 ```
-
-## Spec reference
-
-### `spec.homeAssistantRef.name`
-
-Name of the `HomeAssistant` CR this configuration belongs to.
-
-### `spec.configuration`
-
-Raw `configuration.yaml` content as a multi-line string. Any valid Home Assistant configuration is accepted.
-
-### `spec.reloadStrategy`
-
-Controls how changes are applied.
-
-| Value | Behaviour |
-|-------|-----------|
-| `auto` (default) | Hot-reload for `automation`, `script`, `scene`, `logger`, `input_*`, `template`, `zone`. Restart for `homeassistant`, `mqtt`, and unknown sections. `http` triggers a pod restart **only on the YAML delivery path** (older Home Assistant); on the API path Home Assistant restarts its own process when needed and the operator does not roll the pod. |
-| `hot-reload` | Always attempt hot-reload, regardless of which sections changed. |
-| `restart` | Always trigger a rolling restart. |
-
-### `spec.autoReload`
-
-Set to `false` to disable automatic reload/restart on configuration changes. Default: `true`.
-
-## Reload behaviour
-
-When `reloadStrategy: auto` is set, the operator parses the YAML diff between the old and new configuration:
-
-- **Hot-reload** (no restart): `automation`, `script`, `scene`, `logger`, `input_boolean`, `input_number`, `input_text`, `input_select`, `input_datetime`, `template`, `zone`
-- **Restart** (rolling restart): `homeassistant`, `mqtt`, and any unknown top-level key. `http` too — **but only on the YAML delivery path**. On Home Assistant 2026.8+ the `http:` section is delivered through the API (see [HTTP configuration](#http-configuration-on-home-assistant-20268)) and is excluded from this diff entirely; Home Assistant restarts its own process if the change needs it, without a pod rollout from the operator.
-
-If a single change touches both categories, the operator restarts (safer path).
 
 ## Auto-include
 
@@ -115,40 +82,6 @@ picked up automatically, with no operator restart.
     cannot read it to deliver via the API — it stays in `configuration.yaml` and
     Home Assistant's warning remains until you inline the keys.
 
-## GitOps ownership
-
-The generated ConfigMap is owned exclusively by the operator. Any direct edits to the ConfigMap are detected and reverted on the next reconcile. **Always edit the `HomeAssistantConfiguration` CR**, not the ConfigMap.
-
-```sh
-# Correct workflow
-kubectl edit haconfig home
-
-# Will be overwritten on next reconcile:
-kubectl edit configmap home-configuration
-```
-
-## Status
-
-```sh
-kubectl get haconfig home
-```
-```
-NAME   HOMEASSISTANT   STRATEGY   READY   AGE
-home   home            auto       True    10m
-```
-
-```sh
-kubectl describe haconfig home
-```
-```
-Status:
-  Config Hash:          sha256:abc123...
-  Last Reload Time:     2026-04-23T10:00:00Z
-  Last Reload Method:   hot-reload
-  Last Error:           <none>
-  Observed Generation:  3
-```
-
 ## Multiple strategy examples
 
 === "Auto (recommended)"
@@ -171,3 +104,51 @@ Status:
     spec:
       reloadStrategy: restart
     ```
+
+## Verify
+
+```sh
+kubectl get haconfig home
+```
+```
+NAME   HOMEASSISTANT   STRATEGY   READY   AGE
+home   home            auto       True    10m
+```
+
+```sh
+kubectl describe haconfig home
+```
+```
+Status:
+  Config Hash:          sha256:abc123...
+  Last Reload Time:     2026-04-23T10:00:00Z
+  Last Reload Method:   hot-reload
+  Last Error:           <none>
+  Observed Generation:  3
+```
+
+## Force a reload strategy
+
+Controls how changes are applied.
+
+| Value | Behaviour |
+|-------|-----------|
+| `auto` (default) | Hot-reload for `automation`, `script`, `scene`, `group`, `logger`, `timer`, `counter` and `input_*`. Restart for `homeassistant`, `mqtt`, `template`, `zone`, and unknown sections. `http` triggers a pod restart **only on the YAML delivery path** (older Home Assistant); on the API path Home Assistant restarts its own process when needed and the operator does not roll the pod. |
+| `hot-reload` | Always attempt hot-reload, regardless of which sections changed. |
+| `restart` | Always trigger a rolling restart. |
+
+## Turn automatic reloading off
+
+Set `spec.autoReload` to `false` to stop the operator reloading or restarting
+Home Assistant when the configuration changes. It defaults to `true`.
+
+```yaml
+spec:
+  autoReload: false
+```
+
+## Every field
+
+This guide shows the fields you need for the task. For the complete list of
+`HomeAssistantConfiguration` fields, with types and defaults, see the
+[API reference](../reference/api.md#homeassistantconfigurationspec).

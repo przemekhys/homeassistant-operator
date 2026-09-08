@@ -5,6 +5,19 @@ repo_name: przemekhys/homeassistant-operator
 repo_url: https://github.com/przemekhys/homeassistant-operator
 edit_uri: edit/main/docs/
 
+# Link integrity gate. MkDocs only offers warn/info/ignore for these checks
+# (there is no "error" level), so they become hard failures via
+# `mkdocs build --strict`, which the Makefile and the docs workflow both use.
+validation:
+  links:
+    not_found: warn
+    anchors: warn
+    unrecognized_links: warn
+    absolute_links: warn
+  nav:
+    not_found: warn
+    omitted_files: warn
+
 theme:
   name: material
   palette:
@@ -41,6 +54,29 @@ plugins:
   - search:
       lang: en
   - include-markdown:
+  # Every path that was ever published stays reachable. Some of these URLs are
+  # quoted in released changelog entries, which are a historical record and are
+  # not rewritten — a redirect is the only way to keep those entries true.
+  - redirects:
+      redirect_maps:
+        getting-started/installation.md: how-to/install-operator.md
+        getting-started/quick-start.md: tutorials/first-instance.md
+        getting-started/configuration.md: how-to/manage-configuration.md
+        user-guide/homeassistant.md: how-to/deploy-instance.md
+        user-guide/bootstrap.md: how-to/bootstrap-instance.md
+        user-guide/secrets.md: how-to/manage-secrets.md
+        user-guide/configuration.md: how-to/manage-configuration.md
+        user-guide/automations.md: how-to/manage-automations.md
+        user-guide/scenes.md: how-to/manage-scenes.md
+        user-guide/scripts.md: how-to/manage-scripts.md
+        user-guide/integrations.md: how-to/register-integrations.md
+        user-guide/infrastructure.md: how-to/model-house-structure.md
+        user-guide/backup.md: how-to/configure-backups.md
+        user-guide/security.md: how-to/enforce-pod-security.md
+        user-guide/tls.md: how-to/expose-with-tls.md
+        user-guide/signed-releases.md: how-to/verify-signed-releases.md
+        user-guide/upgrade.md: how-to/upgrade-operator.md
+        reference/troubleshooting.md: how-to/troubleshoot.md
 
 markdown_extensions:
   - admonition
@@ -66,39 +102,55 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Getting Started:
-    - Installation: getting-started/installation.md
-    - Quick Start: getting-started/quick-start.md
-    - Configuration: getting-started/configuration.md
-  - User Guide:
-    - Home Assistant CR: user-guide/homeassistant.md
-    - Bootstrap: user-guide/bootstrap.md
-    - Secrets Management: user-guide/secrets.md
-    - Configuration Management: user-guide/configuration.md
-    - Automations: user-guide/automations.md
-    - Scenes: user-guide/scenes.md
-    - Scripts: user-guide/scripts.md
-    - Integrations: user-guide/integrations.md
-    - Infrastructure (Floor/Label/Area): user-guide/infrastructure.md
-    - Backup: user-guide/backup.md
-    - Security (Pod Security Standards): user-guide/security.md
-    - TLS (cert-manager): user-guide/tls.md
-    - Signed Releases: user-guide/signed-releases.md
-    - Upgrade: user-guide/upgrade.md
+  - Tutorials:
+    - Overview: tutorials/index.md
+    - Your first instance: tutorials/first-instance.md
+    - Your first automation: tutorials/first-automation.md
+  - How-to Guides:
+    - Overview: how-to/index.md
+    - Install the operator: how-to/install-operator.md
+    - Upgrade the operator: how-to/upgrade-operator.md
+    - Deploy an instance: how-to/deploy-instance.md
+    - Bootstrap an instance: how-to/bootstrap-instance.md
+    - Manage configuration: how-to/manage-configuration.md
+    - Manage secrets: how-to/manage-secrets.md
+    - Manage automations: how-to/manage-automations.md
+    - Manage scenes: how-to/manage-scenes.md
+    - Manage scripts: how-to/manage-scripts.md
+    - Register integrations: how-to/register-integrations.md
+    - Model your house structure: how-to/model-house-structure.md
+    - Install HACS-compatible extensions: how-to/install-community-repositories.md
+    - Configure backups: how-to/configure-backups.md
+    - Expose with TLS: how-to/expose-with-tls.md
+    - Enforce Pod Security Standards: how-to/enforce-pod-security.md
+    - Verify signed releases: how-to/verify-signed-releases.md
+    - Troubleshoot a problem: how-to/troubleshoot.md
+  - Reference:
+    - Overview: reference/index.md
+    - CRD API reference: reference/api.md
+    - Status conditions: reference/conditions.md
+    - Events: reference/events.md
+    - Helm chart values: reference/helm-values.md
+    - Compatibility: reference/compatibility.md
+    - FAQ: reference/faq.md
+    - Changelog: reference/changelog.md
+  - Explanation:
+    - Overview: explanation/index.md
+    - The reconciliation model: explanation/reconciliation-model.md
+    - Hot reload versus restart: explanation/reload-vs-restart.md
+    - Who owns the generated resources: explanation/resource-ownership.md
+    - What spec.alpha means: explanation/alpha-lifecycle.md
+    - The security model: explanation/security-model.md
   - Ecosystem Guides:
     - Overview: ecosystem/index.md
     - Flux CD: ecosystem/flux.md
-    - External Secret Management: ecosystem/secrets-management.md
-  - Reference:
-    - CRD API Reference: reference/api.md
-    - Troubleshooting: reference/troubleshooting.md
-    - FAQ: reference/faq.md
-    - Changelog: reference/changelog.md
-  - Development:
+    - External secret management: ecosystem/secrets-management.md
+  - For Contributors:
     - Contributing: development/contributing.md
-    - Branching & Releases: development/branching.md
+    - Branching & releases: development/branching.md
     - Architecture: development/architecture.md
     - Testing: development/testing.md
+    - Writing documentation: development/documentation-style.md
 
 extra:
   social:

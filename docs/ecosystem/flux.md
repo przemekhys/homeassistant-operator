@@ -1,6 +1,25 @@
 # Flux CD
 
-Deploy the Home Assistant Operator and manage its custom resources declaratively with [Flux](https://fluxcd.io/), instead of running `helm install` / `kubectl apply` by hand. This is the GitOps pattern: the desired state (operator chart version, `HomeAssistant` spec, configuration) lives in Git, and Flux continuously reconciles the cluster to match it.
+*Ecosystem guide — how Flux works together with the operator. Not part of the operator's supported API.*
+
+Keep the operator, its version, and every Home Assistant resource in Git, and
+have Flux reconcile the cluster to match — instead of running `helm install` and
+`kubectl apply` by hand.
+
+!!! note "Not part of the supported API"
+    This guide shows one way to integrate the operator with another tool in the
+    Kubernetes ecosystem. Unlike the rest of this documentation, it is **not**
+    part of the operator's supported API — it reflects the state at the time of
+    writing and may need adjusting for a different tool version or cluster setup.
+
+**Tested with**: Flux 2.4, operator 1.x, Kubernetes 1.31–1.36.
+
+## What this gives you
+
+- One place — a Git repository — that says which operator version runs and what
+  it manages, with the usual review and rollback that comes with it.
+- Automatic version bumps for Home Assistant itself, if you want them, with a
+  policy you control rather than a `latest` tag you do not.
 
 ## Example layout
 
@@ -70,7 +89,7 @@ spec:
       - homeassistant
 ```
 
-**`resources/homeassistant.yaml`** and **`resources/configuration.yaml`** are just the `HomeAssistant` and `HomeAssistantConfiguration` CRs, committed to Git like any other manifest — see [Home Assistant CR](../user-guide/homeassistant.md) for the full spec.
+**`resources/homeassistant.yaml`** and **`resources/configuration.yaml`** are just the `HomeAssistant` and `HomeAssistantConfiguration` CRs, committed to Git like any other manifest — see [Home Assistant CR](../how-to/deploy-instance.md) for the full spec.
 
 Finally, a Flux `Kustomization` (the CRD, not the plain-kustomize file above) points at this directory:
 
@@ -91,7 +110,7 @@ spec:
 
 ## Key decisions
 
-**OCI `HelmRepository`, not a classic chart repo.** The chart is only published to `oci://ghcr.io/przemekhys/charts/homeassistant-operator` (see [Installation](../getting-started/installation.md)) — there's no `index.yaml`-based repo, so `spec.type: oci` is required on the `HelmRepository`.
+**OCI `HelmRepository`, not a classic chart repo.** The chart is only published to `oci://ghcr.io/przemekhys/charts/homeassistant-operator` (see [Installation](../how-to/install-operator.md)) — there's no `index.yaml`-based repo, so `spec.type: oci` is required on the `HelmRepository`.
 
 **Version pinning: ranges are stable-only by default.** Once a stable version exists, a semver range like `>=1.0.0 <2.0.0` lets Flux pick up minor/patch updates automatically — but a plain range like that will **never** match a pre-release tag (`1.1.0-rc.0`), even after one is published. Pre-releases are only matched if the range itself opts in with a pre-release lower bound (e.g. `>=1.0.0-0`). If you're tracking a single release candidate before it goes stable, it's simplest to just pin the exact version instead of tuning a range for it:
 
@@ -106,7 +125,7 @@ Switch back to a plain range once the corresponding stable tag is published.
 
 **Custom resources live next to the `HelmRelease`.** Grouping the operator's `HelmRelease` and its `HomeAssistant`/`HomeAssistantConfiguration` CRs in the same directory (and the same Flux `Kustomization`) keeps "the operator" and "what it manages" as one reconciled unit in Git — one `flux diff` or `flux reconcile` covers the whole thing.
 
-## Automatic image updates (security-sensitive)
+## Security considerations: automatic image updates
 
 [Flux Image Automation](https://fluxcd.io/flux/guides/image-update/) can bump `spec.version` in the `HomeAssistant` CR automatically whenever a new Home Assistant image is published, instead of you editing it by hand on every release. This is convenient, but it auto-commits to your Git repo — treat the policy that decides *which* tags qualify as a security control, not just a convenience setting.
 
@@ -193,6 +212,6 @@ spec:
 
 ## See also
 
-- [Home Assistant CR](../user-guide/homeassistant.md) and [Configuration Management](../user-guide/configuration.md) for the full CR specs used in `resources/`.
+- [Home Assistant CR](../how-to/deploy-instance.md) and [Configuration Management](../how-to/manage-configuration.md) for the full CR specs used in `resources/`.
 - [CRD API Reference](../reference/api.md) for every field on every CRD.
-- [Installation](../getting-started/installation.md) for the full list of Helm chart values (e.g. `watchNamespaces`).
+- [Installation](../how-to/install-operator.md) for the full list of Helm chart values (e.g. `watchNamespaces`).

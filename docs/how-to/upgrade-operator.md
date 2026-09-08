@@ -1,27 +1,41 @@
-# Upgrade
+# Upgrade the operator
 
-This page documents how to install and upgrade the operator with Helm, including
-the **explicit CRD update step** — so you never have to guess how to move between
-versions.
+*How-to — move an existing installation to a newer version. Assumes the operator is already installed with Helm.*
 
-The chart is published to the OCI registry
-`oci://ghcr.io/przemekhys/homeassistant-operator/charts/homeassistant-operator`.
+Helm does **not** upgrade CRDs on `helm upgrade`. The explicit CRD step below is
+the part people miss, and skipping it is what makes new fields silently not work.
 
-!!! info "Why CRDs need an explicit step"
-    Helm installs everything under the chart's `crds/` directory on a **fresh
-    install**, but by design it does **not** update those CRDs on `helm upgrade`.
-    To pick up CRD schema changes between versions you must apply them yourself
-    with `kubectl apply -f` (shown below). This is intentional and safe: it keeps
-    Helm from ever deleting a CRD (and your Custom Resources with it).
+
+## Prerequisites
+
+- An existing Helm installation of the operator
+- `helm` and `kubectl` configured for the cluster
+
+Set the target version once; every command below uses it. Note that the registry
+tag has no leading `v`, even though the git tag does:
+
+```sh
+VERSION=1.4.0
+```
+
+Every namespace named in `watchNamespaces` must already exist — the chart puts a
+`RoleBinding` in each one, and a missing namespace fails the command. See
+[install the operator](install-operator.md#which-namespaces-the-operator-watches).
 
 ## Fresh install
 
 ```bash
-helm install ha-operator \
-  oci://ghcr.io/przemekhys/homeassistant-operator/charts/homeassistant-operator \
-  --version <VERSION> \
-  --namespace homeassistant-operator-system --create-namespace
+helm install homeassistant-operator \
+  oci://ghcr.io/przemekhys/charts/homeassistant-operator \
+  --version "$VERSION" \
+  --namespace homeassistant-operator-system --create-namespace \
+  --set 'watchNamespaces={homeassistant}'
 ```
+
+List the namespaces that will hold Home Assistant resources in
+`watchNamespaces`. Leaving it empty falls back to a cluster-wide
+`ClusterRoleBinding`, which is deprecated — see
+[install the operator](install-operator.md#which-namespaces-the-operator-watches).
 
 !!! note "Namespace ownership and Pod Security enforcement"
     `--create-namespace` lets Helm create the namespace **without** the chart's
@@ -49,14 +63,14 @@ then the Helm release:
 ```bash
 # 1. Update the CRDs explicitly (Helm does NOT do this on upgrade).
 #    Pull the exact CRDs for the target version and apply them:
-helm pull oci://ghcr.io/przemekhys/homeassistant-operator/charts/homeassistant-operator \
-  --version <VERSION> --untar --untardir /tmp/ha-operator-<VERSION>
-kubectl apply -f /tmp/ha-operator-<VERSION>/homeassistant-operator/crds/
+helm pull oci://ghcr.io/przemekhys/charts/homeassistant-operator \
+  --version "$VERSION" --untar --untardir "/tmp/ha-operator-$VERSION"
+kubectl apply -f "/tmp/ha-operator-$VERSION/homeassistant-operator/crds/"
 
 # 2. Upgrade the Helm release.
-helm upgrade ha-operator \
-  oci://ghcr.io/przemekhys/homeassistant-operator/charts/homeassistant-operator \
-  --version <VERSION> \
+helm upgrade homeassistant-operator \
+  oci://ghcr.io/przemekhys/charts/homeassistant-operator \
+  --version "$VERSION" \
   --namespace homeassistant-operator-system
 
 # 3. Verify the upgrade.

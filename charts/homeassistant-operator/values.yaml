@@ -1,132 +1,136 @@
 image:
+  # -- Operator container image repository.
   repository: ghcr.io/przemekhys/homeassistant-operator
-  # Defaults to chart appVersion when empty
+  # -- Image tag. Defaults to the chart's appVersion when empty.
   tag: "1.1.0"
+  # -- Image pull policy for the operator container.
   pullPolicy: IfNotPresent
 
+# -- Image pull secrets for a private registry mirror.
 imagePullSecrets: []
 
+# -- Number of operator replicas. The operator has no leader election across
+# replicas, so values above 1 are not supported.
 replicaCount: 1
 
+# -- Override the chart name used in resource names.
 nameOverride: ""
+# -- Override the full generated name of every rendered resource.
 fullnameOverride: ""
 
 serviceAccount:
+  # -- Create the operator's ServiceAccount. Set to false to supply your own.
   create: true
-  # Defaults to fullname when empty
+  # -- Name of the ServiceAccount. Defaults to the chart fullname when empty.
   name: ""
+  # -- Extra annotations for the ServiceAccount, e.g. for cloud workload identity.
   annotations: {}
 
 namespace:
-  # create: when true, the chart renders the release Namespace and labels it to
-  # enforce the "restricted" Pod Security Standard (version latest). Install the
-  # chart WITHOUT `--create-namespace` so the chart owns the namespace, e.g.:
-  #   helm install ha-operator ... -n homeassistant-operator-system --set namespace.create=true
-  # When false (default), Helm/you manage the namespace and no PSA labels are added;
-  # the operator pod is restricted-compliant regardless (see securityContext below).
+  # -- Render the release Namespace and label it to enforce the "restricted" Pod
+  # Security Standard (version latest). Helm stores its release state in the target
+  # namespace, so that namespace must exist before the chart is applied: pass
+  # `--create-namespace` (or create it yourself) on the first install. When false
+  # (the default), no Pod Security Admission labels are added at all — the operator
+  # pod is restricted-compliant either way, see `securityContext`, but the namespace
+  # does not enforce it.
   create: false
 
+# -- Extra annotations for the operator pod.
 podAnnotations: {}
 
 podSecurityContext:
+  # -- Refuse to start the pod if the image would run as root.
   runAsNonRoot: true
   seccompProfile:
+    # -- Seccomp profile for the pod. `RuntimeDefault` is required by the
+    # "restricted" Pod Security Standard.
     type: RuntimeDefault
 
 securityContext:
+  # -- Forbid gaining more privileges than the parent process.
   allowPrivilegeEscalation: false
+  # -- Mount the container root filesystem read-only.
   readOnlyRootFilesystem: true
+  # -- Refuse to start the container if it would run as root.
   runAsNonRoot: true
+  # -- UID the operator process runs as.
   runAsUser: 65532
+  # -- GID the operator process runs as.
   runAsGroup: 65532
   capabilities:
+    # -- Linux capabilities to drop. All of them, as "restricted" requires.
     drop:
       - ALL
 
 resources:
   limits:
+    # -- CPU limit for the operator container.
     cpu: 500m
+    # -- Memory limit. Raise it if you validate very large community repositories.
     memory: 128Mi
   requests:
+    # -- CPU request for the operator container.
     cpu: 10m
+    # -- Memory request for the operator container.
     memory: 64Mi
 
+# -- PriorityClass for the operator pod, so it is evicted after your workloads
+# rather than before them.
 priorityClassName: ""
 
+# -- Node selector for the operator pod. Example — pin to ARM64 nodes:
+# `{"kubernetes.io/arch": "arm64"}`
 nodeSelector: {}
-# Example — pin to ARM64 nodes:
-# nodeSelector:
-#   kubernetes.io/arch: arm64
 
+# -- Tolerations for the operator pod.
 tolerations: []
 
+# -- Affinity rules for the operator pod, e.g. pod anti-affinity to spread
+# replicas across nodes.
 affinity: {}
-# Example — pod anti-affinity (spread across nodes):
-# affinity:
-#   podAntiAffinity:
-#     preferredDuringSchedulingIgnoredDuringExecution:
-#       - weight: 100
-#         podAffinityTerm:
-#           labelSelector:
-#             matchLabels:
-#               app.kubernetes.io/name: homeassistant-operator
-#           topologyKey: kubernetes.io/hostname
 
+# -- Topology spread constraints for the operator pod, e.g. spreading across
+# zones with `topologyKey: topology.kubernetes.io/zone`.
 topologySpreadConstraints: []
-# Example — spread across zones:
-# topologySpreadConstraints:
-#   - maxSkew: 1
-#     topologyKey: topology.kubernetes.io/zone
-#     whenUnsatisfiable: DoNotSchedule
-#     labelSelector:
-#       matchLabels:
-#         app.kubernetes.io/name: homeassistant-operator
 
-# watchNamespaces: namespaces the operator will watch for HomeAssistant CRs.
-# When empty, operator watches ALL namespaces (ClusterRoleBinding is used).
-# When set, operator watches ONLY the listed namespaces (per-namespace RoleBindings are created,
-# ClusterRoleBinding is NOT created — more secure, least-privilege).
-# NOTE: the operator's own namespace is NOT automatically included — add it explicitly if
-# you deploy HomeAssistant resources there (same namespace as the operator itself).
-# Example:
-# watchNamespaces:
-#   - homeassistant
-#   - homeassistant-dev
+# -- Namespaces the operator watches for Home Assistant resources. Empty means
+# ALL namespaces, which requires a cluster-wide ClusterRoleBinding and is
+# deprecated. Listing namespaces creates per-namespace RoleBindings instead —
+# least privilege. The operator's own namespace is NOT included automatically;
+# add it explicitly if you run Home Assistant resources alongside the operator.
 watchNamespaces: []
 
-# metricsNetworkPolicy restricts ingress to the operator's own pod: its /metrics
-# endpoint to namespaces labeled "metrics: enabled", and — when webhook.enabled
-# is also true — its validating admission webhook to namespaces labeled
-# "webhook: enabled". Off by default (opt-in) — egress is intentionally not
-# restricted here, since there is no portable way to address the Kubernetes API
-# server across cluster types/CNIs from a generic chart.
-# NOTE: unrelated to spec.alpha.networkPolicy.enabled on the HomeAssistant CR,
-# which instead protects the Home Assistant pod itself.
 metricsNetworkPolicy:
+  # -- Restrict ingress to the operator pod: its `/metrics` endpoint to namespaces
+  # labeled `metrics: enabled`, and — when `webhook.enabled` is also true — its
+  # admission webhook to namespaces labeled `webhook: enabled`. That label governs
+  # pod-to-pod callers only: on most clusters the API server's AdmissionReview
+  # calls do not originate from the pod network, so the rule neither reaches nor
+  # blocks them. Where they are evaluated by the policy, an unlabelled caller is
+  # denied — with `webhook.failurePolicy: Ignore` (the default) writes are then
+  # admitted unvalidated, and with `Fail` they are rejected outright. Egress is
+  # deliberately not restricted, because there is no portable way to address the
+  # Kubernetes API server across cluster types and CNIs from a generic chart.
+  # Unrelated to `spec.alpha.networkPolicy.enabled` on a HomeAssistant resource,
+  # which protects the Home Assistant pod instead.
   enabled: false
 
-# webhook configures the operator's validating admission webhook, which checks
-# HomeAssistant resources (currently TLS configuration coherence) at admission time.
-#
-# ENABLED BY DEFAULT (opt-out): set webhook.enabled=false to turn it off entirely
-# (the operator runs with ENABLE_WEBHOOKS=false and no webhook resources render).
-#
-# The serving certificate is **self-managed** by the operator by default — it
-# generates and rotates a self-signed certificate and injects the CA into its own
-# ValidatingWebhookConfiguration, so **no cert-manager is required**.
 webhook:
+  # -- Run the validating admission webhook, which checks resource coherence at
+  # admission time. Enabled by default; setting this to false runs the operator
+  # with `ENABLE_WEBHOOKS=false` and renders no webhook resources.
   enabled: true
-  # certManager.enabled: opt IN to have cert-manager issue the serving certificate
-  # instead of the operator self-managing it (a self-signed Issuer + Certificate are
-  # rendered and the CA is injected via cert-manager.io/inject-ca-from). REQUIRES
-  # cert-manager installed. When false (default), the operator self-manages the cert
-  # — no cert-manager dependency.
   certManager:
+    # -- Have cert-manager issue the webhook's serving certificate instead of the
+    # operator self-managing it. Requires cert-manager to be installed. When false
+    # (the default) the operator generates and rotates a self-signed certificate and
+    # injects the CA itself, so cert-manager is not a dependency.
     enabled: false
-  # port is the webhook server port on the operator pod.
+  # -- Port the webhook server listens on inside the operator pod.
   port: 9443
-  # failurePolicy for the ValidatingWebhookConfiguration (Fail or Ignore). Ignore
-  # (default) makes validation best-effort — HomeAssistant create/update is never
-  # blocked while the webhook is unavailable (e.g. during an operator rollout).
-  # Set Fail to strictly reject invalid resources.
+  # -- failurePolicy for the ValidatingWebhookConfiguration. `Ignore` (the default)
+  # keeps validation best-effort, so resource creation is never blocked while the
+  # webhook is unavailable — during an operator rollout, for instance. Use `Fail`
+  # to reject invalid resources strictly.
   failurePolicy: Ignore

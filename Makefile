@@ -256,29 +256,52 @@ DOCS_VENV ?= .venv
 
 .PHONY: docs-setup
 docs-setup: ## Create Python venv and install MkDocs dependencies
-	@if [ ! -f $(DOCS_VENV)/.installed ]; then \
+	@# The stamp records which manifest the venv was built from. On a change the
+	@# venv is rebuilt rather than topped up: pip never uninstalls what the
+	@# manifest dropped, so a reused environment would keep diverging from it.
+	@# Without the stamp, adding a plugin failed later with an unknown-plugin
+	@# error in an environment that looked already set up.
+	@want="$$(sha256sum docs/requirements.txt | cut -d' ' -f1)"; \
+	have="$$(cat $(DOCS_VENV)/.installed 2>/dev/null || true)"; \
+	if [ "$$want" != "$$have" ]; then \
+		rm -rf $(DOCS_VENV); \
 		python3 -m venv $(DOCS_VENV); \
 		$(DOCS_VENV)/bin/pip install -r docs/requirements.txt -q; \
-		touch $(DOCS_VENV)/.installed; \
+		echo "$$want" > $(DOCS_VENV)/.installed; \
 	fi
 
 .PHONY: docs-serve
 docs-serve: docs-api ## Serve documentation locally (http://127.0.0.1:8000)
 	@$(MAKE) docs-setup
-	$(DOCS_VENV)/bin/mkdocs serve
+	$(DOCS_VENV)/bin/mkdocs serve --strict
 
 .PHONY: docs-build
 docs-build: docs-api ## Build documentation to site/ (regenerates API reference first)
 	@$(MAKE) docs-setup
-	$(DOCS_VENV)/bin/mkdocs build
+	$(DOCS_VENV)/bin/mkdocs build --strict
+
+.PHONY: docs-verify
+docs-verify: docs-build ## Pre-PR gate for docs: strict build (links + anchors), self-contained check, pasteable shell snippets
+	./hack/verify-docs-selfcontained.sh
+	./hack/verify-docs-shell.sh
 
 .PHONY: docs-api
 docs-api: crd-ref-docs ## Regenerate docs/reference/api.md from Go types
 	$(CRD_REF_DOCS) \
-		--source-path=./api/v1 \
+		--source-path=./api \
 		--config=./docs/crd-ref-docs.yaml \
 		--renderer=markdown \
 		--output-path=./docs/reference/api.md
+	@# Stamp in the type line every published page carries — crd-ref-docs has no
+	@# hook for this, and the file is regenerated on every publish — then trim the
+	@# trailing blank lines the generator emits. pre-commit's end-of-file-fixer
+	@# strips them on the way in, so without this the freshly generated file never
+	@# matches the committed one and every run reports drift.
+	@{ head -1 ./docs/reference/api.md; echo; \
+	   echo '*Reference — every field of every custom resource, generated from the Go types. Look things up here; it does not teach.*'; \
+	   tail -n +2 ./docs/reference/api.md; } > ./docs/reference/api.md.tmp
+	@printf '%s\n' "$$(cat ./docs/reference/api.md.tmp)" > ./docs/reference/api.md
+	@rm -f ./docs/reference/api.md.tmp
 
 ##@ Security
 
@@ -353,8 +376,13 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 .PHONY: build-installer
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > dist/install.yaml
+	output="$$(pwd)/dist/install.yaml"; tmpdir=$$(mktemp -d); trap 'rm -rf "$$tmpdir"' EXIT; \
+	cp -R config "$$tmpdir/config"; \
+	cd "$$tmpdir/config/manager" && $(KUSTOMIZE) edit set image controller=${IMG}; \
+	$(KUSTOMIZE) build "$$tmpdir/config/default" > "$$output"
+	grep -Fqx '        image: ${IMG}' dist/install.yaml
+	grep -qx 'kind: CustomResourceDefinition' dist/install.yaml
+	grep -qx 'kind: Deployment' dist/install.yaml
 
 ##@ Helm
 

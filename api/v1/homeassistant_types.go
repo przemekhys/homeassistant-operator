@@ -46,6 +46,10 @@ type HomeAssistantSpec struct {
 	// +optional
 	Storage *StorageSpec `json:"storage,omitempty"`
 
+	// Additional volumes and mounts for the Home Assistant pod
+	// +optional
+	AdditionalVolumes *AdditionalVolumesSpec `json:"additionalVolumes,omitempty"`
+
 	// Resources defines CPU and memory requests/limits
 	// +optional
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
@@ -228,6 +232,16 @@ type GatewaySpec struct {
 	// +kubebuilder:default=false
 	// +optional
 	ManageGateway bool `json:"manageGateway,omitempty"`
+
+	// GatewayClassName names the existing GatewayClass used by the
+	// operator-created Gateway. Defaults to "traefik" when omitted. Ignored when
+	// ParentRef is set.
+	// +optional
+	// +kubebuilder:default=traefik
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+	GatewayClassName string `json:"gatewayClassName,omitempty"`
 
 	// Filters are HTTP route-level behaviors (header modification, redirect, URL
 	// rewrite) applied, in order, to the single HTTPRoute rule the operator
@@ -591,6 +605,17 @@ type StorageSpec struct {
 	// but the files do not yet exist.
 	// +optional
 	InitContainer *InitContainerSpec `json:"initContainer,omitempty"`
+}
+
+// AdditionalVolumesSpec defines additional volumes to mount in the Home Assistant pod.
+type AdditionalVolumesSpec struct {
+	// Volumes to attach to each Home Assistant pod
+	// +optional
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
+
+	// VolumeMounts to attach to each Home Assistant container
+	// +optional
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 }
 
 // InitContainerSpec configures the image used for the config-init init container.

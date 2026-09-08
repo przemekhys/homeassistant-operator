@@ -145,8 +145,9 @@ func (r *HomeAssistantReconciler) buildCommunityRepositorySidecar(ha *hav1.HomeA
 			{Name: "config", MountPath: "/config"},
 			communityRepositoryVolumeMount(),
 		},
-		// Lightweight by design (ARM64/Raspberry Pi target, CLAUDE.md) — this is a
-		// small polling file-sync loop, not a service.
+		// Lightweight by design: the target platform is k3s on ARM64 single-board
+		// machines, where every reserved megabyte competes with Home Assistant
+		// itself. This is a small polling file-sync loop, not a service.
 		Resources: corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("10m"),

@@ -1,4 +1,14 @@
-# Troubleshooting
+# Troubleshoot a problem
+
+*How-to — find and fix a specific symptom. Each section starts from something you observed.*
+
+Look up the symptom you are seeing. For the meaning of a particular condition or
+`reason`, see the [status conditions reference](../reference/conditions.md).
+
+
+## Prerequisites
+
+- `kubectl` access to the cluster, and the name of the resource that is misbehaving
 
 ## Operator does not reconcile resources in a namespace
 
@@ -14,7 +24,7 @@ kubectl get deployment -n homeassistant-operator-system \
 - Empty / not set → cluster-wide mode, watches all namespaces.
 - Comma-separated list → only those namespaces are watched.
 
-Fix: add the namespace to `watchNamespaces` in your Helm values and upgrade. Remember the operator's **own** namespace is not auto-included. See [Installation → Restrict watched namespaces](../getting-started/installation.md#restrict-watched-namespaces-watchnamespaces).
+Fix: add the namespace to `watchNamespaces` in your Helm values and upgrade. Remember the operator's **own** namespace is not auto-included. See [Installation → Restrict watched namespaces](install-operator.md#which-namespaces-the-operator-watches).
 
 ## Operator gets banned by Home Assistant (`BanRecoveryFailed`)
 
@@ -28,12 +38,12 @@ Manual recovery:
 
 ```sh
 # 1. Remove the operator IP from ip_bans.yaml on the PVC, e.g. via a debug pod
-#    mounting <ha-name>-config, or edit /config/ip_bans.yaml directly.
+#    mounting the <ha-name>-data PVC, or edit /config/ip_bans.yaml directly.
 # 2. Restart the HA pod so the init-container runs and HA starts unbanned:
 kubectl delete pod home-0
 ```
 
-The window resets automatically after 30 minutes or on the first successful HA connection. See [Home Assistant CR → IP ban self-recovery](../user-guide/homeassistant.md#ip-ban-self-recovery).
+The window resets automatically after 30 minutes or on the first successful HA connection. See [Home Assistant CR → IP ban self-recovery](../explanation/reconciliation-model.md#ip-ban-self-recovery).
 
 
 ## HomeAssistant stuck in `WaitingForConfiguration`
@@ -50,12 +60,12 @@ kubectl get homeassistantconfigurations -o jsonpath='{range .items[*]}{.metadata
 If a CR hangs on deletion, the operator was likely removed before the CR (finalizer cleanup could not run). Restore the operator, or force-remove the finalizer as a last resort:
 
 ```sh
-kubectl patch <resource> <name> -p '{"metadata":{"finalizers":null}}' --type=merge
+kubectl patch haauto lights-at-sunset -p '{"metadata":{"finalizers":null}}' --type=merge
 ```
 
 ## TLS mode enabled but no certificate is issued
 
-Check the status conditions ([TLS guide](../user-guide/tls.md)):
+Check the status conditions ([TLS guide](expose-with-tls.md)):
 
 ```sh
 kubectl get homeassistant <name> -o jsonpath='{.status.conditions}' | jq
@@ -68,7 +78,7 @@ kubectl get homeassistant <name> -o jsonpath='{.status.conditions}' | jq
   Inspect it: `kubectl describe certificate <name>-ingress-tls` (or `-gateway-tls`)
   and check the referenced `Issuer`/`ClusterIssuer` is Ready.
 - **`spec.alpha.tls` seems to be ignored** — native TLS was removed. Move to
-  `spec.ingress.tls` or `spec.gateway` (see the [TLS guide](../user-guide/tls.md)).
+  `spec.ingress.tls` or `spec.gateway` (see the [TLS guide](expose-with-tls.md)).
 
 ## HomeAssistantCommunityRepository fails with an extraction limit error
 

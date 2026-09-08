@@ -8,7 +8,22 @@ on:
       - 'docs/**'
       - 'mkdocs.yml'
       - 'CHANGELOG.md'
-      - 'api/v1/**'
+      - 'api/**'
+      - 'charts/homeassistant-operator/README.md'
+      - 'Makefile'
+      - 'hack/verify-docs-selfcontained.sh'
+      - 'hack/verify-docs-shell.sh'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'CHANGELOG.md'
+      - 'api/**'
+      - 'charts/homeassistant-operator/README.md'
+      - 'Makefile'
+      - 'hack/verify-docs-selfcontained.sh'
+      - 'hack/verify-docs-shell.sh'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
@@ -20,7 +35,56 @@ permissions:
   contents: read
 
 jobs:
+  # Gate. Runs on pull requests too, so a broken link or a dead cross-repository
+  # reference is caught before it can reach the published site.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.x'
+          cache: pip
+          cache-dependency-path: docs/requirements.lock
+
+      - name: Install MkDocs dependencies
+        run: pip install --require-hashes -r docs/requirements.lock
+
+      - name: Generate CRD API reference
+        run: make docs-api
+
+      # The generated reference is committed, so a drift here means someone
+      # changed the API types without regenerating it.
+      - name: Fail if the committed API reference drifted from the Go types
+        run: git diff --exit-code -- docs/reference/api.md
+
+      # mkdocs offers no "error" level for link validation, only warn/info —
+      # --strict is what turns those warnings into a failing build.
+      - name: Build the site (strict; validates links and anchors)
+        run: mkdocs build --strict
+
+      # Documentation must stand on its own for anyone who clones this
+      # repository. References to planning artefacts that live outside it are
+      # dead links for every contributor, so they are rejected outright.
+      - name: Reject references to artefacts outside this repository
+        run: ./hack/verify-docs-selfcontained.sh
+
+      # Readers copy these snippets verbatim. A `<placeholder>` is a shell
+      # redirection, so such a line cannot even be parsed, let alone run.
+      - name: Check that every shell snippet can be pasted into a shell
+        run: ./hack/verify-docs-shell.sh
+
   deploy:
+    needs: verify
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write  # required for mkdocs gh-deploy (pushes to gh-pages branch)
@@ -38,7 +102,7 @@ jobs:
         with:
           python-version: '3.x'
           cache: pip
-          cache-dependency-path: docs/requirements.txt
+          cache-dependency-path: docs/requirements.lock
 
       - name: Install MkDocs dependencies
         run: pip install --require-hashes -r docs/requirements.lock

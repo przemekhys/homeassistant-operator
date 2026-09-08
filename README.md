@@ -12,7 +12,7 @@ A Kubernetes operator for deploying and managing [Home Assistant](https://www.ho
 **[Full documentation →](https://przemekhys.github.io/homeassistant-operator/)**
 
 Release artifacts (container image, Helm chart) are keylessly signed — see
-[Signed Releases](https://przemekhys.github.io/homeassistant-operator/user-guide/signed-releases/)
+[Signed Releases](https://przemekhys.github.io/homeassistant-operator/how-to/verify-signed-releases/)
 to verify them or enforce verification in your cluster with Kyverno.
 
 ## Quick Start
@@ -20,10 +20,14 @@ to verify them or enforce verification in your cluster with Kyverno.
 ```sh
 helm install homeassistant-operator oci://ghcr.io/przemekhys/charts/homeassistant-operator \
   --namespace homeassistant-operator-system \
-  --create-namespace
+  --create-namespace \
+  --set 'watchNamespaces={homeassistant}'
 ```
 
-See the [installation guide](https://przemekhys.github.io/homeassistant-operator/getting-started/installation/) for a full walkthrough, including the plain-manifest (kustomize) alternative.
+`watchNamespaces` lists the namespaces holding your Home Assistant resources.
+Omitting it gives the operator cluster-wide permissions, which is deprecated.
+
+See the [installation guide](https://przemekhys.github.io/homeassistant-operator/how-to/install-operator/) for a full walkthrough, including the plain-manifest (kustomize) alternative.
 
 ## Contributing
 

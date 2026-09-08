@@ -36,7 +36,10 @@ import (
 // Gateway API GroupVersionKinds the operator manages as unstructured (avoiding a
 // dependency on sigs.k8s.io/gateway-api and keeping graceful degradation simple —
 // consistent with how cert-manager Certificates are handled).
-const gatewayAPIGroup = "gateway.networking.k8s.io"
+const (
+	gatewayAPIGroup         = "gateway.networking.k8s.io"
+	defaultGatewayClassName = "traefik"
+)
 
 var (
 	httpRouteGVK = schema.GroupVersionKind{Group: gatewayAPIGroup, Version: "v1", Kind: "HTTPRoute"}
@@ -449,6 +452,10 @@ func buildHTTPPathModifier(p *hav1.HTTPPathModifier) map[string]interface{} {
 func (r *HomeAssistantReconciler) ensureManagedGateway(
 	ctx context.Context, ha *hav1.HomeAssistant, tlsSecret string,
 ) error {
+	gatewayClassName := ha.Spec.Gateway.GatewayClassName
+	if gatewayClassName == "" {
+		gatewayClassName = defaultGatewayClassName
+	}
 	gw := &unstructured.Unstructured{}
 	gw.SetGroupVersionKind(gatewayGVK)
 	gw.SetName(managedGatewayName(ha))
@@ -467,7 +474,7 @@ func (r *HomeAssistantReconciler) ensureManagedGateway(
 	}
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, gw, func() error {
 		gw.Object["spec"] = map[string]interface{}{
-			"gatewayClassName": ha.Name,
+			"gatewayClassName": gatewayClassName,
 			"listeners":        []interface{}{listener},
 		}
 		return controllerutil.SetControllerReference(ha, gw, r.Scheme)
