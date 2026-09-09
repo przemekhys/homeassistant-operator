@@ -64,7 +64,12 @@ jobs:
       # The generated reference is committed, so a drift here means someone
       # changed the API types without regenerating it.
       - name: Fail if the committed API reference drifted from the Go types
-        run: git diff --exit-code -- docs/reference/api.md
+        run: |
+          if ! git diff --exit-code -- docs/reference/api.md; then
+            echo "::error title=Generated API reference is stale::Run 'make docs-api' and commit docs/reference/api.md."
+            echo "Generated API reference is out of date. Run 'make docs-api' and commit docs/reference/api.md." >&2
+            exit 1
+          fi
 
       # mkdocs offers no "error" level for link validation, only warn/info —
       # --strict is what turns those warnings into a failing build.
