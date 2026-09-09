@@ -14,6 +14,6 @@
 
 <!-- Select the statement that best describes the test decision. -->
 
-- [ ] I reviewed the [testing guide](../docs/development/testing.md) and added or updated the appropriate tests.
+- [ ] I reviewed the [testing guide](https://przemekhys.github.io/homeassistant-operator/development/testing/) and added or updated the appropriate tests.
 - [ ] Tests are not needed for this change. Explain why:
 - [ ] I am not sure which tests are appropriate and would like reviewer guidance.
