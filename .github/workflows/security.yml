@@ -86,7 +86,7 @@ jobs:
       - name: Install Kyverno CLI
         run: |
           # renovate: datasource=github-releases depName=kyverno/kyverno
-          KYVERNO_CLI_VERSION="v1.19.0"
+          KYVERNO_CLI_VERSION="v1.19.1"
           ASSET="kyverno-cli_${KYVERNO_CLI_VERSION}_linux_x86_64.tar.gz"
           BASE_URL="https://github.com/kyverno/kyverno/releases/download/${KYVERNO_CLI_VERSION}"
           curl -sSLO "${BASE_URL}/${ASSET}"
