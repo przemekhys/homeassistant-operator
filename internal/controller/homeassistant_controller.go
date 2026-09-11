@@ -547,8 +547,10 @@ func (r *HomeAssistantReconciler) reconcileStatefulSet(ctx context.Context, ha *
 				return err
 			}
 
-			// Apply desired spec to fresh object
+			// Apply desired spec and metadata to fresh object
 			freshSts.Spec = desired.Spec
+			freshSts.Annotations = desired.Annotations
+			freshSts.Labels = desired.Labels
 
 			// Attempt update
 			if err := r.Update(ctx, freshSts); err != nil {
@@ -872,28 +874,33 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 	}
 
 	currentSts := &appsv1.StatefulSet{}
-	r.Get(ctx, types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, currentSts)
+	if getErr := r.Get(
+		ctx, types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, currentSts,
+	); getErr != nil && !errors.IsNotFound(getErr) {
+		return nil, getErr
+	}
 
 	currentManagedAnnotations := make(map[string]struct{})
-	if anns, ok := currentSts.ObjectMeta.Annotations[userAnnotationsAnnotationKey]; ok {
+	if anns, ok := currentSts.Annotations[userAnnotationsAnnotationKey]; ok {
 		for _, ann := range strings.Split(anns, ",") {
 			currentManagedAnnotations[ann] = struct{}{}
 		}
 	}
 
 	currentManagedLabels := make(map[string]struct{})
-	if lbls, ok := currentSts.ObjectMeta.Annotations[userLabelsAnnotationKey]; ok {
+	if lbls, ok := currentSts.Annotations[userLabelsAnnotationKey]; ok {
 		for _, lbl := range strings.Split(lbls, ",") {
 			currentManagedLabels[lbl] = struct{}{}
 		}
 	}
 
-	podAnnotations := reconcileMaps(currentSts.Spec.Template.ObjectMeta.Annotations, ha.Spec.Annotations, currentManagedAnnotations)
-	podLabels := reconcileMaps(currentSts.Spec.Template.ObjectMeta.Labels, ha.Spec.Labels, currentManagedLabels)
+	podAnnotations := reconcileMaps(
+		currentSts.Spec.Template.Annotations, ha.Spec.Annotations, currentManagedAnnotations)
+	podLabels := reconcileMaps(currentSts.Spec.Template.Labels, ha.Spec.Labels, currentManagedLabels)
 	maps.Copy(podLabels, matchLabels)
 
-	stsAnnotations := reconcileMaps(currentSts.ObjectMeta.Annotations, ha.Spec.Annotations, currentManagedAnnotations)
-	stsLabels := reconcileMaps(currentSts.ObjectMeta.Labels, ha.Spec.Labels, currentManagedLabels)
+	stsAnnotations := reconcileMaps(currentSts.Annotations, ha.Spec.Annotations, currentManagedAnnotations)
+	stsLabels := reconcileMaps(currentSts.Labels, ha.Spec.Labels, currentManagedLabels)
 	maps.Copy(stsLabels, matchLabels)
 
 	stsAnnotations[userAnnotationsAnnotationKey] = strings.Join(slices.Sorted(maps.Keys(ha.Spec.Annotations)), ",")
@@ -1714,32 +1721,33 @@ func needsUpdate(current, desired *appsv1.StatefulSet) bool {
 	// Check user-managed annotations and labels
 	currentManagedAnnotations := make(map[string]string)
 	desiredManagedAnnotations := make(map[string]string)
-	if anns, ok := current.ObjectMeta.Annotations[userAnnotationsAnnotationKey]; ok {
+	if anns, ok := current.Annotations[userAnnotationsAnnotationKey]; ok {
 		for _, ann := range strings.Split(anns, ",") {
-			currentManagedAnnotations[ann] = current.ObjectMeta.Annotations[ann]
+			currentManagedAnnotations[ann] = current.Annotations[ann]
 		}
 	}
-	if anns, ok := desired.ObjectMeta.Annotations[userAnnotationsAnnotationKey]; ok {
+	if anns, ok := desired.Annotations[userAnnotationsAnnotationKey]; ok {
 		for _, ann := range strings.Split(anns, ",") {
-			desiredManagedAnnotations[ann] = desired.ObjectMeta.Annotations[ann]
+			desiredManagedAnnotations[ann] = desired.Annotations[ann]
 		}
 	}
 
 	if !maps.Equal(currentManagedAnnotations, desiredManagedAnnotations) {
-		log.V(1).Info("Managed annotations differ", "current", currentManagedAnnotations, "desired", desiredManagedAnnotations)
+		log.V(1).Info("Managed annotations differ", "current", currentManagedAnnotations,
+			"desired", desiredManagedAnnotations)
 		return true
 	}
 
 	currentManagedLabels := make(map[string]string)
 	desiredManagedLabels := make(map[string]string)
-	if lbls, ok := current.ObjectMeta.Annotations[userLabelsAnnotationKey]; ok {
+	if lbls, ok := current.Annotations[userLabelsAnnotationKey]; ok {
 		for _, lbl := range strings.Split(lbls, ",") {
-			currentManagedLabels[lbl] = current.ObjectMeta.Labels[lbl]
+			currentManagedLabels[lbl] = current.Labels[lbl]
 		}
 	}
-	if lbls, ok := desired.ObjectMeta.Annotations[userLabelsAnnotationKey]; ok {
+	if lbls, ok := desired.Annotations[userLabelsAnnotationKey]; ok {
 		for _, lbl := range strings.Split(lbls, ",") {
-			desiredManagedLabels[lbl] = desired.ObjectMeta.Labels[lbl]
+			desiredManagedLabels[lbl] = desired.Labels[lbl]
 		}
 	}
 

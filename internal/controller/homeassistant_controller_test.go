@@ -1343,6 +1343,7 @@ var _ = Describe("HomeAssistant Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for StatefulSet to be created with annotations")
+			var resourceVersion string
 			Eventually(func(g Gomega) {
 				sts := &appsv1.StatefulSet{}
 				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
@@ -1350,10 +1351,36 @@ var _ = Describe("HomeAssistant Controller", func() {
 					Namespace: namespace,
 				}, sts)).To(Succeed())
 
-				g.Expect(sts.Spec.Template.Annotations).NotTo(BeNil())
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue(userAnnotationsAnnotationKey, "bar.example,foo.example"))
+
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue("foo.example", "foo"))
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue("bar.example", "bar"))
+
 				g.Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("foo.example", "foo"))
 				g.Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("bar.example", "bar"))
+				resourceVersion = sts.ResourceVersion
 			}, timeout, interval).Should(Succeed())
+
+			By("Reconciling again")
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Ensuring the StatefulSet is not written again")
+			Consistently(func() string {
+				sts := &appsv1.StatefulSet{}
+				if err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				}, sts); err != nil {
+					return ""
+				}
+				return sts.ResourceVersion
+			}, time.Second*2, interval).Should(Equal(resourceVersion))
 		})
 
 		It("should update configured annotations on the StatefulSet", func() {
@@ -1414,7 +1441,11 @@ var _ = Describe("HomeAssistant Controller", func() {
 					Namespace: namespace,
 				}, sts)).To(Succeed())
 
-				g.Expect(sts.Spec.Template.Annotations).NotTo(BeNil())
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue(userAnnotationsAnnotationKey, "bar.example,foo.example"))
+
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue("foo.example", "foo"))
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue("bar.example", "bar"))
+
 				g.Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("foo.example", "foo"))
 				g.Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("bar.example", "bar"))
 			}, timeout, interval).Should(Succeed())
@@ -1432,7 +1463,7 @@ var _ = Describe("HomeAssistant Controller", func() {
 			ha.Spec.Annotations = annotations
 			Expect(k8sClient.Update(ctx, ha)).To(Succeed())
 
-			By("reconciling the updated config")
+			By("Reconciling the updated config")
 			_, err = reconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      testName,
@@ -1448,6 +1479,12 @@ var _ = Describe("HomeAssistant Controller", func() {
 					Name:      testName,
 					Namespace: namespace,
 				}, sts)).To(Succeed())
+
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue(userAnnotationsAnnotationKey, "bar.example,baz.example"))
+
+				g.Expect(sts.ObjectMeta.Annotations).NotTo(HaveKey("foo.example"))
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue("bar.example", "bar"))
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue("baz.example", "baz"))
 
 				g.Expect(sts.Spec.Template.Annotations).NotTo(HaveKey("foo.example"))
 				g.Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("bar.example", "bar"))
@@ -1506,6 +1543,7 @@ var _ = Describe("HomeAssistant Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for StatefulSet to be created with labels")
+			var resourceVersion string
 			Eventually(func(g Gomega) {
 				sts := &appsv1.StatefulSet{}
 				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
@@ -1513,10 +1551,31 @@ var _ = Describe("HomeAssistant Controller", func() {
 					Namespace: namespace,
 				}, sts)).To(Succeed())
 
-				g.Expect(sts.Spec.Template.Labels).NotTo(BeNil())
 				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("foo.example", "foo"))
 				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("bar.example", "bar"))
+				resourceVersion = sts.ResourceVersion
 			}, timeout, interval).Should(Succeed())
+
+			By("Reconciling again")
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Ensuring the StatefulSet is not written again")
+			Consistently(func() string {
+				sts := &appsv1.StatefulSet{}
+				if err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				}, sts); err != nil {
+					return ""
+				}
+				return sts.ResourceVersion
+			}, time.Second*2, interval).Should(Equal(resourceVersion))
 		})
 
 		It("should update configured labels on the StatefulSet", func() {
@@ -1577,7 +1636,11 @@ var _ = Describe("HomeAssistant Controller", func() {
 					Namespace: namespace,
 				}, sts)).To(Succeed())
 
-				g.Expect(sts.Spec.Template.Labels).NotTo(BeNil())
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue(userLabelsAnnotationKey, "bar.example,foo.example"))
+
+				g.Expect(sts.ObjectMeta.Labels).To(HaveKeyWithValue("foo.example", "foo"))
+				g.Expect(sts.ObjectMeta.Labels).To(HaveKeyWithValue("bar.example", "bar"))
+
 				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("foo.example", "foo"))
 				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("bar.example", "bar"))
 			}, timeout, interval).Should(Succeed())
@@ -1612,7 +1675,13 @@ var _ = Describe("HomeAssistant Controller", func() {
 					Namespace: namespace,
 				}, sts)).To(Succeed())
 
-				g.Expect(sts.Spec.Template.Labels).NotTo(HaveKeyWithValue("foo.example", "foo"))
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue(userLabelsAnnotationKey, "bar.example,baz.example"))
+
+				g.Expect(sts.ObjectMeta.Labels).NotTo(HaveKey("foo"))
+				g.Expect(sts.ObjectMeta.Labels).To(HaveKeyWithValue("bar.example", "bar"))
+				g.Expect(sts.ObjectMeta.Labels).To(HaveKeyWithValue("baz.example", "baz"))
+
+				g.Expect(sts.Spec.Template.Labels).NotTo(HaveKey("foo"))
 				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("bar.example", "bar"))
 				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("baz.example", "baz"))
 			}, timeout, interval).Should(Succeed())
