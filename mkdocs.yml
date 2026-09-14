@@ -145,6 +145,7 @@ nav:
     - Overview: ecosystem/index.md
     - Flux CD: ecosystem/flux.md
     - External secret management: ecosystem/secrets-management.md
+    - Expose Kubernetes applications in Home Assistant: ecosystem/hass-ingress.md
   - For Contributors:
     - Contributing: development/contributing.md
     - Branching & releases: development/branching.md
