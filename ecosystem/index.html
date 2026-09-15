@@ -1868,6 +1868,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="hass-ingress/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Expose Kubernetes applications in Home Assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2200,8 +2228,9 @@
 <h1 id="ecosystem-guides">Ecosystem guides<a class="headerlink" href="#ecosystem-guides" title="Permanent link">&para;</a></h1>
 <p><em>Ecosystem guides — how tools this project does not ship work together with the operator. Not part of the operator's supported API.</em></p>
 <p>These pages show how the operator fits alongside other things you probably
-already run: a GitOps engine, a secret manager. They exist because the questions
-keep coming up, not because the operator has any special support for these tools.</p>
+already run: a GitOps engine, a secret manager, or a custom Home Assistant
+integration. They exist because the questions keep coming up, not because the
+operator has any special support for these tools.</p>
 <div class="admonition note">
 <p class="admonition-title">Not part of the supported API</p>
 <p>Unlike the rest of this documentation, these guides are <strong>not</strong> part of the
@@ -2225,6 +2254,10 @@ step with those tools' releases.</p>
 <tr>
 <td><strong><a href="secrets-management/">External secret management</a></strong></td>
 <td>Sourcing Home Assistant's secrets from External Secrets Operator, Sealed Secrets or Vault instead of <code>kubectl create secret</code></td>
+</tr>
+<tr>
+<td><strong><a href="hass-ingress/">hass_ingress</a></strong></td>
+<td>Putting an independently deployed Kubernetes application in the Home Assistant sidebar behind Home Assistant authentication</td>
 </tr>
 </tbody>
 </table>

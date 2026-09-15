@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://przemekhys.github.io/homeassistant-operator/development/architecture/">
+        <link rel="canonical" href="https://przemekhys.github.io/homeassistant-operator/ecosystem/hass-ingress/">
       
       
-        <link rel="prev" href="../branching/">
+        <link rel="prev" href="../secrets-management/">
       
       
-        <link rel="next" href="../testing/">
+        <link rel="next" href="../../development/contributing/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Architecture - Home Assistant Operator</title>
+        <title>Expose Kubernetes applications in Home Assistant - Home Assistant Operator</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#architecture" class="md-skip">
+        <a href="#expose-kubernetes-applications-in-home-assistant" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Architecture
+              Expose Kubernetes applications in Home Assistant
             
           </span>
         </div>
@@ -318,11 +318,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../ecosystem/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
           
   
   
@@ -338,13 +340,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../contributing/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../development/contributing/" class="md-tabs__link">
           
   
   
@@ -1662,28 +1662,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
-        
-          
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
@@ -1701,7 +1704,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1719,7 +1722,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ecosystem/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -1747,7 +1750,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ecosystem/flux/" class="md-nav__link">
+      <a href="../flux/" class="md-nav__link">
         
   
   
@@ -1775,7 +1778,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ecosystem/secrets-management/" class="md-nav__link">
+      <a href="../secrets-management/" class="md-nav__link">
         
   
   
@@ -1783,154 +1786,6 @@
     
   
     External secret management
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../ecosystem/hass-ingress/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Expose Kubernetes applications in Home Assistant
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-    
-  
-  
-  
-    
-    
-    
-    
-      
-        
-        
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
-        
-          
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    For Contributors
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_7">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    For Contributors
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../contributing/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Contributing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../branching/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Branching & releases
   
 
     
@@ -1967,7 +1822,7 @@
   <span class="md-ellipsis">
     
   
-    Architecture
+    Expose Kubernetes applications in Home Assistant
   
 
     
@@ -1985,7 +1840,7 @@
   <span class="md-ellipsis">
     
   
-    Architecture
+    Expose Kubernetes applications in Home Assistant
   
 
     
@@ -2011,10 +1866,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#what-this-gives-you" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Overview
+        What this gives you
       
     </span>
   </a>
@@ -2022,10 +1877,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#crd-dependency-chain" class="md-nav__link">
+  <a href="#prerequisites" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CRD dependency chain
+        Prerequisites
       
     </span>
   </a>
@@ -2033,165 +1888,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#reconciliation-flows" class="md-nav__link">
+  <a href="#deploy-the-node-red-backend" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reconciliation flows
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Reconciliation flows">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#homeassistant" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HomeAssistant
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#homeassistantconfiguration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HomeAssistantConfiguration
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#homeassistantautomation-scene-script" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HomeAssistantAutomation / Scene / Script
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#homeassistantintegration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HomeAssistantIntegration
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#homeassistantfloor-label-area" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HomeAssistantFloor / Label / Area
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-mechanisms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key mechanisms
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Key mechanisms">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#owner-references-and-garbage-collection" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Owner references and garbage collection
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#finalizers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Finalizers
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#config-hash-annotations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Config hash annotations
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#hot-reload-with-retry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Hot-reload with retry
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#dependency-injection-for-testing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dependency injection for testing
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#validating-webhooks-choosing-where-a-rule-belongs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Validating webhooks: choosing where a rule belongs
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#package-structure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Package structure
+        Deploy the Node-RED backend
       
     </span>
   </a>
@@ -2199,10 +1899,87 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ha-client-internalhaclient" class="md-nav__link">
+  <a href="#install-hass_ingress" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HA client (internal/haclient)
+        Install hass_ingress
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#register-the-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Register the integration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-the-application-to-the-sidebar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add the application to the sidebar
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#restrict-direct-backend-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Restrict direct backend access
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compatibility-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compatibility limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security considerations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
       
     </span>
   </a>
@@ -2218,6 +1995,67 @@
 
               
             
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    For Contributors
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    For Contributors
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
               
                 
   
@@ -2225,7 +2063,91 @@
   
   
     <li class="md-nav__item">
-      <a href="../testing/" class="md-nav__link">
+      <a href="../../development/contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/branching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branching & releases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/testing/" class="md-nav__link">
         
   
   
@@ -2253,7 +2175,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../documentation-style/" class="md-nav__link">
+      <a href="../../development/documentation-style/" class="md-nav__link">
         
   
   
@@ -2308,10 +2230,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#what-this-gives-you" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Overview
+        What this gives you
       
     </span>
   </a>
@@ -2319,10 +2241,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#crd-dependency-chain" class="md-nav__link">
+  <a href="#prerequisites" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CRD dependency chain
+        Prerequisites
       
     </span>
   </a>
@@ -2330,165 +2252,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#reconciliation-flows" class="md-nav__link">
+  <a href="#deploy-the-node-red-backend" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reconciliation flows
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Reconciliation flows">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#homeassistant" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HomeAssistant
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#homeassistantconfiguration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HomeAssistantConfiguration
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#homeassistantautomation-scene-script" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HomeAssistantAutomation / Scene / Script
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#homeassistantintegration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HomeAssistantIntegration
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#homeassistantfloor-label-area" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HomeAssistantFloor / Label / Area
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-mechanisms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key mechanisms
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Key mechanisms">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#owner-references-and-garbage-collection" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Owner references and garbage collection
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#finalizers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Finalizers
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#config-hash-annotations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Config hash annotations
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#hot-reload-with-retry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Hot-reload with retry
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#dependency-injection-for-testing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dependency injection for testing
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#validating-webhooks-choosing-where-a-rule-belongs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Validating webhooks: choosing where a rule belongs
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#package-structure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Package structure
+        Deploy the Node-RED backend
       
     </span>
   </a>
@@ -2496,10 +2263,87 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ha-client-internalhaclient" class="md-nav__link">
+  <a href="#install-hass_ingress" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HA client (internal/haclient)
+        Install hass_ingress
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#register-the-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Register the integration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-the-application-to-the-sidebar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add the application to the sidebar
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#restrict-direct-backend-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Restrict direct backend access
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compatibility-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compatibility limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security considerations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
       
     </span>
   </a>
@@ -2549,10 +2393,10 @@
     
     
       <li class="md-path__item">
-        <a href="../contributing/" class="md-path__link">
+        <a href="../" class="md-path__link">
           
   <span class="md-ellipsis">
-    For Contributors
+    Ecosystem Guides
   </span>
 
         </a>
@@ -2571,7 +2415,7 @@
 
 
   
-    <a href="https://github.com/przemekhys/homeassistant-operator/edit/main/docs/development/architecture.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/przemekhys/homeassistant-operator/edit/main/docs/ecosystem/hass-ingress.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2579,315 +2423,262 @@
   
 
 
-<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p><em>For contributors — how the operator is put together internally. Not needed to use the operator.</em></p>
-<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>Home Assistant Operator is a <a href="https://book.kubebuilder.io/">Kubebuilder v4</a> operator that manages Home Assistant instances on Kubernetes declaratively. It bridges the gap between Kubernetes resource management and the Home Assistant REST/WebSocket API.</p>
-<pre class="mermaid"><code>graph TD
-    GitOps["kubectl / GitOps\n(CRs YAML)"]
-
-    subgraph operator["homeassistant-operator (controller-manager pod)"]
-        Reconcilers["Reconcilers\n(per CRD)"]
-        haclient["haclient\nREST + WebSocket"]
-        runtime["controller-runtime\ncache / informers"]
-        Reconcilers -- uses --&gt; haclient
-    end
-
-    subgraph k8s["Kubernetes API"]
-        resources["StatefulSet · Service\nPVC · ConfigMap · Secret"]
-    end
-
-    HA["Home Assistant pod\n(REST + WebSocket)"]
-
-    GitOps --&gt; operator
-    Reconcilers -- "Kubernetes API" --&gt; k8s
-    haclient -- "HTTP / WebSocket" --&gt; HA</code></pre>
-<h2 id="crd-dependency-chain">CRD dependency chain<a class="headerlink" href="#crd-dependency-chain" title="Permanent link">&para;</a></h2>
-<p>All CRDs form a strict dependency graph. The operator enforces it — a CRD requeues (waits) until its dependency is ready.</p>
-<pre class="mermaid"><code>graph TD
-    HAConfig[HomeAssistantConfiguration] --&gt;|required| HA[HomeAssistant]
-    HA --&gt;|homeAssistantRef| Secrets[HomeAssistantSecrets]
-    HA --&gt;|homeAssistantRef| Auto[HomeAssistantAutomation]
-    HA --&gt;|homeAssistantRef| Scene[HomeAssistantScene]
-    HA --&gt;|homeAssistantRef| Script[HomeAssistantScript]
-    HA --&gt;|homeAssistantRef| Integration[HomeAssistantIntegration]
-    HA --&gt;|homeAssistantRef| Floor[HomeAssistantFloor]
-    HA --&gt;|homeAssistantRef| Label[HomeAssistantLabel]
-    HA --&gt;|homeAssistantRef| Area[HomeAssistantArea]
-    Floor -.-&gt;|optional ref| Area
-    Label -.-&gt;|optional ref| Area</code></pre>
-<p><strong>Recommended apply order:</strong></p>
-<ol>
-<li><code>HomeAssistantConfiguration</code> + <code>HomeAssistant</code> (simultaneously or config first)</li>
-<li><code>HomeAssistantSecrets</code> (optional)</li>
-<li><code>HomeAssistantFloor</code>, <code>HomeAssistantLabel</code> (optional, for room structure)</li>
-<li><code>HomeAssistantArea</code> (optional, depends on Floor/Label)</li>
-<li><code>HomeAssistantAutomation</code>, <code>HomeAssistantScene</code>, <code>HomeAssistantScript</code>, <code>HomeAssistantIntegration</code> (optional, require bootstrap token)</li>
-</ol>
-<h2 id="reconciliation-flows">Reconciliation flows<a class="headerlink" href="#reconciliation-flows" title="Permanent link">&para;</a></h2>
-<h3 id="homeassistant">HomeAssistant<a class="headerlink" href="#homeassistant" title="Permanent link">&para;</a></h3>
-<p>The core reconciler orchestrates the full lifecycle.</p>
+<h1 id="expose-kubernetes-applications-in-home-assistant">Expose Kubernetes applications in Home Assistant<a class="headerlink" href="#expose-kubernetes-applications-in-home-assistant" title="Permanent link">&para;</a></h1>
+<p><em>Ecosystem guide — how hass_ingress works with the operator to put an independently deployed application in the Home Assistant sidebar. Not part of the operator's supported API.</em></p>
+<p>Deploy applications with their own Helm chart, operator, or manifests, then use
+<a href="https://github.com/lovelylain/hass_ingress"><code>hass_ingress</code></a> to present their web
+interface through Home Assistant. The application remains an ordinary Kubernetes
+workload; Home Assistant provides the sidebar entry, authenticates the user, and
+proxies requests through its own external URL.</p>
+<div class="admonition note">
+<p class="admonition-title">Not part of the supported API</p>
+<p>This guide shows one way to integrate the operator with another tool in the
+Kubernetes ecosystem. Unlike the rest of this documentation, it is <strong>not</strong>
+part of the operator's supported API — it reflects the state at the time of
+writing and may need adjusting for a different tool version or cluster setup.</p>
+</div>
+<p><strong>Tested with</strong>: hass_ingress 1.3.2, Home Assistant 2026.9.2, operator
+1.4.0-rc.0, Node-RED 5.0.7, and Kubernetes 1.34.</p>
+<h2 id="what-this-gives-you">What this gives you<a class="headerlink" href="#what-this-gives-you" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
-    A[Reconcile] --&gt; B[reconcilePVC]
-    B --&gt; C[reconcileStatefulSet]
-    C --&gt; D[reconcileService]
-    D --&gt; E[reconcileBootstrap]
-    E --&gt; F[reconcileBackupConfig]
-    F --&gt; G[updateStatus]</code></pre>
-<p><strong>reconcileStatefulSet</strong> builds the StatefulSet spec from:</p>
+    Browser --&gt;|Home Assistant session| HA[Home Assistant :8123]
+    HA --&gt;|/api/ingress/nodered/| Ingress[hass_ingress]
+    Ingress --&gt;|cluster HTTP| Service[Node-RED Service :1880]</code></pre>
 <ul>
-<li><code>spec.version</code> → container image tag</li>
-<li><code>spec.resources</code> → CPU/memory limits</li>
-<li><code>spec.storage</code> → PVC claim template</li>
-<li><code>spec.service</code>, <code>spec.ingress</code> → Service/Ingress resources</li>
-<li><code>spec.hostNetwork</code> → enables mDNS/SSDP discovery</li>
-<li>Config hash annotations from <code>HomeAssistantSecrets</code> and <code>HomeAssistantConfiguration</code> → rolling restarts</li>
+<li>A sidebar entry for the application.</li>
+<li>Home Assistant authentication in front of the proxied application, optionally
+  restricted to Home Assistant administrators.</li>
+<li>Access through the Home Assistant origin and port, without a separate public
+  Ingress or Gateway route for the application.</li>
+<li>Independent application lifecycle management with Kubernetes-native tooling.</li>
 </ul>
-<p><strong>reconcileBootstrap</strong> is a state machine that drives the onboarding flow:</p>
-<pre class="mermaid"><code>stateDiagram-v2
-    [*] --&gt; WaitForHealth: pod not ready
-    WaitForHealth --&gt; WaitForAPIReady: HTTP health OK
-    WaitForAPIReady --&gt; CheckOnboarding: GET /api/config → 401
-    CheckOnboarding --&gt; PerformOnboarding: onboarding pending
-    CheckOnboarding --&gt; Done: already complete
-    PerformOnboarding --&gt; CreateUser
-    CreateUser --&gt; SetCoreConfig
-    SetCoreConfig --&gt; SetAnalytics
-    SetAnalytics --&gt; CreateAPIToken
-    CreateAPIToken --&gt; Done
-    Done --&gt; [*]</code></pre>
-<h3 id="homeassistantconfiguration">HomeAssistantConfiguration<a class="headerlink" href="#homeassistantconfiguration" title="Permanent link">&para;</a></h3>
-<p>Manages <code>configuration.yaml</code> as a Kubernetes-native resource.</p>
-<pre class="mermaid"><code>flowchart LR
-    A[CR change] --&gt; B[Generate ConfigMap]
-    B --&gt; C{reloadStrategy?}
-    C --&gt;|auto| D{sections changed?}
-    D --&gt;|automation/script/logger| E[Hot-reload via REST API]
-    D --&gt;|homeassistant/http/mqtt| F[Annotate StatefulSet → rolling restart]
-    C --&gt;|hot-reload| E
-    C --&gt;|restart| F</code></pre>
-<p>Auto-include: the controller automatically injects <code>automation: !include automations.yaml</code>, <code>scene: !include scenes.yaml</code>, and <code>script: !include scripts.yaml</code> into <code>configuration.yaml</code> if missing — required for HA to load resources managed by the operator.</p>
-<h3 id="homeassistantautomation-scene-script">HomeAssistantAutomation / Scene / Script<a class="headerlink" href="#homeassistantautomation-scene-script" title="Permanent link">&para;</a></h3>
-<p>Each CR maps to a single entity in HA via the REST config API. No ConfigMap aggregation.</p>
-<pre class="mermaid"><code>flowchart LR
-    A[CR created/updated] --&gt; B[Get API token]
-    B --&gt;|missing| C[Requeue]
-    B --&gt;|present| D["PUT /api/config/{type}/config/{id}"]
-    D --&gt; E[Hot-reload via REST]
-    E --&gt; F[Update status]
-
-    G[CR deleted] --&gt; H[Finalizer runs]
-    H --&gt; I["DELETE /api/config/{type}/config/{id}"]
-    I --&gt; J[Remove finalizer]</code></pre>
-<p>HA persists these resources in <code>automations.yaml</code>, <code>scenes.yaml</code>, <code>scripts.yaml</code> on the PVC — they survive pod restarts.</p>
-<h3 id="homeassistantintegration">HomeAssistantIntegration<a class="headerlink" href="#homeassistantintegration" title="Permanent link">&para;</a></h3>
-<p>Manages HA integrations through the Config Flow API.</p>
-<pre class="mermaid"><code>flowchart TD
-    A[Reconcile] --&gt; B{deleting?}
-    B --&gt;|yes| C[RemoveConfigEntry → remove finalizer]
-    B --&gt;|no| D[Get HA + API token]
-    D --&gt;|not ready| E[Requeue]
-    D --&gt;|ready| F[Resolve config values]
-    F --&gt; G{entryID in status?}
-    G --&gt;|yes, hash unchanged| H[Verify entry exists → Done]
-    G --&gt;|yes, hash changed| I[RemoveConfigEntry → clear entryID → restart flow]
-    G --&gt;|no| J{integration exists in HA?}
-    J --&gt;|yes| K[Adopt: save entryID → Done]
-    J --&gt;|no| L[StartConfigFlow → SubmitConfigFlow → save entryID]</code></pre>
-<h3 id="homeassistantfloor-label-area">HomeAssistantFloor / Label / Area<a class="headerlink" href="#homeassistantfloor-label-area" title="Permanent link">&para;</a></h3>
-<p>These CRDs manage the HA room structure via the WebSocket registry API (no REST equivalent).</p>
-<pre class="mermaid"><code>flowchart LR
-    A[Reconcile] --&gt; B[SendWebSocketCommand]
-    B --&gt;|floor_registry/list| C{exists by name?}
-    C --&gt;|no| D[create]
-    C --&gt;|yes| E[update if changed]
-    D --&gt; F[Save ID in status]
-    E --&gt; F</code></pre>
-<p>Area resolution: <code>floorName</code> → Floor CR → <code>status.floorID</code>; <code>labels[]</code> → Label CRs → <code>status.labelID</code>s. If a Floor/Label is not yet ready, Area requeues (30 s) — no explicit watch relationship needed.</p>
-<h2 id="key-mechanisms">Key mechanisms<a class="headerlink" href="#key-mechanisms" title="Permanent link">&para;</a></h2>
-<h3 id="owner-references-and-garbage-collection">Owner references and garbage collection<a class="headerlink" href="#owner-references-and-garbage-collection" title="Permanent link">&para;</a></h3>
-<p>All sub-resources created by the operator carry an owner reference pointing to their parent CR. When the CR is deleted, Kubernetes garbage-collects owned resources automatically.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nx">controllerutil</span><span class="p">.</span><span class="nx">SetControllerReference</span><span class="p">(</span><span class="nx">owner</span><span class="p">,</span><span class="w"> </span><span class="nx">child</span><span class="p">,</span><span class="w"> </span><span class="nx">scheme</span><span class="p">)</span>
-</code></pre></div>
-<p>Resources owned by <code>HomeAssistant</code>: <code>StatefulSet</code>, <code>Service</code>, <code>PVC</code>.
-Resources owned by <code>HomeAssistantConfiguration</code>: the generated <code>ConfigMap</code>.
-Resources owned by <code>HomeAssistantSecrets</code>: the aggregated <code>ConfigMap</code>.</p>
-<h3 id="finalizers">Finalizers<a class="headerlink" href="#finalizers" title="Permanent link">&para;</a></h3>
-<p><code>HomeAssistantAutomation</code>, <code>HomeAssistantScene</code>, <code>HomeAssistantScript</code>, <code>HomeAssistantIntegration</code>, <code>HomeAssistantFloor</code>, <code>HomeAssistantLabel</code>, <code>HomeAssistantArea</code> all use finalizers to clean up their corresponding HA entities before the CR is removed. Cleanup is best-effort — if HA is unavailable, the finalizer is still removed so the CR is not left stuck.</p>
-<h3 id="config-hash-annotations">Config hash annotations<a class="headerlink" href="#config-hash-annotations" title="Permanent link">&para;</a></h3>
-<p><code>HomeAssistantSecrets</code> and <code>HomeAssistantConfiguration</code> each write a SHA-256 hash of their generated content into a pod template annotation on the <code>StatefulSet</code>. Kubernetes detects the annotation change as a pod template mutation and performs a rolling restart.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>ha.homeassistant.io/secrets-hash: sha256:abc123...
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>ha.homeassistant.io/config-hash:  sha256:def456...
-</code></pre></div>
-<p>A <code>sync.Map</code>-based debounce guard in <code>HomeAssistantReconciler</code> prevents a burst of hash updates from triggering multiple consecutive rollouts.</p>
-<h3 id="hot-reload-with-retry">Hot-reload with retry<a class="headerlink" href="#hot-reload-with-retry" title="Permanent link">&para;</a></h3>
-<p><code>reload_helpers.go</code> (<code>PerformReloadWithRetry</code>) provides shared logic for automation, scene, and script controllers:</p>
-<ol>
-<li><code>IsComponentLoaded()</code> — confirms the integration is loaded in HA before attempting reload</li>
-<li>3 attempts × 5 s delay, each tagged with a unique <code>ReloadID</code> for log correlation</li>
-<li>Graceful degradation — exhausted retries do not fail the reconciliation; HA will pick up the change on the next restart</li>
-</ol>
-<h3 id="dependency-injection-for-testing">Dependency injection for testing<a class="headerlink" href="#dependency-injection-for-testing" title="Permanent link">&para;</a></h3>
-<p>Reconcilers that call the HA API expose a <code>NewHAClient</code> field:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kd">type</span><span class="w"> </span><span class="nx">HomeAssistantAutomationReconciler</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="o">...</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nx">NewHAClient</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">baseURL</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="nx">haclient</span><span class="p">.</span><span class="nx">Client</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">}</span>
-</code></pre></div>
-<p>Tests wire in an <code>httptest.Server</code> instead of a real HA instance, keeping unit tests fast and hermetic.</p>
-<h3 id="validating-webhooks-choosing-where-a-rule-belongs">Validating webhooks: choosing where a rule belongs<a class="headerlink" href="#validating-webhooks-choosing-where-a-rule-belongs" title="Permanent link">&para;</a></h3>
-<p>A new field-validation rule for any CRD has three possible homes: a <strong>CRD schema</strong>
-constraint (<code>Pattern</code>/<code>Enum</code>/<code>MinLength</code>, or an in-object <code>x-kubernetes-validations</code> CEL
-rule), a <strong><code>ValidatingWebhook</code></strong> (<code>internal/webhook/v1/</code>), or the <strong>reconcile loop</strong>
-(status condition + <code>RequeueAfter</code>). A rule is a good webhook candidate only when it
-satisfies all five of the following at once — the more of them it fails, the stronger the
-signal that it belongs somewhere else:</p>
-<ol>
-<li><strong>No external state beyond the object and, at most, a simple List of its siblings.</strong>
-   A webhook may read the object under validation and List/Get other objects through the
-   API server (e.g. sibling resources of the same Kind, already held in the manager's
-   cache), but it must never make an outbound network call (an HTTP request to Home
-   Assistant, a fetch from GitHub) or write anything.</li>
-<li><strong>Fast and side-effect-free.</strong> A webhook blocks <code>kubectl apply</code> synchronously, inside
-   the default ~10s admission timeout. Anything the reconcilers already do through
-   <code>haclient</code> (reload, Config Flow) is disqualified by definition.</li>
-<li><strong>Deterministic, independent of apply ordering.</strong> The outcome must never depend on
-   whether some other, related resource happens to exist yet — that concern belongs to
-   the reconcile loop's status-and-<code>RequeueAfter</code> pattern, never to a hard admission
-   reject.</li>
-<li><strong>A false reject costs more than a false accept only when the rule can be wrong.</strong>
-   When a rule's correctness genuinely depends on state that might still change, the
-   webhook must be <code>failurePolicy: Ignore</code> and/or return an <code>admission.Warning</code> instead of
-   rejecting. A hard reject is reserved for rules that are wrong unconditionally.</li>
-<li><strong>A cheaper mechanism doesn't already express it.</strong> If the rule can be written as a
-   <code>+kubebuilder:validation:Pattern</code> or an <code>x-kubernetes-validations</code> CEL rule on the
-   field itself (e.g. "exactly one of A/B/C must be set" — see <code>IntegrationValue</code> in
-   <code>api/v1/homeassistantintegration_types.go</code>), use that instead: a CRD schema constraint
-   is cheaper than a webhook round trip, since it's enforced directly by the API server
-   with no call into the operator at all.</li>
-</ol>
-<p><strong>Worked examples from this repository:</strong></p>
+<p>This is not a Supervisor add-on implementation. The operator does not install or
+configure an application from add-on metadata, manage its updates, or provide a
+<code>SUPERVISOR_TOKEN</code>. If the application needs the Home Assistant API, configure
+its credentials separately and do not reuse the operator's bootstrap token.</p>
+<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>spec.id</code> on <code>HomeAssistantAutomation</code>/<code>Scene</code>/<code>Script</code>, restricted to a safe character
-  set → <strong>CRD <code>Pattern</code></strong>, not a webhook (criterion 5 — a constraint on the field itself,
-  no need to look at any other object).</li>
-<li>Two <code>HomeAssistantAutomation</code> resources colliding on the same effective identifier
-  (<code>spec.id</code>, or <code>metadata.name</code> when unset) for the same <code>HomeAssistant</code> → <strong>webhook</strong>
-  (<code>homeassistantautomation_webhook.go</code>) — needs a List of siblings in the same namespace,
-  but that's still a plain cache read, not a network call (criterion 1); a collision is
-  always wrong, so rejecting it (rather than only warning) is justified (criterion 4).
-  This remains a best-effort check, not a uniqueness guarantee: it reads the manager's
-  cache (which can lag a just-written sibling by a short, bounded window) and fails open
-  under <code>failurePolicy: Ignore</code>, so it catches the common case rather than closing every
-  possible race.</li>
-<li><code>HomeAssistantConfiguration.spec.recorder</code> with both <code>database</code> and <code>databaseSecretRef</code>
-  set → <strong>webhook, but a warning, not a reject</strong>
-  (<code>homeassistantconfiguration_webhook.go</code>) — both fields being set is legitimate,
-  already-documented behavior (<code>databaseSecretRef</code> takes precedence), so rejecting it
-  would break a valid configuration (criterion 4 cutting the other way).</li>
-<li><code>spec.homeAssistantRef.name</code> pointing at a <code>HomeAssistant</code> that doesn't exist yet →
-  <strong>reconcile loop</strong>, never a webhook (criterion 3 — apply ordering between related
-  resources is never guaranteed; a missing referent is a transient
-  <code>WaitingForConfiguration</code>-style state, not a user error).</li>
-<li>Validating a <code>HomeAssistantCommunityRepository</code>'s repository structure against HACS's
-  expected layout → <strong>reconcile loop</strong>, never a webhook (criterion 1 — requires fetching
-  a tarball from <code>codeload.github.com</code>).</li>
+<li>A running Home Assistant instance with
+  <a href="../../how-to/bootstrap-instance/">bootstrap completed</a>. The operator needs its
+  API token to register <code>hass_ingress</code>.</li>
+<li>An existing <code>HomeAssistantConfiguration</code> for the instance.</li>
+<li>An application with an HTTP <code>Service</code> that the Home Assistant pod can reach,
+  or permission to deploy the Node-RED example below.</li>
+<li>Outbound DNS and HTTPS access from the Home Assistant pod to
+  <code>codeload.github.com</code>, where the repository archive is downloaded.</li>
 </ul>
-<h2 id="package-structure">Package structure<a class="headerlink" href="#package-structure" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>api/v1/          CRD type definitions (edit here, then make manifests generate)
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cmd/main.go            Entry point — registers all controllers
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>internal/
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  controller/          One reconciler per CRD
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    reload_helpers.go  Shared hot-reload with retry
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    auto_include.go    Auto-inject !include lines into configuration.yaml
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    bootstrap_controller.go  HA onboarding state machine
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    backup_controller.go     Backup config via WebSocket
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    helpers.go         Shared utilities (status, conditions)
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>  haclient/
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    client.go          HTTP + WebSocket client (bootstrap, reload, config entries, backup)
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>test/
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>  e2e/                 Ginkgo/Gomega E2E tests (require k3d cluster)
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>  utils/timeouts.go    Centralised E2E timeouts
-<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>charts/
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>  homeassistant-operator/  Helm chart
-<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>config/
-<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>  crd/bases/           Generated CRD manifests (do not edit manually)
-<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>  rbac/                Generated RBAC manifests
-<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>  samples/             Example CRs for all CRDs
+<p>The examples put Home Assistant and Node-RED in the <code>homeassistant</code> namespace and
+name the Home Assistant resource <code>home</code>. Change all names consistently if your
+installation differs.</p>
+<h2 id="deploy-the-node-red-backend">Deploy the Node-RED backend<a class="headerlink" href="#deploy-the-node-red-backend" title="Permanent link">&para;</a></h2>
+<p>This deployment contains only the fields needed to start Node-RED and expose it
+inside the cluster. A Service defaults to <code>ClusterIP</code>, so it does not create a
+public Ingress or Gateway route:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deployment</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node-red</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">homeassistant</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="nt">selector</span><span class="p">:</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node-red</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">  </span><span class="nt">template</span><span class="p">:</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">      </span><span class="nt">labels</span><span class="p">:</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node-red</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">      </span><span class="nt">containers</span><span class="p">:</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node-red</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">          </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">docker.io/nodered/node-red:5.0.7-24</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="nn">---</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Service</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node-red</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">homeassistant</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">  </span><span class="nt">selector</span><span class="p">:</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node-red</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="w">  </span><span class="nt">ports</span><span class="p">:</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1880</span>
 </code></pre></div>
-<h2 id="ha-client-internalhaclient">HA client (<code>internal/haclient</code>)<a class="headerlink" href="#ha-client-internalhaclient" title="Permanent link">&para;</a></h2>
-<p>The <code>haclient.Client</code> wraps all communication with Home Assistant:</p>
-<table>
-<thead>
-<tr>
-<th>Method</th>
-<th>Transport</th>
-<th>Purpose</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>CheckHealth</code></td>
-<td>REST</td>
-<td>Health probe</td>
-</tr>
-<tr>
-<td><code>CheckAPIReady</code></td>
-<td>REST</td>
-<td>API readiness gate (401 = ready, 404 = not yet)</td>
-</tr>
-<tr>
-<td><code>PerformBootstrap</code></td>
-<td>REST</td>
-<td>Full onboarding flow</td>
-</tr>
-<tr>
-<td><code>ReloadAutomations/Scenes/Scripts</code></td>
-<td>REST</td>
-<td>Hot-reload after config change</td>
-</tr>
-<tr>
-<td><code>PutAutomation/Scene/Script</code></td>
-<td>REST</td>
-<td>Create or update single entity</td>
-</tr>
-<tr>
-<td><code>DeleteAutomation/Scene/Script</code></td>
-<td>REST</td>
-<td>Delete single entity (finalizer)</td>
-</tr>
-<tr>
-<td><code>IsComponentLoaded</code></td>
-<td>REST</td>
-<td>Pre-reload integration check</td>
-</tr>
-<tr>
-<td><code>ListConfigEntries</code> / <code>IsIntegrationConfigured</code></td>
-<td>REST</td>
-<td>Integration state</td>
-</tr>
-<tr>
-<td><code>StartConfigFlow</code> / <code>SubmitConfigFlow</code></td>
-<td>REST</td>
-<td>Config Flow registration</td>
-</tr>
-<tr>
-<td><code>RemoveConfigEntry</code></td>
-<td>REST</td>
-<td>Integration removal (finalizer)</td>
-</tr>
-<tr>
-<td><code>GetBackupConfig</code> / <code>ConfigureBackup</code></td>
-<td>WebSocket</td>
-<td>Backup schedule management</td>
-</tr>
-<tr>
-<td><code>SendWebSocketCommand</code></td>
-<td>WebSocket</td>
-<td>Generic one-shot WS helper</td>
-</tr>
-</tbody>
-</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>node-red.yaml
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kubectl<span class="w"> </span>rollout<span class="w"> </span>status<span class="w"> </span>deployment/node-red<span class="w"> </span>-n<span class="w"> </span>homeassistant
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Add persistent storage for real use</p>
+<p>This small example does not mount a volume. All flows, installed nodes, and
+settings under <code>/data</code> are lost when the pod is replaced. For a real
+installation, mount a PersistentVolumeClaim at <code>/data</code> as described in the
+Node-RED documentation on
+<a href="https://nodered.org/docs/getting-started/docker#using-a-data-volume">using a data volume</a>.</p>
+</div>
+<p>The Service is now available to Home Assistant as
+<code>node-red.homeassistant.svc.cluster.local:1880</code>. Keep it internal; the later
+<code>hass_ingress</code> configuration provides the user-facing route.</p>
+<h2 id="install-hass_ingress">Install hass_ingress<a class="headerlink" href="#install-hass_ingress" title="Permanent link">&para;</a></h2>
+<p>Install the custom integration directly from its HACS-compatible repository. A
+pinned tag makes upgrades deliberate and reproducible:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1alpha1</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistantCommunityRepository</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hass-ingress</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">homeassistant</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">homeAssistantRef</span><span class="p">:</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">integration</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lovelylain/hass_ingress</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">  </span><span class="nt">ref</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.3.2</span>
+</code></pre></div>
+<p><code>HomeAssistantCommunityRepository</code> is an experimental <code>v1alpha1</code> resource with
+no API stability guarantee. Installing an integration causes the operator to
+restart Home Assistant so that the custom component becomes available.</p>
+<p>Apply the resource and wait for both the repository and the restarted Home
+Assistant pod:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>hass-ingress.yaml
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kubectl<span class="w"> </span><span class="nb">wait</span><span class="w"> </span>hacr/hass-ingress<span class="w"> </span>-n<span class="w"> </span>homeassistant<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>--for<span class="o">=</span><span class="nv">condition</span><span class="o">=</span>Ready<span class="w"> </span>--timeout<span class="o">=</span>2m
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>kubectl<span class="w"> </span>rollout<span class="w"> </span>status<span class="w"> </span>statefulset/home<span class="w"> </span>-n<span class="w"> </span>homeassistant<span class="w"> </span>--timeout<span class="o">=</span>5m
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>kubectl<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>home-0<span class="w"> </span>-n<span class="w"> </span>homeassistant<span class="w"> </span>-c<span class="w"> </span>home-assistant<span class="w"> </span>--<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nb">test</span><span class="w"> </span>-f<span class="w"> </span>/config/custom_components/ingress/manifest.json
+</code></pre></div>
+<p>Do not continue until the final command succeeds. A repository can be validated
+before its files are downloaded into the Home Assistant volume. If the file is
+missing, inspect the init container before restarting the pod:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kubectl<span class="w"> </span>logs<span class="w"> </span>home-0<span class="w"> </span>-n<span class="w"> </span>homeassistant<span class="w"> </span>-c<span class="w"> </span>community-repository-init
+</code></pre></div>
+<h2 id="register-the-integration">Register the integration<a class="headerlink" href="#register-the-integration" title="Permanent link">&para;</a></h2>
+<p>Create its Home Assistant config entry and select YAML configuration mode:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistantIntegration</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">homeassistant</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="nt">homeAssistantRef</span><span class="p">:</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">  </span><span class="nt">configuration</span><span class="p">:</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="nt">mode</span><span class="p">:</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">yaml</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>ingress-integration.yaml
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>kubectl<span class="w"> </span><span class="nb">wait</span><span class="w"> </span>haint/ingress<span class="w"> </span>-n<span class="w"> </span>homeassistant<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>--for<span class="o">=</span><span class="nv">condition</span><span class="o">=</span>Ready<span class="w"> </span>--timeout<span class="o">=</span>2m
+</code></pre></div>
+<p>The config flow cannot start until Home Assistant has loaded the custom
+component, which is why the repository is installed and checked first.</p>
+<h2 id="add-the-application-to-the-sidebar">Add the application to the sidebar<a class="headerlink" href="#add-the-application-to-the-sidebar" title="Permanent link">&para;</a></h2>
+<p>Add an <code>ingress</code> section to the <code>spec.configuration</code> of your existing
+<code>HomeAssistantConfiguration</code>. Preserve the rest of that resource: it is the
+source of truth for the complete <code>configuration.yaml</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistantConfiguration</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">homeassistant</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">  </span><span class="nt">homeAssistantRef</span><span class="p">:</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">  </span><span class="nt">configuration</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span><span class="no">default_config:</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span><span class="no">ingress:</span>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">      </span><span class="no">nodered:</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">        </span><span class="no">title: Node-RED</span>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">        </span><span class="no">icon: mdi:sitemap</span>
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="w">        </span><span class="no">require_admin: true</span>
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="w">        </span><span class="no">url: http://node-red.homeassistant.svc.cluster.local:1880</span>
+</code></pre></div>
+<p><code>nodered</code> is the panel name and becomes part of its proxy path. The default
+<code>work_mode</code> is <code>ingress</code>, which makes Home Assistant proxy the application. Keep
+<code>require_admin: true</code> for administrative interfaces; set it to <code>false</code> only when
+every authenticated Home Assistant user should have access.</p>
+<p>Use the Service DNS name rather than a pod IP. For an application in another
+namespace, use
+<code>&lt;service&gt;.&lt;namespace&gt;.svc.cluster.local:&lt;port&gt;</code> and ensure any <code>NetworkPolicy</code>
+allows traffic from the Home Assistant namespace.</p>
+<h2 id="restrict-direct-backend-access">Restrict direct backend access<a class="headerlink" href="#restrict-direct-backend-access" title="Permanent link">&para;</a></h2>
+<p>Home Assistant authenticates the browser request, but the application Service is
+still directly reachable from workloads allowed by the cluster network. Do not
+publish a separate Ingress, Gateway route, LoadBalancer, or NodePort unless users
+are also meant to bypass Home Assistant.</p>
+<p>If your cluster enforces network policies, allow only the Home Assistant pod to
+connect to the backend. This same-namespace example relies on the stable labels
+applied to operator-managed Home Assistant pods:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NetworkPolicy</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node-red-from-home-assistant</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">homeassistant</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">  </span><span class="nt">podSelector</span><span class="p">:</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node-red</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">  </span><span class="nt">policyTypes</span><span class="p">:</span>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="w">  </span><span class="nt">ingress</span><span class="p">:</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">from</span><span class="p">:</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">podSelector</span><span class="p">:</span>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="w">            </span><span class="nt">matchLabels</span><span class="p">:</span>
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="w">              </span><span class="nt">app.kubernetes.io/name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">homeassistant</span>
+<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="w">              </span><span class="nt">app.kubernetes.io/instance</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
+<a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a><span class="w">      </span><span class="nt">ports</span><span class="p">:</span>
+<a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">protocol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TCP</span>
+<a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a><span class="w">          </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1880</span>
+</code></pre></div>
+<p>NetworkPolicy enforcement requires a compatible CNI. Adapt both selectors when
+your application chart uses different labels.</p>
+<h2 id="verify">Verify<a class="headerlink" href="#verify" title="Permanent link">&para;</a></h2>
+<p>Wait until both custom resources report ready:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>hacr<span class="w"> </span>hass-ingress<span class="w"> </span>-n<span class="w"> </span>homeassistant
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>kubectl<span class="w"> </span>get<span class="w"> </span>haint<span class="w"> </span>ingress<span class="w"> </span>-n<span class="w"> </span>homeassistant
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>kubectl<span class="w"> </span>get<span class="w"> </span>haconfig<span class="w"> </span>home<span class="w"> </span>-n<span class="w"> </span>homeassistant
+</code></pre></div>
+<p>Expected readiness indicators are:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>NAME           CATEGORY      PHASE       READY
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>hass-ingress   integration   Installed   True
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>NAME      DOMAIN    READY
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>ingress   ingress   True
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>NAME   STRATEGY   READY
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>home   auto       True
+</code></pre></div>
+<p>Sign in to Home Assistant and select <strong>Node-RED</strong> in the sidebar. The browser URL
+stays on the Home Assistant origin and the application is served below
+<code>/api/ingress/nodered/</code>. Confirm that opening the application Service outside
+that path is impossible from an untrusted network.</p>
+<h2 id="compatibility-limitations">Compatibility limitations<a class="headerlink" href="#compatibility-limitations" title="Permanent link">&para;</a></h2>
+<p>The backend must work below a URL prefix. Applications that emit absolute URLs,
+set cookies for incompatible paths, enforce their own origin, or reject proxied
+WebSocket connections may need application-specific base-path settings or
+<code>hass_ingress</code> rewrite rules. Some applications cannot be made compatible; use a
+separate route with its own authentication proxy for those applications.</p>
+<p><code>hass_ingress</code> can inject headers for a backend that requires them. Store header
+credentials in Home Assistant <code>secrets.yaml</code> through
+<a href="../../how-to/manage-secrets/"><code>HomeAssistantSecrets</code></a>, then reference them with
+<code>!secret</code> rather than putting credentials directly in
+<code>HomeAssistantConfiguration</code>.</p>
+<h2 id="security-considerations">Security considerations<a class="headerlink" href="#security-considerations" title="Permanent link">&para;</a></h2>
+<p><code>hass_ingress</code> runs inside Home Assistant and forwards authenticated requests to
+another workload. Treat its version as security-sensitive, pin <code>spec.ref</code>, review
+changes before upgrading, and restrict the Service with network policy. An
+application without its own authentication is safe only while every alternate
+network path to it remains closed.</p>
+<p>Avoid the <code>static_token</code> feature for normal sidebar access: it creates a URL that
+bypasses Home Assistant login until the token is changed. Header-based automatic
+login similarly gives the Home Assistant process possession of the backend
+credential, so grant that credential only the permissions the embedded UI needs.</p>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../../how-to/install-community-repositories/">Install HACS-compatible extensions</a></li>
+<li><a href="../../how-to/register-integrations/">Register integrations</a></li>
+<li><a href="../../how-to/manage-configuration/">Manage configuration.yaml declaratively</a></li>
+<li><a href="https://github.com/lovelylain/hass_ingress#configuration">hass_ingress configuration</a></li>
+</ul>
 
 
 
