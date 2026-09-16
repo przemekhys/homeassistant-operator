@@ -1289,6 +1289,8 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `version` _string_ | Version is the Home Assistant version/tag to deploy (e.g., "2024.1.0", "stable", "latest") | stable | Optional: \{\} <br /> |
 | `image` _string_ | Image allows overriding the default Home Assistant image | ghcr.io/home-assistant/home-assistant | Optional: \{\} <br /> |
+| `labels` _object (keys:string, values:string)_ | Additional labels for the StatefulSet and Pod |  | Optional: \{\} <br /> |
+| `annotations` _object (keys:string, values:string)_ | Additional annotations for the StatefulSet and Pod |  | Optional: \{\} <br /> |
 | `storage` _[StorageSpec](#storagespec)_ | Storage configuration for Home Assistant data |  | Optional: \{\} <br /> |
 | `additionalVolumes` _[AdditionalVolumesSpec](#additionalvolumesspec)_ | Additional volumes and mounts for the Home Assistant pod |  | Optional: \{\} <br /> |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#resourcerequirements-v1-core)_ | Resources defines CPU and memory requests/limits |  | Optional: \{\} <br /> |

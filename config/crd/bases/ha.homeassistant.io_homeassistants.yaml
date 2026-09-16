@@ -2202,6 +2202,11 @@ spec:
                         type: boolean
                     type: object
                 type: object
+              annotations:
+                additionalProperties:
+                  type: string
+                description: Additional annotations for the StatefulSet and Pod
+                type: object
               backup:
                 description: |-
                   Backup configures automatic backups using Home Assistant's built-in backup system.
@@ -2734,6 +2739,11 @@ spec:
                           (bring-your-own) and takes precedence over IssuerRef.
                         type: string
                     type: object
+                type: object
+              labels:
+                additionalProperties:
+                  type: string
+                description: Additional labels for the StatefulSet and Pod
                 type: object
               resources:
                 description: Resources defines CPU and memory requests/limits

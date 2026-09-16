@@ -26,6 +26,10 @@ const (
 	// HomeAssistantConfiguration controllers
 	configHashAnnotationKey = "ha.homeassistant.io/config-hash"
 
+	// userAnnotationsAnnotationKey and userLabelsAnnotationKey - Used by HomeAssistant controller
+	userAnnotationsAnnotationKey = "ha.homeassistant.io/user-annotations"
+	userLabelsAnnotationKey      = "ha.homeassistant.io/user-labels"
+
 	// lastAppliedIDAnnotationKey tracks the last ID sent to HA REST API.
 	// Used to detect spec.id renames and delete the old resource from HA.
 	lastAppliedIDAnnotationKey = "ha.homeassistant.io/last-applied-id"
