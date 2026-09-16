@@ -12,11 +12,11 @@ env:
   # renovate: datasource=github-releases depName=k3d-io/k3d
   K3D_VERSION: v5.9.0
   # renovate: datasource=docker depName=rancher/k3s
-  K3S_VERSION: v1.36.4-k3s1
+  K3S_VERSION: v1.37.0-k3s1
   # renovate: datasource=docker depName=ghcr.io/home-assistant/home-assistant
-  HA_VERSION: "2026.9.0"
+  HA_VERSION: "2026.9.2"
   # renovate: datasource=github-releases depName=cert-manager/cert-manager
-  CERT_MANAGER_VERSION: v1.21.1
+  CERT_MANAGER_VERSION: v1.21.2
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
