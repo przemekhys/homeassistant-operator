@@ -8,9 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Additional volumes and mounts for Home Assistant pods (`spec.additionalVolumes`).**
+  A `HomeAssistant` resource can now declare native Kubernetes `Volume` and
+  `VolumeMount` entries that the operator appends to the generated StatefulSet
+  and its main Home Assistant container. This supports namespaced storage and
+  secret sources, PVCs, CSI volumes such as the cert-manager CSI driver, and
+  other Kubernetes volume types without manually editing the StatefulSet.
+  Updating a volume source or mount configuration reconciles the StatefulSet
+  and rolls the Home Assistant pod so the new mount takes effect.
+
 ### Fixed
 
-- **Operator-managed Gateways could not select a cluster GatewayClass (#202).**
+- **Operator-managed Gateways could not select a cluster GatewayClass.**
   `spec.gateway.gatewayClassName` now selects an existing class without any
   GatewayClass lookup or ownership. The field defaults to `traefik` when
   omitted; clusters using another Gateway controller must select its class

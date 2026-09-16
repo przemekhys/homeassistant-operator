@@ -46,7 +46,9 @@ type HomeAssistantSpec struct {
 	// +optional
 	Storage *StorageSpec `json:"storage,omitempty"`
 
-	// Additional volumes and mounts for the Home Assistant pod
+	// Additional volumes and mounts for the main Home Assistant container.
+	// Every mount name must reference a volume declared here. Names and mount
+	// paths managed by the operator are reserved.
 	// +optional
 	AdditionalVolumes *AdditionalVolumesSpec `json:"additionalVolumes,omitempty"`
 
@@ -607,13 +609,14 @@ type StorageSpec struct {
 	InitContainer *InitContainerSpec `json:"initContainer,omitempty"`
 }
 
-// AdditionalVolumesSpec defines additional volumes to mount in the Home Assistant pod.
+// AdditionalVolumesSpec defines additional volumes for the Home Assistant pod.
 type AdditionalVolumesSpec struct {
-	// Volumes to attach to each Home Assistant pod
+	// Volumes defines Kubernetes volumes to attach to the Home Assistant pod.
 	// +optional
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
-	// VolumeMounts to attach to each Home Assistant container
+	// VolumeMounts defines mounts for the main Home Assistant container. Each
+	// name must match an entry in Volumes.
 	// +optional
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 }
