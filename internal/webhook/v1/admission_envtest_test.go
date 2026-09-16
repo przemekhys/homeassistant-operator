@@ -27,6 +27,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
+	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -220,6 +221,44 @@ func TestAdmissionWebhookRejectsInvalidGatewayFilter(t *testing.T) {
 	err := k8sClient.Create(context.Background(), bad)
 	g.Expect(err).To(HaveOccurred(), "webhook should reject a filter missing its declared type's sub-object")
 	g.Expect(err.Error()).To(ContainSubstring("requestHeaderModifier is required"))
+}
+
+func TestAdmissionWebhookValidatesAdditionalVolumesOnCreateAndUpdate(t *testing.T) {
+	g := NewWithT(t)
+	k8sClient, _, cleanup := setupWebhookTestEnv(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	invalid := &hav1.HomeAssistant{
+		ObjectMeta: metav1.ObjectMeta{Name: "ha-bad-additional-volume", Namespace: "default"},
+		Spec: hav1.HomeAssistantSpec{AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+			VolumeMounts: []corev1.VolumeMount{{Name: "missing", MountPath: "/extra"}},
+		}},
+	}
+	err := k8sClient.Create(ctx, invalid)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("volumeMounts[0]"))
+
+	valid := &hav1.HomeAssistant{
+		ObjectMeta: metav1.ObjectMeta{Name: "ha-additional-volume", Namespace: "default"},
+		Spec: hav1.HomeAssistantSpec{AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+			Volumes: []corev1.Volume{{
+				Name:         "extra",
+				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			}},
+			VolumeMounts: []corev1.VolumeMount{{Name: "extra", MountPath: "/extra"}},
+		}},
+	}
+	g.Expect(k8sClient.Create(ctx, valid)).To(Succeed())
+
+	valid.Spec.AdditionalVolumes.VolumeMounts[0].MountPath = "/config"
+	err = k8sClient.Update(ctx, valid)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring(`volumeMounts[0].mountPath "/config" is reserved`))
+
+	stored := &hav1.HomeAssistant{}
+	g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(valid), stored)).To(Succeed())
+	g.Expect(stored.Spec.AdditionalVolumes.VolumeMounts[0].MountPath).To(Equal("/extra"))
 }
 
 // TestAdmissionWebhookRejectsNonexistentPriorityClass exercises the real HTTP

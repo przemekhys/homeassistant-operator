@@ -18,8 +18,10 @@ package v1
 
 import (
 	"context"
+	"strings"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
@@ -297,6 +299,149 @@ func TestValidateDevices(t *testing.T) {
 	}
 }
 
+func TestValidateAdditionalVolumes(t *testing.T) {
+	validVolume := func(name string) corev1.Volume {
+		return corev1.Volume{
+			Name: name,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{SecretName: name},
+			},
+		}
+	}
+	valid := func() *hav1.HomeAssistantSpec {
+		return &hav1.HomeAssistantSpec{AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+			Volumes:      []corev1.Volume{validVolume("extra")},
+			VolumeMounts: []corev1.VolumeMount{{Name: "extra", MountPath: "/extra"}},
+		}}
+	}
+
+	tests := []struct {
+		name    string
+		spec    *hav1.HomeAssistantSpec
+		wantErr string
+	}{
+		{name: "unset configuration is accepted", spec: &hav1.HomeAssistantSpec{}},
+		{name: "valid volume and mount are accepted", spec: valid()},
+		{
+			name: "one volume may be mounted at distinct paths",
+			spec: func() *hav1.HomeAssistantSpec {
+				spec := valid()
+				spec.AdditionalVolumes.VolumeMounts = append(spec.AdditionalVolumes.VolumeMounts,
+					corev1.VolumeMount{Name: "extra", MountPath: "/extra-read-only", ReadOnly: true})
+				return spec
+			}(),
+		},
+		{
+			name: "duplicate volume name identifies the second entry",
+			spec: func() *hav1.HomeAssistantSpec {
+				spec := valid()
+				spec.AdditionalVolumes.Volumes = append(spec.AdditionalVolumes.Volumes, validVolume("extra"))
+				return spec
+			}(),
+			wantErr: `volumes[1].name "extra" duplicates`,
+		},
+		{
+			name: "duplicate mount path identifies the second entry",
+			spec: func() *hav1.HomeAssistantSpec {
+				spec := valid()
+				spec.AdditionalVolumes.VolumeMounts = append(spec.AdditionalVolumes.VolumeMounts,
+					corev1.VolumeMount{Name: "extra", MountPath: "/extra"})
+				return spec
+			}(),
+			wantErr: `volumeMounts[1].mountPath "/extra" duplicates`,
+		},
+		{
+			name: "dangling mount identifies its entry",
+			spec: &hav1.HomeAssistantSpec{AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+				VolumeMounts: []corev1.VolumeMount{{Name: "missing", MountPath: "/extra"}},
+			}},
+			wantErr: `volumeMounts[0].name "missing" does not reference`,
+		},
+		{
+			name: "volume without a source is rejected",
+			spec: &hav1.HomeAssistantSpec{AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+				Volumes: []corev1.Volume{{Name: "extra"}},
+			}},
+			wantErr: "volumes[0] must define exactly one volume source, got 0",
+		},
+		{
+			name: "volume with multiple sources is rejected",
+			spec: &hav1.HomeAssistantSpec{AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+				Volumes: []corev1.Volume{{Name: "extra", VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{SecretName: "extra"},
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "extra"},
+					},
+				}}},
+			}},
+			wantErr: "volumes[0] must define exactly one volume source, got 2",
+		},
+		{
+			name: "generated device volume name is reserved",
+			spec: &hav1.HomeAssistantSpec{AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+				Volumes: []corev1.Volume{validVolume("device-12")},
+			}},
+			wantErr: `volumes[0].name "device-12" is reserved`,
+		},
+		{
+			name: "operator mount path is reserved",
+			spec: func() *hav1.HomeAssistantSpec {
+				spec := valid()
+				spec.AdditionalVolumes.VolumeMounts[0].MountPath = "/config/secrets.yaml"
+				return spec
+			}(),
+			wantErr: `mountPath "/config/secrets.yaml" is reserved`,
+		},
+		{
+			name: "device mount path collision is rejected",
+			spec: func() *hav1.HomeAssistantSpec {
+				spec := valid()
+				spec.Alpha = &hav1.AlphaSpec{Devices: []hav1.DevicePassthroughEntry{{HostPath: "/dev/zigbee"}}}
+				spec.AdditionalVolumes.VolumeMounts[0].MountPath = "/dev/zigbee"
+				return spec
+			}(),
+			wantErr: `mountPath "/dev/zigbee" conflicts with spec.alpha.devices[0]`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			errs := validateAdditionalVolumes(tc.spec)
+			if tc.wantErr == "" && len(errs) != 0 {
+				t.Fatalf("unexpected errors: %v", errs)
+			}
+			if tc.wantErr != "" && !strings.Contains(strings.Join(errs, "; "), tc.wantErr) {
+				t.Fatalf("errors %v do not contain %q", errs, tc.wantErr)
+			}
+		})
+	}
+
+	for _, name := range []string{"config", "ha-configuration", "ha-recorder-db", "ha-secrets", "community-repositories"} {
+		t.Run("reserved volume name "+name, func(t *testing.T) {
+			spec := &hav1.HomeAssistantSpec{AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+				Volumes: []corev1.Volume{validVolume(name)},
+			}}
+			errs := validateAdditionalVolumes(spec)
+			if !strings.Contains(strings.Join(errs, "; "), `name "`+name+`" is reserved`) {
+				t.Fatalf("errors %v do not identify reserved name %q", errs, name)
+			}
+		})
+	}
+
+	for _, mountPath := range []string{
+		"/config", "/config/configuration.yaml", "/config/recorder_db_url.yaml", "/config/secrets.yaml",
+	} {
+		t.Run("reserved mount path "+mountPath, func(t *testing.T) {
+			spec := valid()
+			spec.AdditionalVolumes.VolumeMounts[0].MountPath = mountPath
+			errs := validateAdditionalVolumes(spec)
+			if !strings.Contains(strings.Join(errs, "; "), `mountPath "`+mountPath+`" is reserved`) {
+				t.Fatalf("errors %v do not identify reserved path %q", errs, mountPath)
+			}
+		})
+	}
+}
+
 func TestValidateNodeSelector(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -360,5 +505,35 @@ func TestValidatorRejectsAndAccepts(t *testing.T) {
 	}
 	if _, err := v.ValidateCreate(context.Background(), good); err != nil {
 		t.Fatalf("expected valid HomeAssistant to be accepted, got %v", err)
+	}
+}
+
+func TestValidatorRejectsInvalidAdditionalVolumesOnCreateAndUpdate(t *testing.T) {
+	v := &HomeAssistantCustomValidator{}
+	good := &hav1.HomeAssistant{
+		ObjectMeta: metav1.ObjectMeta{Name: "home"},
+		Spec: hav1.HomeAssistantSpec{AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+			Volumes: []corev1.Volume{{
+				Name: "extra",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			}},
+			VolumeMounts: []corev1.VolumeMount{{Name: "extra", MountPath: "/extra"}},
+		}},
+	}
+	bad := good.DeepCopy()
+	bad.Spec.AdditionalVolumes.VolumeMounts[0].Name = "missing"
+
+	if _, err := v.ValidateCreate(context.Background(), bad); err == nil ||
+		!strings.Contains(err.Error(), "volumeMounts[0]") {
+		t.Fatalf("expected create to reject the invalid mount and identify its entry, got %v", err)
+	}
+	if _, err := v.ValidateUpdate(context.Background(), good, bad); err == nil ||
+		!strings.Contains(err.Error(), "volumeMounts[0]") {
+		t.Fatalf("expected update to reject the invalid mount and identify its entry, got %v", err)
+	}
+	if _, err := v.ValidateUpdate(context.Background(), good, good.DeepCopy()); err != nil {
+		t.Fatalf("expected valid update to be accepted, got %v", err)
 	}
 }
