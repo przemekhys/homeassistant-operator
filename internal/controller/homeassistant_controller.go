@@ -2034,7 +2034,7 @@ func volumeContentDiffers(
 	log := logf.Log.WithName("needsUpdate")
 	for i, cv := range current.Spec.Template.Spec.Volumes {
 		dv := desired.Spec.Template.Spec.Volumes[i]
-		if !equality.Semantic.DeepDerivative(cv, dv) {
+		if !volumeSemanticEqual(cv, dv) {
 			log.V(1).Info("Volume differs", "index", i, "name", dv.Name)
 			return true
 		}
@@ -2042,12 +2042,37 @@ func volumeContentDiffers(
 
 	for i, cm := range currentContainer.VolumeMounts {
 		dm := desiredContainer.VolumeMounts[i]
-		if !equality.Semantic.DeepDerivative(cm, dm) {
+		if !equality.Semantic.DeepEqual(cm, dm) {
 			log.V(1).Info("VolumeMount differs", "index", i)
 			return true
 		}
 	}
 	return false
+}
+
+func volumeSemanticEqual(current, desired corev1.Volume) bool {
+	current = normalizeVolumeDefaults(current)
+	desired = normalizeVolumeDefaults(desired)
+	return equality.Semantic.DeepEqual(current, desired)
+}
+
+// normalizeVolumeDefaults mirrors defaults applied when a pod template is
+// persisted, preventing an unchanged desired volume from differing forever.
+func normalizeVolumeDefaults(volume corev1.Volume) corev1.Volume {
+	volume = *volume.DeepCopy()
+	if volume.ConfigMap != nil && volume.ConfigMap.DefaultMode == nil {
+		volume.ConfigMap.DefaultMode = ptr.To[int32](corev1.ConfigMapVolumeSourceDefaultMode)
+	}
+	if volume.Secret != nil && volume.Secret.DefaultMode == nil {
+		volume.Secret.DefaultMode = ptr.To[int32](corev1.SecretVolumeSourceDefaultMode)
+	}
+	if volume.Projected != nil && volume.Projected.DefaultMode == nil {
+		volume.Projected.DefaultMode = ptr.To[int32](corev1.ProjectedVolumeSourceDefaultMode)
+	}
+	if volume.DownwardAPI != nil && volume.DownwardAPI.DefaultMode == nil {
+		volume.DownwardAPI.DefaultMode = ptr.To[int32](corev1.DownwardAPIVolumeSourceDefaultMode)
+	}
+	return volume
 }
 
 // schedulingFieldsDiffer compares spec.scheduling's four fields
