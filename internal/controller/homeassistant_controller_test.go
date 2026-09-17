@@ -2059,8 +2059,8 @@ var _ = Describe("HomeAssistant Controller", func() {
 			volume := corev1.Volume{
 				Name: volumeName,
 				VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: pvcName,
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "additional-volume-data"},
 					},
 				},
 			}
@@ -2120,9 +2120,27 @@ var _ = Describe("HomeAssistant Controller", func() {
 					Name:      resourceName,
 					Namespace: namespace,
 				}, sts)).To(Succeed())
-				g.Expect(sts.Spec.Template.Spec.Volumes).To(ContainElement(volume))
+				g.Expect(sts.Spec.Template.Spec.Volumes).To(ContainElement(Satisfy(func(actual corev1.Volume) bool {
+					return actual.Name == volumeName && actual.ConfigMap != nil &&
+						actual.ConfigMap.Name == volume.ConfigMap.Name
+				})))
 				g.Expect(sts.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElement(volumeMount))
 			}, timeout, interval).Should(Succeed())
+
+			By("Reconciling again without updating an API-defaulted StatefulSet")
+			sts := &appsv1.StatefulSet{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: resourceName, Namespace: namespace}, sts)).To(Succeed())
+			originalResourceVersion := sts.ResourceVersion
+			Expect(sts.Spec.Template.Spec.Volumes).To(ContainElement(Satisfy(func(actual corev1.Volume) bool {
+				return actual.Name == volumeName && actual.ConfigMap != nil && actual.ConfigMap.DefaultMode != nil
+			})))
+
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: resourceName, Namespace: namespace}, sts)).To(Succeed())
+			Expect(sts.ResourceVersion).To(Equal(originalResourceVersion))
 		})
 
 		It("should update the StatefulSet on changes", func() {

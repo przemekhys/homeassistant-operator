@@ -54,11 +54,15 @@ spec:
             description: HomeAssistantSpec defines the desired state of HomeAssistant.
             properties:
               additionalVolumes:
-                description: Additional volumes and mounts for the Home Assistant
-                  pod
+                description: |-
+                  Additional volumes and mounts for the main Home Assistant container.
+                  Every mount name must reference a volume declared here. Names and mount
+                  paths managed by the operator are reserved.
                 properties:
                   volumeMounts:
-                    description: VolumeMounts to attach to each Home Assistant container
+                    description: |-
+                      VolumeMounts defines mounts for the main Home Assistant container. Each
+                      name must match an entry in Volumes.
                     items:
                       description: VolumeMount describes a mounting of a Volume within
                         a container.
@@ -133,7 +137,8 @@ spec:
                       type: object
                     type: array
                   volumes:
-                    description: Volumes to attach to each Home Assistant pod
+                    description: Volumes defines Kubernetes volumes to attach to the
+                      Home Assistant pod.
                     items:
                       description: Volume represents a named volume in a pod that
                         may be accessed by any container in the pod.

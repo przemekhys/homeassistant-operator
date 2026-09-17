@@ -39,7 +39,7 @@ Package v1 contains API Schema definitions for the ha v1 API group.
 
 
 
-AdditionalVolumesSpec defines additional volumes to mount in the Home Assistant pod.
+AdditionalVolumesSpec defines additional volumes for the Home Assistant pod.
 
 
 
@@ -48,8 +48,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#volume-v1-core) array_ | Volumes to attach to each Home Assistant pod |  | Optional: \{\} <br /> |
-| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#volumemount-v1-core) array_ | VolumeMounts to attach to each Home Assistant container |  | Optional: \{\} <br /> |
+| `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#volume-v1-core) array_ | Volumes defines Kubernetes volumes to attach to the Home Assistant pod. |  | Optional: \{\} <br /> |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#volumemount-v1-core) array_ | VolumeMounts defines mounts for the main Home Assistant container. Each<br />name must match an entry in Volumes. |  | Optional: \{\} <br /> |
 
 
 #### AlphaSpec
@@ -1292,7 +1292,7 @@ _Appears in:_
 | `labels` _object (keys:string, values:string)_ | Additional labels for the StatefulSet and Pod |  | Optional: \{\} <br /> |
 | `annotations` _object (keys:string, values:string)_ | Additional annotations for the StatefulSet and Pod |  | Optional: \{\} <br /> |
 | `storage` _[StorageSpec](#storagespec)_ | Storage configuration for Home Assistant data |  | Optional: \{\} <br /> |
-| `additionalVolumes` _[AdditionalVolumesSpec](#additionalvolumesspec)_ | Additional volumes and mounts for the Home Assistant pod |  | Optional: \{\} <br /> |
+| `additionalVolumes` _[AdditionalVolumesSpec](#additionalvolumesspec)_ | Additional volumes and mounts for the main Home Assistant container.<br />Every mount name must reference a volume declared here. Names and mount<br />paths managed by the operator are reserved. |  | Optional: \{\} <br /> |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#resourcerequirements-v1-core)_ | Resources defines CPU and memory requests/limits |  | Optional: \{\} <br /> |
 | `service` _[ServiceSpec](#servicespec)_ | Service configuration for exposing Home Assistant |  | Optional: \{\} <br /> |
 | `ingress` _[IngressSpec](#ingressspec)_ | Ingress configuration for external access |  | Optional: \{\} <br /> |
