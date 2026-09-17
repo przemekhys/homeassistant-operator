@@ -2072,6 +2072,9 @@ func normalizeVolumeDefaults(volume corev1.Volume) corev1.Volume {
 	if volume.DownwardAPI != nil && volume.DownwardAPI.DefaultMode == nil {
 		volume.DownwardAPI.DefaultMode = ptr.To[int32](corev1.DownwardAPIVolumeSourceDefaultMode)
 	}
+	if volume.HostPath != nil && volume.HostPath.Type == nil {
+		volume.HostPath.Type = ptr.To(corev1.HostPathUnset)
+	}
 	return volume
 }
 

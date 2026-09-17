@@ -351,6 +351,16 @@ func TestValidateAdditionalVolumes(t *testing.T) {
 			wantErr: `volumeMounts[1].mountPath "/extra" duplicates`,
 		},
 		{
+			name: "equivalent mount paths are duplicates",
+			spec: func() *hav1.HomeAssistantSpec {
+				spec := valid()
+				spec.AdditionalVolumes.VolumeMounts = append(spec.AdditionalVolumes.VolumeMounts,
+					corev1.VolumeMount{Name: "extra", MountPath: "/extra/"})
+				return spec
+			}(),
+			wantErr: `volumeMounts[1].mountPath "/extra" duplicates`,
+		},
+		{
 			name: "dangling mount identifies its entry",
 			spec: &hav1.HomeAssistantSpec{AdditionalVolumes: &hav1.AdditionalVolumesSpec{
 				VolumeMounts: []corev1.VolumeMount{{Name: "missing", MountPath: "/extra"}},
@@ -393,11 +403,30 @@ func TestValidateAdditionalVolumes(t *testing.T) {
 			wantErr: `mountPath "/config/secrets.yaml" is reserved`,
 		},
 		{
+			name: "equivalent operator mount path is reserved",
+			spec: func() *hav1.HomeAssistantSpec {
+				spec := valid()
+				spec.AdditionalVolumes.VolumeMounts[0].MountPath = "/config/"
+				return spec
+			}(),
+			wantErr: `mountPath "/config" is reserved`,
+		},
+		{
 			name: "device mount path collision is rejected",
 			spec: func() *hav1.HomeAssistantSpec {
 				spec := valid()
 				spec.Alpha = &hav1.AlphaSpec{Devices: []hav1.DevicePassthroughEntry{{HostPath: "/dev/zigbee"}}}
 				spec.AdditionalVolumes.VolumeMounts[0].MountPath = "/dev/zigbee"
+				return spec
+			}(),
+			wantErr: `mountPath "/dev/zigbee" conflicts with spec.alpha.devices[0]`,
+		},
+		{
+			name: "equivalent device mount path collision is rejected",
+			spec: func() *hav1.HomeAssistantSpec {
+				spec := valid()
+				spec.Alpha = &hav1.AlphaSpec{Devices: []hav1.DevicePassthroughEntry{{HostPath: "/dev/zigbee"}}}
+				spec.AdditionalVolumes.VolumeMounts[0].MountPath = "/dev/zigbee/"
 				return spec
 			}(),
 			wantErr: `mountPath "/dev/zigbee" conflicts with spec.alpha.devices[0]`,

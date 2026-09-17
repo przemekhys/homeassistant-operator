@@ -89,4 +89,21 @@ var _ = Describe("Additional volume update detection", func() {
 			statefulSetWithVolume(desiredVolume, mount),
 		)).To(BeFalse())
 	})
+
+	It("ignores the API-server default hostPath type", func() {
+		desiredVolume := corev1.Volume{
+			Name: "extra",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{Path: "/var/lib/homeassistant"},
+			},
+		}
+		currentVolume := *desiredVolume.DeepCopy()
+		currentVolume.HostPath.Type = ptr.To(corev1.HostPathUnset)
+		mount := baseMount()
+
+		Expect(needsUpdate(
+			statefulSetWithVolume(currentVolume, mount),
+			statefulSetWithVolume(desiredVolume, mount),
+		)).To(BeFalse())
+	})
 })

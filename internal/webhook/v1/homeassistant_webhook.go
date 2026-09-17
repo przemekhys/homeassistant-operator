@@ -19,6 +19,7 @@ package v1
 import (
 	"context"
 	"fmt"
+	pathpkg "path"
 	"reflect"
 	"regexp"
 	"strings"
@@ -139,22 +140,27 @@ func validateAdditionalVolumes(spec *hav1.HomeAssistantSpec) []string {
 
 	seenMountPaths := make(map[string]int, len(spec.AdditionalVolumes.VolumeMounts))
 	for i, mount := range spec.AdditionalVolumes.VolumeMounts {
-		path := fmt.Sprintf("spec.additionalVolumes.volumeMounts[%d]", i)
+		fieldPath := fmt.Sprintf("spec.additionalVolumes.volumeMounts[%d]", i)
+		mountPath := mount.MountPath
+		if mountPath != "" {
+			mountPath = pathpkg.Clean(mountPath)
+		}
 		if _, reserved := reservedVolumeNames[mount.Name]; reserved || deviceVolumeNamePattern.MatchString(mount.Name) {
-			errs = append(errs, fmt.Sprintf("%s.name %q is reserved by the operator", path, mount.Name))
+			errs = append(errs, fmt.Sprintf("%s.name %q is reserved by the operator", fieldPath, mount.Name))
 		} else if _, exists := declaredVolumes[mount.Name]; !exists {
-			errs = append(errs, fmt.Sprintf("%s.name %q does not reference a declared additional volume", path, mount.Name))
+			errs = append(errs, fmt.Sprintf(
+				"%s.name %q does not reference a declared additional volume", fieldPath, mount.Name))
 		}
 
-		if _, reserved := reservedMountPaths[mount.MountPath]; reserved {
-			errs = append(errs, fmt.Sprintf("%s.mountPath %q is reserved by the operator", path, mount.MountPath))
+		if _, reserved := reservedMountPaths[mountPath]; reserved {
+			errs = append(errs, fmt.Sprintf("%s.mountPath %q is reserved by the operator", fieldPath, mountPath))
 		}
-		if previous, duplicate := seenMountPaths[mount.MountPath]; duplicate {
+		if previous, duplicate := seenMountPaths[mountPath]; duplicate {
 			errs = append(errs, fmt.Sprintf(
 				"%s.mountPath %q duplicates spec.additionalVolumes.volumeMounts[%d].mountPath",
-				path, mount.MountPath, previous))
+				fieldPath, mountPath, previous))
 		} else {
-			seenMountPaths[mount.MountPath] = i
+			seenMountPaths[mountPath] = i
 		}
 
 		if spec.Alpha != nil {
@@ -163,9 +169,9 @@ func validateAdditionalVolumes(spec *hav1.HomeAssistantSpec) []string {
 				if devicePath == "" {
 					devicePath = device.HostPath
 				}
-				if mount.MountPath == devicePath {
+				if mountPath == pathpkg.Clean(devicePath) {
 					errs = append(errs, fmt.Sprintf(
-						"%s.mountPath %q conflicts with spec.alpha.devices[%d]", path, mount.MountPath, deviceIndex))
+						"%s.mountPath %q conflicts with spec.alpha.devices[%d]", fieldPath, mountPath, deviceIndex))
 				}
 			}
 		}
