@@ -53,6 +53,12 @@ The API rejects metadata keys managed by the operator:
   `app.kubernetes.io/managed-by` are fixed selector labels and cannot be set in
   `spec.labels`.
 
+Metadata syntax is validated during admission. Keys in both maps must be valid
+Kubernetes qualified names (an optional DNS prefix, `/`, and a name). Label
+values must follow Kubernetes label-value syntax: at most 63 characters, using
+letters, digits, `-`, `_`, or `.`, and starting and ending with an alphanumeric
+character when non-empty. Annotation values may contain arbitrary text.
+
 ## Keep the data when the resource is deleted
 
 By default the operator sets a controller owner reference on the instance's PVC,

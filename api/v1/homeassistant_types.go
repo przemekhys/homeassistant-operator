@@ -36,13 +36,15 @@ type HomeAssistantSpec struct {
 
 	// Additional labels for the StatefulSet and Pod. The selector labels
 	// app.kubernetes.io/name, app.kubernetes.io/instance, and
-	// app.kubernetes.io/managed-by are reserved by the operator.
+	// app.kubernetes.io/managed-by are reserved by the operator. Keys and values
+	// must use Kubernetes label syntax.
 	// +kubebuilder:validation:XValidation:rule="self.all(key, key != 'app.kubernetes.io/name' && key != 'app.kubernetes.io/instance' && key != 'app.kubernetes.io/managed-by')",message="app.kubernetes.io/name, app.kubernetes.io/instance, and app.kubernetes.io/managed-by are reserved by the operator"
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// Additional annotations for the StatefulSet and Pod. Keys in the
-	// ha.homeassistant.io domain are reserved by the operator.
+	// ha.homeassistant.io domain are reserved by the operator. Keys must be valid
+	// Kubernetes qualified names; annotation values may contain arbitrary text.
 	// +kubebuilder:validation:XValidation:rule="self.all(key, !key.startsWith('ha.homeassistant.io/'))",message="annotation keys in the ha.homeassistant.io domain are reserved by the operator"
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
