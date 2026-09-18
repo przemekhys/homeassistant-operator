@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "documentation": "https://example.invalid/example_integration",
   "codeowners": ["@example"],
+  "config_flow": true,
   "requirements": [],
   "iot_class": "local_polling"
 }

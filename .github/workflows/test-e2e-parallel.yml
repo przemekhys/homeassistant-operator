@@ -726,7 +726,7 @@ jobs:
   e2e-community-repository-a:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 18
 
     steps:
       - name: Clone the code
@@ -807,7 +807,7 @@ jobs:
           ./bin/ginkgo run \
             -v \
             --label-filter="community-repository && group-a" \
-            --timeout=12m \
+            --timeout=15m \
             ./test/e2e/
 
       - name: Collect controller logs on failure

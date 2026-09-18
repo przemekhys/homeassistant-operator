@@ -196,9 +196,10 @@ const communityRepoFixtureImage = "python:3-alpine@sha256:" +
 	"26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92"
 
 // communityRepoFixtureServerYAML is the Deployment+Service that decodes/unpacks the
-// ConfigMap above and serves it as a static file tree, standing in for
-// codeload.github.com during this test (real GitHub is never reachable/desirable
-// in CI). Uses python3's own http.server — no new image, python:3-alpine is tiny.
+// ConfigMap above and serves it as a codeload-compatible file tree. Requests for
+// the integration fixture from Python are rejected until the E2E test creates a
+// recovery marker; Go requests from operator-side validation remain available.
+// This deterministically exercises init-container retry without using real GitHub.
 func communityRepoFixtureServerYAML(namespace string) string {
 	return fmt.Sprintf(`apiVersion: apps/v1
 kind: Deployment
@@ -225,7 +226,30 @@ spec:
               mkdir -p /data
               base64 -d /cm/fixtures.tar.gz.b64 > /tmp/fixtures.tar.gz
               tar -C /data -xzf /tmp/fixtures.tar.gz
-              exec python3 -m http.server 8080 --directory /data
+              cat > /tmp/server.py <<'PY'
+              import os
+              from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+
+              INTEGRATION_PATH = '/acme/integration-fixture/tar.gz/v1.0.0'
+              FAILURE_MARKER = '/tmp/integration-download-failed'
+              RECOVERY_MARKER = '/tmp/allow-integration-download'
+
+              class Handler(SimpleHTTPRequestHandler):
+                  def __init__(self, *args, **kwargs):
+                      super().__init__(*args, directory='/data', **kwargs)
+
+                  def do_GET(self):
+                      user_agent = self.headers.get('User-Agent', '')
+                      if (self.path == INTEGRATION_PATH and user_agent.startswith('Python-urllib')
+                              and not os.path.exists(RECOVERY_MARKER)):
+                          open(FAILURE_MARKER, 'a').close()
+                          self.send_error(503, 'simulated transient integration download failure')
+                          return
+                      super().do_GET()
+
+              ThreadingHTTPServer(('0.0.0.0', 8080), Handler).serve_forever()
+              PY
+              exec python3 -u /tmp/server.py
           volumeMounts:
             - name: fixtures-cm
               mountPath: /cm
@@ -409,7 +433,7 @@ spec:
 			"operator did not finish rolling out after the env var was restored")
 	})
 
-	It("installs an integration-category repository, restarting the HA pod",
+	It("retries a failed integration download before reporting the repository and config entry Ready",
 		Label("community-repository", "fast", "group-a"), func() {
 			podStartBefore := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.startTime}")
 
@@ -427,10 +451,60 @@ spec:
 `, namespace, haName, crFixtureIntegration)
 			Expect(utils.ApplyYAML(hacrYAML, namespace)).To(Succeed())
 
+			By("Creating a dependent HomeAssistantIntegration while the custom integration is not materialized")
+			integrationYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
+kind: HomeAssistantIntegration
+metadata:
+  name: e2e-custom-integration
+  namespace: %s
+spec:
+  homeAssistantRef:
+    name: %s
+  domain: example_integration
+`, namespace, haName)
+			Expect(utils.ApplyYAML(integrationYAML, namespace)).To(Succeed())
+
+			By("Waiting for the fixture server to reject an init-container download")
+			Eventually(func(g Gomega) {
+				cmd := exec.Command("kubectl", "exec", "deployment/community-repo-fixture-server",
+					"-n", namespace, "--", "test", "-f", "/tmp/integration-download-failed")
+				_, err := utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred())
+			}, utils.RestartTimeout, reconcileInterval).Should(Succeed())
+
+			By("Confirming the failed materialization is not reported as Installed")
+			Eventually(func(g Gomega) {
+				g.Expect(getPhase("e2e-integration")).To(Equal("Installing"))
+				reason := utils.Kubectl("get", "hacr", "e2e-integration", "-n", namespace,
+					"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].reason}")
+				g.Expect(reason).To(Equal("MaterializationFailed"))
+				ready := utils.Kubectl("get", "hacr", "e2e-integration", "-n", namespace,
+					"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}")
+				g.Expect(ready).To(Equal("False"))
+				g.Expect(getInstalledVersion("e2e-integration")).To(BeEmpty())
+			}, utils.RestartTimeout, reconcileInterval).Should(Succeed())
+
+			failedPodUID := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+				"-o", "jsonpath={.metadata.uid}")
+			Eventually(func(g Gomega) {
+				restarts := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+					"-o", "jsonpath={.status.initContainerStatuses[?(@.name=='community-repository-init')].restartCount}")
+				g.Expect(restarts).To(MatchRegexp(`^[1-9][0-9]*$`))
+			}, utils.RestartTimeout, reconcileInterval).Should(Succeed())
+
+			By("Restoring fixture connectivity without restarting the Home Assistant pod")
+			recoverCmd := exec.Command("kubectl", "exec", "deployment/community-repo-fixture-server",
+				"-n", namespace, "--", "touch", "/tmp/allow-integration-download")
+			_, err := utils.Run(recoverCmd)
+			Expect(err).NotTo(HaveOccurred())
+
 			Eventually(func(g Gomega) {
 				g.Expect(getPhase("e2e-integration")).To(Equal("Installed"))
-			}, utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
+			}, utils.HAPodReadyTimeout, reconcileInterval).Should(Succeed())
 			Expect(getInstalledVersion("e2e-integration")).To(Equal("v1.0.0"))
+			Expect(utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+				"-o", "jsonpath={.metadata.uid}")).To(Equal(failedPodUID),
+				"kubelet must retry the init container in the same pod")
 
 			By("Waiting for the pod restart the integration category requires")
 			Eventually(func(g Gomega) {
@@ -449,8 +523,15 @@ spec:
 			By("Verifying the integration's files are present on the pod")
 			cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
 				"test", "-f", "/config/custom_components/example_integration/manifest.json")
-			_, err := utils.Run(cmd)
+			_, err = utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for the dependent HomeAssistantIntegration config flow to recover")
+			Eventually(func(g Gomega) {
+				ready := utils.Kubectl("get", "haint", "e2e-custom-integration", "-n", namespace,
+					"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}")
+				g.Expect(ready).To(Equal("True"))
+			}, utils.HotReloadTimeout, reconcileInterval).Should(Succeed())
 		})
 
 	It("installs a theme-category repository without restarting the HA pod",

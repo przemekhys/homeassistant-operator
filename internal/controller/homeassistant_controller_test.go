@@ -2756,14 +2756,39 @@ var _ = Describe("HomeAssistant Controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, repo)).To(Succeed())
+			_, err := reconciler.buildStatefulSet(ctx, ha)
+			Expect(errors.IsNotFound(err)).To(BeTrue(),
+				"StatefulSet construction must wait for the repository ConfigMap and its rollout hash")
+
+			communityContent := `{"repositories":[{"category":"theme","repository":"acme/some-theme",` +
+				`"ref":"v1.0.0","resolvedTarget":"some-theme","sourcePath":"themes/some-theme.yaml"}]}`
+			communityConfig := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: communityRepositoriesConfigMapName(ha.Name), Namespace: ha.Namespace,
+				},
+				Data: map[string]string{communityRepositoriesConfigMapKey: communityContent},
+			}
+			Expect(k8sClient.Create(ctx, communityConfig)).To(Succeed())
+			DeferCleanup(func() { _ = k8sClient.Delete(ctx, communityConfig) })
 
 			built, err := reconciler.buildInitContainers(ctx, ha)
 			Expect(err).NotTo(HaveOccurred())
 			initContainerNames := make([]string, 0, len(built))
+			var repositoryInit *corev1.Container
 			for _, c := range built {
 				initContainerNames = append(initContainerNames, c.Name)
+				if c.Name == communityRepositoryInitContainerName {
+					repositoryInit = &c
+				}
 			}
-			Expect(initContainerNames).To(ContainElement("community-repository-init"))
+			Expect(initContainerNames).To(ContainElement(communityRepositoryInitContainerName))
+			Expect(repositoryInit).NotTo(BeNil())
+			Expect(repositoryInit.Env).To(ContainElement(Satisfy(func(env corev1.EnvVar) bool {
+				return env.Name == "COMMUNITY_REPOSITORIES_HASH" && env.ValueFrom != nil &&
+					env.ValueFrom.FieldRef != nil &&
+					env.ValueFrom.FieldRef.FieldPath ==
+						"metadata.annotations['ha.homeassistant.io/community-repository-hash']"
+			})))
 
 			sts, err := reconciler.buildStatefulSet(ctx, ha)
 			Expect(err).NotTo(HaveOccurred())
@@ -2772,6 +2797,8 @@ var _ = Describe("HomeAssistant Controller", func() {
 				containerNames = append(containerNames, c.Name)
 			}
 			Expect(containerNames).To(ContainElement("community-repository-sidecar"))
+			Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue(
+				communityRepositoryHashAnnotationKey, calculateIntegrationRepositoryHash(communityContent)))
 
 			volumeNames := make([]string, 0, len(sts.Spec.Template.Spec.Volumes))
 			for _, v := range sts.Spec.Template.Spec.Volumes {
