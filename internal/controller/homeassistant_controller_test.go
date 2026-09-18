@@ -1677,11 +1677,11 @@ var _ = Describe("HomeAssistant Controller", func() {
 
 				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue(userLabelsAnnotationKey, "bar.example,baz.example"))
 
-				g.Expect(sts.ObjectMeta.Labels).NotTo(HaveKey("foo"))
+				g.Expect(sts.ObjectMeta.Labels).NotTo(HaveKey("foo.example"))
 				g.Expect(sts.ObjectMeta.Labels).To(HaveKeyWithValue("bar.example", "bar"))
 				g.Expect(sts.ObjectMeta.Labels).To(HaveKeyWithValue("baz.example", "baz"))
 
-				g.Expect(sts.Spec.Template.Labels).NotTo(HaveKey("foo"))
+				g.Expect(sts.Spec.Template.Labels).NotTo(HaveKey("foo.example"))
 				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("bar.example", "bar"))
 				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("baz.example", "baz"))
 			}, timeout, interval).Should(Succeed())
