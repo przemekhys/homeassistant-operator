@@ -139,7 +139,13 @@ func (r *HomeAssistantCommunityRepositoryReconciler) Reconcile(
 	// --- DELETION ---
 	if !repo.DeletionTimestamp.IsZero() {
 		if controllerutil.ContainsFinalizer(repo, communityRepositoryFinalizerName) {
-			r.handleDeletion(ctx, repo)
+			complete, err := r.handleDeletion(ctx, repo)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if !complete {
+				return ctrl.Result{RequeueAfter: integrationMaterializationPollInterval}, nil
+			}
 			controllerutil.RemoveFinalizer(repo, communityRepositoryFinalizerName)
 			if err := r.Update(ctx, repo); err != nil {
 				return ctrl.Result{}, err
@@ -271,7 +277,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) reconcileInstalling(
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		if err := r.bumpStatefulSetHash(ctx, ha, content); err != nil {
+		if _, err := r.bumpStatefulSetHash(ctx, ha, content); err != nil {
 			return ctrl.Result{}, err
 		}
 
@@ -497,37 +503,58 @@ func (r *HomeAssistantCommunityRepositoryReconciler) findConflictingOwner(
 	return nil, nil
 }
 
-// handleDeletion removes this repository's entry from the aggregate ConfigMap
-// (and, for the integration category, bumps the restart hash) — best-effort, never
-// blocking finalizer removal.
+// handleDeletion removes this repository's entry from the aggregate ConfigMap.
+// Integration deletion keeps the finalizer until the restart carrying the empty or
+// reduced integration set has completed, so the init container remains injected
+// long enough to remove its owned destination from the PVC.
 func (r *HomeAssistantCommunityRepositoryReconciler) handleDeletion(
 	ctx context.Context,
 	repo *hav1alpha1.HomeAssistantCommunityRepository,
-) {
+) (bool, error) {
 	log := logf.FromContext(ctx)
 	if repo.Status.ResolvedTarget == "" {
 		// Never got far enough to be materialized into the ConfigMap.
-		return
+		return true, nil
 	}
 
 	haRef := types.NamespacedName{Name: repo.Spec.HomeAssistantRef.Name, Namespace: repo.Namespace}
 	ha, err := getHomeAssistant(ctx, r.Client, haRef)
 	if err != nil {
 		log.Info("HomeAssistant not found during deletion, skipping cleanup (best-effort)")
-		return
+		return true, nil
 	}
 
 	content, err := r.removeConfigMapEntry(ctx, ha, repo.Namespace, string(repo.Spec.Category), repo.Status.ResolvedTarget)
 	if err != nil {
-		log.Info("Failed to remove community repository ConfigMap entry during deletion (best-effort)", "error", err)
-	} else if repo.Spec.Category == hav1alpha1.CategoryIntegration {
-		if err := r.bumpStatefulSetHash(ctx, ha, content); err != nil {
-			log.Info("Failed to bump StatefulSet hash during deletion (best-effort)", "error", err)
+		return false, err
+	}
+	if repo.Spec.Category == hav1alpha1.CategoryIntegration {
+		statefulSetExists, err := r.bumpStatefulSetHash(ctx, ha, content)
+		if err != nil {
+			return false, err
+		}
+		if !statefulSetExists {
+			if !ha.DeletionTimestamp.IsZero() {
+				log.Info("Home Assistant is being deleted, skipping PVC cleanup (best-effort)")
+				return true, nil
+			}
+			return false, nil
+		}
+		confirmed, reason, _, err := r.integrationMaterializationConfirmed(
+			ctx, ha, calculateIntegrationRepositoryHash(content))
+		if err != nil {
+			return false, err
+		}
+		// A successful init-container termination confirms PVC cleanup. Deletion
+		// must not remain blocked by an unrelated Home Assistant startup failure.
+		if !confirmed && reason != reasonRepoHomeAssistantNotReady {
+			return false, nil
 		}
 	}
 
 	r.emitEvent(repo, corev1.EventTypeNormal, eventRepositoryRemoved,
 		fmt.Sprintf("Removed %s %q from Home Assistant", repo.Spec.Category, repo.Status.ResolvedTarget))
+	return true, nil
 }
 
 // --- Aggregate ConfigMap helpers ---
@@ -714,25 +741,25 @@ func (r *HomeAssistantCommunityRepositoryReconciler) bumpStatefulSetHash(
 	ctx context.Context,
 	ha *hav1.HomeAssistant,
 	configMapContent string,
-) error {
+) (bool, error) {
 	sts := &appsv1.StatefulSet{}
 	stsKey := types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}
 	if err := r.Get(ctx, stsKey, sts); err != nil {
 		if k8serrors.IsNotFound(err) {
-			return nil
+			return false, nil
 		}
-		return err
+		return false, err
 	}
 
 	hash := calculateIntegrationRepositoryHash(configMapContent)
 	if sts.Spec.Template.Annotations[communityRepositoryHashAnnotationKey] == hash {
-		return nil
+		return true, nil
 	}
 	if sts.Spec.Template.Annotations == nil {
 		sts.Spec.Template.Annotations = map[string]string{}
 	}
 	sts.Spec.Template.Annotations[communityRepositoryHashAnnotationKey] = hash
-	return r.Update(ctx, sts)
+	return true, r.Update(ctx, sts)
 }
 
 // setPhase updates status.phase, the Ready condition, and observedGeneration, then

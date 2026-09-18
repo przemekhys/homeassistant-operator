@@ -2756,6 +2756,10 @@ var _ = Describe("HomeAssistant Controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, repo)).To(Succeed())
+			_, err := reconciler.buildStatefulSet(ctx, ha)
+			Expect(errors.IsNotFound(err)).To(BeTrue(),
+				"StatefulSet construction must wait for the repository ConfigMap and its rollout hash")
+
 			communityContent := `{"repositories":[{"category":"theme","repository":"acme/some-theme",` +
 				`"ref":"v1.0.0","resolvedTarget":"some-theme","sourcePath":"themes/some-theme.yaml"}]}`
 			communityConfig := &corev1.ConfigMap{

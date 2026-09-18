@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -96,8 +97,8 @@ func addCommunityRepositoryHashAnnotation(
 	communityConfig := &corev1.ConfigMap{}
 	key := client.ObjectKey{Name: communityRepositoriesConfigMapName(ha.Name), Namespace: ha.Namespace}
 	if err := c.Get(ctx, key, communityConfig); err != nil {
-		if client.IgnoreNotFound(err) == nil {
-			return nil
+		if k8serrors.IsNotFound(err) {
+			return err
 		}
 		return fmt.Errorf("failed to get community repository ConfigMap: %w", err)
 	}
@@ -234,6 +235,7 @@ CONFIG_DIR = os.environ.get('HA_CONFIG_DIR', '/config')
 CODELOAD_BASE = os.environ.get('CODELOAD_BASE_URL', 'https://codeload.github.com')
 EXPECTED_HASH = os.environ.get('COMMUNITY_REPOSITORIES_HASH', '')
 TERMINATION_LOG = '/dev/termination-log'
+STATE_FILE = os.path.join(CONFIG_DIR, '.community_repositories_integration_state.json')
 
 # HACS repos are tiny plain-text source trees; these bound worst-case disk use
 # against a malicious or misbehaving upstream repository/host.
@@ -256,6 +258,47 @@ def load_entries():
         raise RuntimeError('repository configuration hash mismatch: expected {}, got {}'.format(
             EXPECTED_HASH, actual_hash))
     return entries
+
+
+def load_owned_targets():
+    if not os.path.exists(STATE_FILE):
+        return set()
+    with open(STATE_FILE) as f:
+        data = json.load(f)
+    targets = data.get('ownedTargets')
+    if not isinstance(targets, list) or not all(isinstance(target, str) for target in targets):
+        raise RuntimeError('invalid integration ownership state')
+    return set(targets)
+
+
+def save_owned_targets(targets):
+    staged = STATE_FILE + '.tmp'
+    with open(staged, 'w') as f:
+        json.dump({'ownedTargets': sorted(targets)}, f)
+    os.replace(staged, STATE_FILE)
+
+
+def integration_paths(target):
+    if not target or os.path.basename(target) != target or target in ('.', '..'):
+        raise RuntimeError('unsafe integration target: ' + target)
+    parent = os.path.join(CONFIG_DIR, 'custom_components')
+    return (os.path.join(parent, target), os.path.join(parent, '.community-repository-backup-' + target))
+
+
+def remove_path(path):
+    if os.path.isdir(path) and not os.path.islink(path):
+        shutil.rmtree(path)
+    elif os.path.lexists(path):
+        os.remove(path)
+
+
+def recover_backup(dest, backup):
+    if not os.path.lexists(backup):
+        return
+    if os.path.lexists(dest):
+        remove_path(backup)
+    else:
+        os.replace(backup, dest)
 
 
 def copy_limited(src, dst, limit):
@@ -288,6 +331,9 @@ def safe_extractall(tar, path):
 
 
 def fetch_and_place(entry):
+    dest, backup = integration_paths(entry['resolvedTarget'])
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    recover_backup(dest, backup)
     url = "{}/{}/tar.gz/{}".format(CODELOAD_BASE, entry['repository'], entry['ref'])
     with urllib.request.urlopen(url, timeout=30) as resp:
         with tempfile.TemporaryDirectory() as tmp:
@@ -303,38 +349,65 @@ def fetch_and_place(entry):
                 raise RuntimeError('expected a single top-level directory, found {}'.format(len(top_level)))
             root = os.path.join(extract_dir, top_level[0])
             src = os.path.join(root, entry['sourcePath'])
-            dest = os.path.join(CONFIG_DIR, 'custom_components', entry['resolvedTarget'])
-            os.makedirs(os.path.dirname(dest), exist_ok=True)
             staged = tempfile.mkdtemp(prefix='.community-repository-', dir=os.path.dirname(dest))
             shutil.rmtree(staged)
             try:
                 shutil.copytree(src, staged)
                 if not os.path.isfile(os.path.join(staged, 'manifest.json')):
                     raise RuntimeError('materialized integration is missing manifest.json')
-                if os.path.isdir(dest):
-                    shutil.rmtree(dest)
-                elif os.path.exists(dest):
-                    os.remove(dest)
-                os.replace(staged, dest)
+                had_dest = os.path.lexists(dest)
+                if had_dest:
+                    os.replace(dest, backup)
+                try:
+                    os.replace(staged, dest)
+                except Exception:
+                    remove_path(dest)
+                    if had_dest and os.path.lexists(backup):
+                        os.replace(backup, dest)
+                    raise
+                remove_path(backup)
             finally:
-                if os.path.exists(staged):
-                    shutil.rmtree(staged)
+                remove_path(staged)
+
+
+def remove_owned_target(target):
+    dest, backup = integration_paths(target)
+    recover_backup(dest, backup)
+    remove_path(dest)
+    remove_path(backup)
 
 
 def main():
     errors = []
     try:
         entries = load_entries()
+        owned_targets = load_owned_targets()
     except Exception as e:
         entries = []
+        owned_targets = set()
         errors.append(str(e))
-    for entry in entries:
+    else:
+        current_targets = {entry['resolvedTarget'] for entry in entries}
+        for entry in entries:
+            try:
+                fetch_and_place(entry)
+                owned_targets.add(entry['resolvedTarget'])
+                print('materialized integration {} from {}@{}'.format(
+                    entry['resolvedTarget'], entry['repository'], entry['ref']))
+            except Exception as e:
+                errors.append('failed to materialize integration {}: {}'.format(entry.get('resolvedTarget'), e))
+        if not errors:
+            for target in owned_targets - current_targets:
+                try:
+                    remove_owned_target(target)
+                    owned_targets.remove(target)
+                    print('removed integration {}'.format(target))
+                except Exception as e:
+                    errors.append('failed to remove integration {}: {}'.format(target, e))
         try:
-            fetch_and_place(entry)
-            print('materialized integration {} from {}@{}'.format(
-                entry['resolvedTarget'], entry['repository'], entry['ref']))
+            save_owned_targets(owned_targets)
         except Exception as e:
-            errors.append('failed to materialize integration {}: {}'.format(entry.get('resolvedTarget'), e))
+            errors.append('failed to save integration ownership state: {}'.format(e))
     if errors:
         message = '; '.join(errors)
         print('ERROR: ' + message, file=sys.stderr)

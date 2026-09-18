@@ -29,11 +29,13 @@ import (
 	"github.com/gorilla/websocket"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
@@ -191,6 +193,12 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		for i := range repoList.Items {
 			_ = k8sClient.Delete(ctx, &repoList.Items[i])
 			_, _ = reconcileRepo(repoList.Items[i].Name)
+			remaining := &hav1alpha1.HomeAssistantCommunityRepository{}
+			key := client.ObjectKeyFromObject(&repoList.Items[i])
+			if k8sClient.Get(ctx, key, remaining) == nil {
+				controllerutil.RemoveFinalizer(remaining, communityRepositoryFinalizerName)
+				_ = k8sClient.Update(ctx, remaining)
+			}
 		}
 		Eventually(func() int {
 			list := &hav1alpha1.HomeAssistantCommunityRepositoryList{}
@@ -752,6 +760,83 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 			Name: "ha-delete-community-repositories", Namespace: namespace,
 		}, cm)).To(Succeed())
 		Expect(cm.Data["repositories.json"]).NotTo(ContainSubstring("example_theme"))
+	})
+
+	It("keeps an integration finalizer until the cleanup pod is Ready", func() {
+		const haName = "ha-integration-delete"
+		createHA(haName)
+		createRepo("cr-integration-delete", haName, hav1alpha1.CategoryIntegration, "acme/integration-delete")
+		_, err := reconcileRepo("cr-integration-delete") // finalizer
+		Expect(err).NotTo(HaveOccurred())
+
+		repo := getRepo("cr-integration-delete")
+		repo.Status.Phase = hav1alpha1.PhaseInstalled
+		repo.Status.ResolvedTarget = "example_integration"
+		repo.Status.InstalledVersion = "v1.0.0"
+		Expect(k8sClient.Status().Update(ctx, repo)).To(Succeed())
+
+		oldContent := `{"repositories":[{"category":"integration","repository":"acme/integration-delete",` +
+			`"ref":"v1.0.0","resolvedTarget":"example_integration",` +
+			`"sourcePath":"custom_components/example_integration"}]}`
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: communityRepositoriesConfigMapName(haName), Namespace: namespace,
+			},
+			Data: map[string]string{communityRepositoriesConfigMapKey: oldContent},
+		}
+		Expect(k8sClient.Create(ctx, cm)).To(Succeed())
+
+		labels := map[string]string{"app": haName}
+		sts := &appsv1.StatefulSet{
+			ObjectMeta: metav1.ObjectMeta{Name: haName, Namespace: namespace},
+			Spec: appsv1.StatefulSetSpec{
+				ServiceName: haName,
+				Selector:    &metav1.LabelSelector{MatchLabels: labels},
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{Labels: labels, Annotations: map[string]string{
+						communityRepositoryHashAnnotationKey: calculateIntegrationRepositoryHash(oldContent),
+					}},
+					Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "home-assistant", Image: "busybox"}}},
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, sts)).To(Succeed())
+
+		Expect(k8sClient.Delete(ctx, getRepo("cr-integration-delete"))).To(Succeed())
+		result, err := reconcileRepo("cr-integration-delete")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.RequeueAfter).To(Equal(integrationMaterializationPollInterval))
+		Expect(getRepo("cr-integration-delete").Finalizers).To(ContainElement(communityRepositoryFinalizerName))
+
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(cm), cm)).To(Succeed())
+		cleanupHash := calculateIntegrationRepositoryHash(cm.Data[communityRepositoriesConfigMapKey])
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(sts), sts)).To(Succeed())
+		Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue(communityRepositoryHashAnnotationKey, cleanupHash))
+
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: haName + "-0", Namespace: namespace, Annotations: map[string]string{
+				communityRepositoryHashAnnotationKey: cleanupHash,
+			}},
+			Spec: corev1.PodSpec{
+				InitContainers: []corev1.Container{{Name: communityRepositoryInitContainerName, Image: "busybox"}},
+				Containers:     []corev1.Container{{Name: "home-assistant", Image: "busybox"}},
+			},
+		}
+		Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+		pod.Status.InitContainerStatuses = []corev1.ContainerStatus{{
+			Name: communityRepositoryInitContainerName,
+			State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{
+				ExitCode: 0, Message: cleanupHash,
+			}},
+		}}
+		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+
+		_, err = reconcileRepo("cr-integration-delete")
+		Expect(err).NotTo(HaveOccurred())
+		err = k8sClient.Get(ctx, types.NamespacedName{Name: "cr-integration-delete", Namespace: namespace},
+			&hav1alpha1.HomeAssistantCommunityRepository{})
+		Expect(err).To(HaveOccurred(), "the finalizer may be removed only after cleanup is confirmed")
 	})
 
 	It("removes the finalizer on deletion even when Home Assistant is unreachable (best-effort)", func() {
