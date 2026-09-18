@@ -548,10 +548,18 @@ func (r *HomeAssistantReconciler) reconcileStatefulSet(ctx context.Context, ha *
 				return err
 			}
 
-			// Apply desired spec and metadata to fresh object
-			freshSts.Spec = desired.Spec
-			freshSts.Annotations = desired.Annotations
-			freshSts.Labels = desired.Labels
+			// Rebuild from the latest object so metadata added by another actor
+			// between retries is merged rather than replaced by a stale desired map.
+			attemptDesired, err := r.buildStatefulSet(ctx, ha)
+			if err != nil {
+				return err
+			}
+			if err := r.syncConfigHashFromConfigMap(ctx, ha, attemptDesired); err != nil {
+				log.Error(err, "Failed to sync config hash from ConfigMap during StatefulSet update retry")
+			}
+			freshSts.Spec = attemptDesired.Spec
+			freshSts.Annotations = attemptDesired.Annotations
+			freshSts.Labels = attemptDesired.Labels
 
 			// Attempt update
 			if err := r.Update(ctx, freshSts); err != nil {
