@@ -18,8 +18,10 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -30,11 +32,12 @@ import (
 )
 
 const (
-	communityRepositoriesVolumeName  = "community-repositories"
-	communityRepositoriesMountPath   = "/etc/community-repositories"
-	communityRepositoriesFileEnv     = "COMMUNITY_REPOSITORIES_FILE"
-	communityRepositoriesFilePath    = communityRepositoriesMountPath + "/repositories.json"
-	communityRepositoryPollIntervalS = "30"
+	communityRepositoriesVolumeName      = "community-repositories"
+	communityRepositoriesMountPath       = "/etc/community-repositories"
+	communityRepositoriesFileEnv         = "COMMUNITY_REPOSITORIES_FILE"
+	communityRepositoriesFilePath        = communityRepositoriesMountPath + "/repositories.json"
+	communityRepositoryPollIntervalS     = "30"
+	communityRepositoryInitContainerName = "community-repository-init"
 )
 
 // hasCommunityRepositories reports whether at least one HomeAssistantCommunityRepository
@@ -84,6 +87,42 @@ func communityRepositoryVolumeMount() corev1.VolumeMount {
 	}
 }
 
+func addCommunityRepositoryHashAnnotation(
+	ctx context.Context,
+	c client.Client,
+	ha *hav1.HomeAssistant,
+	annotations map[string]string,
+) error {
+	communityConfig := &corev1.ConfigMap{}
+	key := client.ObjectKey{Name: communityRepositoriesConfigMapName(ha.Name), Namespace: ha.Namespace}
+	if err := c.Get(ctx, key, communityConfig); err != nil {
+		if client.IgnoreNotFound(err) == nil {
+			return nil
+		}
+		return fmt.Errorf("failed to get community repository ConfigMap: %w", err)
+	}
+	annotations[communityRepositoryHashAnnotationKey] =
+		calculateIntegrationRepositoryHash(communityConfig.Data[communityRepositoriesConfigMapKey])
+	return nil
+}
+
+func calculateIntegrationRepositoryHash(configMapContent string) string {
+	var payload communityRepositoriesConfigMapPayload
+	_ = json.Unmarshal([]byte(configMapContent), &payload)
+	var fingerprint strings.Builder
+	for _, entry := range payload.Repositories {
+		if entry.Category == string(hav1alpha1.CategoryIntegration) {
+			for _, field := range []string{
+				entry.Category, entry.Repository, entry.Ref, entry.ResolvedTarget, entry.SourcePath,
+			} {
+				fingerprint.WriteString(field)
+				fingerprint.WriteByte(0)
+			}
+		}
+	}
+	return calculateConfigHash(fingerprint.String())
+}
+
 // buildCommunityRepositoryInitContainer materializes "integration" category
 // repositories into /config/custom_components/ before Home Assistant starts —
 // the one category that requires a restart to load, so it must be in place before
@@ -94,11 +133,19 @@ func (r *HomeAssistantReconciler) buildCommunityRepositoryInitContainer(ha *hav1
 	haImage := homeAssistantImageRef(ha)
 
 	return corev1.Container{
-		Name:            "community-repository-init",
+		Name:            communityRepositoryInitContainerName,
 		Image:           haImage,
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Command:         []string{"python3", "-u", "-c", communityRepositoryInitScript},
-		Env:             append(communityRepositoryBaseEnv(), corev1.EnvVar{Name: "HA_CONFIG_DIR", Value: "/config"}),
+		Env: append(communityRepositoryBaseEnv(),
+			corev1.EnvVar{Name: "HA_CONFIG_DIR", Value: "/config"},
+			corev1.EnvVar{
+				Name: "COMMUNITY_REPOSITORIES_HASH",
+				ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: fmt.Sprintf("metadata.annotations['%s']", communityRepositoryHashAnnotationKey),
+				}},
+			},
+		),
 		VolumeMounts: []corev1.VolumeMount{
 			{Name: "config", MountPath: "/config"},
 			communityRepositoryVolumeMount(),
@@ -180,11 +227,13 @@ func homeAssistantImageRef(ha *hav1.HomeAssistant) string {
 // (see buildCommunityRepositoryInitContainer doc comment). Stdlib-only (no pip
 // deps): json, os, shutil, sys, tarfile, tempfile, urllib.request.
 const communityRepositoryInitScript = `
-import json, os, shutil, sys, tarfile, tempfile, urllib.request
+import hashlib, json, os, shutil, sys, tarfile, tempfile, urllib.request
 
 REPO_FILE = os.environ.get('COMMUNITY_REPOSITORIES_FILE', '/etc/community-repositories/repositories.json')
 CONFIG_DIR = os.environ.get('HA_CONFIG_DIR', '/config')
 CODELOAD_BASE = os.environ.get('CODELOAD_BASE_URL', 'https://codeload.github.com')
+EXPECTED_HASH = os.environ.get('COMMUNITY_REPOSITORIES_HASH', '')
+TERMINATION_LOG = '/dev/termination-log'
 
 # HACS repos are tiny plain-text source trees; these bound worst-case disk use
 # against a malicious or misbehaving upstream repository/host.
@@ -193,14 +242,20 @@ MAX_EXTRACTED_BYTES = 100 * 1024 * 1024
 
 
 def load_entries():
-    if not os.path.exists(REPO_FILE):
-        return []
-    try:
-        with open(REPO_FILE) as f:
-            data = json.load(f)
-    except (OSError, ValueError):
-        return []
-    return [e for e in data.get('repositories', []) if e.get('category') == 'integration']
+    if not EXPECTED_HASH:
+        raise RuntimeError('pod is missing the expected repository configuration hash')
+    with open(REPO_FILE, 'rb') as f:
+        raw = f.read()
+    data = json.loads(raw)
+    entries = [e for e in data.get('repositories', []) if e.get('category') == 'integration']
+    fingerprint = ''.join('\0'.join((
+        e['category'], e['repository'], e['ref'], e['resolvedTarget'], e['sourcePath'])) + '\0'
+        for e in entries).encode()
+    actual_hash = hashlib.sha256(fingerprint).hexdigest()
+    if actual_hash != EXPECTED_HASH:
+        raise RuntimeError('repository configuration hash mismatch: expected {}, got {}'.format(
+            EXPECTED_HASH, actual_hash))
+    return entries
 
 
 def copy_limited(src, dst, limit):
@@ -250,22 +305,44 @@ def fetch_and_place(entry):
             src = os.path.join(root, entry['sourcePath'])
             dest = os.path.join(CONFIG_DIR, 'custom_components', entry['resolvedTarget'])
             os.makedirs(os.path.dirname(dest), exist_ok=True)
-            if os.path.isdir(dest):
-                shutil.rmtree(dest)
-            elif os.path.exists(dest):
-                os.remove(dest)
-            shutil.copytree(src, dest)
+            staged = tempfile.mkdtemp(prefix='.community-repository-', dir=os.path.dirname(dest))
+            shutil.rmtree(staged)
+            try:
+                shutil.copytree(src, staged)
+                if not os.path.isfile(os.path.join(staged, 'manifest.json')):
+                    raise RuntimeError('materialized integration is missing manifest.json')
+                if os.path.isdir(dest):
+                    shutil.rmtree(dest)
+                elif os.path.exists(dest):
+                    os.remove(dest)
+                os.replace(staged, dest)
+            finally:
+                if os.path.exists(staged):
+                    shutil.rmtree(staged)
 
 
 def main():
-    for entry in load_entries():
+    errors = []
+    try:
+        entries = load_entries()
+    except Exception as e:
+        entries = []
+        errors.append(str(e))
+    for entry in entries:
         try:
             fetch_and_place(entry)
             print('materialized integration {} from {}@{}'.format(
                 entry['resolvedTarget'], entry['repository'], entry['ref']))
         except Exception as e:
-            print('WARNING: failed to materialize integration {}: {}'.format(
-                entry.get('resolvedTarget'), e), file=sys.stderr)
+            errors.append('failed to materialize integration {}: {}'.format(entry.get('resolvedTarget'), e))
+    if errors:
+        message = '; '.join(errors)
+        print('ERROR: ' + message, file=sys.stderr)
+        with open(TERMINATION_LOG, 'w') as f:
+            f.write(message)
+        raise SystemExit(1)
+    with open(TERMINATION_LOG, 'w') as f:
+        f.write(EXPECTED_HASH)
 
 
 if __name__ == '__main__':

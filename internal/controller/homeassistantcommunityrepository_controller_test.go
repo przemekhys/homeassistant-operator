@@ -258,17 +258,88 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseInstalling))
 		Expect(repo.Status.ResolvedTarget).To(Equal("example_integration"))
 
-		_, err = reconcileRepo("cr-integration") // -> activation (no StatefulSet exists -> no-op) -> Installed
+		result, err := reconcileRepo("cr-integration") // no pod acknowledgement yet -> remains Installing
 		Expect(err).NotTo(HaveOccurred())
 		repo = getRepo("cr-integration")
-		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseInstalled))
-		Expect(repo.Status.InstalledVersion).To(Equal("v1.0.0"))
+		Expect(result.RequeueAfter).To(Equal(integrationMaterializationPollInterval))
+		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseInstalling))
+		Expect(repo.Status.InstalledVersion).To(BeEmpty())
+		Expect(repo.Status.Conditions).To(ContainElement(
+			WithTransform(func(c metav1.Condition) string { return c.Reason }, Equal(reasonRepoMaterializing)),
+		))
 
 		cm := &corev1.ConfigMap{}
 		Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name: "ha-integration-missing-community-repositories", Namespace: namespace,
 		}, cm)).To(Succeed())
 		Expect(cm.Data["repositories.json"]).To(ContainSubstring("example_integration"))
+		desiredHash := calculateIntegrationRepositoryHash(cm.Data[communityRepositoriesConfigMapKey])
+
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ha-integration-missing-0",
+				Namespace: namespace,
+				Annotations: map[string]string{
+					communityRepositoryHashAnnotationKey: desiredHash,
+				},
+			},
+			Spec: corev1.PodSpec{
+				InitContainers: []corev1.Container{{Name: communityRepositoryInitContainerName, Image: "busybox"}},
+				Containers:     []corev1.Container{{Name: "home-assistant", Image: "busybox"}},
+			},
+		}
+		Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+		DeferCleanup(func() { _ = k8sClient.Delete(ctx, pod) })
+
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+		pod.Status.InitContainerStatuses = []corev1.ContainerStatus{{
+			Name:  communityRepositoryInitContainerName,
+			State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "CrashLoopBackOff"}},
+			LastTerminationState: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{
+				ExitCode: 1,
+				Message:  "temporary DNS failure",
+			}},
+		}}
+		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+
+		_, err = reconcileRepo("cr-integration")
+		Expect(err).NotTo(HaveOccurred())
+		repo = getRepo("cr-integration")
+		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseInstalling))
+		Expect(repo.Status.InstalledVersion).To(BeEmpty())
+		Expect(repo.Status.Conditions).To(ContainElement(
+			WithTransform(func(c metav1.Condition) string { return c.Reason }, Equal(reasonRepoMaterializationFailed)),
+		))
+		Expect(repo.Status.Conditions).To(ContainElement(
+			WithTransform(func(c metav1.Condition) string { return c.Message }, ContainSubstring("temporary DNS failure")),
+		))
+		failedStatusVersion := repo.ResourceVersion
+
+		result, err = reconcileRepo("cr-integration")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.RequeueAfter).To(Equal(integrationMaterializationPollInterval))
+		Expect(getRepo("cr-integration").ResourceVersion).To(Equal(failedStatusVersion),
+			"an unchanged materialization failure must not write status in a hot loop")
+
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+		pod.Status.Phase = corev1.PodRunning
+		pod.Status.InitContainerStatuses = []corev1.ContainerStatus{{
+			Name: communityRepositoryInitContainerName,
+			State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{
+				ExitCode: 0,
+				Message:  desiredHash,
+			}},
+		}}
+		pod.Status.Conditions = []corev1.PodCondition{{
+			Type: corev1.PodReady, Status: corev1.ConditionTrue,
+		}}
+		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+
+		_, err = reconcileRepo("cr-integration")
+		Expect(err).NotTo(HaveOccurred())
+		repo = getRepo("cr-integration")
+		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseInstalled))
+		Expect(repo.Status.InstalledVersion).To(Equal("v1.0.0"))
 	})
 
 	DescribeTable("transitions Validating -> Installing -> Installed for hot-reload categories",

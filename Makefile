@@ -204,7 +204,7 @@ test-e2e-community-repository-a: manifests generate fmt vet ginkgo ## Run the co
 	trap '$(MAKE) cleanup-test-e2e' EXIT INT TERM; \
 	$(MAKE) setup-test-e2e; \
 	CERT_MANAGER_INSTALL_SKIP=true K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run \
-		-v --label-filter="community-repository && group-a" --timeout=9m ./test/e2e/ | tee test-e2e.log
+		-v --label-filter="community-repository && group-a" --timeout=15m ./test/e2e/ | tee test-e2e.log
 
 .PHONY: test-e2e-community-repository-b
 test-e2e-community-repository-b: manifests generate fmt vet ginkgo ## Run the community-repository group-b e2e job locally
