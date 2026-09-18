@@ -17,6 +17,8 @@ limitations under the License.
 package controller
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"time"
@@ -31,13 +33,27 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
 	hav1alpha1 "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 )
+
+type testClientWithWatch struct {
+	client.Client
+}
+
+func (c testClientWithWatch) Watch(
+	_ context.Context,
+	_ client.ObjectList,
+	_ ...client.ListOption,
+) (watch.Interface, error) {
+	return nil, fmt.Errorf("watch is not supported by the envtest client adapter")
+}
 
 var _ = Describe("HomeAssistant Controller", func() {
 	Context("When reconciling a HomeAssistant resource", func() {
@@ -1751,6 +1767,79 @@ var _ = Describe("HomeAssistant Controller", func() {
 				g.Expect(current.Spec.Template.Labels).To(HaveKeyWithValue("managed.example/label", "desired"))
 				g.Expect(current.Spec.Template.Labels).To(HaveKeyWithValue("foreign.example/label", "preserve"))
 			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should preserve foreign metadata added during a StatefulSet update conflict", func() {
+			testName := resourceName + "-metadata-conflict"
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{Name: testName, Namespace: namespace},
+				Spec: hav1.HomeAssistantSpec{
+					Version:     "2024.1",
+					Annotations: map[string]string{"example.com/managed-annotation": "before"},
+					Labels:      map[string]string{"example.com/managed-label": "before"},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+			haConfig := &hav1.HomeAssistantConfiguration{
+				ObjectMeta: metav1.ObjectMeta{Name: testName + "-config", Namespace: namespace},
+				Spec: hav1.HomeAssistantConfigurationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{Name: testName},
+					Configuration:    "automation: []\nscript: []\n",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haConfig)).To(Succeed())
+			reconciler := &HomeAssistantReconciler{Client: k8sClient, Scheme: k8sClient.Scheme()}
+			Expect(reconciler.reconcileStatefulSet(ctx, ha)).To(Succeed())
+
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(ha), ha)).To(Succeed())
+			ha.Spec.Annotations["example.com/managed-annotation"] = "after"
+			ha.Spec.Labels["example.com/managed-label"] = "after"
+			Expect(k8sClient.Update(ctx, ha)).To(Succeed())
+
+			conflictInjected := false
+			conflictClient := interceptor.NewClient(testClientWithWatch{Client: k8sClient}, interceptor.Funcs{
+				Update: func(
+					updateCtx context.Context,
+					cl client.WithWatch,
+					obj client.Object,
+					opts ...client.UpdateOption,
+				) error {
+					sts, ok := obj.(*appsv1.StatefulSet)
+					if !ok || conflictInjected {
+						return cl.Update(updateCtx, obj, opts...)
+					}
+
+					latest := &appsv1.StatefulSet{}
+					if err := cl.Get(updateCtx, client.ObjectKeyFromObject(sts), latest); err != nil {
+						return err
+					}
+					latest.Annotations["foreign.example/annotation"] = "preserve"
+					latest.Labels["foreign.example/label"] = "preserve"
+					latest.Spec.Template.Annotations["foreign.example/pod-annotation"] = "preserve"
+					latest.Spec.Template.Labels["foreign.example/pod-label"] = "preserve"
+					if err := cl.Update(updateCtx, latest); err != nil {
+						return err
+					}
+					conflictInjected = true
+					return errors.NewConflict(appsv1.Resource("statefulsets"), sts.Name,
+						fmt.Errorf("simulated concurrent metadata update"))
+				},
+			})
+			conflictReconciler := &HomeAssistantReconciler{Client: conflictClient, Scheme: k8sClient.Scheme()}
+			Expect(conflictReconciler.reconcileStatefulSet(ctx, ha)).To(Succeed())
+			Expect(conflictInjected).To(BeTrue())
+
+			sts := &appsv1.StatefulSet{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: testName, Namespace: namespace}, sts)).To(Succeed())
+			Expect(sts.Annotations).To(HaveKeyWithValue("example.com/managed-annotation", "after"))
+			Expect(sts.Labels).To(HaveKeyWithValue("example.com/managed-label", "after"))
+			Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("example.com/managed-annotation", "after"))
+			Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("example.com/managed-label", "after"))
+			Expect(sts.Annotations).To(HaveKeyWithValue("foreign.example/annotation", "preserve"))
+			Expect(sts.Labels).To(HaveKeyWithValue("foreign.example/label", "preserve"))
+			Expect(sts.Spec.Template.Annotations).
+				To(HaveKeyWithValue("foreign.example/pod-annotation", "preserve"))
+			Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("foreign.example/pod-label", "preserve"))
 		})
 
 		It("should not trigger update when config hash is unchanged", func() {
