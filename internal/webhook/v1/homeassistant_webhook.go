@@ -91,6 +91,7 @@ func validateHomeAssistant(ctx context.Context, cl client.Reader, ha *hav1.HomeA
 	msgs = append(msgs, validateGatewayFilters(&ha.Spec)...)
 	msgs = append(msgs, validateDevices(&ha.Spec)...)
 	msgs = append(msgs, validateAdditionalVolumes(&ha.Spec)...)
+	msgs = append(msgs, validateMetadataSyntax(&ha.Spec)...)
 	msgs = append(msgs, validateNodeSelector(&ha.Spec)...)
 	msgs = append(msgs, validateScheduling(ctx, cl, &ha.Spec)...)
 	if len(msgs) > 0 {
@@ -370,6 +371,30 @@ func validateNodeSelector(spec *hav1.HomeAssistantSpec) []string {
 			errs = append(errs, fmt.Sprintf(
 				"spec.scheduling.nodeSelector[%q] value %q is not a valid label value: %s",
 				key, value, strings.Join(msgs, "; ")))
+		}
+	}
+	return errs
+}
+
+// validateMetadataSyntax rejects metadata that Kubernetes would reject later
+// when the controller applies it to the generated StatefulSet or Pod template.
+func validateMetadataSyntax(spec *hav1.HomeAssistantSpec) []string {
+	var errs []string
+	for key, value := range spec.Labels {
+		if msgs := validation.IsQualifiedName(key); len(msgs) > 0 {
+			errs = append(errs, fmt.Sprintf(
+				"spec.labels key %q is not a valid label key: %s", key, strings.Join(msgs, "; ")))
+		}
+		if msgs := validation.IsValidLabelValue(value); len(msgs) > 0 {
+			errs = append(errs, fmt.Sprintf(
+				"spec.labels[%q] value %q is not a valid label value: %s",
+				key, value, strings.Join(msgs, "; ")))
+		}
+	}
+	for key := range spec.Annotations {
+		if msgs := validation.IsQualifiedName(key); len(msgs) > 0 {
+			errs = append(errs, fmt.Sprintf(
+				"spec.annotations key %q is not a valid annotation key: %s", key, strings.Join(msgs, "; ")))
 		}
 	}
 	return errs

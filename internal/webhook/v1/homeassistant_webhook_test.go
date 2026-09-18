@@ -566,3 +566,52 @@ func TestValidatorRejectsInvalidAdditionalVolumesOnCreateAndUpdate(t *testing.T)
 		t.Fatalf("expected valid update to be accepted, got %v", err)
 	}
 }
+
+func TestValidatorRejectsInvalidMetadataOnCreateAndUpdate(t *testing.T) {
+	tests := []struct {
+		name      string
+		spec      hav1.HomeAssistantSpec
+		wantField string
+	}{
+		{
+			name:      "invalid label key",
+			spec:      hav1.HomeAssistantSpec{Labels: map[string]string{"not a key": "value"}},
+			wantField: "spec.labels key",
+		},
+		{
+			name:      "invalid label value",
+			spec:      hav1.HomeAssistantSpec{Labels: map[string]string{"example.com/key": "-invalid"}},
+			wantField: `spec.labels["example.com/key"] value`,
+		},
+		{
+			name:      "invalid annotation key",
+			spec:      hav1.HomeAssistantSpec{Annotations: map[string]string{"not a key": "value"}},
+			wantField: "spec.annotations key",
+		},
+	}
+
+	v := &HomeAssistantCustomValidator{}
+	good := &hav1.HomeAssistant{
+		ObjectMeta: metav1.ObjectMeta{Name: "home"},
+		Spec: hav1.HomeAssistantSpec{
+			Labels:      map[string]string{"example.com/key": "valid-value"},
+			Annotations: map[string]string{"example.com/key": "annotation values may contain spaces"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			bad := &hav1.HomeAssistant{ObjectMeta: metav1.ObjectMeta{Name: "home"}, Spec: tc.spec}
+			if _, err := v.ValidateCreate(context.Background(), bad); err == nil ||
+				!strings.Contains(err.Error(), tc.wantField) {
+				t.Fatalf("expected create to reject %s, got %v", tc.wantField, err)
+			}
+			if _, err := v.ValidateUpdate(context.Background(), good, bad); err == nil ||
+				!strings.Contains(err.Error(), tc.wantField) {
+				t.Fatalf("expected update to reject %s, got %v", tc.wantField, err)
+			}
+		})
+	}
+	if _, err := v.ValidateCreate(context.Background(), good); err != nil {
+		t.Fatalf("expected valid metadata to be accepted, got %v", err)
+	}
+}
