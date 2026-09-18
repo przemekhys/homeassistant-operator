@@ -1878,44 +1878,58 @@ func needsUpdateForMetadata(current, desired *appsv1.StatefulSet) bool {
 	}
 
 	// Check user-managed annotations and labels
-	currentManagedAnnotations := make(map[string]string)
-	desiredManagedAnnotations := make(map[string]string)
-	if anns, ok := current.Annotations[userAnnotationsAnnotationKey]; ok {
-		for _, ann := range strings.Split(anns, ",") {
-			currentManagedAnnotations[ann] = current.Annotations[ann]
-		}
-	}
-	if anns, ok := desired.Annotations[userAnnotationsAnnotationKey]; ok {
-		for _, ann := range strings.Split(anns, ",") {
-			desiredManagedAnnotations[ann] = desired.Annotations[ann]
-		}
-	}
+	currentManagedAnnotations := trackedMetadataValues(
+		current.Annotations, userAnnotationsAnnotationKey, current.Annotations)
+	desiredManagedAnnotations := trackedMetadataValues(
+		desired.Annotations, userAnnotationsAnnotationKey, desired.Annotations)
 
 	if !maps.Equal(currentManagedAnnotations, desiredManagedAnnotations) {
 		log.V(1).Info("Managed annotations differ", "current", currentManagedAnnotations,
 			"desired", desiredManagedAnnotations)
 		return true
 	}
+	currentManagedPodAnnotations := trackedMetadataValues(
+		current.Annotations, userAnnotationsAnnotationKey, current.Spec.Template.Annotations)
+	desiredManagedPodAnnotations := trackedMetadataValues(
+		desired.Annotations, userAnnotationsAnnotationKey, desired.Spec.Template.Annotations)
+	if !maps.Equal(currentManagedPodAnnotations, desiredManagedPodAnnotations) {
+		log.V(1).Info("Managed pod annotations differ", "current", currentManagedPodAnnotations,
+			"desired", desiredManagedPodAnnotations)
+		return true
+	}
 
-	currentManagedLabels := make(map[string]string)
-	desiredManagedLabels := make(map[string]string)
-	if lbls, ok := current.Annotations[userLabelsAnnotationKey]; ok {
-		for _, lbl := range strings.Split(lbls, ",") {
-			currentManagedLabels[lbl] = current.Labels[lbl]
-		}
-	}
-	if lbls, ok := desired.Annotations[userLabelsAnnotationKey]; ok {
-		for _, lbl := range strings.Split(lbls, ",") {
-			desiredManagedLabels[lbl] = desired.Labels[lbl]
-		}
-	}
+	currentManagedLabels := trackedMetadataValues(current.Annotations, userLabelsAnnotationKey, current.Labels)
+	desiredManagedLabels := trackedMetadataValues(desired.Annotations, userLabelsAnnotationKey, desired.Labels)
 
 	if !maps.Equal(currentManagedLabels, desiredManagedLabels) {
 		log.V(1).Info("Managed labels differ", "current", currentManagedLabels, "desired", desiredManagedLabels)
 		return true
 	}
+	currentManagedPodLabels := trackedMetadataValues(
+		current.Annotations, userLabelsAnnotationKey, current.Spec.Template.Labels)
+	desiredManagedPodLabels := trackedMetadataValues(
+		desired.Annotations, userLabelsAnnotationKey, desired.Spec.Template.Labels)
+	if !maps.Equal(currentManagedPodLabels, desiredManagedPodLabels) {
+		log.V(1).Info("Managed pod labels differ", "current", currentManagedPodLabels,
+			"desired", desiredManagedPodLabels)
+		return true
+	}
 
 	return false
+}
+
+func trackedMetadataValues(
+	trackingAnnotations map[string]string,
+	trackingKey string,
+	values map[string]string,
+) map[string]string {
+	tracked := make(map[string]string)
+	for _, key := range strings.Split(trackingAnnotations[trackingKey], ",") {
+		if key != "" {
+			tracked[key] = values[key]
+		}
+	}
+	return tracked
 }
 
 // podLevelFieldsDiffer compares HostNetwork, DNSPolicy, and
