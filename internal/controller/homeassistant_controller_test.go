@@ -1687,6 +1687,72 @@ var _ = Describe("HomeAssistant Controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 
+		It("should restore managed metadata drift confined to the pod template", func() {
+			testName := resourceName + "-template-metadata-drift"
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{Name: testName, Namespace: namespace},
+				Spec: hav1.HomeAssistantSpec{
+					Version:     "2024.1",
+					Annotations: map[string]string{"managed.example/annotation": "desired"},
+					Labels:      map[string]string{"managed.example/label": "desired"},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+			haConfig := &hav1.HomeAssistantConfiguration{
+				ObjectMeta: metav1.ObjectMeta{Name: testName + "-config", Namespace: namespace},
+				Spec: hav1.HomeAssistantConfigurationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{Name: testName},
+					Configuration:    "automation: []\nscript: []\n",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haConfig)).To(Succeed())
+			reconciler := &HomeAssistantReconciler{Client: k8sClient, Scheme: k8sClient.Scheme()}
+			request := reconcile.Request{NamespacedName: types.NamespacedName{Name: testName, Namespace: namespace}}
+			_, err := reconciler.Reconcile(ctx, request)
+			Expect(err).NotTo(HaveOccurred())
+
+			key := types.NamespacedName{Name: testName, Namespace: namespace}
+			sts := &appsv1.StatefulSet{}
+			Expect(k8sClient.Get(ctx, key, sts)).To(Succeed())
+			Expect(sts.Annotations).To(HaveKeyWithValue("managed.example/annotation", "desired"))
+			Expect(sts.Labels).To(HaveKeyWithValue("managed.example/label", "desired"))
+
+			By("changing only a managed pod-template annotation")
+			sts.Spec.Template.Annotations["managed.example/annotation"] = "drifted"
+			sts.Spec.Template.Annotations["foreign.example/annotation"] = "preserve"
+			Expect(k8sClient.Update(ctx, sts)).To(Succeed())
+			_, err = reconciler.Reconcile(ctx, request)
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func(g Gomega) {
+				current := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, key, current)).To(Succeed())
+				g.Expect(current.Annotations).To(HaveKeyWithValue("managed.example/annotation", "desired"))
+				g.Expect(current.Labels).To(HaveKeyWithValue("managed.example/label", "desired"))
+				g.Expect(current.Spec.Template.Annotations).
+					To(HaveKeyWithValue("managed.example/annotation", "desired"))
+				g.Expect(current.Spec.Template.Annotations).
+					To(HaveKeyWithValue("foreign.example/annotation", "preserve"))
+			}, timeout, interval).Should(Succeed())
+
+			By("changing only a managed pod-template label")
+			Expect(k8sClient.Get(ctx, key, sts)).To(Succeed())
+			sts.Spec.Template.Labels["managed.example/label"] = "drifted"
+			sts.Spec.Template.Labels["foreign.example/label"] = "preserve"
+			Expect(k8sClient.Update(ctx, sts)).To(Succeed())
+			_, err = reconciler.Reconcile(ctx, request)
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func(g Gomega) {
+				current := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, key, current)).To(Succeed())
+				g.Expect(current.Annotations).To(HaveKeyWithValue("managed.example/annotation", "desired"))
+				g.Expect(current.Labels).To(HaveKeyWithValue("managed.example/label", "desired"))
+				g.Expect(current.Spec.Template.Labels).To(HaveKeyWithValue("managed.example/label", "desired"))
+				g.Expect(current.Spec.Template.Labels).To(HaveKeyWithValue("foreign.example/label", "preserve"))
+			}, timeout, interval).Should(Succeed())
+		})
+
 		It("should not trigger update when config hash is unchanged", func() {
 			// Use unique name to avoid conflicts
 			testName := resourceName + "-nochange"
