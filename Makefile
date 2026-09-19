@@ -121,9 +121,9 @@ test: manifests generate fmt vet setup-envtest ## Run unit tests.
 K3D_CLUSTER_E2E ?= homeassistant-operator-test-e2e
 K3D_MEMORY_E2E ?= 12g
 # renovate: datasource=docker depName=rancher/k3s
-K3S_VERSION ?= v1.36.4-k3s1
+K3S_VERSION ?= v1.37.0-k3s1
 # renovate: datasource=docker depName=ghcr.io/home-assistant/home-assistant
-HA_VERSION ?= 2026.9.1
+HA_VERSION ?= 2026.9.3
 
 .PHONY: setup-test-e2e
 setup-test-e2e: ## Set up a k3d cluster for e2e tests (always creates fresh cluster)
