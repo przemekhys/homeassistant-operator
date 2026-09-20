@@ -2400,17 +2400,18 @@ even while a <code>dev</code> cycle is in progress:</p>
 nothing special about the state — fixes simply continue to target <code>main</code>, and
 the next feature cycle starts fresh on <code>dev</code>.</p>
 <h2 id="keeping-dev-in-sync-with-main">Keeping <code>dev</code> in sync with <code>main</code><a class="headerlink" href="#keeping-dev-in-sync-with-main" title="Permanent link">&para;</a></h2>
-<p>After every release cut from <code>main</code> (patch or final), the maintainer merges
-<code>main</code> back into <code>dev</code> so the released fixes are carried into the next feature
-cycle and <code>dev</code> does not drift:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>dev
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>git<span class="w"> </span>pull<span class="w"> </span>--ff-only
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>git<span class="w"> </span>merge<span class="w"> </span>--no-ff<span class="w"> </span>main
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>dev
+<p>After every release cut from <code>main</code> (patch or final), open a pull request that
+merges <code>main</code> back into <code>dev</code>. This carries released fixes into the next feature
+cycle without pushing directly to the protected <code>dev</code> branch:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>fetch<span class="w"> </span>origin
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>git<span class="w"> </span>switch<span class="w"> </span>-c<span class="w"> </span>sync/main-into-dev<span class="w"> </span>origin/dev
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>git<span class="w"> </span>merge<span class="w"> </span>--no-ff<span class="w"> </span>origin/main
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>sync/main-into-dev
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>gh<span class="w"> </span>pr<span class="w"> </span>create<span class="w"> </span>--base<span class="w"> </span>dev<span class="w"> </span>--head<span class="w"> </span>sync/main-into-dev<span class="w"> </span>--title<span class="w"> </span><span class="s2">&quot;chore: sync main into dev&quot;</span>
 </code></pre></div>
 <p>Resolve any conflicts in favour of keeping both the fix and the in-progress
-feature work. Never rebase <code>dev</code> onto <code>main</code> or force-push either branch —
-both are shared.</p>
+feature work, then merge the PR after its required checks and reviews pass.
+Never rebase <code>dev</code> onto <code>main</code> or force-push either branch — both are shared.</p>
 <h2 id="automated-dependency-updates-renovate">Automated dependency updates (Renovate)<a class="headerlink" href="#automated-dependency-updates-renovate" title="Permanent link">&para;</a></h2>
 <p>Renovate (<code>renovate.json</code>) watches <strong>both</strong> long-lived branches
 (<code>baseBranches: ["main", "dev"]</code>) and opens separate PRs per branch:</p>
