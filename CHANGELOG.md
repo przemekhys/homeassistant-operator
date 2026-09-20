@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Custom StatefulSet and Pod metadata (`spec.labels` and `spec.annotations`).**
+  Home Assistant instances can now declare labels and annotations that the
+  operator reconciles onto both the generated StatefulSet and its Pod template,
+  allowing integration with cluster tooling through custom metadata. Metadata
+  changes roll the pod without changing the StatefulSet's immutable selector.
+  Admission rejects operator-reserved keys and invalid Kubernetes label or
+  annotation syntax, while reconciliation preserves metadata owned by other
+  controllers.
+
 - **Additional volumes and mounts for Home Assistant pods (`spec.additionalVolumes`).**
   A `HomeAssistant` resource can now declare native Kubernetes `Volume` and
   `VolumeMount` entries that the operator appends to the generated StatefulSet

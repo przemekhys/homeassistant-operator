@@ -63,9 +63,21 @@ runs:
         HELM_UNITTEST_VERSION: ${{ inputs.helm-unittest-version }}
       run: |
         set -euo pipefail
-        helm plugin list | grep -q unittest || \
-          helm plugin install https://github.com/helm-unittest/helm-unittest --version "${HELM_UNITTEST_VERSION}" --verify=false 2>/dev/null || \
-          helm plugin install https://github.com/helm-unittest/helm-unittest --version "${HELM_UNITTEST_VERSION}"
+        if helm plugin list | grep -q '^unittest[[:space:]]'; then
+          exit 0
+        fi
+        for attempt in 1 2 3; do
+          helm plugin uninstall unittest >/dev/null 2>&1 || true
+          if helm plugin install https://github.com/helm-unittest/helm-unittest \
+            --version "${HELM_UNITTEST_VERSION}" --verify=false; then
+            exit 0
+          fi
+          if [ "${attempt}" -lt 3 ]; then
+            sleep $((attempt * 2))
+          fi
+        done
+        echo "Failed to install helm-unittest after 3 attempts" >&2
+        exit 1
 
     - name: Install yq
       shell: bash

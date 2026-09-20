@@ -31,6 +31,43 @@ spec:
     type: ClusterIP
 ```
 
+## Add labels and annotations
+
+`spec.labels` and `spec.annotations` are copied to both the generated StatefulSet
+and its Pod template. Use your own qualified key domain for metadata consumed by
+your cluster tooling:
+
+```yaml
+spec:
+  labels:
+    example.com/location: living-room
+  annotations:
+    example.com/owner: home-automation
+```
+
+Changing either map updates the StatefulSet and its Pod template. Because Pod
+template metadata is part of the StatefulSet rollout template, such a change
+rolls the Home Assistant pod. Metadata added directly by another controller is
+preserved unless it uses a key managed through the `HomeAssistant` resource.
+
+User labels are deliberately **not** added to
+`StatefulSet.spec.selector.matchLabels`. The immutable selector contains only
+the operator's stable identity labels, so adding or removing `spec.labels` does
+not require replacing the StatefulSet.
+
+The API rejects metadata keys managed by the operator:
+
+- All annotation keys under `ha.homeassistant.io/*` are reserved.
+- The labels `app.kubernetes.io/name`, `app.kubernetes.io/instance`, and
+  `app.kubernetes.io/managed-by` are fixed selector labels and cannot be set in
+  `spec.labels`.
+
+Metadata syntax is validated during admission. Keys in both maps must be valid
+Kubernetes qualified names (an optional DNS prefix, `/`, and a name). Label
+values must follow Kubernetes label-value syntax: at most 63 characters, using
+letters, digits, `-`, `_`, or `.`, and starting and ending with an alphanumeric
+character when non-empty. Annotation values may contain arbitrary text.
+
 ## Keep the data when the resource is deleted
 
 By default the operator sets a controller owner reference on the instance's PVC,
