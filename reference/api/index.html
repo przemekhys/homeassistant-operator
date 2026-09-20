@@ -1331,6 +1331,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#additionalvolumesspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AdditionalVolumesSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#alphaspec" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3235,6 +3246,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#additionalvolumesspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AdditionalVolumesSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#alphaspec" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4395,6 +4417,34 @@
 <li><a href="#homeassistantsecrets">HomeAssistantSecrets</a></li>
 <li><a href="#homeassistantsecretslist">HomeAssistantSecretsList</a></li>
 </ul>
+<h4 id="additionalvolumesspec">AdditionalVolumesSpec<a class="headerlink" href="#additionalvolumesspec" title="Permanent link">&para;</a></h4>
+<p>AdditionalVolumesSpec defines additional volumes for the Home Assistant pod.</p>
+<p><em>Appears in:</em>
+- <a href="#homeassistantspec">HomeAssistantSpec</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Default</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>volumes</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#volume-v1-core">Volume</a> array</em></td>
+<td>Volumes defines Kubernetes volumes to attach to the Home Assistant pod.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>volumeMounts</code> <em><a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#volumemount-v1-core">VolumeMount</a> array</em></td>
+<td>VolumeMounts defines mounts for the main Home Assistant container. Each<br />name must match an entry in Volumes.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+</tbody>
+</table>
 <h4 id="alphaspec">AlphaSpec<a class="headerlink" href="#alphaspec" title="Permanent link">&para;</a></h4>
 <p>AlphaSpec groups experimental fields that are not yet stable enough for the
 top-level spec. See spec.alpha.* lifecycle: alpha (opt-in,
@@ -4853,6 +4903,12 @@ lives at the top level rather than under spec.alpha.</p>
 <td>ManageGateway controls whether the operator also creates a Gateway<br />resource (not just the HTTPRoute). GatewayClass and the gateway controller<br />remain the platform's responsibility.</td>
 <td>false</td>
 <td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>gatewayClassName</code> <em>string</em></td>
+<td>GatewayClassName names the existing GatewayClass used by the<br />operator-created Gateway. Defaults to "traefik" when omitted. Ignored when<br />ParentRef is set.</td>
+<td>traefik</td>
+<td>MaxLength: 253 <br />MinLength: 1 <br />Pattern: <code>^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$</code> <br />Optional: {} <br /></td>
 </tr>
 <tr>
 <td><code>filters</code> <em><a href="#httproutefilter">HTTPRouteFilter</a> array</em></td>
@@ -7013,8 +7069,26 @@ Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).</p>
 <td>Optional: {} <br /></td>
 </tr>
 <tr>
+<td><code>labels</code> <em>object (keys:string, values:string)</em></td>
+<td>Additional labels for the StatefulSet and Pod. The selector labels<br />app.kubernetes.io/name, app.kubernetes.io/instance, and<br />app.kubernetes.io/managed-by are reserved by the operator. Keys and values<br />must use Kubernetes label syntax.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>annotations</code> <em>object (keys:string, values:string)</em></td>
+<td>Additional annotations for the StatefulSet and Pod. Keys in the<br />ha.homeassistant.io domain are reserved by the operator. Keys must be valid<br />Kubernetes qualified names; annotation values may contain arbitrary text.</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
 <td><code>storage</code> <em><a href="#storagespec">StorageSpec</a></em></td>
 <td>Storage configuration for Home Assistant data</td>
+<td></td>
+<td>Optional: {} <br /></td>
+</tr>
+<tr>
+<td><code>additionalVolumes</code> <em><a href="#additionalvolumesspec">AdditionalVolumesSpec</a></em></td>
+<td>Additional volumes and mounts for the main Home Assistant container.<br />Every mount name must reference a volume declared here. Names and mount<br />paths managed by the operator are reserved.</td>
 <td></td>
 <td>Optional: {} <br /></td>
 </tr>

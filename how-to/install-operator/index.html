@@ -2528,8 +2528,12 @@ See <a href="https://github.com/przemekhys/homeassistant-operator/blob/main/DEPR
 </code></pre></div>
 <h2 id="install-via-manifest">Install via manifest<a class="headerlink" href="#install-via-manifest" title="Permanent link">&para;</a></h2>
 <p>If you prefer a plain <code>kubectl apply</code> without Helm:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/przemekhys/homeassistant-operator/<span class="s2">&quot;v</span><span class="nv">$VERSION</span><span class="s2">&quot;</span>/dist/install.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nv">MANIFEST_URL</span><span class="o">=</span><span class="s2">&quot;https://github.com/przemekhys/homeassistant-operator/releases/download/v</span><span class="nv">$VERSION</span><span class="s2">/install.yaml&quot;</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$MANIFEST_URL</span><span class="s2">&quot;</span>
 </code></pre></div>
+<p>The manifest is an immutable asset of the selected release and deploys the
+matching operator image. To verify its signed checksum before applying it, see
+<a href="../verify-signed-releases/#verify-the-installation-manifest">Verify signed releases</a>.</p>
 <p>This installs:</p>
 <ul>
 <li>All CRDs (<code>HomeAssistant</code>, <code>HomeAssistantSecrets</code>, <code>HomeAssistantConfiguration</code>, etc.)</li>
@@ -2551,7 +2555,8 @@ See <a href="https://github.com/przemekhys/homeassistant-operator/blob/main/DEPR
 <a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>homeassistantintegrations<span class="w"> </span>--all<span class="w"> </span>-A
 <a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>
 <a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="c1"># 2. Remove the operator and CRDs</span>
-<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/przemekhys/homeassistant-operator/<span class="s2">&quot;v</span><span class="nv">$VERSION</span><span class="s2">&quot;</span>/dist/install.yaml
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="nv">MANIFEST_URL</span><span class="o">=</span><span class="s2">&quot;https://github.com/przemekhys/homeassistant-operator/releases/download/v</span><span class="nv">$VERSION</span><span class="s2">/install.yaml&quot;</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$MANIFEST_URL</span><span class="s2">&quot;</span>
 </code></pre></div>
 <h2 id="verify">Verify<a class="headerlink" href="#verify" title="Permanent link">&para;</a></h2>
 <p><div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>pods<span class="w"> </span>-n<span class="w"> </span>homeassistant-operator-system

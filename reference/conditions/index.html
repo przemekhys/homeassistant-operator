@@ -3237,11 +3237,19 @@ single field: <code>Pending → Validating → Installing → Installed</code>, 
 </tr>
 <tr>
 <td><code>Installing</code></td>
-<td>Files written; waiting for the extension to become active</td>
+<td>Installation has started; waiting for category-specific materialization or activation</td>
+</tr>
+<tr>
+<td><code>Materializing</code></td>
+<td>Waiting for the replacement Home Assistant pod to copy an integration onto <code>/config</code></td>
+</tr>
+<tr>
+<td><code>MaterializationFailed</code></td>
+<td>The integration init container failed to materialize the requested files. Kubernetes retries it automatically; see <code>message</code> for the last error.</td>
 </tr>
 <tr>
 <td><code>Installed</code></td>
-<td>Done, and <code>status.installedVersion</code> now reports this ref. For <code>plugin</code>/<code>theme</code>/<code>python_script</code>/<code>template</code> that means Home Assistant confirmed the reload; for <code>integration</code> it means the pod restart was triggered — the extension becomes usable once the replacement pod is running.</td>
+<td>Done, and <code>status.installedVersion</code> now reports this ref. For <code>plugin</code>/<code>theme</code>/<code>python_script</code>/<code>template</code> Home Assistant confirmed the reload. For <code>integration</code>, a Ready Home Assistant pod confirmed the exact repository configuration was materialized successfully.</td>
 </tr>
 <tr>
 <td><code>RepositoryUnreachable</code></td>
