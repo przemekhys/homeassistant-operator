@@ -3,8 +3,9 @@
 *Ecosystem guides — how tools this project does not ship work together with the operator. Not part of the operator's supported API.*
 
 These pages show how the operator fits alongside other things you probably
-already run: a GitOps engine, a secret manager. They exist because the questions
-keep coming up, not because the operator has any special support for these tools.
+already run: a GitOps engine, a secret manager, or a custom Home Assistant
+integration. They exist because the questions keep coming up, not because the
+operator has any special support for these tools.
 
 !!! note "Not part of the supported API"
     Unlike the rest of this documentation, these guides are **not** part of the
@@ -18,6 +19,7 @@ keep coming up, not because the operator has any special support for these tools
 |-------|----------------|
 | **[Flux CD](flux.md)** | Deploying the operator and its resources from Git, and auto-updating the Home Assistant image with a policy you control |
 | **[External secret management](secrets-management.md)** | Sourcing Home Assistant's secrets from External Secrets Operator, Sealed Secrets or Vault instead of `kubectl create secret` |
+| **[hass_ingress](hass-ingress.md)** | Putting an independently deployed Kubernetes application in the Home Assistant sidebar behind Home Assistant authentication |
 
 ## What belongs here
 

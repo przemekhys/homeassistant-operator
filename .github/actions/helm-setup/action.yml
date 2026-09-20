@@ -6,6 +6,10 @@ inputs:
     description: "helm-docs version"
     required: false
     default: "1.14.2"
+  helm-docs-sha256:
+    description: "SHA-256 for the Linux x86_64 helm-docs archive"
+    required: false
+    default: "a8cf72ada34fad93285ba2a452b38bdc5bd52cc9a571236244ec31022928d6cc"
   kubeconform-version:
     description: "kubeconform version"
     required: false
@@ -39,11 +43,16 @@ runs:
       shell: bash
       env:
         HELM_DOCS_VERSION: ${{ inputs.helm-docs-version }}
+        HELM_DOCS_SHA256: ${{ inputs.helm-docs-sha256 }}
       run: |
         set -euo pipefail
-        curl -sSL "https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/helm-docs_${HELM_DOCS_VERSION}_Linux_x86_64.tar.gz" \
-          | tar -xz -C /tmp helm-docs
-        sudo mv /tmp/helm-docs /usr/local/bin/helm-docs
+        archive="helm-docs_${HELM_DOCS_VERSION}_Linux_x86_64.tar.gz"
+        curl --fail --location --silent --show-error \
+          --output "/tmp/${archive}" \
+          "https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/${archive}"
+        printf '%s  %s\n' "${HELM_DOCS_SHA256}" "/tmp/${archive}" | sha256sum --check --status
+        tar -xzf "/tmp/${archive}" -C /tmp helm-docs
+        sudo install -m 0755 /tmp/helm-docs /usr/local/bin/helm-docs
         helm-docs --version
 
     - name: Install kubeconform

@@ -66,7 +66,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/helm-setup
       - name: Verify chart README is up to date
-        run: make helm-verify-docs HELM_DOCS=helm-docs
+        run: make helm-verify-docs HELM_DOCS=/usr/local/bin/helm-docs
 
   sync:
     name: chart synced with config/
