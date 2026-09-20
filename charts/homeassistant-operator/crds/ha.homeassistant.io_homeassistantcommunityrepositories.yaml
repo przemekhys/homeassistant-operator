@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.21.0
+    controller-gen.kubebuilder.io/version: v0.22.0
   name: homeassistantcommunityrepositories.ha.homeassistant.io
 spec:
   group: ha.homeassistant.io
@@ -95,8 +95,9 @@ spec:
                 description: |-
                   Ref is the tag, branch, or commit SHA to install. Pinned and explicit — this
                   operator never tracks a "latest" release automatically. Restricted to
-                  characters valid in a git ref (no URL-reserved or path-separator characters
-                  that could alter the codeload request path).
+                  characters valid in a git ref: word characters, dot, dash and slash, so
+                  branch names such as release/v1 are accepted. URL-reserved characters that
+                  could alter the codeload request path are not.
                 minLength: 1
                 pattern: ^[\w][\w.\-/]*$
                 type: string
@@ -206,7 +207,9 @@ spec:
                 description: |-
                   ResolvedTarget is the install target computed from the source repository's own
                   manifest (the integration domain, or the theme/script/template/plugin file name).
-                  Used together with Category as the conflict-detection key.
+                  Together with the referenced HomeAssistant name and Category it forms the
+                  conflict-detection key, so the same target may be installed into two
+                  different instances.
                 type: string
             type: object
         type: object

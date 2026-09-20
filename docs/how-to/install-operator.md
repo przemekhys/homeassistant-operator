@@ -129,8 +129,13 @@ helm uninstall homeassistant-operator -n homeassistant-operator-system
 If you prefer a plain `kubectl apply` without Helm:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/przemekhys/homeassistant-operator/"v$VERSION"/dist/install.yaml
+MANIFEST_URL="https://github.com/przemekhys/homeassistant-operator/releases/download/v$VERSION/install.yaml"
+kubectl apply -f "$MANIFEST_URL"
 ```
+
+The manifest is an immutable asset of the selected release and deploys the
+matching operator image. To verify its signed checksum before applying it, see
+[Verify signed releases](verify-signed-releases.md#verify-the-installation-manifest).
 
 This installs:
 
@@ -154,7 +159,8 @@ kubectl delete homeassistantscripts --all -A
 kubectl delete homeassistantintegrations --all -A
 
 # 2. Remove the operator and CRDs
-kubectl delete -f https://raw.githubusercontent.com/przemekhys/homeassistant-operator/"v$VERSION"/dist/install.yaml
+MANIFEST_URL="https://github.com/przemekhys/homeassistant-operator/releases/download/v$VERSION/install.yaml"
+kubectl delete -f "$MANIFEST_URL"
 ```
 
 ## Verify

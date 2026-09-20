@@ -21,13 +21,16 @@ import (
 	"crypto/tls"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	. "github.com/onsi/gomega"
 
+	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -39,6 +42,67 @@ import (
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
 )
+
+func TestGatewayClassNameAdmission(t *testing.T) {
+	k8sClient, _, cleanup := setupWebhookTestEnv(t)
+	defer cleanup()
+
+	tests := []struct {
+		name                    string
+		gatewayClassName        string
+		includeGatewayClassName bool
+		wantAccepted            bool
+		wantDefault             string
+	}{
+		{name: "valid", gatewayClassName: "traefik", includeGatewayClassName: true, wantAccepted: true},
+		{name: "maximum length", gatewayClassName: strings.Repeat("a", 253),
+			includeGatewayClassName: true, wantAccepted: true},
+		{name: "explicit empty", includeGatewayClassName: true, wantAccepted: false},
+		{name: "malformed", gatewayClassName: "Traefik", includeGatewayClassName: true, wantAccepted: false},
+		{name: "over maximum length", gatewayClassName: strings.Repeat("a", 254),
+			includeGatewayClassName: true, wantAccepted: false},
+		{name: "omission applies default", wantAccepted: true, wantDefault: "traefik"},
+	}
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			gateway := map[string]interface{}{
+				"enabled":       true,
+				"host":          "ha.example.com",
+				"manageGateway": true,
+			}
+			if tt.includeGatewayClassName {
+				gateway["gatewayClassName"] = tt.gatewayClassName
+			}
+			obj := &unstructured.Unstructured{Object: map[string]interface{}{
+				"apiVersion": hav1.GroupVersion.String(),
+				"kind":       "HomeAssistant",
+				"metadata": map[string]interface{}{
+					"name":      fmt.Sprintf("gateway-class-%d", i),
+					"namespace": "default",
+				},
+				"spec": map[string]interface{}{
+					"gateway": gateway,
+				},
+			}}
+
+			err := k8sClient.Create(context.Background(), obj)
+			if tt.wantAccepted {
+				g.Expect(err).NotTo(HaveOccurred())
+				if tt.wantDefault != "" {
+					className, found, nestedErr := unstructured.NestedString(obj.Object,
+						"spec", "gateway", "gatewayClassName")
+					g.Expect(nestedErr).NotTo(HaveOccurred())
+					g.Expect(found).To(BeTrue())
+					g.Expect(className).To(Equal(tt.wantDefault))
+				}
+			} else {
+				g.Expect(err).To(HaveOccurred())
+			}
+		})
+	}
+}
 
 // setupWebhookTestEnv spins up a real envtest API server, a real
 // ValidatingWebhookConfiguration, and a real webhook server (the same wiring
@@ -157,6 +221,44 @@ func TestAdmissionWebhookRejectsInvalidGatewayFilter(t *testing.T) {
 	err := k8sClient.Create(context.Background(), bad)
 	g.Expect(err).To(HaveOccurred(), "webhook should reject a filter missing its declared type's sub-object")
 	g.Expect(err.Error()).To(ContainSubstring("requestHeaderModifier is required"))
+}
+
+func TestAdmissionWebhookValidatesAdditionalVolumesOnCreateAndUpdate(t *testing.T) {
+	g := NewWithT(t)
+	k8sClient, _, cleanup := setupWebhookTestEnv(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	invalid := &hav1.HomeAssistant{
+		ObjectMeta: metav1.ObjectMeta{Name: "ha-bad-additional-volume", Namespace: "default"},
+		Spec: hav1.HomeAssistantSpec{AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+			VolumeMounts: []corev1.VolumeMount{{Name: "missing", MountPath: "/extra"}},
+		}},
+	}
+	err := k8sClient.Create(ctx, invalid)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("volumeMounts[0]"))
+
+	valid := &hav1.HomeAssistant{
+		ObjectMeta: metav1.ObjectMeta{Name: "ha-additional-volume", Namespace: "default"},
+		Spec: hav1.HomeAssistantSpec{AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+			Volumes: []corev1.Volume{{
+				Name:         "extra",
+				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			}},
+			VolumeMounts: []corev1.VolumeMount{{Name: "extra", MountPath: "/extra"}},
+		}},
+	}
+	g.Expect(k8sClient.Create(ctx, valid)).To(Succeed())
+
+	valid.Spec.AdditionalVolumes.VolumeMounts[0].MountPath = "/config"
+	err = k8sClient.Update(ctx, valid)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring(`volumeMounts[0].mountPath "/config" is reserved`))
+
+	stored := &hav1.HomeAssistant{}
+	g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(valid), stored)).To(Succeed())
+	g.Expect(stored.Spec.AdditionalVolumes.VolumeMounts[0].MountPath).To(Equal("/extra"))
 }
 
 // TestAdmissionWebhookRejectsNonexistentPriorityClass exercises the real HTTP

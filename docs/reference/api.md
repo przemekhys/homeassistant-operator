@@ -35,6 +35,23 @@ Package v1 contains API Schema definitions for the ha v1 API group.
 
 
 
+#### AdditionalVolumesSpec
+
+
+
+AdditionalVolumesSpec defines additional volumes for the Home Assistant pod.
+
+
+
+_Appears in:_
+- [HomeAssistantSpec](#homeassistantspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#volume-v1-core) array_ | Volumes defines Kubernetes volumes to attach to the Home Assistant pod. |  | Optional: \{\} <br /> |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#volumemount-v1-core) array_ | VolumeMounts defines mounts for the main Home Assistant container. Each<br />name must match an entry in Volumes. |  | Optional: \{\} <br /> |
+
+
 #### AlphaSpec
 
 
@@ -294,6 +311,7 @@ _Appears in:_
 | `secretName` _string_ | SecretName references a bring-your-own TLS Secret for the listener.<br />Takes precedence over IssuerRef. |  | Optional: \{\} <br /> |
 | `parentRef` _[GatewayParentRef](#gatewayparentref)_ | ParentRef references an existing Gateway/listener to attach the HTTPRoute<br />to. When empty and ManageGateway is true, the operator creates a Gateway. |  | Optional: \{\} <br /> |
 | `manageGateway` _boolean_ | ManageGateway controls whether the operator also creates a Gateway<br />resource (not just the HTTPRoute). GatewayClass and the gateway controller<br />remain the platform's responsibility. | false | Optional: \{\} <br /> |
+| `gatewayClassName` _string_ | GatewayClassName names the existing GatewayClass used by the<br />operator-created Gateway. Defaults to "traefik" when omitted. Ignored when<br />ParentRef is set. | traefik | MaxLength: 253 <br />MinLength: 1 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$` <br />Optional: \{\} <br /> |
 | `filters` _[HTTPRouteFilter](#httproutefilter) array_ | Filters are HTTP route-level behaviors (header modification, redirect, URL<br />rewrite) applied, in order, to the single HTTPRoute rule the operator<br />manages for this instance. Omitted/empty leaves the route unchanged from<br />its default shape. |  | Optional: \{\} <br /> |
 
 
@@ -1271,7 +1289,10 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `version` _string_ | Version is the Home Assistant version/tag to deploy (e.g., "2024.1.0", "stable", "latest") | stable | Optional: \{\} <br /> |
 | `image` _string_ | Image allows overriding the default Home Assistant image | ghcr.io/home-assistant/home-assistant | Optional: \{\} <br /> |
+| `labels` _object (keys:string, values:string)_ | Additional labels for the StatefulSet and Pod. The selector labels<br />app.kubernetes.io/name, app.kubernetes.io/instance, and<br />app.kubernetes.io/managed-by are reserved by the operator. Keys and values<br />must use Kubernetes label syntax. |  | Optional: \{\} <br /> |
+| `annotations` _object (keys:string, values:string)_ | Additional annotations for the StatefulSet and Pod. Keys in the<br />ha.homeassistant.io domain are reserved by the operator. Keys must be valid<br />Kubernetes qualified names; annotation values may contain arbitrary text. |  | Optional: \{\} <br /> |
 | `storage` _[StorageSpec](#storagespec)_ | Storage configuration for Home Assistant data |  | Optional: \{\} <br /> |
+| `additionalVolumes` _[AdditionalVolumesSpec](#additionalvolumesspec)_ | Additional volumes and mounts for the main Home Assistant container.<br />Every mount name must reference a volume declared here. Names and mount<br />paths managed by the operator are reserved. |  | Optional: \{\} <br /> |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#resourcerequirements-v1-core)_ | Resources defines CPU and memory requests/limits |  | Optional: \{\} <br /> |
 | `service` _[ServiceSpec](#servicespec)_ | Service configuration for exposing Home Assistant |  | Optional: \{\} <br /> |
 | `ingress` _[IngressSpec](#ingressspec)_ | Ingress configuration for external access |  | Optional: \{\} <br /> |

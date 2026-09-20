@@ -121,9 +121,9 @@ test: manifests generate fmt vet setup-envtest ## Run unit tests.
 K3D_CLUSTER_E2E ?= homeassistant-operator-test-e2e
 K3D_MEMORY_E2E ?= 12g
 # renovate: datasource=docker depName=rancher/k3s
-K3S_VERSION ?= v1.36.4-k3s1
+K3S_VERSION ?= v1.37.0-k3s1
 # renovate: datasource=docker depName=ghcr.io/home-assistant/home-assistant
-HA_VERSION ?= 2026.9.1
+HA_VERSION ?= 2026.9.2
 
 .PHONY: setup-test-e2e
 setup-test-e2e: ## Set up a k3d cluster for e2e tests (always creates fresh cluster)
@@ -204,7 +204,7 @@ test-e2e-community-repository-a: manifests generate fmt vet ginkgo ## Run the co
 	trap '$(MAKE) cleanup-test-e2e' EXIT INT TERM; \
 	$(MAKE) setup-test-e2e; \
 	CERT_MANAGER_INSTALL_SKIP=true K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run \
-		-v --label-filter="community-repository && group-a" --timeout=9m ./test/e2e/ | tee test-e2e.log
+		-v --label-filter="community-repository && group-a" --timeout=15m ./test/e2e/ | tee test-e2e.log
 
 .PHONY: test-e2e-community-repository-b
 test-e2e-community-repository-b: manifests generate fmt vet ginkgo ## Run the community-repository group-b e2e job locally
@@ -376,8 +376,13 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 .PHONY: build-installer
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > dist/install.yaml
+	output="$$(pwd)/dist/install.yaml"; tmpdir=$$(mktemp -d); trap 'rm -rf "$$tmpdir"' EXIT; \
+	cp -R config "$$tmpdir/config"; \
+	cd "$$tmpdir/config/manager" && $(KUSTOMIZE) edit set image controller=${IMG}; \
+	$(KUSTOMIZE) build "$$tmpdir/config/default" > "$$output"
+	grep -Fqx '        image: ${IMG}' dist/install.yaml
+	grep -qx 'kind: CustomResourceDefinition' dist/install.yaml
+	grep -qx 'kind: Deployment' dist/install.yaml
 
 ##@ Helm
 

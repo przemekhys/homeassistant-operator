@@ -19,8 +19,12 @@ package v1
 import (
 	"context"
 	"fmt"
+	pathpkg "path"
+	"reflect"
+	"regexp"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -86,6 +90,8 @@ func validateHomeAssistant(ctx context.Context, cl client.Reader, ha *hav1.HomeA
 	warnings, msgs := validateHomeAssistantTLS(&ha.Spec)
 	msgs = append(msgs, validateGatewayFilters(&ha.Spec)...)
 	msgs = append(msgs, validateDevices(&ha.Spec)...)
+	msgs = append(msgs, validateAdditionalVolumes(&ha.Spec)...)
+	msgs = append(msgs, validateMetadataSyntax(&ha.Spec)...)
 	msgs = append(msgs, validateNodeSelector(&ha.Spec)...)
 	msgs = append(msgs, validateScheduling(ctx, cl, &ha.Spec)...)
 	if len(msgs) > 0 {
@@ -93,6 +99,96 @@ func validateHomeAssistant(ctx context.Context, cl client.Reader, ha *hav1.HomeA
 		return warnings, fmt.Errorf("invalid HomeAssistant %q: %s", ha.Name, strings.Join(msgs, "; "))
 	}
 	return warnings, nil
+}
+
+var (
+	reservedVolumeNames = map[string]struct{}{
+		"config": {}, "ha-configuration": {}, "ha-recorder-db": {},
+		"ha-secrets": {}, "community-repositories": {},
+	}
+	reservedMountPaths = map[string]struct{}{
+		"/config": {}, "/config/configuration.yaml": {},
+		"/config/recorder_db_url.yaml": {}, "/config/secrets.yaml": {},
+	}
+	deviceVolumeNamePattern = regexp.MustCompile(`^device-[0-9]+$`)
+)
+
+// validateAdditionalVolumes protects the generated pod from duplicate,
+// dangling, and operator-owned volume and mount declarations.
+func validateAdditionalVolumes(spec *hav1.HomeAssistantSpec) []string {
+	if spec.AdditionalVolumes == nil {
+		return nil
+	}
+
+	var errs []string
+	declaredVolumes := make(map[string]int, len(spec.AdditionalVolumes.Volumes))
+	for i, volume := range spec.AdditionalVolumes.Volumes {
+		path := fmt.Sprintf("spec.additionalVolumes.volumes[%d]", i)
+		if _, reserved := reservedVolumeNames[volume.Name]; reserved || deviceVolumeNamePattern.MatchString(volume.Name) {
+			errs = append(errs, fmt.Sprintf("%s.name %q is reserved by the operator", path, volume.Name))
+		}
+		if previous, duplicate := declaredVolumes[volume.Name]; duplicate {
+			errs = append(errs, fmt.Sprintf(
+				"%s.name %q duplicates spec.additionalVolumes.volumes[%d].name",
+				path, volume.Name, previous))
+		} else {
+			declaredVolumes[volume.Name] = i
+		}
+		if count := volumeSourceCount(volume.VolumeSource); count != 1 {
+			errs = append(errs, fmt.Sprintf("%s must define exactly one volume source, got %d", path, count))
+		}
+	}
+
+	seenMountPaths := make(map[string]int, len(spec.AdditionalVolumes.VolumeMounts))
+	for i, mount := range spec.AdditionalVolumes.VolumeMounts {
+		fieldPath := fmt.Sprintf("spec.additionalVolumes.volumeMounts[%d]", i)
+		mountPath := mount.MountPath
+		if mountPath != "" {
+			mountPath = pathpkg.Clean(mountPath)
+		}
+		if _, reserved := reservedVolumeNames[mount.Name]; reserved || deviceVolumeNamePattern.MatchString(mount.Name) {
+			errs = append(errs, fmt.Sprintf("%s.name %q is reserved by the operator", fieldPath, mount.Name))
+		} else if _, exists := declaredVolumes[mount.Name]; !exists {
+			errs = append(errs, fmt.Sprintf(
+				"%s.name %q does not reference a declared additional volume", fieldPath, mount.Name))
+		}
+
+		if _, reserved := reservedMountPaths[mountPath]; reserved {
+			errs = append(errs, fmt.Sprintf("%s.mountPath %q is reserved by the operator", fieldPath, mountPath))
+		}
+		if previous, duplicate := seenMountPaths[mountPath]; duplicate {
+			errs = append(errs, fmt.Sprintf(
+				"%s.mountPath %q duplicates spec.additionalVolumes.volumeMounts[%d].mountPath",
+				fieldPath, mountPath, previous))
+		} else {
+			seenMountPaths[mountPath] = i
+		}
+
+		if spec.Alpha != nil {
+			for deviceIndex, device := range spec.Alpha.Devices {
+				devicePath := device.ContainerPath
+				if devicePath == "" {
+					devicePath = device.HostPath
+				}
+				if mountPath == pathpkg.Clean(devicePath) {
+					errs = append(errs, fmt.Sprintf(
+						"%s.mountPath %q conflicts with spec.alpha.devices[%d]", fieldPath, mountPath, deviceIndex))
+				}
+			}
+		}
+	}
+	return errs
+}
+
+func volumeSourceCount(source corev1.VolumeSource) int {
+	value := reflect.ValueOf(source)
+	count := 0
+	for i := range value.NumField() {
+		if !value.Field(i).IsZero() {
+			count++
+		}
+	}
+	return count
 }
 
 // validateHomeAssistantTLS applies the TLS/cert-manager coherence rules and returns
@@ -275,6 +371,30 @@ func validateNodeSelector(spec *hav1.HomeAssistantSpec) []string {
 			errs = append(errs, fmt.Sprintf(
 				"spec.scheduling.nodeSelector[%q] value %q is not a valid label value: %s",
 				key, value, strings.Join(msgs, "; ")))
+		}
+	}
+	return errs
+}
+
+// validateMetadataSyntax rejects metadata that Kubernetes would reject later
+// when the controller applies it to the generated StatefulSet or Pod template.
+func validateMetadataSyntax(spec *hav1.HomeAssistantSpec) []string {
+	var errs []string
+	for key, value := range spec.Labels {
+		if msgs := validation.IsQualifiedName(key); len(msgs) > 0 {
+			errs = append(errs, fmt.Sprintf(
+				"spec.labels key %q is not a valid label key: %s", key, strings.Join(msgs, "; ")))
+		}
+		if msgs := validation.IsValidLabelValue(value); len(msgs) > 0 {
+			errs = append(errs, fmt.Sprintf(
+				"spec.labels[%q] value %q is not a valid label value: %s",
+				key, value, strings.Join(msgs, "; ")))
+		}
+	}
+	for key := range spec.Annotations {
+		if msgs := validation.IsQualifiedName(key); len(msgs) > 0 {
+			errs = append(errs, fmt.Sprintf(
+				"spec.annotations key %q is not a valid annotation key: %s", key, strings.Join(msgs, "; ")))
 		}
 	}
 	return errs

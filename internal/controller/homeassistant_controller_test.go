@@ -17,6 +17,8 @@ limitations under the License.
 package controller
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"time"
@@ -31,13 +33,27 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
 	hav1alpha1 "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 )
+
+type testClientWithWatch struct {
+	client.Client
+}
+
+func (c testClientWithWatch) Watch(
+	_ context.Context,
+	_ client.ObjectList,
+	_ ...client.ListOption,
+) (watch.Interface, error) {
+	return nil, fmt.Errorf("watch is not supported by the envtest client adapter")
+}
 
 var _ = Describe("HomeAssistant Controller", func() {
 	Context("When reconciling a HomeAssistant resource", func() {
@@ -1292,6 +1308,540 @@ var _ = Describe("HomeAssistant Controller", func() {
 			Expect(desired.Spec.Template.Annotations["some-other-annotation"]).To(Equal("some-value"))
 		})
 
+		It("should apply configured annotations to the StatefulSet", func() {
+			// Use unique name to avoid conflicts
+			testName := resourceName + "-annotations"
+
+			By("Defining some annotations")
+			annotations := map[string]string{
+				"foo.example": "foo",
+				"bar.example": "bar",
+			}
+
+			By("Creating HomeAssistant and HomeAssistantConfiguration")
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testName,
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantSpec{
+					Version:     "2024.1",
+					Annotations: annotations,
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+
+			haConfig := &hav1.HomeAssistantConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testName + "-config",
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantConfigurationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{
+						Name: testName,
+					},
+					Configuration: "automation: []\nscript: []\n",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haConfig)).To(Succeed())
+
+			By("Reconciling HomeAssistant to create StatefulSet")
+			reconciler := &HomeAssistantReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for StatefulSet to be created with annotations")
+			var resourceVersion string
+			Eventually(func(g Gomega) {
+				sts := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				}, sts)).To(Succeed())
+
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue(userAnnotationsAnnotationKey, "bar.example,foo.example"))
+
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue("foo.example", "foo"))
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue("bar.example", "bar"))
+
+				g.Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("foo.example", "foo"))
+				g.Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("bar.example", "bar"))
+				resourceVersion = sts.ResourceVersion
+			}, timeout, interval).Should(Succeed())
+
+			By("Reconciling again")
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Ensuring the StatefulSet is not written again")
+			Consistently(func() string {
+				sts := &appsv1.StatefulSet{}
+				if err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				}, sts); err != nil {
+					return ""
+				}
+				return sts.ResourceVersion
+			}, time.Second*2, interval).Should(Equal(resourceVersion))
+		})
+
+		It("should update configured annotations on the StatefulSet", func() {
+			// Use unique name to avoid conflicts
+			testName := resourceName + "-annotations-update"
+
+			By("Defining some annotations")
+			annotations := map[string]string{
+				"foo.example": "foo",
+				"bar.example": "bar",
+			}
+
+			By("Creating HomeAssistant and HomeAssistantConfiguration")
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testName,
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantSpec{
+					Version:     "2024.1",
+					Annotations: annotations,
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+
+			haConfig := &hav1.HomeAssistantConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testName + "-config",
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantConfigurationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{
+						Name: testName,
+					},
+					Configuration: "automation: []\nscript: []\n",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haConfig)).To(Succeed())
+
+			By("Reconciling HomeAssistant to create StatefulSet")
+			reconciler := &HomeAssistantReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for StatefulSet to be created with annotations")
+			Eventually(func(g Gomega) {
+				sts := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				}, sts)).To(Succeed())
+
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue(userAnnotationsAnnotationKey, "bar.example,foo.example"))
+
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue("foo.example", "foo"))
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue("bar.example", "bar"))
+
+				g.Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("foo.example", "foo"))
+				g.Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("bar.example", "bar"))
+			}, timeout, interval).Should(Succeed())
+
+			By("Changing the configured annotations")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name:      testName,
+				Namespace: namespace,
+			}, ha)).To(Succeed())
+			Expect(ha.Spec.Annotations).To(HaveKeyWithValue("foo.example", "foo"))
+			Expect(ha.Spec.Annotations).To(HaveKeyWithValue("bar.example", "bar"))
+
+			delete(annotations, "foo.example")
+			annotations["baz.example"] = "baz"
+			ha.Spec.Annotations = annotations
+			Expect(k8sClient.Update(ctx, ha)).To(Succeed())
+
+			By("Reconciling the updated config")
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying StatefulSet was updated to match the new annotations")
+			Eventually(func(g Gomega) {
+				sts := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				}, sts)).To(Succeed())
+
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue(userAnnotationsAnnotationKey, "bar.example,baz.example"))
+
+				g.Expect(sts.ObjectMeta.Annotations).NotTo(HaveKey("foo.example"))
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue("bar.example", "bar"))
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue("baz.example", "baz"))
+
+				g.Expect(sts.Spec.Template.Annotations).NotTo(HaveKey("foo.example"))
+				g.Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("bar.example", "bar"))
+				g.Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("baz.example", "baz"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should apply configured labels to the StatefulSet", func() {
+			// Use unique name to avoid conflicts
+			testName := resourceName + "-labels"
+
+			By("Defining some labels")
+			labels := map[string]string{
+				"foo.example": "foo",
+				"bar.example": "bar",
+			}
+
+			By("Creating HomeAssistant and HomeAssistantConfiguration")
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testName,
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantSpec{
+					Version: "2024.1",
+					Labels:  labels,
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+
+			haConfig := &hav1.HomeAssistantConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testName + "-config",
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantConfigurationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{
+						Name: testName,
+					},
+					Configuration: "automation: []\nscript: []\n",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haConfig)).To(Succeed())
+
+			By("Reconciling HomeAssistant to create StatefulSet")
+			reconciler := &HomeAssistantReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for StatefulSet to be created with labels")
+			var resourceVersion string
+			Eventually(func(g Gomega) {
+				sts := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				}, sts)).To(Succeed())
+
+				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("foo.example", "foo"))
+				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("bar.example", "bar"))
+				resourceVersion = sts.ResourceVersion
+			}, timeout, interval).Should(Succeed())
+
+			By("Reconciling again")
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Ensuring the StatefulSet is not written again")
+			Consistently(func() string {
+				sts := &appsv1.StatefulSet{}
+				if err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				}, sts); err != nil {
+					return ""
+				}
+				return sts.ResourceVersion
+			}, time.Second*2, interval).Should(Equal(resourceVersion))
+		})
+
+		It("should update configured labels on the StatefulSet", func() {
+			// Use unique name to avoid conflicts
+			testName := resourceName + "-labels-update"
+
+			By("Defining some labels")
+			labels := map[string]string{
+				"foo.example": "foo",
+				"bar.example": "bar",
+			}
+
+			By("Creating HomeAssistant and HomeAssistantConfiguration")
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testName,
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantSpec{
+					Version: "2024.1",
+					Labels:  labels,
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+
+			haConfig := &hav1.HomeAssistantConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testName + "-config",
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantConfigurationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{
+						Name: testName,
+					},
+					Configuration: "automation: []\nscript: []\n",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haConfig)).To(Succeed())
+
+			By("Reconciling HomeAssistant to create StatefulSet")
+			reconciler := &HomeAssistantReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for StatefulSet to be created with labels")
+			Eventually(func(g Gomega) {
+				sts := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				}, sts)).To(Succeed())
+
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue(userLabelsAnnotationKey, "bar.example,foo.example"))
+
+				g.Expect(sts.ObjectMeta.Labels).To(HaveKeyWithValue("foo.example", "foo"))
+				g.Expect(sts.ObjectMeta.Labels).To(HaveKeyWithValue("bar.example", "bar"))
+
+				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("foo.example", "foo"))
+				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("bar.example", "bar"))
+			}, timeout, interval).Should(Succeed())
+
+			By("Changing the configured labels")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name:      testName,
+				Namespace: namespace,
+			}, ha)).To(Succeed())
+			Expect(ha.Spec.Labels).To(HaveKeyWithValue("foo.example", "foo"))
+			Expect(ha.Spec.Labels).To(HaveKeyWithValue("bar.example", "bar"))
+
+			delete(labels, "foo.example")
+			labels["baz.example"] = "baz"
+			ha.Spec.Labels = labels
+			Expect(k8sClient.Update(ctx, ha)).To(Succeed())
+
+			By("reconciling the updated config")
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying StatefulSet was updated to match the new labels")
+			Eventually(func(g Gomega) {
+				sts := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      testName,
+					Namespace: namespace,
+				}, sts)).To(Succeed())
+
+				g.Expect(sts.ObjectMeta.Annotations).To(HaveKeyWithValue(userLabelsAnnotationKey, "bar.example,baz.example"))
+
+				g.Expect(sts.ObjectMeta.Labels).NotTo(HaveKey("foo.example"))
+				g.Expect(sts.ObjectMeta.Labels).To(HaveKeyWithValue("bar.example", "bar"))
+				g.Expect(sts.ObjectMeta.Labels).To(HaveKeyWithValue("baz.example", "baz"))
+
+				g.Expect(sts.Spec.Template.Labels).NotTo(HaveKey("foo.example"))
+				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("bar.example", "bar"))
+				g.Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("baz.example", "baz"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should restore managed metadata drift confined to the pod template", func() {
+			testName := resourceName + "-template-metadata-drift"
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{Name: testName, Namespace: namespace},
+				Spec: hav1.HomeAssistantSpec{
+					Version:     "2024.1",
+					Annotations: map[string]string{"managed.example/annotation": "desired"},
+					Labels:      map[string]string{"managed.example/label": "desired"},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+			haConfig := &hav1.HomeAssistantConfiguration{
+				ObjectMeta: metav1.ObjectMeta{Name: testName + "-config", Namespace: namespace},
+				Spec: hav1.HomeAssistantConfigurationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{Name: testName},
+					Configuration:    "automation: []\nscript: []\n",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haConfig)).To(Succeed())
+			reconciler := &HomeAssistantReconciler{Client: k8sClient, Scheme: k8sClient.Scheme()}
+			request := reconcile.Request{NamespacedName: types.NamespacedName{Name: testName, Namespace: namespace}}
+			_, err := reconciler.Reconcile(ctx, request)
+			Expect(err).NotTo(HaveOccurred())
+
+			key := types.NamespacedName{Name: testName, Namespace: namespace}
+			sts := &appsv1.StatefulSet{}
+			Expect(k8sClient.Get(ctx, key, sts)).To(Succeed())
+			Expect(sts.Annotations).To(HaveKeyWithValue("managed.example/annotation", "desired"))
+			Expect(sts.Labels).To(HaveKeyWithValue("managed.example/label", "desired"))
+
+			By("changing only a managed pod-template annotation")
+			sts.Spec.Template.Annotations["managed.example/annotation"] = "drifted"
+			sts.Spec.Template.Annotations["foreign.example/annotation"] = "preserve"
+			Expect(k8sClient.Update(ctx, sts)).To(Succeed())
+			_, err = reconciler.Reconcile(ctx, request)
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func(g Gomega) {
+				current := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, key, current)).To(Succeed())
+				g.Expect(current.Annotations).To(HaveKeyWithValue("managed.example/annotation", "desired"))
+				g.Expect(current.Labels).To(HaveKeyWithValue("managed.example/label", "desired"))
+				g.Expect(current.Spec.Template.Annotations).
+					To(HaveKeyWithValue("managed.example/annotation", "desired"))
+				g.Expect(current.Spec.Template.Annotations).
+					To(HaveKeyWithValue("foreign.example/annotation", "preserve"))
+			}, timeout, interval).Should(Succeed())
+
+			By("changing only a managed pod-template label")
+			Expect(k8sClient.Get(ctx, key, sts)).To(Succeed())
+			sts.Spec.Template.Labels["managed.example/label"] = "drifted"
+			sts.Spec.Template.Labels["foreign.example/label"] = "preserve"
+			Expect(k8sClient.Update(ctx, sts)).To(Succeed())
+			_, err = reconciler.Reconcile(ctx, request)
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func(g Gomega) {
+				current := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, key, current)).To(Succeed())
+				g.Expect(current.Annotations).To(HaveKeyWithValue("managed.example/annotation", "desired"))
+				g.Expect(current.Labels).To(HaveKeyWithValue("managed.example/label", "desired"))
+				g.Expect(current.Spec.Template.Labels).To(HaveKeyWithValue("managed.example/label", "desired"))
+				g.Expect(current.Spec.Template.Labels).To(HaveKeyWithValue("foreign.example/label", "preserve"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should preserve foreign metadata added during a StatefulSet update conflict", func() {
+			testName := resourceName + "-metadata-conflict"
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{Name: testName, Namespace: namespace},
+				Spec: hav1.HomeAssistantSpec{
+					Version:     "2024.1",
+					Annotations: map[string]string{"example.com/managed-annotation": "before"},
+					Labels:      map[string]string{"example.com/managed-label": "before"},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+			haConfig := &hav1.HomeAssistantConfiguration{
+				ObjectMeta: metav1.ObjectMeta{Name: testName + "-config", Namespace: namespace},
+				Spec: hav1.HomeAssistantConfigurationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{Name: testName},
+					Configuration:    "automation: []\nscript: []\n",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haConfig)).To(Succeed())
+			reconciler := &HomeAssistantReconciler{Client: k8sClient, Scheme: k8sClient.Scheme()}
+			Expect(reconciler.reconcileStatefulSet(ctx, ha)).To(Succeed())
+
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(ha), ha)).To(Succeed())
+			ha.Spec.Annotations["example.com/managed-annotation"] = "after"
+			ha.Spec.Labels["example.com/managed-label"] = "after"
+			Expect(k8sClient.Update(ctx, ha)).To(Succeed())
+
+			conflictInjected := false
+			conflictClient := interceptor.NewClient(testClientWithWatch{Client: k8sClient}, interceptor.Funcs{
+				Update: func(
+					updateCtx context.Context,
+					cl client.WithWatch,
+					obj client.Object,
+					opts ...client.UpdateOption,
+				) error {
+					sts, ok := obj.(*appsv1.StatefulSet)
+					if !ok || conflictInjected {
+						return cl.Update(updateCtx, obj, opts...)
+					}
+
+					latest := &appsv1.StatefulSet{}
+					if err := cl.Get(updateCtx, client.ObjectKeyFromObject(sts), latest); err != nil {
+						return err
+					}
+					latest.Annotations["foreign.example/annotation"] = "preserve"
+					latest.Labels["foreign.example/label"] = "preserve"
+					latest.Spec.Template.Annotations["foreign.example/pod-annotation"] = "preserve"
+					latest.Spec.Template.Labels["foreign.example/pod-label"] = "preserve"
+					if err := cl.Update(updateCtx, latest); err != nil {
+						return err
+					}
+					conflictInjected = true
+					return errors.NewConflict(appsv1.Resource("statefulsets"), sts.Name,
+						fmt.Errorf("simulated concurrent metadata update"))
+				},
+			})
+			conflictReconciler := &HomeAssistantReconciler{Client: conflictClient, Scheme: k8sClient.Scheme()}
+			Expect(conflictReconciler.reconcileStatefulSet(ctx, ha)).To(Succeed())
+			Expect(conflictInjected).To(BeTrue())
+
+			sts := &appsv1.StatefulSet{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: testName, Namespace: namespace}, sts)).To(Succeed())
+			Expect(sts.Annotations).To(HaveKeyWithValue("example.com/managed-annotation", "after"))
+			Expect(sts.Labels).To(HaveKeyWithValue("example.com/managed-label", "after"))
+			Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue("example.com/managed-annotation", "after"))
+			Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("example.com/managed-label", "after"))
+			Expect(sts.Annotations).To(HaveKeyWithValue("foreign.example/annotation", "preserve"))
+			Expect(sts.Labels).To(HaveKeyWithValue("foreign.example/label", "preserve"))
+			Expect(sts.Spec.Template.Annotations).
+				To(HaveKeyWithValue("foreign.example/pod-annotation", "preserve"))
+			Expect(sts.Spec.Template.Labels).To(HaveKeyWithValue("foreign.example/pod-label", "preserve"))
+		})
+
 		It("should not trigger update when config hash is unchanged", func() {
 			// Use unique name to avoid conflicts
 			testName := resourceName + "-nochange"
@@ -1615,6 +2165,239 @@ var _ = Describe("HomeAssistant Controller", func() {
 			}, sts)).To(Succeed())
 			Expect(sts.Spec.Template.Spec.HostNetwork).To(BeFalse())
 			Expect(sts.Spec.Template.Spec.DNSPolicy).To(Equal(corev1.DNSClusterFirst))
+		})
+	})
+
+	Context("When Spec.AdditionalVolumes is configured", func() {
+		const (
+			resourceName    = "test-hass"
+			pvcName         = "test-pvc"
+			volumeName      = "test-volume"
+			volumeMountPath = "/foo/bar"
+			namespace       = "default"
+			timeout         = time.Second * 10
+			interval        = time.Millisecond * 250
+		)
+
+		AfterEach(func() {
+			// Cleanup HomeAssistantConfiguration resources
+			configList := &hav1.HomeAssistantConfigurationList{}
+			_ = k8sClient.List(ctx, configList, &client.ListOptions{Namespace: namespace})
+			for _, config := range configList.Items {
+				_ = k8sClient.Delete(ctx, &config)
+			}
+
+			// Cleanup all HomeAssistant resources
+			haList := &hav1.HomeAssistantList{}
+			_ = k8sClient.List(ctx, haList, &client.ListOptions{Namespace: namespace})
+			for _, ha := range haList.Items {
+				_ = k8sClient.Delete(ctx, &ha)
+			}
+
+			// Cleanup all ConfigMaps
+			cmList := &corev1.ConfigMapList{}
+			_ = k8sClient.List(ctx, cmList, &client.ListOptions{Namespace: namespace})
+			for _, cm := range cmList.Items {
+				_ = k8sClient.Delete(ctx, &cm)
+			}
+
+			// Wait for resources to be deleted
+			Eventually(func() int {
+				haList := &hav1.HomeAssistantList{}
+				_ = k8sClient.List(ctx, haList, &client.ListOptions{Namespace: namespace})
+				return len(haList.Items)
+			}, timeout, interval).Should(Equal(0))
+		})
+
+		It("should render the volume configs in the StatefulSet", func() {
+			By("Defining a volume spec and mount")
+			volume := corev1.Volume{
+				Name: volumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "additional-volume-data"},
+					},
+				},
+			}
+			volumeMount := corev1.VolumeMount{
+				Name:      volumeName,
+				MountPath: volumeMountPath,
+			}
+
+			By("Creating a new HomeAssistant")
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName,
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantSpec{
+					Version: "2024.1",
+					AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+						Volumes:      []corev1.Volume{volume},
+						VolumeMounts: []corev1.VolumeMount{volumeMount},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+
+			By("Creating HomeAssistantConfiguration")
+			haConfig := &hav1.HomeAssistantConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName + "-config",
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantConfigurationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{
+						Name: resourceName,
+					},
+					Configuration: "homeassistant:\n  name: Home\n",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haConfig)).To(Succeed())
+
+			By("Reconciling the resource")
+			reconciler := &HomeAssistantReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      resourceName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying StatefulSet was created with the configured volumes")
+			Eventually(func(g Gomega) {
+				sts := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      resourceName,
+					Namespace: namespace,
+				}, sts)).To(Succeed())
+				g.Expect(sts.Spec.Template.Spec.Volumes).To(ContainElement(Satisfy(func(actual corev1.Volume) bool {
+					return actual.Name == volumeName && actual.ConfigMap != nil &&
+						actual.ConfigMap.Name == volume.ConfigMap.Name
+				})))
+				g.Expect(sts.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElement(volumeMount))
+			}, timeout, interval).Should(Succeed())
+
+			By("Reconciling again without updating an API-defaulted StatefulSet")
+			sts := &appsv1.StatefulSet{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: resourceName, Namespace: namespace}, sts)).To(Succeed())
+			originalResourceVersion := sts.ResourceVersion
+			Expect(sts.Spec.Template.Spec.Volumes).To(ContainElement(Satisfy(func(actual corev1.Volume) bool {
+				return actual.Name == volumeName && actual.ConfigMap != nil && actual.ConfigMap.DefaultMode != nil
+			})))
+
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: resourceName, Namespace: namespace}, sts)).To(Succeed())
+			Expect(sts.ResourceVersion).To(Equal(originalResourceVersion))
+		})
+
+		It("should update the StatefulSet on changes", func() {
+			By("Defining a volume spec and mount")
+			volume := corev1.Volume{
+				Name: volumeName,
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: pvcName,
+						ReadOnly:  false,
+					},
+				},
+			}
+			volumeMount := corev1.VolumeMount{
+				Name:      volumeName,
+				MountPath: volumeMountPath,
+			}
+
+			By("Creating a new HomeAssistant")
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName,
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantSpec{
+					Version: "2024.1",
+					AdditionalVolumes: &hav1.AdditionalVolumesSpec{
+						Volumes:      []corev1.Volume{volume},
+						VolumeMounts: []corev1.VolumeMount{volumeMount},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ha)).To(Succeed())
+
+			By("Creating HomeAssistantConfiguration")
+			haConfig := &hav1.HomeAssistantConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName + "-config",
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantConfigurationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{
+						Name: resourceName,
+					},
+					Configuration: "homeassistant:\n  name: Home\n",
+				},
+			}
+			Expect(k8sClient.Create(ctx, haConfig)).To(Succeed())
+
+			By("Reconciling the resource")
+			reconciler := &HomeAssistantReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      resourceName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying StatefulSet was created with the configured volumes")
+			Eventually(func(g Gomega) {
+				sts := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      resourceName,
+					Namespace: namespace,
+				}, sts)).To(Succeed())
+				g.Expect(sts.Spec.Template.Spec.Volumes).To(ContainElement(volume))
+				g.Expect(sts.Spec.Template.Spec.Containers[0].VolumeMounts).To(ContainElement(volumeMount))
+			}, timeout, interval).Should(Succeed())
+
+			By("Changing the volume config")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name:      resourceName,
+				Namespace: namespace,
+			}, ha)).To(Succeed())
+			Expect(ha.Spec.AdditionalVolumes.Volumes).To(ConsistOf(volume))
+
+			volume.PersistentVolumeClaim.ReadOnly = true
+			ha.Spec.AdditionalVolumes.Volumes = []corev1.Volume{volume}
+			Expect(k8sClient.Update(ctx, ha)).To(Succeed())
+
+			By("Reconciling the updated config")
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      resourceName,
+					Namespace: namespace,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying StatefulSet was updated to match the new volume config")
+			Eventually(func(g Gomega) {
+				sts := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{
+					Name:      resourceName,
+					Namespace: namespace,
+				}, sts)).To(Succeed())
+				g.Expect(sts.Spec.Template.Spec.Volumes).To(ContainElement(volume))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 
@@ -2128,14 +2911,39 @@ var _ = Describe("HomeAssistant Controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, repo)).To(Succeed())
+			_, err := reconciler.buildStatefulSet(ctx, ha)
+			Expect(errors.IsNotFound(err)).To(BeTrue(),
+				"StatefulSet construction must wait for the repository ConfigMap and its rollout hash")
+
+			communityContent := `{"repositories":[{"category":"theme","repository":"acme/some-theme",` +
+				`"ref":"v1.0.0","resolvedTarget":"some-theme","sourcePath":"themes/some-theme.yaml"}]}`
+			communityConfig := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: communityRepositoriesConfigMapName(ha.Name), Namespace: ha.Namespace,
+				},
+				Data: map[string]string{communityRepositoriesConfigMapKey: communityContent},
+			}
+			Expect(k8sClient.Create(ctx, communityConfig)).To(Succeed())
+			DeferCleanup(func() { _ = k8sClient.Delete(ctx, communityConfig) })
 
 			built, err := reconciler.buildInitContainers(ctx, ha)
 			Expect(err).NotTo(HaveOccurred())
 			initContainerNames := make([]string, 0, len(built))
+			var repositoryInit *corev1.Container
 			for _, c := range built {
 				initContainerNames = append(initContainerNames, c.Name)
+				if c.Name == communityRepositoryInitContainerName {
+					repositoryInit = &c
+				}
 			}
-			Expect(initContainerNames).To(ContainElement("community-repository-init"))
+			Expect(initContainerNames).To(ContainElement(communityRepositoryInitContainerName))
+			Expect(repositoryInit).NotTo(BeNil())
+			Expect(repositoryInit.Env).To(ContainElement(Satisfy(func(env corev1.EnvVar) bool {
+				return env.Name == "COMMUNITY_REPOSITORIES_HASH" && env.ValueFrom != nil &&
+					env.ValueFrom.FieldRef != nil &&
+					env.ValueFrom.FieldRef.FieldPath ==
+						"metadata.annotations['ha.homeassistant.io/community-repository-hash']"
+			})))
 
 			sts, err := reconciler.buildStatefulSet(ctx, ha)
 			Expect(err).NotTo(HaveOccurred())
@@ -2144,6 +2952,8 @@ var _ = Describe("HomeAssistant Controller", func() {
 				containerNames = append(containerNames, c.Name)
 			}
 			Expect(containerNames).To(ContainElement("community-repository-sidecar"))
+			Expect(sts.Spec.Template.Annotations).To(HaveKeyWithValue(
+				communityRepositoryHashAnnotationKey, calculateIntegrationRepositoryHash(communityContent)))
 
 			volumeNames := make([]string, 0, len(sts.Spec.Template.Spec.Volumes))
 			for _, v := range sts.Spec.Template.Spec.Volumes {

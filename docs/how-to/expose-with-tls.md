@@ -80,17 +80,26 @@ spec:
     issuerRef:
       name: ca-issuer
       kind: ClusterIssuer
-    parentRef:                 # attach to an existing Gateway listener
-      name: traefik-gateway
-      namespace: gateway
-      sectionName: https
-    # manageGateway: true      # ...or let the operator create the Gateway
+    manageGateway: true
+    gatewayClassName: traefik # existing GatewayClass provided by the platform
 ```
+
+To attach the route to an existing Gateway instead, replace `manageGateway` and
+`gatewayClassName` with a `parentRef` containing the Gateway name and, when
+needed, its namespace and listener `sectionName`. `parentRef` takes precedence
+if both forms are configured, and `gatewayClassName` never modifies an external
+Gateway.
+
+Omitting `gatewayClassName` defaults a managed Gateway to the `traefik` class.
+You can change the field declaratively; removing it restores the `traefik`
+default. Clusters using another Gateway controller should set the field
+explicitly.
 
 !!! note "What the operator does not manage"
     The operator does **not** manage the `GatewayClass` or the Ingress/Gateway
-    controller itself — those are provided by your platform. It only manages the
-    routing resources and the certificate.
+    controller itself — those are provided by your platform. `gatewayClassName`
+    only selects an existing class; it does not create or discover one. The
+    operator manages the routing resources and the certificate.
 
 
 ## Webhook

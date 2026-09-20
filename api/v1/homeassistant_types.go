@@ -34,9 +34,30 @@ type HomeAssistantSpec struct {
 	// +optional
 	Image string `json:"image,omitempty"`
 
+	// Additional labels for the StatefulSet and Pod. The selector labels
+	// app.kubernetes.io/name, app.kubernetes.io/instance, and
+	// app.kubernetes.io/managed-by are reserved by the operator. Keys and values
+	// must use Kubernetes label syntax.
+	// +kubebuilder:validation:XValidation:rule="self.all(key, key != 'app.kubernetes.io/name' && key != 'app.kubernetes.io/instance' && key != 'app.kubernetes.io/managed-by')",message="app.kubernetes.io/name, app.kubernetes.io/instance, and app.kubernetes.io/managed-by are reserved by the operator"
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+
+	// Additional annotations for the StatefulSet and Pod. Keys in the
+	// ha.homeassistant.io domain are reserved by the operator. Keys must be valid
+	// Kubernetes qualified names; annotation values may contain arbitrary text.
+	// +kubebuilder:validation:XValidation:rule="self.all(key, !key.startsWith('ha.homeassistant.io/'))",message="annotation keys in the ha.homeassistant.io domain are reserved by the operator"
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
+
 	// Storage configuration for Home Assistant data
 	// +optional
 	Storage *StorageSpec `json:"storage,omitempty"`
+
+	// Additional volumes and mounts for the main Home Assistant container.
+	// Every mount name must reference a volume declared here. Names and mount
+	// paths managed by the operator are reserved.
+	// +optional
+	AdditionalVolumes *AdditionalVolumesSpec `json:"additionalVolumes,omitempty"`
 
 	// Resources defines CPU and memory requests/limits
 	// +optional
@@ -220,6 +241,16 @@ type GatewaySpec struct {
 	// +kubebuilder:default=false
 	// +optional
 	ManageGateway bool `json:"manageGateway,omitempty"`
+
+	// GatewayClassName names the existing GatewayClass used by the
+	// operator-created Gateway. Defaults to "traefik" when omitted. Ignored when
+	// ParentRef is set.
+	// +optional
+	// +kubebuilder:default=traefik
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+	GatewayClassName string `json:"gatewayClassName,omitempty"`
 
 	// Filters are HTTP route-level behaviors (header modification, redirect, URL
 	// rewrite) applied, in order, to the single HTTPRoute rule the operator
@@ -583,6 +614,18 @@ type StorageSpec struct {
 	// but the files do not yet exist.
 	// +optional
 	InitContainer *InitContainerSpec `json:"initContainer,omitempty"`
+}
+
+// AdditionalVolumesSpec defines additional volumes for the Home Assistant pod.
+type AdditionalVolumesSpec struct {
+	// Volumes defines Kubernetes volumes to attach to the Home Assistant pod.
+	// +optional
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
+
+	// VolumeMounts defines mounts for the main Home Assistant container. Each
+	// name must match an entry in Volumes.
+	// +optional
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 }
 
 // InitContainerSpec configures the image used for the config-init init container.
