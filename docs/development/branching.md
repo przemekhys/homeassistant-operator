@@ -45,20 +45,21 @@ the next feature cycle starts fresh on `dev`.
 
 ## Keeping `dev` in sync with `main`
 
-After every release cut from `main` (patch or final), the maintainer merges
-`main` back into `dev` so the released fixes are carried into the next feature
-cycle and `dev` does not drift:
+After every release cut from `main` (patch or final), open a pull request that
+merges `main` back into `dev`. This carries released fixes into the next feature
+cycle without pushing directly to the protected `dev` branch:
 
 ```bash
-git checkout dev
-git pull --ff-only
-git merge --no-ff main
-git push origin dev
+git fetch origin
+git switch -c sync/main-into-dev origin/dev
+git merge --no-ff origin/main
+git push -u origin sync/main-into-dev
+gh pr create --base dev --head sync/main-into-dev --title "chore: sync main into dev"
 ```
 
 Resolve any conflicts in favour of keeping both the fix and the in-progress
-feature work. Never rebase `dev` onto `main` or force-push either branch —
-both are shared.
+feature work, then merge the PR after its required checks and reviews pass.
+Never rebase `dev` onto `main` or force-push either branch — both are shared.
 
 ## Automated dependency updates (Renovate)
 
