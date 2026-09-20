@@ -14,6 +14,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Released version `v1.5.0` of the Home Assistant Operator.
 
+### Added
+
+- **Custom StatefulSet and Pod metadata (`spec.labels` and `spec.annotations`).**
+  Home Assistant instances can now declare labels and annotations that the
+  operator reconciles onto both the generated StatefulSet and its Pod template,
+  allowing integration with cluster tooling through custom metadata. Metadata
+  changes roll the pod without changing the StatefulSet's immutable selector.
+  Admission rejects operator-reserved keys and invalid Kubernetes label or
+  annotation syntax, while reconciliation preserves metadata owned by other
+  controllers.
+
+- **Additional volumes and mounts for Home Assistant pods (`spec.additionalVolumes`).**
+  A `HomeAssistant` resource can now declare native Kubernetes `Volume` and
+  `VolumeMount` entries that the operator appends to the generated StatefulSet
+  and its main Home Assistant container. This supports namespaced storage and
+  secret sources, PVCs, CSI volumes such as the cert-manager CSI driver, and
+  other Kubernetes volume types without manually editing the StatefulSet.
+  Updating a volume source or mount configuration reconciles the StatefulSet
+  and rolls the Home Assistant pod so the new mount takes effect.
+
+### Fixed
+
+- **Operator-managed Gateways could not select a cluster GatewayClass.**
+  `spec.gateway.gatewayClassName` now selects an existing class without any
+  GatewayClass lookup or ownership. The field defaults to `traefik` when
+omitted; clusters using another Gateway controller must select its class
+explicitly.
+
 ## [v1.4.0] - 2026-09-01
 
 ### Fixed

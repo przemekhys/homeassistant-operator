@@ -25,6 +25,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,6 +62,8 @@ const (
 	reasonRepoStructureInvalid      = "StructureInvalid"
 	reasonRepoTargetConflict        = "TargetConflict"
 	reasonRepoInstalling            = "Installing"
+	reasonRepoMaterializing         = "Materializing"
+	reasonRepoMaterializationFailed = "MaterializationFailed"
 	reasonRepoActivationTimeout     = "ActivationTimeout"
 	reasonRepoInstalled             = "Installed"
 	reasonRepoHomeAssistantNotReady = "HomeAssistantNotReady"
@@ -76,6 +79,8 @@ const (
 	// before giving up with ActivationTimeout.
 	activationRetryInterval = 20 * time.Second
 	activationRetryWindow   = 6 * activationRetryInterval
+
+	integrationMaterializationPollInterval = 5 * time.Second
 )
 
 // activationSettleDelay is how long reconcileInstalling waits, from entering
@@ -112,6 +117,7 @@ type HomeAssistantCommunityRepositoryReconciler struct {
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantcommunityrepositories/finalizers,verbs=update
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistants,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=create;patch
@@ -133,7 +139,13 @@ func (r *HomeAssistantCommunityRepositoryReconciler) Reconcile(
 	// --- DELETION ---
 	if !repo.DeletionTimestamp.IsZero() {
 		if controllerutil.ContainsFinalizer(repo, communityRepositoryFinalizerName) {
-			r.handleDeletion(ctx, repo)
+			complete, err := r.handleDeletion(ctx, repo)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if !complete {
+				return ctrl.Result{RequeueAfter: integrationMaterializationPollInterval}, nil
+			}
 			controllerutil.RemoveFinalizer(repo, communityRepositoryFinalizerName)
 			if err := r.Update(ctx, repo); err != nil {
 				return ctrl.Result{}, err
@@ -265,11 +277,21 @@ func (r *HomeAssistantCommunityRepositoryReconciler) reconcileInstalling(
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		if err := r.bumpStatefulSetHash(ctx, ha, content); err != nil {
+		if _, err := r.bumpStatefulSetHash(ctx, ha, content); err != nil {
 			return ctrl.Result{}, err
 		}
+
+		desiredHash := calculateIntegrationRepositoryHash(content)
+		confirmed, reason, message, err := r.integrationMaterializationConfirmed(ctx, ha, desiredHash)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if !confirmed {
+			return r.setPhase(ctx, repo, hav1alpha1.PhaseInstalling, reason, message,
+				integrationMaterializationPollInterval)
+		}
 		return r.markInstalled(ctx, repo,
-			fmt.Sprintf("integration %q installed, pod restart triggered", repo.Status.ResolvedTarget))
+			fmt.Sprintf("integration %q materialized and loaded by Home Assistant", repo.Status.ResolvedTarget))
 	}
 
 	if r.activationTimedOut(repo) {
@@ -331,6 +353,73 @@ func (r *HomeAssistantCommunityRepositoryReconciler) reconcileInstalling(
 
 	return r.markInstalled(ctx, repo,
 		fmt.Sprintf("%s %q installed and reload confirmed", repo.Spec.Category, repo.Status.ResolvedTarget))
+}
+
+// integrationMaterializationConfirmed waits for the StatefulSet pod carrying the
+// exact desired repository hash to report a successful init container and become
+// Ready. The init container's termination message is the hash it materialized,
+// making an older pod or an optional/missing ConfigMap projection unable to
+// acknowledge newer desired content.
+func (r *HomeAssistantCommunityRepositoryReconciler) integrationMaterializationConfirmed(
+	ctx context.Context,
+	ha *hav1.HomeAssistant,
+	desiredHash string,
+) (bool, string, string, error) {
+	pod := &corev1.Pod{}
+	podKey := types.NamespacedName{Name: ha.Name + "-0", Namespace: ha.Namespace}
+	if err := r.Get(ctx, podKey, pod); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return false, reasonRepoMaterializing,
+				fmt.Sprintf("Waiting for Home Assistant pod %s to materialize integrations", podKey.Name), nil
+		}
+		return false, "", "", err
+	}
+
+	if pod.Annotations[communityRepositoryHashAnnotationKey] != desiredHash {
+		return false, reasonRepoMaterializing,
+			fmt.Sprintf("Waiting for Home Assistant pod %s with repository configuration %s", pod.Name, desiredHash), nil
+	}
+
+	var initStatus *corev1.ContainerStatus
+	for i := range pod.Status.InitContainerStatuses {
+		if pod.Status.InitContainerStatuses[i].Name == communityRepositoryInitContainerName {
+			initStatus = &pod.Status.InitContainerStatuses[i]
+			break
+		}
+	}
+	if initStatus == nil {
+		return false, reasonRepoMaterializing,
+			fmt.Sprintf("Waiting for integration materializer in Home Assistant pod %s", pod.Name), nil
+	}
+
+	terminated := initStatus.State.Terminated
+	if terminated == nil && initStatus.LastTerminationState.Terminated != nil &&
+		initStatus.LastTerminationState.Terminated.ExitCode != 0 {
+		terminated = initStatus.LastTerminationState.Terminated
+	}
+	if terminated != nil && terminated.ExitCode != 0 {
+		detail := terminated.Message
+		if detail == "" {
+			detail = terminated.Reason
+		}
+		if detail == "" {
+			detail = fmt.Sprintf("exit code %d", terminated.ExitCode)
+		}
+		return false, reasonRepoMaterializationFailed,
+			fmt.Sprintf("Integration materialization failed in pod %s: %s; Kubernetes will retry", pod.Name, detail), nil
+	}
+	if terminated == nil || terminated.ExitCode != 0 || terminated.Message != desiredHash {
+		return false, reasonRepoMaterializing,
+			fmt.Sprintf("Waiting for integration materializer in Home Assistant pod %s", pod.Name), nil
+	}
+
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+			return true, reasonRepoInstalling, "", nil
+		}
+	}
+	return false, reasonRepoHomeAssistantNotReady,
+		fmt.Sprintf("Integrations are materialized; waiting for Home Assistant pod %s to become Ready", pod.Name), nil
 }
 
 // installingElapsed returns how long the Installing phase has been active, or 0 if
@@ -414,37 +503,58 @@ func (r *HomeAssistantCommunityRepositoryReconciler) findConflictingOwner(
 	return nil, nil
 }
 
-// handleDeletion removes this repository's entry from the aggregate ConfigMap
-// (and, for the integration category, bumps the restart hash) — best-effort, never
-// blocking finalizer removal.
+// handleDeletion removes this repository's entry from the aggregate ConfigMap.
+// Integration deletion keeps the finalizer until the restart carrying the empty or
+// reduced integration set has completed, so the init container remains injected
+// long enough to remove its owned destination from the PVC.
 func (r *HomeAssistantCommunityRepositoryReconciler) handleDeletion(
 	ctx context.Context,
 	repo *hav1alpha1.HomeAssistantCommunityRepository,
-) {
+) (bool, error) {
 	log := logf.FromContext(ctx)
 	if repo.Status.ResolvedTarget == "" {
 		// Never got far enough to be materialized into the ConfigMap.
-		return
+		return true, nil
 	}
 
 	haRef := types.NamespacedName{Name: repo.Spec.HomeAssistantRef.Name, Namespace: repo.Namespace}
 	ha, err := getHomeAssistant(ctx, r.Client, haRef)
 	if err != nil {
 		log.Info("HomeAssistant not found during deletion, skipping cleanup (best-effort)")
-		return
+		return true, nil
 	}
 
 	content, err := r.removeConfigMapEntry(ctx, ha, repo.Namespace, string(repo.Spec.Category), repo.Status.ResolvedTarget)
 	if err != nil {
-		log.Info("Failed to remove community repository ConfigMap entry during deletion (best-effort)", "error", err)
-	} else if repo.Spec.Category == hav1alpha1.CategoryIntegration {
-		if err := r.bumpStatefulSetHash(ctx, ha, content); err != nil {
-			log.Info("Failed to bump StatefulSet hash during deletion (best-effort)", "error", err)
+		return false, err
+	}
+	if repo.Spec.Category == hav1alpha1.CategoryIntegration {
+		statefulSetExists, err := r.bumpStatefulSetHash(ctx, ha, content)
+		if err != nil {
+			return false, err
+		}
+		if !statefulSetExists {
+			if !ha.DeletionTimestamp.IsZero() {
+				log.Info("Home Assistant is being deleted, skipping PVC cleanup (best-effort)")
+				return true, nil
+			}
+			return false, nil
+		}
+		confirmed, reason, _, err := r.integrationMaterializationConfirmed(
+			ctx, ha, calculateIntegrationRepositoryHash(content))
+		if err != nil {
+			return false, err
+		}
+		// A successful init-container termination confirms PVC cleanup. Deletion
+		// must not remain blocked by an unrelated Home Assistant startup failure.
+		if !confirmed && reason != reasonRepoHomeAssistantNotReady {
+			return false, nil
 		}
 	}
 
 	r.emitEvent(repo, corev1.EventTypeNormal, eventRepositoryRemoved,
 		fmt.Sprintf("Removed %s %q from Home Assistant", repo.Spec.Category, repo.Status.ResolvedTarget))
+	return true, nil
 }
 
 // --- Aggregate ConfigMap helpers ---
@@ -631,25 +741,25 @@ func (r *HomeAssistantCommunityRepositoryReconciler) bumpStatefulSetHash(
 	ctx context.Context,
 	ha *hav1.HomeAssistant,
 	configMapContent string,
-) error {
+) (bool, error) {
 	sts := &appsv1.StatefulSet{}
 	stsKey := types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}
 	if err := r.Get(ctx, stsKey, sts); err != nil {
 		if k8serrors.IsNotFound(err) {
-			return nil
+			return false, nil
 		}
-		return err
+		return false, err
 	}
 
-	hash := calculateConfigHash(configMapContent)
+	hash := calculateIntegrationRepositoryHash(configMapContent)
 	if sts.Spec.Template.Annotations[communityRepositoryHashAnnotationKey] == hash {
-		return nil
+		return true, nil
 	}
 	if sts.Spec.Template.Annotations == nil {
 		sts.Spec.Template.Annotations = map[string]string{}
 	}
 	sts.Spec.Template.Annotations[communityRepositoryHashAnnotationKey] = hash
-	return r.Update(ctx, sts)
+	return true, r.Update(ctx, sts)
 }
 
 // setPhase updates status.phase, the Ready condition, and observedGeneration, then
@@ -662,6 +772,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) setPhase(
 	requeueAfter time.Duration,
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
+	previousStatus := repo.DeepCopy().Status
 
 	repo.Status.Phase = phase
 	repo.Status.ObservedGeneration = repo.Generation
@@ -694,6 +805,9 @@ func (r *HomeAssistantCommunityRepositoryReconciler) setPhase(
 		ObservedGeneration: repo.Generation,
 	})
 
+	if apiequality.Semantic.DeepEqual(previousStatus, repo.Status) {
+		return ctrl.Result{RequeueAfter: requeueAfter}, nil
+	}
 	if err := r.Status().Update(ctx, repo); err != nil {
 		log.Error(err, "Failed to update community repository status")
 		return ctrl.Result{}, err

@@ -27,7 +27,7 @@ K3D_MEMORY="${HELM_E2E_MEMORY:-4g}"
 # renovate: datasource=docker depName=rancher/k3s
 K3S_VERSION="${K3S_VERSION:-v1.36.2-k3s1}"
 # renovate: datasource=github-releases depName=cert-manager/cert-manager
-CERT_MANAGER_VERSION="v1.21.1"
+CERT_MANAGER_VERSION="v1.21.2"
 
 for t in k3d docker helm kubectl; do hh_require "$t"; done
 [ -n "$HELM_CHART_DIR" ] || { echo "❌ HELM_CHART_DIR is empty" >&2; exit 2; }

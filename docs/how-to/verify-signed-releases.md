@@ -3,9 +3,10 @@
 *How-to — check that a release artifact really came from this project. Assumes `cosign` is installed.*
 
 Every release from **v1.2.0** onwards is signed: the container image, the Helm
-chart OCI artifact, and a `checksums.txt` bundle on the GitHub Release. Signing
-is keyless, so verification needs no key from the maintainer — only the commands
-below.
+chart OCI artifact, and a `checksums.txt` bundle on the GitHub Release. Releases
+that include `install.yaml` also record its SHA-256 checksum in that bundle.
+Signing is keyless, so verification needs no key from the maintainer — only the
+commands below.
 
 
 ## Prerequisites
@@ -19,7 +20,7 @@ below.
 |---|---|
 | Container image | The multi-architecture (amd64/arm64) manifest list pushed to `ghcr.io/przemekhys/homeassistant-operator` |
 | Helm chart | The chart packaged and pushed as an OCI artifact to `oci://ghcr.io/przemekhys/charts/homeassistant-operator` |
-| `checksums.txt` | A text file listing the image and chart digests for the release, attached to the GitHub Release along with its own signature |
+| `checksums.txt` | A signed text file listing the image digest, chart digest, and SHA-256 checksum for `install.yaml` |
 
 All three are signed **keyless**, using [Sigstore](https://www.sigstore.dev/)/`cosign`,
 bound to this repository's own GitHub Actions release workflow identity. There is
@@ -54,7 +55,7 @@ ISSUER=https://token.actions.githubusercontent.com
 
 gh release download "$VERSION" \
   --repo przemekhys/homeassistant-operator \
-  -p 'checksums.txt*'
+  -p 'install.yaml' -p 'checksums.txt*'
 
 cosign verify-blob \
   --bundle checksums.txt.sigstore.json \
@@ -69,7 +70,7 @@ Expected output: `Verified OK`.
 are standing in, so the command only works inside a clone. Verification should
 not require one.
 
-The verified file names both digests:
+The verified file names the image and chart digests plus the installation-manifest checksum:
 
 ```bash
 cat checksums.txt
@@ -77,6 +78,7 @@ cat checksums.txt
 ```
 sha256:2e0b7dd8...  container-image  ghcr.io/przemekhys/homeassistant-operator
 sha256:147bee7a...  helm-chart       oci://ghcr.io/przemekhys/charts/homeassistant-operator
+sha256:4e71a9c3...  kustomize-manifest  install.yaml
 ```
 
 ## Verify the container image
@@ -119,9 +121,24 @@ This check needs no cluster and no Kyverno — anywhere `cosign` can reach the
 registry will do, which makes it a natural preflight step in a GitOps pipeline
 before `helm install`/`upgrade` ever runs.
 
+## Verify the installation manifest
+
+After verifying `checksums.txt`, validate the downloaded `install.yaml` against
+its signed checksum before applying it:
+
+```bash
+awk '$2=="kustomize-manifest" && $3=="install.yaml" {print substr($1, 8) "  install.yaml"; found=1} END {exit !found}' checksums.txt \
+  | sha256sum -c -
+```
+
+Expected output: `install.yaml: OK`. The manifest belongs to the GitHub Release,
+so use its release URL rather than a raw source-file URL when installing or
+removing the operator.
+
 !!! tip "All of the above in one command"
     [`hack/verify-signatures.sh`](https://github.com/przemekhys/homeassistant-operator/blob/main/hack/verify-signatures.sh)
-    runs the same three checks: `hack/verify-signatures.sh v1.4.0`. It needs
+    runs the same checks for the image, chart, signed checksum bundle, and
+    installation manifest: `hack/verify-signatures.sh v1.4.0`. It needs
     `cosign`, `gh` and `crane` on your PATH.
 
 ## Verify with Kyverno

@@ -22,6 +22,7 @@ import (
 	"maps"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +30,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -47,6 +49,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
+	hav1alpha1 "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 	"github.com/przemekhys/homeassistant-operator/internal/haclient"
 )
 
@@ -545,8 +548,18 @@ func (r *HomeAssistantReconciler) reconcileStatefulSet(ctx context.Context, ha *
 				return err
 			}
 
-			// Apply desired spec to fresh object
-			freshSts.Spec = desired.Spec
+			// Rebuild from the latest object so metadata added by another actor
+			// between retries is merged rather than replaced by a stale desired map.
+			attemptDesired, err := r.buildStatefulSet(ctx, ha)
+			if err != nil {
+				return err
+			}
+			if err := r.syncConfigHashFromConfigMap(ctx, ha, attemptDesired); err != nil {
+				log.Error(err, "Failed to sync config hash from ConfigMap during StatefulSet update retry")
+			}
+			freshSts.Spec = attemptDesired.Spec
+			freshSts.Annotations = attemptDesired.Annotations
+			freshSts.Labels = attemptDesired.Labels
 
 			// Attempt update
 			if err := r.Update(ctx, freshSts); err != nil {
@@ -704,7 +717,7 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 	ctx context.Context,
 	ha *hav1.HomeAssistant,
 ) (*appsv1.StatefulSet, error) {
-	labels := r.labelsForHomeAssistant(ha)
+	matchLabels := r.labelsForHomeAssistant(ha)
 	replicas := int32(1)
 
 	image := defaultImage
@@ -732,6 +745,10 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 		},
 	}
 
+	if ha.Spec.AdditionalVolumes != nil && ha.Spec.AdditionalVolumes.VolumeMounts != nil {
+		volumeMounts = append(volumeMounts, ha.Spec.AdditionalVolumes.VolumeMounts...)
+	}
+
 	// Build volumes
 	volumes := []corev1.Volume{
 		{
@@ -742,6 +759,10 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 				},
 			},
 		},
+	}
+
+	if ha.Spec.AdditionalVolumes != nil && ha.Spec.AdditionalVolumes.Volumes != nil {
+		volumes = append(volumes, ha.Spec.AdditionalVolumes.Volumes...)
 	}
 
 	// Add ConfigMap volume for configuration.yaml
@@ -861,19 +882,14 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 		homeAssistantSecurityContext = &corev1.SecurityContext{Privileged: ptr.To(false)}
 	}
 
-	// Preserve existing pod template annotations from current StatefulSet
-	// This is critical to avoid infinite reconciliation loops when config hash annotations exist
-	existingAnnotations := make(map[string]string)
 	currentSts := &appsv1.StatefulSet{}
-	if err = r.Get(ctx, types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, currentSts); err == nil {
-		// StatefulSet exists - preserve its pod template annotations
-		if currentSts.Spec.Template.Annotations != nil {
-			for k, v := range currentSts.Spec.Template.Annotations {
-				existingAnnotations[k] = v
-			}
-		}
+	if getErr := r.Get(
+		ctx, types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, currentSts,
+	); getErr != nil && !errors.IsNotFound(getErr) {
+		return nil, getErr
 	}
-	// If StatefulSet doesn't exist (NotFound error), existingAnnotations will be empty - this is correct
+
+	metadata := reconcileMetadata(matchLabels, currentSts, ha)
 
 	// Probes always speak plain HTTP: HA serves HTTP inside the cluster and TLS
 	// is terminated at the edge (Ingress / Gateway API), never in the HA pod.
@@ -940,6 +956,9 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 	if hasCR {
 		containers = append(containers, r.buildCommunityRepositorySidecar(ha))
 		volumes = append(volumes, buildCommunityRepositoryConfigMapVolume(ha))
+		if err := addCommunityRepositoryHashAnnotation(ctx, r.Client, ha, metadata.podAnnotations); err != nil {
+			return nil, err
+		}
 	}
 
 	initContainers, err := r.buildInitContainers(ctx, ha)
@@ -954,20 +973,21 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ha.Name,
-			Namespace: ha.Namespace,
-			Labels:    labels,
+			Name:        ha.Name,
+			Namespace:   ha.Namespace,
+			Labels:      metadata.stsLabels,
+			Annotations: metadata.stsAnnotations,
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
+				MatchLabels: matchLabels,
 			},
 			ServiceName: ha.Name,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      labels,
-					Annotations: existingAnnotations,
+					Labels:      metadata.podLabels,
+					Annotations: metadata.podAnnotations,
 				},
 				Spec: corev1.PodSpec{
 					AutomountServiceAccountToken: &automountSAToken,
@@ -1003,6 +1023,59 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 	}
 
 	return sts, nil
+}
+
+func reconcileMetadata(
+	matchLabels map[string]string,
+	currentSts *appsv1.StatefulSet,
+	ha *hav1.HomeAssistant,
+) (result struct {
+	podAnnotations map[string]string
+	podLabels      map[string]string
+	stsAnnotations map[string]string
+	stsLabels      map[string]string
+}) {
+	currentManagedAnnotations := make(map[string]struct{})
+	if anns, ok := currentSts.Annotations[userAnnotationsAnnotationKey]; ok {
+		for _, ann := range strings.Split(anns, ",") {
+			currentManagedAnnotations[ann] = struct{}{}
+		}
+	}
+
+	currentManagedLabels := make(map[string]struct{})
+	if lbls, ok := currentSts.Annotations[userLabelsAnnotationKey]; ok {
+		for _, lbl := range strings.Split(lbls, ",") {
+			currentManagedLabels[lbl] = struct{}{}
+		}
+	}
+
+	result.podAnnotations = reconcileMaps(
+		currentSts.Spec.Template.Annotations, ha.Spec.Annotations, currentManagedAnnotations)
+	result.podLabels = reconcileMaps(currentSts.Spec.Template.Labels, ha.Spec.Labels, currentManagedLabels)
+	maps.Copy(result.podLabels, matchLabels)
+
+	result.stsAnnotations = reconcileMaps(currentSts.Annotations, ha.Spec.Annotations, currentManagedAnnotations)
+	result.stsLabels = reconcileMaps(currentSts.Labels, ha.Spec.Labels, currentManagedLabels)
+	maps.Copy(result.stsLabels, matchLabels)
+
+	result.stsAnnotations[userAnnotationsAnnotationKey] = strings.Join(slices.Sorted(maps.Keys(ha.Spec.Annotations)), ",")
+	result.stsAnnotations[userLabelsAnnotationKey] = strings.Join(slices.Sorted(maps.Keys(ha.Spec.Labels)), ",")
+
+	return result
+}
+
+// Preserve any values in `current` that are not in `managedKeys`, then overlay the values in `desired`.
+func reconcileMaps(current, desired map[string]string, managedKeys map[string]struct{}) map[string]string {
+	result := make(map[string]string)
+
+	for key, val := range current {
+		if _, managed := managedKeys[key]; !managed {
+			result[key] = val
+		}
+	}
+
+	maps.Copy(result, desired)
+	return result
 }
 
 // reconcileService ensures the Service exists and is up to date
@@ -1652,23 +1725,8 @@ func needsUpdate(current, desired *appsv1.StatefulSet) bool {
 	currentContainer := current.Spec.Template.Spec.Containers[0]
 	desiredContainer := desired.Spec.Template.Spec.Containers[0]
 
-	// Check pod template annotations (Faza 2: for config hash changes)
-	// This triggers pod restart when configuration changes
-	currentAnnotations := current.Spec.Template.Annotations
-	desiredAnnotations := desired.Spec.Template.Annotations
-
-	// Compare config-hash annotation specifically
-	currentHash := ""
-	desiredHash := ""
-	if currentAnnotations != nil {
-		currentHash = currentAnnotations[configHashAnnotationKey]
-	}
-	if desiredAnnotations != nil {
-		desiredHash = desiredAnnotations[configHashAnnotationKey]
-	}
-	if currentHash != desiredHash {
-		log.V(1).Info("Config hash differs",
-			"current", currentHash, "desired", desiredHash)
+	// Check metadata
+	if needsUpdateForMetadata(current, desired) {
 		return true
 	}
 
@@ -1796,6 +1854,92 @@ func needsUpdate(current, desired *appsv1.StatefulSet) bool {
 	return false
 }
 
+// check if the StatefulSet needs to be updated due to annotation or label changes
+func needsUpdateForMetadata(current, desired *appsv1.StatefulSet) bool {
+	log := logf.Log.WithName("needsUpdateForMetadata")
+
+	// Check pod template annotations and labels (Faza 2: for config hash changes)
+	// This triggers pod restart when configuration changes
+	currentAnnotations := current.Spec.Template.Annotations
+	desiredAnnotations := desired.Spec.Template.Annotations
+
+	// Compare config-hash annotation specifically
+	currentHash := ""
+	desiredHash := ""
+	if currentAnnotations != nil {
+		currentHash = currentAnnotations[configHashAnnotationKey]
+	}
+	if desiredAnnotations != nil {
+		desiredHash = desiredAnnotations[configHashAnnotationKey]
+	}
+	if currentHash != desiredHash {
+		log.V(1).Info("Config hash differs",
+			"current", currentHash, "desired", desiredHash)
+		return true
+	}
+	if currentAnnotations[communityRepositoryHashAnnotationKey] !=
+		desiredAnnotations[communityRepositoryHashAnnotationKey] {
+		log.V(1).Info("Community repository hash differs",
+			"current", currentAnnotations[communityRepositoryHashAnnotationKey],
+			"desired", desiredAnnotations[communityRepositoryHashAnnotationKey])
+		return true
+	}
+
+	// Check user-managed annotations and labels
+	currentManagedAnnotations := trackedMetadataValues(
+		current.Annotations, userAnnotationsAnnotationKey, current.Annotations)
+	desiredManagedAnnotations := trackedMetadataValues(
+		desired.Annotations, userAnnotationsAnnotationKey, desired.Annotations)
+
+	if !maps.Equal(currentManagedAnnotations, desiredManagedAnnotations) {
+		log.V(1).Info("Managed annotations differ", "current", currentManagedAnnotations,
+			"desired", desiredManagedAnnotations)
+		return true
+	}
+	currentManagedPodAnnotations := trackedMetadataValues(
+		current.Annotations, userAnnotationsAnnotationKey, current.Spec.Template.Annotations)
+	desiredManagedPodAnnotations := trackedMetadataValues(
+		desired.Annotations, userAnnotationsAnnotationKey, desired.Spec.Template.Annotations)
+	if !maps.Equal(currentManagedPodAnnotations, desiredManagedPodAnnotations) {
+		log.V(1).Info("Managed pod annotations differ", "current", currentManagedPodAnnotations,
+			"desired", desiredManagedPodAnnotations)
+		return true
+	}
+
+	currentManagedLabels := trackedMetadataValues(current.Annotations, userLabelsAnnotationKey, current.Labels)
+	desiredManagedLabels := trackedMetadataValues(desired.Annotations, userLabelsAnnotationKey, desired.Labels)
+
+	if !maps.Equal(currentManagedLabels, desiredManagedLabels) {
+		log.V(1).Info("Managed labels differ", "current", currentManagedLabels, "desired", desiredManagedLabels)
+		return true
+	}
+	currentManagedPodLabels := trackedMetadataValues(
+		current.Annotations, userLabelsAnnotationKey, current.Spec.Template.Labels)
+	desiredManagedPodLabels := trackedMetadataValues(
+		desired.Annotations, userLabelsAnnotationKey, desired.Spec.Template.Labels)
+	if !maps.Equal(currentManagedPodLabels, desiredManagedPodLabels) {
+		log.V(1).Info("Managed pod labels differ", "current", currentManagedPodLabels,
+			"desired", desiredManagedPodLabels)
+		return true
+	}
+
+	return false
+}
+
+func trackedMetadataValues(
+	trackingAnnotations map[string]string,
+	trackingKey string,
+	values map[string]string,
+) map[string]string {
+	tracked := make(map[string]string)
+	for _, key := range strings.Split(trackingAnnotations[trackingKey], ",") {
+		if key != "" {
+			tracked[key] = values[key]
+		}
+	}
+	return tracked
+}
+
 // podLevelFieldsDiffer compares HostNetwork, DNSPolicy, and
 // AutomountServiceAccountToken between the current and desired pod
 // templates. Split out of needsUpdate to keep its cyclomatic complexity in
@@ -1912,51 +2056,59 @@ func securityContextsEqual(current, desired *corev1.SecurityContext) bool {
 	return currentPrivileged == desiredPrivileged
 }
 
-// hostPathsEqual compares the fields of a hostPath volume source that
-// buildStatefulSet sets for spec.alpha.devices entries (Path, Type).
-func hostPathsEqual(current, desired *corev1.HostPathVolumeSource) bool {
-	if (current == nil) != (desired == nil) {
-		return false
-	}
-	if current == nil {
-		return true
-	}
-	currentType := corev1.HostPathUnset
-	if current.Type != nil {
-		currentType = *current.Type
-	}
-	desiredType := corev1.HostPathUnset
-	if desired.Type != nil {
-		desiredType = *desired.Type
-	}
-	return current.Path == desired.Path && currentType == desiredType
-}
-
-// volumeContentDiffers compares volume HostPath and VolumeMount MountPath
-// content index-by-index across all of the pod template's volumes/mounts
-// (e.g. a spec.alpha.devices entry's hostPath or containerPath edited in
-// place, where the volume count itself is unchanged). Callers must already
-// have confirmed the volume and mount counts match. Split out of
-// needsUpdate to keep its cyclomatic complexity in check.
+// volumeContentDiffers compares Volume and VolumeMount content index-by-index
+// across all of the pod template's volumes/mount. Callers must already have
+// confirmed the volume and mount counts match. Split out of needsUpdate to keep
+// its cyclomatic complexity in check.
 func volumeContentDiffers(
-	current, desired *appsv1.StatefulSet, currentContainer, desiredContainer corev1.Container,
+	current, desired *appsv1.StatefulSet,
+	currentContainer, desiredContainer corev1.Container,
 ) bool {
 	log := logf.Log.WithName("needsUpdate")
 	for i, cv := range current.Spec.Template.Spec.Volumes {
 		dv := desired.Spec.Template.Spec.Volumes[i]
-		if !hostPathsEqual(cv.HostPath, dv.HostPath) {
-			log.V(1).Info("Volume HostPath differs", "index", i)
+		if !volumeSemanticEqual(cv, dv) {
+			log.V(1).Info("Volume differs", "index", i, "name", dv.Name)
 			return true
 		}
 	}
+
 	for i, cm := range currentContainer.VolumeMounts {
-		if cm.MountPath != desiredContainer.VolumeMounts[i].MountPath {
-			log.V(1).Info("VolumeMount MountPath differs",
-				"index", i, "current", cm.MountPath, "desired", desiredContainer.VolumeMounts[i].MountPath)
+		dm := desiredContainer.VolumeMounts[i]
+		if !equality.Semantic.DeepEqual(cm, dm) {
+			log.V(1).Info("VolumeMount differs", "index", i)
 			return true
 		}
 	}
 	return false
+}
+
+func volumeSemanticEqual(current, desired corev1.Volume) bool {
+	current = normalizeVolumeDefaults(current)
+	desired = normalizeVolumeDefaults(desired)
+	return equality.Semantic.DeepEqual(current, desired)
+}
+
+// normalizeVolumeDefaults mirrors defaults applied when a pod template is
+// persisted, preventing an unchanged desired volume from differing forever.
+func normalizeVolumeDefaults(volume corev1.Volume) corev1.Volume {
+	volume = *volume.DeepCopy()
+	if volume.ConfigMap != nil && volume.ConfigMap.DefaultMode == nil {
+		volume.ConfigMap.DefaultMode = ptr.To[int32](corev1.ConfigMapVolumeSourceDefaultMode)
+	}
+	if volume.Secret != nil && volume.Secret.DefaultMode == nil {
+		volume.Secret.DefaultMode = ptr.To[int32](corev1.SecretVolumeSourceDefaultMode)
+	}
+	if volume.Projected != nil && volume.Projected.DefaultMode == nil {
+		volume.Projected.DefaultMode = ptr.To[int32](corev1.ProjectedVolumeSourceDefaultMode)
+	}
+	if volume.DownwardAPI != nil && volume.DownwardAPI.DefaultMode == nil {
+		volume.DownwardAPI.DefaultMode = ptr.To[int32](corev1.DownwardAPIVolumeSourceDefaultMode)
+	}
+	if volume.HostPath != nil && volume.HostPath.Type == nil {
+		volume.HostPath.Type = ptr.To(corev1.HostPathUnset)
+	}
+	return volume
 }
 
 // schedulingFieldsDiffer compares spec.scheduling's four fields
@@ -2008,8 +2160,25 @@ func (r *HomeAssistantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&corev1.ConfigMap{},
 			handler.EnqueueRequestsFromMapFunc(r.findHomeAssistantForConfigMap),
 		).
+		Watches(
+			&hav1alpha1.HomeAssistantCommunityRepository{},
+			handler.EnqueueRequestsFromMapFunc(r.findHomeAssistantForCommunityRepository),
+		).
 		Named("homeassistant").
 		Complete(r)
+}
+
+func (r *HomeAssistantReconciler) findHomeAssistantForCommunityRepository(
+	_ context.Context,
+	obj client.Object,
+) []reconcile.Request {
+	repo, ok := obj.(*hav1alpha1.HomeAssistantCommunityRepository)
+	if !ok || repo.Spec.HomeAssistantRef.Name == "" {
+		return nil
+	}
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{
+		Name: repo.Spec.HomeAssistantRef.Name, Namespace: repo.Namespace,
+	}}}
 }
 
 // findHomeAssistantForConfiguration finds the HomeAssistant that is referenced by a
@@ -2058,13 +2227,15 @@ func (r *HomeAssistantReconciler) findHomeAssistantForConfigMap(
 ) []reconcile.Request {
 	configMap := obj.(*corev1.ConfigMap)
 
-	// Only watch ConfigMaps with the configuration suffix (generated by HomeAssistantConfiguration)
-	if !strings.HasSuffix(configMap.Name, "-configuration") {
+	var haName string
+	switch {
+	case strings.HasSuffix(configMap.Name, "-configuration"):
+		haName = strings.TrimSuffix(configMap.Name, "-configuration")
+	case strings.HasSuffix(configMap.Name, communityRepositoriesConfigMapSuffix):
+		haName = strings.TrimSuffix(configMap.Name, communityRepositoriesConfigMapSuffix)
+	default:
 		return nil
 	}
-
-	// Extract HomeAssistant name from ConfigMap name (remove "-configuration" suffix)
-	haName := strings.TrimSuffix(configMap.Name, "-configuration")
 
 	return []reconcile.Request{
 		{

@@ -31,6 +31,43 @@ spec:
     type: ClusterIP
 ```
 
+## Add labels and annotations
+
+`spec.labels` and `spec.annotations` are copied to both the generated StatefulSet
+and its Pod template. Use your own qualified key domain for metadata consumed by
+your cluster tooling:
+
+```yaml
+spec:
+  labels:
+    example.com/location: living-room
+  annotations:
+    example.com/owner: home-automation
+```
+
+Changing either map updates the StatefulSet and its Pod template. Because Pod
+template metadata is part of the StatefulSet rollout template, such a change
+rolls the Home Assistant pod. Metadata added directly by another controller is
+preserved unless it uses a key managed through the `HomeAssistant` resource.
+
+User labels are deliberately **not** added to
+`StatefulSet.spec.selector.matchLabels`. The immutable selector contains only
+the operator's stable identity labels, so adding or removing `spec.labels` does
+not require replacing the StatefulSet.
+
+The API rejects metadata keys managed by the operator:
+
+- All annotation keys under `ha.homeassistant.io/*` are reserved.
+- The labels `app.kubernetes.io/name`, `app.kubernetes.io/instance`, and
+  `app.kubernetes.io/managed-by` are fixed selector labels and cannot be set in
+  `spec.labels`.
+
+Metadata syntax is validated during admission. Keys in both maps must be valid
+Kubernetes qualified names (an optional DNS prefix, `/`, and a name). Label
+values must follow Kubernetes label-value syntax: at most 63 characters, using
+letters, digits, `-`, `_`, or `.`, and starting and ending with an alphanumeric
+character when non-empty. Annotation values may contain arbitrary text.
+
 ## Keep the data when the resource is deleted
 
 By default the operator sets a controller owner reference on the instance's PVC,
@@ -153,6 +190,87 @@ spec:
     storageClassName: local-path   # optional; uses cluster default if omitted
     accessMode: ReadWriteOnce      # optional; default ReadWriteOnce
 ```
+
+## Mount additional volumes
+
+Use `spec.additionalVolumes` to add native Kubernetes volumes to the Home
+Assistant pod. Each `volumeMounts[].name` must match one `volumes[].name`. The
+mount is added to the main Home Assistant container, not to the operator's init
+containers or sidecars. Changing either list updates the pod template and rolls
+out the Home Assistant pod.
+
+This example requests a certificate through the
+[cert-manager CSI driver](https://cert-manager.io/docs/usage/csi-driver/) and
+mounts it at `/config/tls`:
+
+```yaml
+apiVersion: ha.homeassistant.io/v1
+kind: HomeAssistant
+metadata:
+  name: home
+  namespace: home-assistant
+spec:
+  additionalVolumes:
+    volumes:
+      - name: home-tls
+        csi:
+          driver: csi.cert-manager.io
+          readOnly: true
+          volumeAttributes:
+            csi.cert-manager.io/issuer-name: ca-issuer
+            csi.cert-manager.io/issuer-kind: Issuer
+            csi.cert-manager.io/dns-names: >-
+              ${POD_NAME}.${POD_NAMESPACE}.svc.cluster.local
+    volumeMounts:
+      - name: home-tls
+        mountPath: /config/tls
+        readOnly: true
+```
+
+Install the CSI driver before applying this resource. A namespaced `Issuer`,
+PVC, Secret, or ConfigMap referenced by a volume must exist in the
+`HomeAssistant` namespace. Cluster-scoped dependencies such as a
+`ClusterIssuer` or `CSIDriver` must exist in the cluster. For a
+`ClusterIssuer`, set `csi.cert-manager.io/issuer-kind: ClusterIssuer`.
+
+The operator reserves these pod volume names:
+
+- `config`
+- `ha-configuration`
+- `ha-recorder-db`
+- `ha-secrets`
+- `community-repositories`
+- every name matching `device-N`, where `N` is a non-negative integer
+
+It also reserves these mount paths in the Home Assistant container:
+
+- `/config`
+- `/config/configuration.yaml`
+- `/config/recorder_db_url.yaml`
+- `/config/secrets.yaml`
+
+Admission rejects duplicate volume names, duplicate mount paths, mounts that do
+not reference a declared additional volume, volumes with zero or multiple
+sources, and collisions with operator-managed volumes, paths, or device mounts.
+
+!!! warning
+    Volumes can grant access beyond the container image. A `secret` exposes
+    credentials, `hostPath` exposes the node filesystem, and CSI drivers run
+    with cluster-specific privileges. A `projected` volume can also expose a
+    service account token. Apply least privilege to volume contents, the Home
+    Assistant service account, CSI drivers, and token audiences and lifetimes.
+
+If the pod remains pending with `FailedMount`, inspect the pod events:
+
+```sh
+kubectl describe pod -n home-assistant -l app.kubernetes.io/instance=home
+kubectl get events -n home-assistant --sort-by=.lastTimestamp
+```
+
+Check that the referenced object is in the correct namespace, the CSI driver is
+installed and registered, and the Home Assistant service account has any RBAC
+required by the driver. For cert-manager CSI, also inspect the corresponding
+`CertificateRequest` and cert-manager logs.
 
 ## Choose how the Service is exposed
 
