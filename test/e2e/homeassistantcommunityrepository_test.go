@@ -536,6 +536,37 @@ spec:
 			}, utils.HotReloadTimeout, reconcileInterval).Should(Succeed())
 		})
 
+	It("migrates an installed alpha manifest to v1 without replacing the repository",
+		Label("community-repository", "fast", "group-a"), func() {
+			repositoryUID := utils.Kubectl("get", "hacr", "e2e-integration", "-n", namespace,
+				"-o", "jsonpath={.metadata.uid}")
+			podUID := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+				"-o", "jsonpath={.metadata.uid}")
+
+			stableYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
+kind: HomeAssistantCommunityRepository
+metadata:
+  name: e2e-integration
+  namespace: %s
+spec:
+  homeAssistantRef:
+    name: %s
+  category: integration
+  repository: %s
+  ref: v1.0.0
+`, namespace, haName, crFixtureIntegration)
+			Expect(utils.ApplyYAML(stableYAML, namespace)).To(Succeed())
+
+			Eventually(func(g Gomega) {
+				g.Expect(getPhase("e2e-integration")).To(Equal("Installed"))
+				g.Expect(getInstalledVersion("e2e-integration")).To(Equal("v1.0.0"))
+				g.Expect(utils.Kubectl("get", "hacr", "e2e-integration", "-n", namespace,
+					"-o", "jsonpath={.metadata.uid}")).To(Equal(repositoryUID))
+				g.Expect(utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+					"-o", "jsonpath={.metadata.uid}")).To(Equal(podUID))
+			}, utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
+		})
+
 	It("installs a theme-category repository without restarting the HA pod",
 		Label("community-repository", "fast", "group-a"), func() {
 			podStartBefore := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.startTime}")
