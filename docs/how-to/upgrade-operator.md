@@ -92,7 +92,21 @@ operator upgrade, change only `apiVersion` in source-controlled manifests and
 apply them normally. Do not create a second resource for the same extension:
 the existing object, installed files, active revision, status, and finalizer are
 preserved. Before rolling back to an operator release that predates `v1` support,
-avoid applying manifests that only that older release cannot understand.
+keep the dual-version CRD installed: the older operator can continue to reconcile
+the alpha representation while Kubernetes retains `v1` as storage. Do not restore
+an alpha-only CRD until you have completed [storage migration before restoring an
+alpha-only CRD](#storage-migration-before-restoring-an-alpha-only-crd).
+
+### Storage migration before restoring an alpha-only CRD
+
+Rolling back the operator does not require changing this CRD. Keep its `v1` and
+`v1alpha1` versions served while the older operator is running. Restoring an
+alpha-only CRD is a separate storage migration and is not part of a normal
+operator rollback: first use a Kubernetes storage-version migration procedure
+supported by your cluster to rewrite every stored community repository as
+`v1alpha1`, then verify no stored objects remain at `v1`, and only then apply the
+alpha-only CRD. Do not remove `v1` from the CRD before that migration is complete;
+doing so can make existing resources unreadable.
 
 !!! warning "Do not skip intermediate versions"
     Only the **N-1 → latest** path is tested. If you are several versions behind

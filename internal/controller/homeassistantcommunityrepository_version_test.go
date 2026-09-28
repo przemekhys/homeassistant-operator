@@ -40,6 +40,9 @@ var _ = Describe("HomeAssistantCommunityRepository API versions", func() {
 		}
 		Expect(k8sClient.Create(ctx, alpha)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, alpha)).To(Succeed()) })
+		alpha.Status.InstalledVersion = "v0.9.0"
+		alpha.Status.ResolvedTarget = "legacy_theme"
+		Expect(k8sClient.Status().Update(ctx, alpha)).To(Succeed())
 
 		stable := &hav1.HomeAssistantCommunityRepository{}
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: alpha.Name, Namespace: alpha.Namespace}, stable)).To(Succeed())
@@ -48,6 +51,8 @@ var _ = Describe("HomeAssistantCommunityRepository API versions", func() {
 		Expect(stable.Spec.Category).To(Equal(hav1.CategoryTheme))
 		Expect(stable.Spec.Repository).To(Equal(alpha.Spec.Repository))
 		Expect(stable.Spec.Ref).To(Equal(alpha.Spec.Ref))
+		Expect(stable.Status.InstalledVersion).To(Equal(alpha.Status.InstalledVersion))
+		Expect(stable.Status.ResolvedTarget).To(Equal(alpha.Status.ResolvedTarget))
 	})
 
 	It("detects an alpha owner when a stable declaration targets the same extension", func() {
