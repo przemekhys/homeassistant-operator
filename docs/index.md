@@ -78,7 +78,7 @@ spec:
 | `HomeAssistantFloor` | `hafl` | House floor registry |
 | `HomeAssistantLabel` | `halb` | Entity label registry |
 | `HomeAssistantArea` | `haar` | Room/area registry with floor + label refs |
-| `HomeAssistantCommunityRepository` | `hacr` | Install HACS-compatible extensions (experimental, `v1alpha1`) |
+| `HomeAssistantCommunityRepository` | `hacr` | Install HACS-compatible extensions (`v1`) |
 
 ## Finding your way around
 

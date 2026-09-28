@@ -437,6 +437,8 @@ spec:
 		Label("community-repository", "fast", "group-a"), func() {
 			podStartBefore := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.startTime}")
 
+			// Existing v1alpha1 manifests remain supported while users migrate their
+			// source-controlled manifests to v1.
 			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1alpha1
 kind: HomeAssistantCommunityRepository
 metadata:
@@ -538,7 +540,7 @@ spec:
 		Label("community-repository", "fast", "group-a"), func() {
 			podStartBefore := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.startTime}")
 
-			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1alpha1
+			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistantCommunityRepository
 metadata:
   name: e2e-theme
@@ -570,7 +572,7 @@ spec:
 
 	It("installs a python_script-category repository",
 		Label("community-repository", "fast", "group-b"), func() {
-			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1alpha1
+			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistantCommunityRepository
 metadata:
   name: e2e-python-script
@@ -599,7 +601,7 @@ spec:
 
 	It("installs a template-category repository",
 		Label("community-repository", "fast", "group-b"), func() {
-			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1alpha1
+			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistantCommunityRepository
 metadata:
   name: e2e-template
@@ -628,7 +630,7 @@ spec:
 
 	It("installs a plugin-category repository and registers its Lovelace resource",
 		Label("community-repository", "slow", "group-b"), func() {
-			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1alpha1
+			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistantCommunityRepository
 metadata:
   name: e2e-plugin

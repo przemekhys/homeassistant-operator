@@ -189,8 +189,10 @@ starts.
 
 ## HomeAssistantCommunityRepository
 
-Experimental (`v1alpha1`). `status.phase` carries the same information in a
-single field: `Pending → Validating → Installing → Installed`, or `Failed`.
+Stable (`v1`). `status.phase` carries the same information in a single field:
+`Pending → Validating → Installing → Installed`, or `Failed`. The prior
+`v1alpha1` version is deprecated but remains temporarily supported for existing
+manifests.
 
 ### `Ready`
 

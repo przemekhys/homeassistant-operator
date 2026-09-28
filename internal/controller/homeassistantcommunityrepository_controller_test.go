@@ -39,7 +39,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
-	hav1alpha1 "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 	"github.com/przemekhys/homeassistant-operator/internal/communityrepo"
 	"github.com/przemekhys/homeassistant-operator/internal/haclient"
 )
@@ -62,30 +61,30 @@ func buildFixtureTarball(prefix string, files map[string]string) []byte {
 	return buf.Bytes()
 }
 
-func fixtureFilesFor(category hav1alpha1.CommunityRepositoryCategory) map[string]string {
+func fixtureFilesFor(category hav1.CommunityRepositoryCategory) map[string]string {
 	switch category {
-	case hav1alpha1.CategoryIntegration:
+	case hav1.CategoryIntegration:
 		return map[string]string{
 			"hacs.json": `{"name":"Fixture Integration","category":"integration"}`,
 			"custom_components/example_integration/manifest.json": `{"domain":"example_integration"}`,
 			"custom_components/example_integration/__init__.py":   "",
 		}
-	case hav1alpha1.CategoryPlugin:
+	case hav1.CategoryPlugin:
 		return map[string]string{
 			"hacs.json":       `{"name":"Fixture Card","category":"plugin","filename":"example-card.js"}`,
 			"example-card.js": "console.log('fixture card');",
 		}
-	case hav1alpha1.CategoryTheme:
+	case hav1.CategoryTheme:
 		return map[string]string{
 			"hacs.json":                 `{"name":"Fixture Theme","category":"theme"}`,
 			"themes/example_theme.yaml": "example_theme: {}\n",
 		}
-	case hav1alpha1.CategoryPythonScript:
+	case hav1.CategoryPythonScript:
 		return map[string]string{
 			"hacs.json":                        `{"name":"Fixture Script","category":"python_script"}`,
 			"python_scripts/example_script.py": "logger.info('fixture')\n",
 		}
-	case hav1alpha1.CategoryTemplate:
+	case hav1.CategoryTemplate:
 		return map[string]string{
 			"hacs.json": `{"name":"Fixture Template","category":"template"}`,
 			"custom_templates/example_template.jinja": "{{ 1 + 1 }}",
@@ -114,8 +113,8 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		})
 	}
 
-	getRepo := func(name string) *hav1alpha1.HomeAssistantCommunityRepository {
-		repo := &hav1alpha1.HomeAssistantCommunityRepository{}
+	getRepo := func(name string) *hav1.HomeAssistantCommunityRepository {
+		repo := &hav1.HomeAssistantCommunityRepository{}
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, repo)).To(Succeed())
 		return repo
 	}
@@ -139,11 +138,11 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 	}
 
-	createRepo := func(name, haName string, category hav1alpha1.CommunityRepositoryCategory, repository string) {
-		repo := &hav1alpha1.HomeAssistantCommunityRepository{
+	createRepo := func(name, haName string, category hav1.CommunityRepositoryCategory, repository string) {
+		repo := &hav1.HomeAssistantCommunityRepository{
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-			Spec: hav1alpha1.HomeAssistantCommunityRepositorySpec{
-				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: haName},
+			Spec: hav1.HomeAssistantCommunityRepositorySpec{
+				HomeAssistantRef: hav1.HomeAssistantReference{Name: haName},
 				Category:         category,
 				Repository:       repository,
 				Ref:              "v1.0.0",
@@ -153,7 +152,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 	}
 
 	registerFixture := func(
-		fixtures map[string][]byte, repository string, category hav1alpha1.CommunityRepositoryCategory,
+		fixtures map[string][]byte, repository string, category hav1.CommunityRepositoryCategory,
 	) {
 		const ref = "v1.0.0"
 		path := fmt.Sprintf("/%s/tar.gz/%s", repository, ref)
@@ -188,12 +187,12 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 			haServer = nil
 		}
 
-		repoList := &hav1alpha1.HomeAssistantCommunityRepositoryList{}
+		repoList := &hav1.HomeAssistantCommunityRepositoryList{}
 		_ = k8sClient.List(ctx, repoList)
 		for i := range repoList.Items {
 			_ = k8sClient.Delete(ctx, &repoList.Items[i])
 			_, _ = reconcileRepo(repoList.Items[i].Name)
-			remaining := &hav1alpha1.HomeAssistantCommunityRepository{}
+			remaining := &hav1.HomeAssistantCommunityRepository{}
 			key := client.ObjectKeyFromObject(&repoList.Items[i])
 			if k8sClient.Get(ctx, key, remaining) == nil {
 				controllerutil.RemoveFinalizer(remaining, communityRepositoryFinalizerName)
@@ -201,7 +200,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 			}
 		}
 		Eventually(func() int {
-			list := &hav1alpha1.HomeAssistantCommunityRepositoryList{}
+			list := &hav1.HomeAssistantCommunityRepositoryList{}
 			_ = k8sClient.List(ctx, list)
 			return len(list.Items)
 		}, time.Second*10, time.Millisecond*250).Should(Equal(0))
@@ -227,7 +226,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 
 	It("transitions Pending -> Validating -> Installing -> Installed for category integration", func() {
 		fixtures := map[string][]byte{}
-		registerFixture(fixtures, "acme/integration-fixture", hav1alpha1.CategoryIntegration)
+		registerFixture(fixtures, "acme/integration-fixture", hav1.CategoryIntegration)
 		codeloadServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tarball, ok := fixtures[r.URL.Path]
 			if !ok {
@@ -239,7 +238,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		}))
 		communityrepo.CodeloadBaseURL = codeloadServer.URL
 
-		createRepo("cr-integration", "ha-integration-missing", hav1alpha1.CategoryIntegration, "acme/integration-fixture")
+		createRepo("cr-integration", "ha-integration-missing", hav1.CategoryIntegration, "acme/integration-fixture")
 
 		// Add finalizer.
 		_, err := reconcileRepo("cr-integration")
@@ -248,7 +247,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		// HomeAssistant does not exist yet -> Pending/HomeAssistantNotReady.
 		_, err = reconcileRepo("cr-integration")
 		Expect(err).NotTo(HaveOccurred())
-		Expect(getRepo("cr-integration").Status.Phase).To(Equal(hav1alpha1.PhasePending))
+		Expect(getRepo("cr-integration").Status.Phase).To(Equal(hav1.CommunityRepositoryPhasePending))
 		Expect(getRepo("cr-integration").Status.Conditions).To(ContainElement(
 			WithTransform(func(c metav1.Condition) string { return c.Reason }, Equal(reasonRepoHomeAssistantNotReady)),
 		))
@@ -258,19 +257,19 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 
 		_, err = reconcileRepo("cr-integration") // -> Validating (persisted, transient)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(getRepo("cr-integration").Status.Phase).To(Equal(hav1alpha1.PhaseValidating))
+		Expect(getRepo("cr-integration").Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseValidating))
 
 		_, err = reconcileRepo("cr-integration") // -> fetch+validate+conflict -> Installing
 		Expect(err).NotTo(HaveOccurred())
 		repo := getRepo("cr-integration")
-		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseInstalling))
+		Expect(repo.Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseInstalling))
 		Expect(repo.Status.ResolvedTarget).To(Equal("example_integration"))
 
 		result, err := reconcileRepo("cr-integration") // no pod acknowledgement yet -> remains Installing
 		Expect(err).NotTo(HaveOccurred())
 		repo = getRepo("cr-integration")
 		Expect(result.RequeueAfter).To(Equal(integrationMaterializationPollInterval))
-		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseInstalling))
+		Expect(repo.Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseInstalling))
 		Expect(repo.Status.InstalledVersion).To(BeEmpty())
 		Expect(repo.Status.Conditions).To(ContainElement(
 			WithTransform(func(c metav1.Condition) string { return c.Reason }, Equal(reasonRepoMaterializing)),
@@ -313,7 +312,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		_, err = reconcileRepo("cr-integration")
 		Expect(err).NotTo(HaveOccurred())
 		repo = getRepo("cr-integration")
-		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseInstalling))
+		Expect(repo.Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseInstalling))
 		Expect(repo.Status.InstalledVersion).To(BeEmpty())
 		Expect(repo.Status.Conditions).To(ContainElement(
 			WithTransform(func(c metav1.Condition) string { return c.Reason }, Equal(reasonRepoMaterializationFailed)),
@@ -346,12 +345,12 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		_, err = reconcileRepo("cr-integration")
 		Expect(err).NotTo(HaveOccurred())
 		repo = getRepo("cr-integration")
-		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseInstalled))
+		Expect(repo.Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseInstalled))
 		Expect(repo.Status.InstalledVersion).To(Equal("v1.0.0"))
 	})
 
 	DescribeTable("transitions Validating -> Installing -> Installed for hot-reload categories",
-		func(category hav1alpha1.CommunityRepositoryCategory, expectedTarget string, servicePath string) {
+		func(category hav1.CommunityRepositoryCategory, expectedTarget string, servicePath string) {
 			fixtures := map[string][]byte{}
 			repository := fmt.Sprintf("acme/%s-fixture", category)
 			registerFixture(fixtures, repository, category)
@@ -366,7 +365,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 			}))
 			communityrepo.CodeloadBaseURL = codeloadServer.URL
 
-			if category == hav1alpha1.CategoryPlugin {
+			if category == hav1.CategoryPlugin {
 				haServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					conn, err := upgrader.Upgrade(w, r, nil)
 					if err != nil {
@@ -408,21 +407,21 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			_, err = reconcileRepo(name) // -> Validating (persisted)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(getRepo(name).Status.Phase).To(Equal(hav1alpha1.PhaseValidating))
+			Expect(getRepo(name).Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseValidating))
 			_, err = reconcileRepo(name) // -> Installing
 			Expect(err).NotTo(HaveOccurred())
 			repo := getRepo(name)
-			Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseInstalling))
+			Expect(repo.Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseInstalling))
 			Expect(repo.Status.ResolvedTarget).To(Equal(expectedTarget))
 			_, err = reconcileRepo(name) // -> activation -> Installed
 			Expect(err).NotTo(HaveOccurred())
-			Expect(getRepo(name).Status.Phase).To(Equal(hav1alpha1.PhaseInstalled))
+			Expect(getRepo(name).Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseInstalled))
 		},
-		Entry("theme", hav1alpha1.CategoryTheme, "example_theme", "/api/services/frontend/reload_themes"),
-		Entry("python_script", hav1alpha1.CategoryPythonScript, "example_script", "/api/services/python_script/reload"),
-		Entry("template", hav1alpha1.CategoryTemplate, "example_template",
+		Entry("theme", hav1.CategoryTheme, "example_theme", "/api/services/frontend/reload_themes"),
+		Entry("python_script", hav1.CategoryPythonScript, "example_script", "/api/services/python_script/reload"),
+		Entry("template", hav1.CategoryTemplate, "example_template",
 			"/api/services/homeassistant/reload_custom_templates"),
-		Entry("plugin", hav1alpha1.CategoryPlugin, "example-card", ""),
+		Entry("plugin", hav1.CategoryPlugin, "example-card", ""),
 	)
 
 	It("sets Failed/CategoryMismatch and never writes the ConfigMap", func() {
@@ -445,7 +444,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 
 		createHA("ha-mismatch")
 		// Requested category is python_script, but the repo declares theme.
-		createRepo("cr-mismatch", "ha-mismatch", hav1alpha1.CategoryPythonScript, "acme/mismatch-fixture")
+		createRepo("cr-mismatch", "ha-mismatch", hav1.CategoryPythonScript, "acme/mismatch-fixture")
 
 		_, err := reconcileRepo("cr-mismatch") // finalizer
 		Expect(err).NotTo(HaveOccurred())
@@ -455,7 +454,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		repo := getRepo("cr-mismatch")
-		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseFailed))
+		Expect(repo.Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseFailed))
 		Expect(repo.Status.Conditions).To(ContainElement(
 			WithTransform(func(c metav1.Condition) string { return c.Reason }, Equal(reasonRepoCategoryMismatch)),
 		))
@@ -483,7 +482,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		communityrepo.CodeloadBaseURL = codeloadServer.URL
 
 		createHA("ha-broken")
-		createRepo("cr-broken", "ha-broken", hav1alpha1.CategoryTheme, "acme/broken-fixture")
+		createRepo("cr-broken", "ha-broken", hav1.CategoryTheme, "acme/broken-fixture")
 
 		_, err := reconcileRepo("cr-broken")
 		Expect(err).NotTo(HaveOccurred())
@@ -493,7 +492,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		repo := getRepo("cr-broken")
-		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseFailed))
+		Expect(repo.Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseFailed))
 		Expect(repo.Status.Conditions).To(ContainElement(
 			WithTransform(func(c metav1.Condition) string { return c.Reason }, Equal(reasonRepoStructureInvalid)),
 		))
@@ -501,8 +500,8 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 
 	It("rejects a conflicting sibling with Failed/TargetConflict, leaving the first CR untouched", func() {
 		fixtures := map[string][]byte{}
-		registerFixture(fixtures, "acme/theme-fixture-a", hav1alpha1.CategoryTheme)
-		registerFixture(fixtures, "acme/theme-fixture-b", hav1alpha1.CategoryTheme)
+		registerFixture(fixtures, "acme/theme-fixture-a", hav1.CategoryTheme)
+		registerFixture(fixtures, "acme/theme-fixture-b", hav1.CategoryTheme)
 		codeloadServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tarball, ok := fixtures[r.URL.Path]
 			if !ok {
@@ -525,15 +524,15 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		createHA("ha-conflict")
 		createAPIToken("ha-conflict")
 
-		createRepo("cr-conflict-a", "ha-conflict", hav1alpha1.CategoryTheme, "acme/theme-fixture-a")
-		createRepo("cr-conflict-b", "ha-conflict", hav1alpha1.CategoryTheme, "acme/theme-fixture-b")
+		createRepo("cr-conflict-a", "ha-conflict", hav1.CategoryTheme, "acme/theme-fixture-a")
+		createRepo("cr-conflict-b", "ha-conflict", hav1.CategoryTheme, "acme/theme-fixture-b")
 
 		// Drive the first CR all the way to Installed.
 		for range []int{0, 1, 2, 3} {
 			_, err := reconcileRepo("cr-conflict-a")
 			Expect(err).NotTo(HaveOccurred())
 		}
-		Expect(getRepo("cr-conflict-a").Status.Phase).To(Equal(hav1alpha1.PhaseInstalled))
+		Expect(getRepo("cr-conflict-a").Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseInstalled))
 
 		// The second CR resolves to the same (category, resolvedTarget) — must conflict.
 		_, err := reconcileRepo("cr-conflict-b") // finalizer
@@ -544,13 +543,13 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		repoB := getRepo("cr-conflict-b")
-		Expect(repoB.Status.Phase).To(Equal(hav1alpha1.PhaseFailed))
+		Expect(repoB.Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseFailed))
 		Expect(repoB.Status.Conditions).To(ContainElement(
 			WithTransform(func(c metav1.Condition) string { return c.Reason }, Equal(reasonRepoTargetConflict)),
 		))
 
 		// First CR must remain untouched (still Installed, owning the ConfigMap entry).
-		Expect(getRepo("cr-conflict-a").Status.Phase).To(Equal(hav1alpha1.PhaseInstalled))
+		Expect(getRepo("cr-conflict-a").Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseInstalled))
 		cm := &corev1.ConfigMap{}
 		Expect(k8sClient.Get(ctx, types.NamespacedName{
 			Name: "ha-conflict-community-repositories", Namespace: namespace,
@@ -560,7 +559,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 	})
 
 	It("sets Pending/HomeAssistantNotReady with a RequeueAfter when HomeAssistant is missing", func() {
-		createRepo("cr-no-ha", "does-not-exist", hav1alpha1.CategoryTheme, "acme/some-fixture")
+		createRepo("cr-no-ha", "does-not-exist", hav1.CategoryTheme, "acme/some-fixture")
 
 		_, err := reconcileRepo("cr-no-ha") // finalizer
 		Expect(err).NotTo(HaveOccurred())
@@ -569,7 +568,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		Expect(result.RequeueAfter).To(BeNumerically(">", 0))
 
 		repo := getRepo("cr-no-ha")
-		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhasePending))
+		Expect(repo.Status.Phase).To(Equal(hav1.CommunityRepositoryPhasePending))
 		Expect(repo.Status.Conditions).To(ContainElement(
 			WithTransform(func(c metav1.Condition) string { return c.Reason }, Equal(reasonRepoHomeAssistantNotReady)),
 		))
@@ -608,7 +607,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 
 		createHA("ha-update")
 		createAPIToken("ha-update")
-		createRepo("cr-update", "ha-update", hav1alpha1.CategoryTheme, "acme/theme-update")
+		createRepo("cr-update", "ha-update", hav1.CategoryTheme, "acme/theme-update")
 
 		_, err := reconcileRepo("cr-update") // finalizer
 		Expect(err).NotTo(HaveOccurred())
@@ -620,7 +619,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		repo := getRepo("cr-update")
-		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseInstalled))
+		Expect(repo.Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseInstalled))
 		Expect(repo.Status.InstalledVersion).To(Equal("v1.0.0"))
 
 		// Bump spec.ref — this must NOT immediately change installedVersion.
@@ -630,21 +629,21 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		_, err = reconcileRepo("cr-update") // Installed(stale generation) -> Validating (persisted)
 		Expect(err).NotTo(HaveOccurred())
 		repo = getRepo("cr-update")
-		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseValidating))
+		Expect(repo.Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseValidating))
 		Expect(repo.Status.InstalledVersion).To(Equal("v1.0.0"),
 			"installedVersion must not change until the new ref is confirmed")
 
 		_, err = reconcileRepo("cr-update") // -> Installing
 		Expect(err).NotTo(HaveOccurred())
 		repo = getRepo("cr-update")
-		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseInstalling))
+		Expect(repo.Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseInstalling))
 		Expect(repo.Status.InstalledVersion).To(Equal("v1.0.0"),
 			"installedVersion must not change until activation is confirmed")
 
 		_, err = reconcileRepo("cr-update") // -> Installed (v2.0.0 confirmed)
 		Expect(err).NotTo(HaveOccurred())
 		repo = getRepo("cr-update")
-		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseInstalled))
+		Expect(repo.Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseInstalled))
 		Expect(repo.Status.InstalledVersion).To(Equal("v2.0.0"))
 	})
 
@@ -676,13 +675,13 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 
 		createHA("ha-badref")
 		createAPIToken("ha-badref")
-		createRepo("cr-badref", "ha-badref", hav1alpha1.CategoryTheme, "acme/theme-badref")
+		createRepo("cr-badref", "ha-badref", hav1.CategoryTheme, "acme/theme-badref")
 
 		for i := 0; i < 4; i++ {
 			_, err := reconcileRepo("cr-badref")
 			Expect(err).NotTo(HaveOccurred())
 		}
-		Expect(getRepo("cr-badref").Status.Phase).To(Equal(hav1alpha1.PhaseInstalled))
+		Expect(getRepo("cr-badref").Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseInstalled))
 		Expect(getRepo("cr-badref").Status.InstalledVersion).To(Equal("v1.0.0"))
 
 		repo := getRepo("cr-badref")
@@ -695,7 +694,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		repo = getRepo("cr-badref")
-		Expect(repo.Status.Phase).To(Equal(hav1alpha1.PhaseFailed))
+		Expect(repo.Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseFailed))
 		Expect(repo.Status.Conditions).To(ContainElement(
 			WithTransform(func(c metav1.Condition) string { return c.Reason }, Equal(reasonRepoUnreachable)),
 		))
@@ -712,7 +711,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 
 	It("removes the ConfigMap entry and the finalizer when an Installed resource is deleted", func() {
 		fixtures := map[string][]byte{}
-		registerFixture(fixtures, "acme/theme-delete", hav1alpha1.CategoryTheme)
+		registerFixture(fixtures, "acme/theme-delete", hav1.CategoryTheme)
 		codeloadServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tarball, ok := fixtures[r.URL.Path]
 			if !ok {
@@ -734,13 +733,13 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 
 		createHA("ha-delete")
 		createAPIToken("ha-delete")
-		createRepo("cr-delete", "ha-delete", hav1alpha1.CategoryTheme, "acme/theme-delete")
+		createRepo("cr-delete", "ha-delete", hav1.CategoryTheme, "acme/theme-delete")
 
 		for i := 0; i < 4; i++ {
 			_, err := reconcileRepo("cr-delete")
 			Expect(err).NotTo(HaveOccurred())
 		}
-		Expect(getRepo("cr-delete").Status.Phase).To(Equal(hav1alpha1.PhaseInstalled))
+		Expect(getRepo("cr-delete").Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseInstalled))
 
 		cm := &corev1.ConfigMap{}
 		Expect(k8sClient.Get(ctx, types.NamespacedName{
@@ -753,7 +752,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		err = k8sClient.Get(ctx, types.NamespacedName{Name: "cr-delete", Namespace: namespace},
-			&hav1alpha1.HomeAssistantCommunityRepository{})
+			&hav1.HomeAssistantCommunityRepository{})
 		Expect(err).To(HaveOccurred(), "the CR must be gone once the finalizer is removed")
 
 		Expect(k8sClient.Get(ctx, types.NamespacedName{
@@ -765,12 +764,12 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 	It("keeps an integration finalizer until the cleanup pod is Ready", func() {
 		const haName = "ha-integration-delete"
 		createHA(haName)
-		createRepo("cr-integration-delete", haName, hav1alpha1.CategoryIntegration, "acme/integration-delete")
+		createRepo("cr-integration-delete", haName, hav1.CategoryIntegration, "acme/integration-delete")
 		_, err := reconcileRepo("cr-integration-delete") // finalizer
 		Expect(err).NotTo(HaveOccurred())
 
 		repo := getRepo("cr-integration-delete")
-		repo.Status.Phase = hav1alpha1.PhaseInstalled
+		repo.Status.Phase = hav1.CommunityRepositoryPhaseInstalled
 		repo.Status.ResolvedTarget = "example_integration"
 		repo.Status.InstalledVersion = "v1.0.0"
 		Expect(k8sClient.Status().Update(ctx, repo)).To(Succeed())
@@ -835,13 +834,13 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		_, err = reconcileRepo("cr-integration-delete")
 		Expect(err).NotTo(HaveOccurred())
 		err = k8sClient.Get(ctx, types.NamespacedName{Name: "cr-integration-delete", Namespace: namespace},
-			&hav1alpha1.HomeAssistantCommunityRepository{})
+			&hav1.HomeAssistantCommunityRepository{})
 		Expect(err).To(HaveOccurred(), "the finalizer may be removed only after cleanup is confirmed")
 	})
 
 	It("removes the finalizer on deletion even when Home Assistant is unreachable (best-effort)", func() {
 		fixtures := map[string][]byte{}
-		registerFixture(fixtures, "acme/theme-unreachable-delete", hav1alpha1.CategoryTheme)
+		registerFixture(fixtures, "acme/theme-unreachable-delete", hav1.CategoryTheme)
 		codeloadServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tarball, ok := fixtures[r.URL.Path]
 			if !ok {
@@ -863,14 +862,14 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 
 		createHA("ha-unreachable-delete")
 		createAPIToken("ha-unreachable-delete")
-		createRepo("cr-unreachable-delete", "ha-unreachable-delete", hav1alpha1.CategoryTheme,
+		createRepo("cr-unreachable-delete", "ha-unreachable-delete", hav1.CategoryTheme,
 			"acme/theme-unreachable-delete")
 
 		for i := 0; i < 4; i++ {
 			_, err := reconcileRepo("cr-unreachable-delete")
 			Expect(err).NotTo(HaveOccurred())
 		}
-		Expect(getRepo("cr-unreachable-delete").Status.Phase).To(Equal(hav1alpha1.PhaseInstalled))
+		Expect(getRepo("cr-unreachable-delete").Status.Phase).To(Equal(hav1.CommunityRepositoryPhaseInstalled))
 
 		// Home Assistant becomes unreachable: the CR itself is gone (e.g. deleted or
 		// never reconciled again). handleDeletion's getHomeAssistant lookup fails —
@@ -886,7 +885,7 @@ var _ = Describe("HomeAssistantCommunityRepository Controller", func() {
 		Expect(err).NotTo(HaveOccurred(), "deletion must complete even when HomeAssistant is unreachable")
 
 		err = k8sClient.Get(ctx, types.NamespacedName{Name: "cr-unreachable-delete", Namespace: namespace},
-			&hav1alpha1.HomeAssistantCommunityRepository{})
+			&hav1.HomeAssistantCommunityRepository{})
 		Expect(err).To(HaveOccurred(), "the finalizer must still be removed (best-effort) even though HA was unreachable")
 	})
 })

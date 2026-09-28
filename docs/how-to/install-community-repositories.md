@@ -2,16 +2,9 @@
 
 *How-to — install a community integration, theme, plugin, script or template into an instance. Assumes a running instance.*
 
-!!! warning "Experimental resource"
-    `HomeAssistantCommunityRepository` is served from the `v1alpha1` API group. It
-    is alpha-quality and carries **no API stability guarantee between releases** —
-    fields may change or disappear without a deprecation period. Do not build
-    anything you cannot re-do by hand on top of it yet — see
-    [what `spec.alpha` means](../explanation/alpha-lifecycle.md).
-
-    If you turn this on, please
-    [say how it went](https://github.com/przemekhys/homeassistant-operator/discussions/new/choose)
-    — whether it worked is the evidence that decides whether it stays.
+`HomeAssistantCommunityRepository` is a stable `v1` resource. Existing
+`v1alpha1` manifests remain supported during the documented compatibility window;
+new resources should use `v1`.
 
 This installs extensions that follow the [HACS](https://hacs.xyz/) repository
 layout, without HACS itself being installed and without anyone clicking through
@@ -27,7 +20,7 @@ instance's configuration volume.
 ## Install a theme
 
 ```yaml
-apiVersion: ha.homeassistant.io/v1alpha1
+apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistantCommunityRepository
 metadata:
   name: my-custom-theme
@@ -47,6 +40,16 @@ kubectl apply -f theme.yaml
 `ref` is required and is never resolved for you. The operator does not track a
 "latest" release: an extension only changes version when you change this field,
 which is what makes a rollback a `git revert` rather than an investigation.
+
+## Migrate from v1alpha1
+
+Upgrade the CRDs and operator first, following [upgrade the
+operator](upgrade-operator.md). Existing alpha resources continue to represent
+the same installed extension; do not create a second resource to migrate. Update
+the `apiVersion` in the manifest you manage to `ha.homeassistant.io/v1` and apply
+it normally. The operator preserves the active revision, status, and installed
+files. The alpha version is deprecated and remains supported for at least one full
+minor release after this promotion.
 
 ## Categories
 

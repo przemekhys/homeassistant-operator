@@ -43,7 +43,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
-	hav1alpha1 "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 	"github.com/przemekhys/homeassistant-operator/internal/communityrepo"
 	"github.com/przemekhys/homeassistant-operator/internal/haclient"
 )
@@ -128,7 +127,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) Reconcile(
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	repo := &hav1alpha1.HomeAssistantCommunityRepository{}
+	repo := &hav1.HomeAssistantCommunityRepository{}
 	if err := r.Get(ctx, req.NamespacedName, repo); err != nil {
 		if k8serrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -168,19 +167,19 @@ func (r *HomeAssistantCommunityRepositoryReconciler) Reconcile(
 	ha, err := getHomeAssistant(ctx, r.Client, haRef)
 	if err != nil {
 		log.Info("HomeAssistant not found, requeueing", "name", haRef.Name)
-		return r.setPhase(ctx, repo, hav1alpha1.PhasePending, reasonRepoHomeAssistantNotReady,
+		return r.setPhase(ctx, repo, hav1.CommunityRepositoryPhasePending, reasonRepoHomeAssistantNotReady,
 			fmt.Sprintf("HomeAssistant %s not found", haRef.Name), 5*time.Second)
 	}
 
 	switch repo.Status.Phase {
-	case hav1alpha1.PhaseInstalling:
+	case hav1.CommunityRepositoryPhaseInstalling:
 		return r.reconcileInstalling(ctx, ha, repo)
-	case hav1alpha1.PhaseInstalled:
+	case hav1.CommunityRepositoryPhaseInstalled:
 		if repo.Status.ObservedGeneration != repo.Generation {
 			return r.reconcileValidating(ctx, ha, repo)
 		}
 		return ctrl.Result{}, nil
-	case hav1alpha1.PhaseFailed:
+	case hav1.CommunityRepositoryPhaseFailed:
 		cond := meta.FindStatusCondition(repo.Status.Conditions, conditionTypeReady)
 		// RepositoryUnreachable and TargetConflict are potentially transient
 		// (network recovers, or a conflicting sibling is removed/changed) — retry
@@ -207,16 +206,16 @@ func (r *HomeAssistantCommunityRepositoryReconciler) Reconcile(
 func (r *HomeAssistantCommunityRepositoryReconciler) reconcileValidating(
 	ctx context.Context,
 	ha *hav1.HomeAssistant,
-	repo *hav1alpha1.HomeAssistantCommunityRepository,
+	repo *hav1.HomeAssistantCommunityRepository,
 ) (ctrl.Result, error) {
-	if repo.Status.Phase != hav1alpha1.PhaseValidating {
-		return r.setPhase(ctx, repo, hav1alpha1.PhaseValidating, reasonRepoValidating,
+	if repo.Status.Phase != hav1.CommunityRepositoryPhaseValidating {
+		return r.setPhase(ctx, repo, hav1.CommunityRepositoryPhaseValidating, reasonRepoValidating,
 			"Fetching and validating repository", 0)
 	}
 
 	extracted, err := communityrepo.FetchTarball(ctx, repo.Spec.Repository, repo.Spec.Ref)
 	if err != nil {
-		return r.setPhase(ctx, repo, hav1alpha1.PhaseFailed, reasonRepoUnreachable, err.Error(), 30*time.Second)
+		return r.setPhase(ctx, repo, hav1.CommunityRepositoryPhaseFailed, reasonRepoUnreachable, err.Error(), 30*time.Second)
 	}
 
 	resolved, err := communityrepo.ValidateAndResolve(extracted, communityrepo.Category(repo.Spec.Category))
@@ -225,7 +224,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) reconcileValidating(
 		if errors.Is(err, communityrepo.ErrCategoryMismatch) {
 			reason = reasonRepoCategoryMismatch
 		}
-		return r.setPhase(ctx, repo, hav1alpha1.PhaseFailed, reason, err.Error(), 0)
+		return r.setPhase(ctx, repo, hav1.CommunityRepositoryPhaseFailed, reason, err.Error(), 0)
 	}
 
 	conflictOwner, err := r.findConflictingOwner(ctx, repo, ha.Name, resolved)
@@ -236,7 +235,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) reconcileValidating(
 		msg := fmt.Sprintf("target %q (category %s) is already installed by %s",
 			resolved.ResolvedTarget, repo.Spec.Category, conflictOwner.Name)
 		r.emitEvent(repo, corev1.EventTypeWarning, eventRepositoryConflict, msg)
-		return r.setPhase(ctx, repo, hav1alpha1.PhaseFailed, reasonRepoTargetConflict, msg, 0)
+		return r.setPhase(ctx, repo, hav1.CommunityRepositoryPhaseFailed, reasonRepoTargetConflict, msg, 0)
 	}
 
 	previousResolvedTarget := repo.Status.ResolvedTarget
@@ -259,7 +258,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) reconcileValidating(
 		return ctrl.Result{}, err
 	}
 
-	return r.setPhase(ctx, repo, hav1alpha1.PhaseInstalling, reasonRepoInstalling,
+	return r.setPhase(ctx, repo, hav1.CommunityRepositoryPhaseInstalling, reasonRepoInstalling,
 		fmt.Sprintf("Installing %s %q", repo.Spec.Category, resolved.ResolvedTarget), 0)
 }
 
@@ -268,11 +267,11 @@ func (r *HomeAssistantCommunityRepositoryReconciler) reconcileValidating(
 func (r *HomeAssistantCommunityRepositoryReconciler) reconcileInstalling(
 	ctx context.Context,
 	ha *hav1.HomeAssistant,
-	repo *hav1alpha1.HomeAssistantCommunityRepository,
+	repo *hav1.HomeAssistantCommunityRepository,
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	if repo.Spec.Category == hav1alpha1.CategoryIntegration {
+	if repo.Spec.Category == hav1.CategoryIntegration {
 		content, err := r.currentConfigMapContent(ctx, ha, repo.Namespace)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -287,7 +286,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) reconcileInstalling(
 			return ctrl.Result{}, err
 		}
 		if !confirmed {
-			return r.setPhase(ctx, repo, hav1alpha1.PhaseInstalling, reason, message,
+			return r.setPhase(ctx, repo, hav1.CommunityRepositoryPhaseInstalling, reason, message,
 				integrationMaterializationPollInterval)
 		}
 		return r.markInstalled(ctx, repo,
@@ -295,7 +294,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) reconcileInstalling(
 	}
 
 	if r.activationTimedOut(repo) {
-		return r.setPhase(ctx, repo, hav1alpha1.PhaseFailed, reasonRepoActivationTimeout,
+		return r.setPhase(ctx, repo, hav1.CommunityRepositoryPhaseFailed, reasonRepoActivationTimeout,
 			fmt.Sprintf("activation of %q did not confirm within the retry window", repo.Status.ResolvedTarget), 0)
 	}
 
@@ -322,13 +321,13 @@ func (r *HomeAssistantCommunityRepositoryReconciler) reconcileInstalling(
 
 	var activationErr error
 	switch repo.Spec.Category {
-	case hav1alpha1.CategoryTheme:
+	case hav1.CategoryTheme:
 		activationErr = haClient.ReloadThemes(ctx, token)
-	case hav1alpha1.CategoryPythonScript:
+	case hav1.CategoryPythonScript:
 		activationErr = haClient.ReloadPythonScripts(ctx, token)
-	case hav1alpha1.CategoryTemplate:
+	case hav1.CategoryTemplate:
 		activationErr = haClient.ReloadCustomTemplates(ctx, token)
-	case hav1alpha1.CategoryPlugin:
+	case hav1.CategoryPlugin:
 		// The sidecar materializes plugin files under /config/www/community/, which
 		// Home Assistant serves at the "/local/community/" URL prefix. Only a
 		// single ".js" file per plugin is currently supported (internal/communityrepo
@@ -431,9 +430,9 @@ func (r *HomeAssistantCommunityRepositoryReconciler) integrationMaterializationC
 // condition's Status last flipped, which can be arbitrarily earlier than actually
 // entering Installing.
 func (r *HomeAssistantCommunityRepositoryReconciler) installingElapsed(
-	repo *hav1alpha1.HomeAssistantCommunityRepository,
+	repo *hav1.HomeAssistantCommunityRepository,
 ) time.Duration {
-	if repo.Status.Phase != hav1alpha1.PhaseInstalling || repo.Status.InstallingSince == nil {
+	if repo.Status.Phase != hav1.CommunityRepositoryPhaseInstalling || repo.Status.InstallingSince == nil {
 		return 0
 	}
 	return time.Since(repo.Status.InstallingSince.Time)
@@ -446,7 +445,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) installingElapsed(
 // retry window and leave far fewer than the documented 6 attempts to actually
 // confirm activation.
 func (r *HomeAssistantCommunityRepositoryReconciler) activationTimedOut(
-	repo *hav1alpha1.HomeAssistantCommunityRepository,
+	repo *hav1.HomeAssistantCommunityRepository,
 ) bool {
 	return r.installingElapsed(repo) > activationSettleDelay+activationRetryWindow
 }
@@ -454,12 +453,12 @@ func (r *HomeAssistantCommunityRepositoryReconciler) activationTimedOut(
 // markInstalled records a successfully activated installation.
 func (r *HomeAssistantCommunityRepositoryReconciler) markInstalled(
 	ctx context.Context,
-	repo *hav1alpha1.HomeAssistantCommunityRepository,
+	repo *hav1.HomeAssistantCommunityRepository,
 	message string,
 ) (ctrl.Result, error) {
 	repo.Status.InstalledVersion = repo.Spec.Ref
 	r.emitEvent(repo, corev1.EventTypeNormal, eventRepositoryInstalled, message)
-	return r.setPhase(ctx, repo, hav1alpha1.PhaseInstalled, reasonRepoInstalled, message, 0)
+	return r.setPhase(ctx, repo, hav1.CommunityRepositoryPhaseInstalled, reasonRepoInstalled, message, 0)
 }
 
 // findConflictingOwner returns the sibling HomeAssistantCommunityRepository (if
@@ -467,11 +466,11 @@ func (r *HomeAssistantCommunityRepositoryReconciler) markInstalled(
 // internal/communityrepo.ConflictKey.
 func (r *HomeAssistantCommunityRepositoryReconciler) findConflictingOwner(
 	ctx context.Context,
-	repo *hav1alpha1.HomeAssistantCommunityRepository,
+	repo *hav1.HomeAssistantCommunityRepository,
 	haName string,
 	resolved communityrepo.Resolved,
 ) (*types.NamespacedName, error) {
-	list := &hav1alpha1.HomeAssistantCommunityRepositoryList{}
+	list := &hav1.HomeAssistantCommunityRepositoryList{}
 	if err := r.List(ctx, list, client.InNamespace(repo.Namespace)); err != nil {
 		return nil, err
 	}
@@ -487,7 +486,8 @@ func (r *HomeAssistantCommunityRepositoryReconciler) findConflictingOwner(
 		if !item.DeletionTimestamp.IsZero() {
 			continue
 		}
-		if item.Status.Phase != hav1alpha1.PhaseInstalled && item.Status.Phase != hav1alpha1.PhaseInstalling {
+		if item.Status.Phase != hav1.CommunityRepositoryPhaseInstalled &&
+			item.Status.Phase != hav1.CommunityRepositoryPhaseInstalling {
 			continue
 		}
 		itemKey := communityrepo.ConflictKey{
@@ -509,7 +509,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) findConflictingOwner(
 // long enough to remove its owned destination from the PVC.
 func (r *HomeAssistantCommunityRepositoryReconciler) handleDeletion(
 	ctx context.Context,
-	repo *hav1alpha1.HomeAssistantCommunityRepository,
+	repo *hav1.HomeAssistantCommunityRepository,
 ) (bool, error) {
 	log := logf.FromContext(ctx)
 	if repo.Status.ResolvedTarget == "" {
@@ -528,7 +528,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) handleDeletion(
 	if err != nil {
 		return false, err
 	}
-	if repo.Spec.Category == hav1alpha1.CategoryIntegration {
+	if repo.Spec.Category == hav1.CategoryIntegration {
 		statefulSetExists, err := r.bumpStatefulSetHash(ctx, ha, content)
 		if err != nil {
 			return false, err
@@ -598,7 +598,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) loadConfigMap(
 func (r *HomeAssistantCommunityRepositoryReconciler) upsertConfigMapEntry(
 	ctx context.Context,
 	ha *hav1.HomeAssistant,
-	repo *hav1alpha1.HomeAssistantCommunityRepository,
+	repo *hav1.HomeAssistantCommunityRepository,
 	resolved communityrepo.Resolved,
 	previousResolvedTarget string,
 ) (string, error) {
@@ -766,8 +766,8 @@ func (r *HomeAssistantCommunityRepositoryReconciler) bumpStatefulSetHash(
 // persists the status subresource.
 func (r *HomeAssistantCommunityRepositoryReconciler) setPhase(
 	ctx context.Context,
-	repo *hav1alpha1.HomeAssistantCommunityRepository,
-	phase hav1alpha1.CommunityRepositoryPhase,
+	repo *hav1.HomeAssistantCommunityRepository,
+	phase hav1.CommunityRepositoryPhase,
 	reason, message string,
 	requeueAfter time.Duration,
 ) (ctrl.Result, error) {
@@ -777,7 +777,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) setPhase(
 	repo.Status.Phase = phase
 	repo.Status.ObservedGeneration = repo.Generation
 
-	if phase == hav1alpha1.PhaseInstalling {
+	if phase == hav1.CommunityRepositoryPhaseInstalling {
 		if repo.Status.InstallingSince == nil {
 			now := metav1.Now()
 			repo.Status.InstallingSince = &now
@@ -786,7 +786,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) setPhase(
 		repo.Status.InstallingSince = nil
 	}
 
-	if phase == hav1alpha1.PhaseFailed {
+	if phase == hav1.CommunityRepositoryPhaseFailed {
 		repo.Status.LastError = message
 		r.emitEvent(repo, corev1.EventTypeWarning, eventRepositoryInstallFailed, message)
 	} else {
@@ -794,7 +794,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) setPhase(
 	}
 
 	condStatus := metav1.ConditionFalse
-	if phase == hav1alpha1.PhaseInstalled {
+	if phase == hav1.CommunityRepositoryPhaseInstalled {
 		condStatus = metav1.ConditionTrue
 	}
 	meta.SetStatusCondition(&repo.Status.Conditions, metav1.Condition{
@@ -820,7 +820,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) setPhase(
 
 // emitEvent emits a Kubernetes event for the repository.
 func (r *HomeAssistantCommunityRepositoryReconciler) emitEvent(
-	repo *hav1alpha1.HomeAssistantCommunityRepository,
+	repo *hav1.HomeAssistantCommunityRepository,
 	eventType, reason, message string,
 ) {
 	if r.Recorder != nil {
@@ -834,13 +834,13 @@ func (r *HomeAssistantCommunityRepositoryReconciler) emitEvent(
 // SetupWithManager sets up the controller with the Manager.
 func (r *HomeAssistantCommunityRepositoryReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&hav1alpha1.HomeAssistantCommunityRepository{}).
+		For(&hav1.HomeAssistantCommunityRepository{}).
 		Watches(
 			&hav1.HomeAssistant{},
 			handler.EnqueueRequestsFromMapFunc(r.findRepositoriesForHomeAssistant),
 		).
 		Watches(
-			&hav1alpha1.HomeAssistantCommunityRepository{},
+			&hav1.HomeAssistantCommunityRepository{},
 			handler.EnqueueRequestsFromMapFunc(r.findSiblingRepositories),
 			builder.WithPredicates(siblingRelevantChangePredicate()),
 		).
@@ -858,7 +858,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) findRepositoriesForHomeAssi
 	if !ok {
 		return nil
 	}
-	list := &hav1alpha1.HomeAssistantCommunityRepositoryList{}
+	list := &hav1.HomeAssistantCommunityRepositoryList{}
 	if err := r.List(ctx, list, client.InNamespace(ha.Namespace)); err != nil {
 		return nil
 	}
@@ -882,11 +882,11 @@ func (r *HomeAssistantCommunityRepositoryReconciler) findSiblingRepositories(
 	ctx context.Context,
 	obj client.Object,
 ) []reconcile.Request {
-	changed, ok := obj.(*hav1alpha1.HomeAssistantCommunityRepository)
+	changed, ok := obj.(*hav1.HomeAssistantCommunityRepository)
 	if !ok {
 		return nil
 	}
-	list := &hav1alpha1.HomeAssistantCommunityRepositoryList{}
+	list := &hav1.HomeAssistantCommunityRepositoryList{}
 	if err := r.List(ctx, list, client.InNamespace(changed.Namespace)); err != nil {
 		return nil
 	}
@@ -915,11 +915,11 @@ func siblingRelevantChangePredicate() predicate.Predicate {
 		DeleteFunc:  func(event.DeleteEvent) bool { return true },
 		GenericFunc: func(event.GenericEvent) bool { return true },
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			oldRepo, ok := e.ObjectOld.(*hav1alpha1.HomeAssistantCommunityRepository)
+			oldRepo, ok := e.ObjectOld.(*hav1.HomeAssistantCommunityRepository)
 			if !ok {
 				return true
 			}
-			newRepo, ok := e.ObjectNew.(*hav1alpha1.HomeAssistantCommunityRepository)
+			newRepo, ok := e.ObjectNew.(*hav1.HomeAssistantCommunityRepository)
 			if !ok {
 				return true
 			}

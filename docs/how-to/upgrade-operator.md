@@ -83,6 +83,17 @@ Your existing Custom Resources (`HomeAssistant`, `HomeAssistantConfiguration`,
 automations, scenes, scripts, integrations, …) are preserved across the upgrade;
 the CRD apply is additive and does not delete resources.
 
+### HomeAssistantCommunityRepository v1 migration
+
+`HomeAssistantCommunityRepository` is now stable at
+`ha.homeassistant.io/v1`. The upgraded CRD continues to serve existing
+`v1alpha1` resources for at least one full minor release. After the CRD and
+operator upgrade, change only `apiVersion` in source-controlled manifests and
+apply them normally. Do not create a second resource for the same extension:
+the existing object, installed files, active revision, status, and finalizer are
+preserved. Before rolling back to an operator release that predates `v1` support,
+avoid applying manifests that only that older release cannot understand.
+
 !!! warning "Do not skip intermediate versions"
     Only the **N-1 → latest** path is tested. If you are several versions behind
     and intermediate releases changed the CRD schema, upgrade through the
