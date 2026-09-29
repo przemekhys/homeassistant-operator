@@ -1518,6 +1518,24 @@ _Appears in:_
 | `tag` _string_ | Tag is the container image tag (e.g. "1.36", "latest") | 1.36 | Optional: \{\} <br /> |
 
 
+#### IntegrationFileSecretKeyRef
+
+
+
+IntegrationFileSecretKeyRef references a file stored in a specific Kubernetes Secret key.
+
+
+
+_Appears in:_
+- [IntegrationValue](#integrationvalue)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name of the Secret. |  | MinLength: 1 <br /> |
+| `key` _string_ | Key within the Secret containing the file bytes. |  | MinLength: 1 <br /> |
+| `fileName` _string_ | FileName is the name presented to Home Assistant. Defaults to Key when omitted. |  | Optional: \{\} <br /> |
+
+
 #### IntegrationSecretKeyRef
 
 
@@ -1539,8 +1557,8 @@ _Appears in:_
 
 
 
-IntegrationValue holds a plain text value, a JSON value, or a reference to a Kubernetes Secret key.
-Exactly one of Value, JSONValue, or SecretKeyRef must be set.
+IntegrationValue holds a plain text value, a JSON value, a text Secret reference, or a file Secret reference.
+Exactly one source must be set.
 
 
 
@@ -1552,6 +1570,7 @@ _Appears in:_
 | `value` _string_ | Value is a plain text configuration value sent as a string to the Config Flow API. |  | Optional: \{\} <br /> |
 | `jsonValue` _string_ | JSONValue is a JSON-encoded value that will be parsed and sent as a native JSON<br />object to the Config Flow API. Use this for fields that expect a dictionary or<br />array (e.g. location: '\{"latitude": 54.17, "longitude": 18.55\}'). |  | Optional: \{\} <br /> |
 | `secretKeyRef` _[IntegrationSecretKeyRef](#integrationsecretkeyref)_ | SecretKeyRef references a key in a Kubernetes Secret |  | Optional: \{\} <br /> |
+| `fileSecretKeyRef` _[IntegrationFileSecretKeyRef](#integrationfilesecretkeyref)_ | FileSecretKeyRef references binary file content in a Kubernetes Secret.<br />The operator uploads it only when the corresponding Home Assistant flow field accepts a file. |  | Optional: \{\} <br /> |
 
 
 #### IssuerReference

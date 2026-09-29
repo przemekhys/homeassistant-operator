@@ -65,9 +65,30 @@ spec:
               configuration:
                 additionalProperties:
                   description: |-
-                    IntegrationValue holds a plain text value, a JSON value, or a reference to a Kubernetes Secret key.
-                    Exactly one of Value, JSONValue, or SecretKeyRef must be set.
+                    IntegrationValue holds a plain text value, a JSON value, a text Secret reference, or a file Secret reference.
+                    Exactly one source must be set.
                   properties:
+                    fileSecretKeyRef:
+                      description: |-
+                        FileSecretKeyRef references binary file content in a Kubernetes Secret.
+                        The operator uploads it only when the corresponding Home Assistant flow field accepts a file.
+                      properties:
+                        fileName:
+                          description: FileName is the name presented to Home Assistant.
+                            Defaults to Key when omitted.
+                          type: string
+                        key:
+                          description: Key within the Secret containing the file bytes.
+                          minLength: 1
+                          type: string
+                        name:
+                          description: Name of the Secret.
+                          minLength: 1
+                          type: string
+                      required:
+                      - key
+                      - name
+                      type: object
                     jsonValue:
                       description: |-
                         JSONValue is a JSON-encoded value that will be parsed and sent as a native JSON
@@ -95,13 +116,15 @@ spec:
                       type: string
                   type: object
                   x-kubernetes-validations:
-                  - message: at least one of value, jsonValue, or secretKeyRef must
-                      be set
+                  - message: at least one of value, jsonValue, secretKeyRef, or fileSecretKeyRef
+                      must be set
                     rule: has(self.value) || has(self.jsonValue) || has(self.secretKeyRef)
-                  - message: only one of value, jsonValue, or secretKeyRef may be
-                      set
-                    rule: '!(has(self.value) && has(self.jsonValue)) && !(has(self.value)
-                      && has(self.secretKeyRef)) && !(has(self.jsonValue) && has(self.secretKeyRef))'
+                      || has(self.fileSecretKeyRef)
+                  - message: only one of value, jsonValue, secretKeyRef, or fileSecretKeyRef
+                      may be set
+                    rule: '(has(self.value) ? 1 : 0) + (has(self.jsonValue) ? 1 :
+                      0) + (has(self.secretKeyRef) ? 1 : 0) + (has(self.fileSecretKeyRef)
+                      ? 1 : 0) == 1'
                 description: |-
                   Configuration contains fields submitted to the Config Flow (single-step flows only).
                   Keys are field names from the data_schema; values are plain text or Secret references.
