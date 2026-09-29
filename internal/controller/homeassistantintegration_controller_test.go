@@ -772,7 +772,8 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 
 			Eventually(func(g Gomega) {
 				current := &hav1.HomeAssistantIntegration{}
-				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: integration.Name, Namespace: namespace}, current)).To(Succeed())
+				key := types.NamespacedName{Name: integration.Name, Namespace: namespace}
+				g.Expect(k8sClient.Get(ctx, key, current)).To(Succeed())
 				g.Expect(current.Status.EntryID).To(Equal("file-entry-rotated"))
 				g.Expect(current.Status.ConfigHash).NotTo(Equal(originalHash))
 			}, timeout, interval).Should(Succeed())

@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -260,7 +261,12 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 	uploadedIDs, uploadErr := uploadFiles(ctx, haClient, token, flowResp.DataSchema, pendingFiles, resolvedConfig)
 	if uploadErr != nil {
 		cleanupUploadedFiles(ctx, haClient, token, uploadedIDs)
-		return r.setFailedCondition(ctx, integration, reasonFileFieldInvalid, uploadErr.Error(), 30*time.Second)
+		reason := reasonFileUploadFailed
+		var fieldErr *fileFieldError
+		if errors.As(uploadErr, &fieldErr) {
+			reason = reasonFileFieldInvalid
+		}
+		return r.setFailedCondition(ctx, integration, reason, uploadErr.Error(), 30*time.Second)
 	}
 	if len(resolvedConfig) > 0 {
 		submitResp, submitErr := haClient.SubmitConfigFlow(ctx, token, flowResp.FlowID, resolvedConfig)
@@ -367,6 +373,15 @@ type pendingFile struct {
 	data      []byte
 }
 
+// fileFieldError reports a Config Flow field that cannot accept an uploaded file.
+type fileFieldError struct {
+	fieldName string
+}
+
+func (e *fileFieldError) Error() string {
+	return fmt.Sprintf("configuration field %q does not accept a file", e.fieldName)
+}
+
 // resolveConfiguration resolves ordinary values and keeps file bytes transient until flow validation.
 // for submission to the HA Config Flow API. It also returns a configFingerprint with
 // non-sensitive identifiers for stable hashing.
@@ -463,7 +478,7 @@ func uploadFiles(
 	for _, file := range files {
 		field, ok := byName[file.fieldName]
 		if !ok || !isFileSelector(field) {
-			return uploadedIDs, fmt.Errorf("configuration field %q does not accept a file", file.fieldName)
+			return uploadedIDs, &fileFieldError{fieldName: file.fieldName}
 		}
 		fileID, err := haClient.UploadFile(ctx, token, file.fileName, file.data)
 		if err != nil {
