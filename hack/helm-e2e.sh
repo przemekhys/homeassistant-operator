@@ -99,6 +99,14 @@ echo "    ✅ PART 1b OK (cert-manager webhook wiring)"
 echo "==> Tearing down fresh install to prepare the upgrade scenario"
 helm uninstall "$RELEASE" --namespace "$NS" --wait || true
 
+# Helm deliberately retains CRDs on uninstall. Recreate the cluster so the N-1
+# installation below starts with its own CRD storage version, just as it would
+# for a user upgrading an existing N-1 installation.
+echo "==> Recreating cluster to isolate the upgrade scenario"
+hh_k3d_create "$CLUSTER" "$K3D_MEMORY"
+echo "==> Importing the HEAD operator image ($IMG) for the upgrade scenario"
+k3d image import "$IMG" -c "$CLUSTER"
+
 # ---- Part 2: upgrade from N-1 --------------------------------------------------
 N1="$(hh_previous_version)"
 if [ -z "$N1" ]; then

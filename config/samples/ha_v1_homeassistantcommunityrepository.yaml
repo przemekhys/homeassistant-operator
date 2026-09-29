@@ -1,5 +1,4 @@
-# Deprecated compatibility example. New resources must use ha.homeassistant.io/v1.
-apiVersion: ha.homeassistant.io/v1alpha1
+apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistantCommunityRepository
 metadata:
   name: my-custom-theme

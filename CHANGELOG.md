@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`HomeAssistantCommunityRepository` promoted to stable `v1`.** Existing
+  `v1alpha1` resources remain served during a compatibility window and preserve
+  their installed extension, status, and active version; new manifests should use
+  `ha.homeassistant.io/v1`.
+
 ### Added
 
 - **Custom StatefulSet and Pod metadata (`spec.labels` and `spec.annotations`).**
