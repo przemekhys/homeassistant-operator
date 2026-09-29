@@ -20,7 +20,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"path/filepath"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -51,6 +54,8 @@ const (
 	reasonIntegrationTokenNotAvailable = "TokenNotAvailable"
 	reasonConfigFlowFailed             = "ConfigFlowFailed"
 	reasonSecretResolutionFailed       = "SecretResolutionFailed"
+	reasonFileFieldInvalid             = "FileFieldInvalid"
+	reasonFileUploadFailed             = "FileUploadFailed"
 
 	// Event reasons
 	eventIntegrationConfigured   = "IntegrationConfigured"
@@ -81,6 +86,7 @@ func (r *HomeAssistantIntegrationReconciler) haClientFor(ha *hav1.HomeAssistant)
 // +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop.
+// nolint:gocyclo // Integration lifecycle branches reflect Home Assistant flow states.
 func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
@@ -136,7 +142,7 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 	haClient := r.haClientFor(ha)
 
 	// --- RESOLVE CONFIGURATION ---
-	resolvedConfig, fp, err := r.resolveConfiguration(ctx, integration)
+	resolvedConfig, pendingFiles, fp, err := r.resolveConfiguration(ctx, integration)
 	if err != nil {
 		log.Error(err, "Failed to resolve configuration values")
 		return r.setFailedCondition(ctx, integration, reasonSecretResolutionFailed,
@@ -219,11 +225,19 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 
 	// If flow immediately reached create_entry (zero-config integrations like recorder)
 	if flowResp.Type == "create_entry" {
+		if len(pendingFiles) > 0 {
+			return r.setFailedCondition(ctx, integration, reasonFileFieldInvalid,
+				"Config flow completed before file fields could be verified", 30*time.Second)
+		}
 		return r.handleCreateEntry(ctx, integration, configHash, flowResp, log)
 	}
 
 	// If flow aborted — only adopt when reason is "already_configured"
 	if flowResp.Type == "abort" {
+		if len(pendingFiles) > 0 {
+			return r.setFailedCondition(ctx, integration, reasonFileFieldInvalid,
+				"Config flow aborted before file fields could be verified", 30*time.Second)
+		}
 		if flowResp.Reason != "already_configured" {
 			r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
 				fmt.Sprintf("Config flow for %s aborted: %s", integration.Spec.Domain, flowResp.Reason))
@@ -244,9 +258,20 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 	}
 
 	// --- SUBMIT CONFIG FLOW (single-step) ---
+	uploadedIDs, uploadErr := uploadFiles(ctx, haClient, token, flowResp.DataSchema, pendingFiles, resolvedConfig)
+	if uploadErr != nil {
+		cleanupUploadedFiles(ctx, haClient, token, uploadedIDs)
+		reason := reasonFileUploadFailed
+		var fieldErr *fileFieldError
+		if errors.As(uploadErr, &fieldErr) {
+			reason = reasonFileFieldInvalid
+		}
+		return r.setFailedCondition(ctx, integration, reason, uploadErr.Error(), 30*time.Second)
+	}
 	if len(resolvedConfig) > 0 {
 		submitResp, submitErr := haClient.SubmitConfigFlow(ctx, token, flowResp.FlowID, resolvedConfig)
 		if submitErr != nil {
+			cleanupUploadedFiles(ctx, haClient, token, uploadedIDs)
 			log.Error(submitErr, "Failed to submit config flow")
 			r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
 				fmt.Sprintf("Failed to submit config flow for %s: %v", integration.Spec.Domain, submitErr))
@@ -254,6 +279,7 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 				fmt.Sprintf("Failed to submit config flow: %v", submitErr), 30*time.Second)
 		}
 		if submitResp.Type != "create_entry" {
+			cleanupUploadedFiles(ctx, haClient, token, uploadedIDs)
 			r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
 				fmt.Sprintf("Config flow for %s did not reach create_entry (got: %s)", integration.Spec.Domain, submitResp.Type))
 			return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
@@ -341,14 +367,30 @@ type configFingerprint struct {
 	secretRefs  map[string]string // fieldKey → "secretName/secretKey/resourceVersion"
 }
 
-// resolveConfiguration resolves all IntegrationValues (plain + SecretKeyRef) to a string map
+type pendingFile struct {
+	fieldName string
+	fileName  string
+	data      []byte
+}
+
+// fileFieldError reports a Config Flow field that cannot accept an uploaded file.
+type fileFieldError struct {
+	fieldName string
+}
+
+func (e *fileFieldError) Error() string {
+	return fmt.Sprintf("configuration field %q does not accept a file", e.fieldName)
+}
+
+// resolveConfiguration resolves ordinary values and keeps file bytes transient until flow validation.
 // for submission to the HA Config Flow API. It also returns a configFingerprint with
 // non-sensitive identifiers for stable hashing.
 func (r *HomeAssistantIntegrationReconciler) resolveConfiguration(
 	ctx context.Context,
 	integration *hav1.HomeAssistantIntegration,
-) (map[string]interface{}, configFingerprint, error) {
+) (map[string]interface{}, []pendingFile, configFingerprint, error) {
 	resolved := make(map[string]interface{})
+	files := make([]pendingFile, 0)
 	fp := configFingerprint{
 		domain:      integration.Spec.Domain,
 		plainValues: make(map[string]string),
@@ -363,12 +405,12 @@ func (r *HomeAssistantIntegrationReconciler) resolveConfiguration(
 		if val.JSONValue != nil {
 			var parsed interface{}
 			if err := json.Unmarshal([]byte(*val.JSONValue), &parsed); err != nil {
-				return nil, configFingerprint{}, fmt.Errorf(
+				return nil, nil, configFingerprint{}, fmt.Errorf(
 					"field %q: jsonValue is not valid JSON: %w", key, err)
 			}
 			canonical, err := json.Marshal(parsed)
 			if err != nil {
-				return nil, configFingerprint{}, fmt.Errorf(
+				return nil, nil, configFingerprint{}, fmt.Errorf(
 					"field %q: failed to re-marshal jsonValue: %w", key, err)
 			}
 			resolved[key] = parsed
@@ -382,20 +424,83 @@ func (r *HomeAssistantIntegrationReconciler) resolveConfiguration(
 				Namespace: integration.Namespace,
 			}
 			if err := r.Get(ctx, secretRef, secret); err != nil {
-				return nil, configFingerprint{}, fmt.Errorf("failed to get Secret %s: %w", val.SecretKeyRef.Name, err)
+				return nil, nil, configFingerprint{}, fmt.Errorf("failed to get Secret %s: %w", val.SecretKeyRef.Name, err)
 			}
 			secretValue, ok := secret.Data[val.SecretKeyRef.Key]
 			if !ok {
-				return nil, configFingerprint{}, fmt.Errorf(
+				return nil, nil, configFingerprint{}, fmt.Errorf(
 					"key %q not found in Secret %s", val.SecretKeyRef.Key, val.SecretKeyRef.Name)
 			}
 			resolved[key] = string(secretValue)
 			fp.secretRefs[key] = fmt.Sprintf("%s/%s/%s", val.SecretKeyRef.Name, val.SecretKeyRef.Key, secret.ResourceVersion)
 			continue
 		}
+		if val.FileSecretKeyRef != nil {
+			fileRef := val.FileSecretKeyRef
+			fileName := fileRef.FileName
+			if fileName == "" {
+				fileName = fileRef.Key
+			}
+			if fileName == "." || fileName == "" || filepath.Base(fileName) != fileName || strings.Contains(fileName, "\\") {
+				return nil, nil, configFingerprint{}, fmt.Errorf("field %q: invalid fileName %q", key, fileName)
+			}
+			secret := &corev1.Secret{}
+			secretRef := types.NamespacedName{Name: fileRef.Name, Namespace: integration.Namespace}
+			if err := r.Get(ctx, secretRef, secret); err != nil {
+				return nil, nil, configFingerprint{}, fmt.Errorf("failed to get file Secret %s: %w", fileRef.Name, err)
+			}
+			data, ok := secret.Data[fileRef.Key]
+			if !ok {
+				return nil, nil, configFingerprint{}, fmt.Errorf("file key %q not found in Secret %s", fileRef.Key, fileRef.Name)
+			}
+			files = append(files, pendingFile{fieldName: key, fileName: fileName, data: data})
+			fp.secretRefs[key] = fmt.Sprintf("%s/%s/%s/%s", fileRef.Name, fileRef.Key, secret.ResourceVersion, fileName)
+			continue
+		}
 		// Neither Value nor SecretKeyRef — skip (XValidation prevents this at admission)
 	}
-	return resolved, fp, nil
+	return resolved, files, fp, nil
+}
+
+func uploadFiles(
+	ctx context.Context,
+	haClient *haclient.Client,
+	token string,
+	fields []haclient.FlowField,
+	files []pendingFile,
+	resolved map[string]interface{},
+) ([]string, error) {
+	byName := make(map[string]haclient.FlowField, len(fields))
+	for _, field := range fields {
+		byName[field.Name] = field
+	}
+	uploadedIDs := make([]string, 0, len(files))
+	for _, file := range files {
+		field, ok := byName[file.fieldName]
+		if !ok || !isFileSelector(field) {
+			return uploadedIDs, &fileFieldError{fieldName: file.fieldName}
+		}
+		fileID, err := haClient.UploadFile(ctx, token, file.fileName, file.data)
+		if err != nil {
+			return uploadedIDs, fmt.Errorf("failed to upload file for field %q: %w", file.fieldName, err)
+		}
+		uploadedIDs = append(uploadedIDs, fileID)
+		resolved[file.fieldName] = fileID
+	}
+	return uploadedIDs, nil
+}
+
+func isFileSelector(field haclient.FlowField) bool {
+	_, ok := field.Selector["file"]
+	return ok
+}
+
+func cleanupUploadedFiles(ctx context.Context, haClient *haclient.Client, token string, fileIDs []string) {
+	for _, fileID := range fileIDs {
+		if err := haClient.DeleteUploadedFile(ctx, token, fileID); err != nil {
+			logf.FromContext(ctx).Info("Failed to clean up uploaded file", "error", err)
+		}
+	}
 }
 
 // calculateConfigHash computes a stable hash from non-sensitive identifiers:
@@ -560,7 +665,8 @@ func (r *HomeAssistantIntegrationReconciler) findIntegrationsForSecret(
 	var requests []reconcile.Request
 	for _, item := range list.Items {
 		for _, val := range item.Spec.Configuration {
-			if val.SecretKeyRef != nil && val.SecretKeyRef.Name == secret.Name {
+			if (val.SecretKeyRef != nil && val.SecretKeyRef.Name == secret.Name) ||
+				(val.FileSecretKeyRef != nil && val.FileSecretKeyRef.Name == secret.Name) {
 				requests = append(requests, reconcile.Request{
 					NamespacedName: types.NamespacedName{Name: item.Name, Namespace: item.Namespace},
 				})
