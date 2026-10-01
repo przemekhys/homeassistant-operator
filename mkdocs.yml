@@ -118,6 +118,7 @@ nav:
     - Manage scenes: how-to/manage-scenes.md
     - Manage scripts: how-to/manage-scripts.md
     - Register integrations: how-to/register-integrations.md
+    - Manage dashboards: how-to/manage-dashboards.md
     - Model your house structure: how-to/model-house-structure.md
     - Install HACS-compatible extensions: how-to/install-community-repositories.md
     - Configure backups: how-to/configure-backups.md
