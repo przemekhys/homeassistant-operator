@@ -121,7 +121,7 @@ test: manifests generate fmt vet setup-envtest ## Run unit tests.
 K3D_CLUSTER_E2E ?= homeassistant-operator-test-e2e
 K3D_MEMORY_E2E ?= 12g
 # renovate: datasource=docker depName=rancher/k3s
-K3S_VERSION ?= v1.37.0-k3s1
+K3S_VERSION ?= v1.37.1-k3s1
 # renovate: datasource=docker depName=ghcr.io/home-assistant/home-assistant
 HA_VERSION ?= 2026.9.4
 
@@ -537,7 +537,7 @@ TRIVY ?= trivy
 # can't resolve against the unprefixed vX.Y.Z below — datasource=go instead
 # resolves through the module path itself, exactly as `go list -m` already does.
 # renovate: datasource=go depName=sigs.k8s.io/kustomize/kustomize/v5
-KUSTOMIZE_VERSION ?= v5.8.1
+KUSTOMIZE_VERSION ?= v5.8.2
 # renovate: datasource=github-releases depName=kubernetes-sigs/controller-tools
 CONTROLLER_TOOLS_VERSION ?= v0.22.0
 # renovate: datasource=github-releases depName=elastic/crd-ref-docs
