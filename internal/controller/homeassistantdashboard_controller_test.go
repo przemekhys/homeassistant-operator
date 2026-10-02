@@ -27,6 +27,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -71,10 +72,11 @@ var _ = Describe("HomeAssistantDashboard Controller", func() {
 		}
 	}
 
-	reconcileDashboard := func(reconciler *HomeAssistantDashboardReconciler, name string) {
+	reconcileDashboard := func(reconciler *HomeAssistantDashboardReconciler, name string) reconcile.Result {
 		request := reconcile.Request{NamespacedName: types.NamespacedName{Name: name, Namespace: ns}}
-		_, err := reconciler.Reconcile(ctx, request)
+		result, err := reconciler.Reconcile(ctx, request)
 		Expect(err).NotTo(HaveOccurred())
+		return result
 	}
 
 	BeforeEach(func() {
@@ -89,7 +91,10 @@ var _ = Describe("HomeAssistantDashboard Controller", func() {
 		if mockServer != nil {
 			mockServer.Close()
 		}
-		for _, name := range []string{"inline-dashboard", "configmap-dashboard"} {
+		for _, name := range []string{
+			"inline-dashboard", "configmap-dashboard", "delete-dashboard", "unavailable-dashboard",
+			"rejected-save-dashboard", "missing-configmap-dashboard", "invalid-yaml-dashboard",
+		} {
 			dashboard := &hav1alpha1.HomeAssistantDashboard{}
 			if err := k8sClient.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, dashboard); err == nil {
 				controllerutil.RemoveFinalizer(dashboard, dashboardFinalizer)
@@ -166,6 +171,29 @@ var _ = Describe("HomeAssistantDashboard Controller", func() {
 		Expect(mockHA.lastSavedConfig()["title"]).To(Equal("After"))
 	})
 
+	It("creates the default dashboard only when explicitly selected", func() {
+		setupHA()
+		dashboard := &hav1alpha1.HomeAssistantDashboard{
+			ObjectMeta: metav1.ObjectMeta{Name: "inline-dashboard", Namespace: ns},
+			Spec: hav1alpha1.HomeAssistantDashboardSpec{
+				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: haName},
+				Title:            "Home",
+				DefaultDashboard: true,
+				Inline:           "views: []\n",
+			},
+		}
+		Expect(k8sClient.Create(ctx, dashboard)).To(Succeed())
+		reconciler := newReconciler()
+		reconcileDashboard(reconciler, dashboard.Name)
+		reconcileDashboard(reconciler, dashboard.Name)
+
+		Expect(mockHA.createCount()).To(Equal(1))
+		updated := &hav1alpha1.HomeAssistantDashboard{}
+		key := types.NamespacedName{Name: dashboard.Name, Namespace: ns}
+		Expect(k8sClient.Get(ctx, key, updated)).To(Succeed())
+		Expect(updated.Status.URLPath).To(Equal("lovelace"))
+	})
+
 	It("resolves only the selected ConfigMap key and does not rewrite for unrelated changes", func() {
 		setupHA()
 		configMap := &corev1.ConfigMap{
@@ -203,16 +231,133 @@ var _ = Describe("HomeAssistantDashboard Controller", func() {
 		Expect(mockHA.saveCount()).To(Equal(2))
 		Expect(mockHA.lastSavedConfig()["title"]).To(Equal("Updated selected content"))
 	})
+
+	It("deletes the Home Assistant dashboard before removing its finalizer", func() {
+		setupHA()
+		dashboard := &hav1alpha1.HomeAssistantDashboard{
+			ObjectMeta: metav1.ObjectMeta{Name: "delete-dashboard", Namespace: ns},
+			Spec: hav1alpha1.HomeAssistantDashboardSpec{
+				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: haName},
+				Title:            "Delete Dashboard", URLPath: "delete-dashboard", Inline: "views: []\n",
+			},
+		}
+		Expect(k8sClient.Create(ctx, dashboard)).To(Succeed())
+		reconciler := newReconciler()
+		reconcileDashboard(reconciler, dashboard.Name)
+		reconcileDashboard(reconciler, dashboard.Name)
+
+		Expect(k8sClient.Delete(ctx, dashboard)).To(Succeed())
+		reconcileDashboard(reconciler, dashboard.Name)
+		Expect(mockHA.deleteCount()).To(Equal(1))
+		Eventually(func() error {
+			return k8sClient.Get(ctx, types.NamespacedName{Name: dashboard.Name, Namespace: ns}, &hav1alpha1.HomeAssistantDashboard{})
+		}).Should(HaveOccurred())
+	})
+
+	It("retries and recovers when Home Assistant is unavailable", func() {
+		setupHA()
+		dashboard := &hav1alpha1.HomeAssistantDashboard{
+			ObjectMeta: metav1.ObjectMeta{Name: "unavailable-dashboard", Namespace: ns},
+			Spec: hav1alpha1.HomeAssistantDashboardSpec{
+				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: haName},
+				Title:            "Unavailable Dashboard", URLPath: "unavailable-dashboard", Inline: "views: []\n",
+			},
+		}
+		Expect(k8sClient.Create(ctx, dashboard)).To(Succeed())
+		reconciler := newReconciler()
+		reconcileDashboard(reconciler, dashboard.Name)
+		mockHA.setUnavailable(true)
+		result := reconcileDashboard(reconciler, dashboard.Name)
+		Expect(result.RequeueAfter).To(Equal(dashboardRetry))
+
+		updated := &hav1alpha1.HomeAssistantDashboard{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: dashboard.Name, Namespace: ns}, updated)).To(Succeed())
+		Expect(meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)).To(HaveField("Reason", "HomeAssistantUnavailable"))
+
+		mockHA.setUnavailable(false)
+		reconcileDashboard(reconciler, dashboard.Name)
+		Expect(mockHA.saveCount()).To(Equal(1))
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: dashboard.Name, Namespace: ns}, updated)).To(Succeed())
+		Expect(meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)).To(HaveField("Status", metav1.ConditionTrue))
+	})
+
+	It("retries a rejected dashboard save without recording a successful hash", func() {
+		setupHA()
+		mockHA.setRejectSave(true)
+		dashboard := &hav1alpha1.HomeAssistantDashboard{
+			ObjectMeta: metav1.ObjectMeta{Name: "rejected-save-dashboard", Namespace: ns},
+			Spec: hav1alpha1.HomeAssistantDashboardSpec{
+				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: haName},
+				Title:            "Rejected Save", URLPath: "rejected-save-dashboard", Inline: "views: []\n",
+			},
+		}
+		Expect(k8sClient.Create(ctx, dashboard)).To(Succeed())
+		reconciler := newReconciler()
+		reconcileDashboard(reconciler, dashboard.Name)
+		result := reconcileDashboard(reconciler, dashboard.Name)
+		Expect(result.RequeueAfter).To(Equal(dashboardRetry))
+
+		updated := &hav1alpha1.HomeAssistantDashboard{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: dashboard.Name, Namespace: ns}, updated)).To(Succeed())
+		Expect(updated.Status.SourceHash).To(BeEmpty())
+		Expect(meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)).To(HaveField("Reason", "DashboardWriteFailed"))
+
+		mockHA.setRejectSave(false)
+		reconcileDashboard(reconciler, dashboard.Name)
+		Expect(mockHA.saveCount()).To(Equal(2))
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: dashboard.Name, Namespace: ns}, updated)).To(Succeed())
+		Expect(updated.Status.SourceHash).NotTo(BeEmpty())
+	})
+
+	DescribeTable("retries invalid ConfigMap sources", func(dashboard *hav1alpha1.HomeAssistantDashboard, reason string) {
+		if dashboard.Name == "invalid-yaml-dashboard" {
+			Expect(k8sClient.Create(ctx, &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Name: "dashboard-config", Namespace: ns},
+				Data:       map[string]string{"invalid.yaml": "views: ["},
+			})).To(Succeed())
+		}
+		Expect(k8sClient.Create(ctx, dashboard)).To(Succeed())
+		reconciler := newReconciler()
+		reconcileDashboard(reconciler, dashboard.Name)
+		result := reconcileDashboard(reconciler, dashboard.Name)
+		Expect(result.RequeueAfter).To(Equal(dashboardRetry))
+
+		updated := &hav1alpha1.HomeAssistantDashboard{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: dashboard.Name, Namespace: ns}, updated)).To(Succeed())
+		condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
+		Expect(condition).To(HaveField("Reason", "SourceInvalid"))
+		Expect(condition.Message).To(ContainSubstring(reason))
+	},
+		Entry("when the ConfigMap is missing", &hav1alpha1.HomeAssistantDashboard{
+			ObjectMeta: metav1.ObjectMeta{Name: "missing-configmap-dashboard", Namespace: "default"},
+			Spec: hav1alpha1.HomeAssistantDashboardSpec{
+				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: "unused"},
+				Title:            "Missing ConfigMap", URLPath: "missing-configmap-dashboard",
+				ConfigMapKeyRef: &hav1alpha1.ConfigMapKeyReference{Name: "missing", Key: "dashboard.yaml"},
+			},
+		}, "failed to get ConfigMap missing"),
+		Entry("when the selected ConfigMap value is invalid YAML", &hav1alpha1.HomeAssistantDashboard{
+			ObjectMeta: metav1.ObjectMeta{Name: "invalid-yaml-dashboard", Namespace: "default"},
+			Spec: hav1alpha1.HomeAssistantDashboardSpec{
+				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: "unused"},
+				Title:            "Invalid YAML", URLPath: "invalid-yaml-dashboard",
+				ConfigMapKeyRef: &hav1alpha1.ConfigMapKeyReference{Name: "dashboard-config", Key: "invalid.yaml"},
+			},
+		}, "invalid dashboard YAML"),
+	)
 })
 
 type dashboardMockHA struct {
-	server     *httptest.Server
-	mu         sync.Mutex
-	dashboards []map[string]interface{}
-	creates    int
-	updates    int
-	saves      int
-	lastConfig map[string]interface{}
+	server      *httptest.Server
+	mu          sync.Mutex
+	dashboards  []map[string]interface{}
+	creates     int
+	updates     int
+	saves       int
+	deletes     int
+	unavailable bool
+	rejectSave  bool
+	lastConfig  map[string]interface{}
 }
 
 func newDashboardMockHA() *dashboardMockHA {
@@ -234,45 +379,72 @@ func newDashboardMockHA() *dashboardMockHA {
 		if conn.ReadJSON(&command) != nil {
 			return
 		}
-		_ = conn.WriteJSON(map[string]interface{}{
-			"id": command["id"], "type": "result", "success": true, "result": mock.handle(command),
-		})
+		result, success := mock.handle(command)
+		response := map[string]interface{}{"id": command["id"], "type": "result", "success": success}
+		if success {
+			response["result"] = result
+		} else {
+			response["error"] = map[string]interface{}{"message": "dashboard save rejected"}
+		}
+		_ = conn.WriteJSON(response)
 	}))
 	return mock
 }
 
 func (m *dashboardMockHA) url() string { return "ws" + strings.TrimPrefix(m.server.URL, "http") }
 
-func (m *dashboardMockHA) handle(command map[string]interface{}) interface{} {
+func (m *dashboardMockHA) handle(command map[string]interface{}) (interface{}, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.unavailable {
+		return nil, false
+	}
 	switch command["type"] {
 	case "lovelace/dashboards/list":
-		return m.dashboards
+		return m.dashboards, true
 	case "lovelace/dashboards/create":
 		m.creates++
 		dashboard := map[string]interface{}{
 			"id": "dashboard-1", "url_path": command["url_path"], "mode": "storage", "title": command["title"],
 		}
 		m.dashboards = append(m.dashboards, dashboard)
-		return dashboard
+		return dashboard, true
 	case "lovelace/dashboards/update":
 		m.updates++
 		return map[string]interface{}{
 			"id": command["dashboard_id"], "url_path": "", "mode": "storage", "title": command["title"],
-		}
+		}, true
 	case "lovelace/config/save":
 		m.saves++
+		if m.rejectSave {
+			return nil, false
+		}
 		m.lastConfig, _ = command["config"].(map[string]interface{})
-		return map[string]interface{}{}
+		return map[string]interface{}{}, true
+	case "lovelace/dashboards/delete":
+		m.deletes++
+		return map[string]interface{}{}, true
 	default:
-		return map[string]interface{}{}
+		return map[string]interface{}{}, true
 	}
 }
 
 func (m *dashboardMockHA) createCount() int { m.mu.Lock(); defer m.mu.Unlock(); return m.creates }
 func (m *dashboardMockHA) updateCount() int { m.mu.Lock(); defer m.mu.Unlock(); return m.updates }
 func (m *dashboardMockHA) saveCount() int   { m.mu.Lock(); defer m.mu.Unlock(); return m.saves }
+func (m *dashboardMockHA) deleteCount() int { m.mu.Lock(); defer m.mu.Unlock(); return m.deletes }
+
+func (m *dashboardMockHA) setUnavailable(unavailable bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.unavailable = unavailable
+}
+
+func (m *dashboardMockHA) setRejectSave(reject bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.rejectSave = reject
+}
 
 func (m *dashboardMockHA) lastSavedConfig() map[string]interface{} {
 	m.mu.Lock()
