@@ -397,7 +397,7 @@ HELM_DOCS_VERSION ?= v1.14.2
 # renovate: datasource=github-releases depName=yannh/kubeconform
 KUBECONFORM_VERSION ?= v0.8.0
 # renovate: datasource=github-releases depName=helm-unittest/helm-unittest
-HELM_UNITTEST_VERSION ?= v1.1.2
+HELM_UNITTEST_VERSION ?= v1.2.1
 
 .PHONY: helm-tools
 helm-tools: helm-docs-bin kubeconform helm-unittest-plugin ## Install Helm dev/CI tooling (helm-docs, kubeconform, helm-unittest plugin).
