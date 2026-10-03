@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -14,9 +15,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/yaml"
@@ -111,7 +114,16 @@ func (r *HomeAssistantDashboardReconciler) Reconcile(ctx context.Context, req ct
 			return r.failed(ctx, dashboard, "DashboardWriteFailed", fmt.Sprintf("failed to update dashboard: %v", err))
 		}
 	}
-	if dashboard.Status.SourceHash != hash || dashboard.Status.DashboardID == "" {
+	actualConfig, err := haClient.GetDashboardConfig(ctx, token, path)
+	if err != nil {
+		return r.failed(ctx, dashboard, "HomeAssistantUnavailable", fmt.Sprintf("failed to get dashboard config: %v", err))
+	}
+	configMatches, err := dashboardConfigsEqual(config, actualConfig)
+	if err != nil {
+		return r.failed(ctx, dashboard, "HomeAssistantUnavailable",
+			fmt.Sprintf("failed to compare dashboard config: %v", err))
+	}
+	if !configMatches {
 		if err := haClient.SaveDashboardConfig(ctx, token, path, config); err != nil {
 			return r.failed(ctx, dashboard, "DashboardWriteFailed", fmt.Sprintf("failed to save dashboard: %v", err))
 		}
@@ -164,6 +176,17 @@ func dashboardHash(config json.RawMessage, metadata haclient.Dashboard) string {
 	return hex.EncodeToString(sum[:])
 }
 
+func dashboardConfigsEqual(desired, actual json.RawMessage) (bool, error) {
+	var desiredValue, actualValue interface{}
+	if err := json.Unmarshal(desired, &desiredValue); err != nil {
+		return false, fmt.Errorf("decode desired config: %w", err)
+	}
+	if err := json.Unmarshal(actual, &actualValue); err != nil {
+		return false, fmt.Errorf("decode actual config: %w", err)
+	}
+	return reflect.DeepEqual(desiredValue, actualValue), nil
+}
+
 func (r *HomeAssistantDashboardReconciler) failed(
 	ctx context.Context, dashboard *hav1alpha1.HomeAssistantDashboard, reason, message string,
 ) (ctrl.Result, error) {
@@ -205,7 +228,44 @@ func (r *HomeAssistantDashboardReconciler) reconcileDeletion(
 func (r *HomeAssistantDashboardReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hav1alpha1.HomeAssistantDashboard{}).
-		Watches(&corev1.ConfigMap{}, handler.EnqueueRequestsFromMapFunc(r.findDashboardsForConfigMap)).
+		Watches(&corev1.ConfigMap{}, handler.Funcs{
+			CreateFunc: func(
+				ctx context.Context,
+				e event.TypedCreateEvent[client.Object],
+				q workqueue.TypedRateLimitingInterface[reconcile.Request],
+			) {
+				for _, request := range r.findDashboardsForConfigMap(ctx, e.Object) {
+					q.Add(request)
+				}
+			},
+			UpdateFunc: func(
+				ctx context.Context,
+				e event.TypedUpdateEvent[client.Object],
+				q workqueue.TypedRateLimitingInterface[reconcile.Request],
+			) {
+				for _, request := range r.findDashboardsForChangedConfigMap(ctx, e.ObjectOld, e.ObjectNew) {
+					q.Add(request)
+				}
+			},
+			DeleteFunc: func(
+				ctx context.Context,
+				e event.TypedDeleteEvent[client.Object],
+				q workqueue.TypedRateLimitingInterface[reconcile.Request],
+			) {
+				for _, request := range r.findDashboardsForConfigMap(ctx, e.Object) {
+					q.Add(request)
+				}
+			},
+			GenericFunc: func(
+				ctx context.Context,
+				e event.TypedGenericEvent[client.Object],
+				q workqueue.TypedRateLimitingInterface[reconcile.Request],
+			) {
+				for _, request := range r.findDashboardsForConfigMap(ctx, e.Object) {
+					q.Add(request)
+				}
+			},
+		}).
 		Named("homeassistantdashboard").
 		Complete(r)
 }
@@ -221,6 +281,36 @@ func (r *HomeAssistantDashboardReconciler) findDashboardsForConfigMap(
 	requests := make([]reconcile.Request, 0)
 	for _, dashboard := range list.Items {
 		if ref := dashboard.Spec.ConfigMapKeyRef; ref != nil && ref.Name == cm.Name {
+			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&dashboard)})
+		}
+	}
+	return requests
+}
+
+func (r *HomeAssistantDashboardReconciler) findDashboardsForChangedConfigMap(
+	ctx context.Context, oldObj, newObj client.Object,
+) []reconcile.Request {
+	oldCM, ok := oldObj.(*corev1.ConfigMap)
+	if !ok {
+		return r.findDashboardsForConfigMap(ctx, newObj)
+	}
+	newCM, ok := newObj.(*corev1.ConfigMap)
+	if !ok {
+		return r.findDashboardsForConfigMap(ctx, oldObj)
+	}
+	list := &hav1alpha1.HomeAssistantDashboardList{}
+	if err := r.List(ctx, list, client.InNamespace(newCM.Namespace)); err != nil {
+		return nil
+	}
+	requests := make([]reconcile.Request, 0)
+	for _, dashboard := range list.Items {
+		ref := dashboard.Spec.ConfigMapKeyRef
+		if ref == nil || ref.Name != newCM.Name {
+			continue
+		}
+		oldValue, oldOK := oldCM.Data[ref.Key]
+		newValue, newOK := newCM.Data[ref.Key]
+		if oldOK != newOK || oldValue != newValue {
 			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&dashboard)})
 		}
 	}

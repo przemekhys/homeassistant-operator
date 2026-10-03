@@ -171,6 +171,28 @@ var _ = Describe("HomeAssistantDashboard Controller", func() {
 		Expect(mockHA.lastSavedConfig()["title"]).To(Equal("After"))
 	})
 
+	It("restores the desired config when the Home Assistant dashboard drifts", func() {
+		setupHA()
+		dashboard := &hav1alpha1.HomeAssistantDashboard{
+			ObjectMeta: metav1.ObjectMeta{Name: "inline-dashboard", Namespace: ns},
+			Spec: hav1alpha1.HomeAssistantDashboardSpec{
+				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: haName},
+				Title:            "Inline Dashboard", URLPath: "inline-dashboard",
+				Inline: "title: Desired\nviews: []\n",
+			},
+		}
+		Expect(k8sClient.Create(ctx, dashboard)).To(Succeed())
+		reconciler := newReconciler()
+		reconcileDashboard(reconciler, dashboard.Name)
+		reconcileDashboard(reconciler, dashboard.Name)
+
+		mockHA.setConfig(map[string]interface{}{"title": "Drifted", "views": []interface{}{}})
+		reconcileDashboard(reconciler, dashboard.Name)
+
+		Expect(mockHA.saveCount()).To(Equal(2))
+		Expect(mockHA.lastSavedConfig()["title"]).To(Equal("Desired"))
+	})
+
 	It("creates the default dashboard only when explicitly selected", func() {
 		setupHA()
 		dashboard := &hav1alpha1.HomeAssistantDashboard{
@@ -192,6 +214,31 @@ var _ = Describe("HomeAssistantDashboard Controller", func() {
 		key := types.NamespacedName{Name: dashboard.Name, Namespace: ns}
 		Expect(k8sClient.Get(ctx, key, updated)).To(Succeed())
 		Expect(updated.Status.URLPath).To(Equal("lovelace"))
+	})
+
+	It("rejects an implicit default dashboard and ambiguous sources", func() {
+		implicitDefault := &hav1alpha1.HomeAssistantDashboard{
+			ObjectMeta: metav1.ObjectMeta{Name: "inline-dashboard", Namespace: ns},
+			Spec: hav1alpha1.HomeAssistantDashboardSpec{
+				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: haName},
+				Title:            "Home",
+				URLPath:          "lovelace",
+				Inline:           "views: []\n",
+			},
+		}
+		Expect(k8sClient.Create(ctx, implicitDefault)).NotTo(Succeed())
+
+		ambiguous := &hav1alpha1.HomeAssistantDashboard{
+			ObjectMeta: metav1.ObjectMeta{Name: "configmap-dashboard", Namespace: ns},
+			Spec: hav1alpha1.HomeAssistantDashboardSpec{
+				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: haName},
+				Title:            "Ambiguous",
+				URLPath:          "ambiguous",
+				Inline:           "views: []\n",
+				ConfigMapKeyRef:  &hav1alpha1.ConfigMapKeyReference{Name: "dashboard-config", Key: "dashboard.yaml"},
+			},
+		}
+		Expect(k8sClient.Create(ctx, ambiguous)).NotTo(Succeed())
 	})
 
 	It("resolves only the selected ConfigMap key and does not rewrite for unrelated changes", func() {
@@ -217,6 +264,13 @@ var _ = Describe("HomeAssistantDashboard Controller", func() {
 		reconciler := newReconciler()
 		reconcileDashboard(reconciler, dashboard.Name)
 		reconcileDashboard(reconciler, dashboard.Name)
+		changed := configMap.DeepCopy()
+		changed.Data["unrelated.yaml"] = "title: Changed unrelated content\nviews: []\n"
+		Expect(reconciler.findDashboardsForChangedConfigMap(ctx, configMap, changed)).To(BeEmpty())
+		changed.Data["dashboard.yaml"] = "title: Updated selected content\nviews: []\n"
+		Expect(reconciler.findDashboardsForChangedConfigMap(ctx, configMap, changed)).To(ConsistOf(
+			reconcile.Request{NamespacedName: types.NamespacedName{Name: dashboard.Name, Namespace: ns}},
+		))
 
 		configMap.Data["unrelated.yaml"] = "title: Changed unrelated content\nviews: []\n"
 		Expect(k8sClient.Update(ctx, configMap)).To(Succeed())
@@ -250,7 +304,8 @@ var _ = Describe("HomeAssistantDashboard Controller", func() {
 		reconcileDashboard(reconciler, dashboard.Name)
 		Expect(mockHA.deleteCount()).To(Equal(1))
 		Eventually(func() error {
-			return k8sClient.Get(ctx, types.NamespacedName{Name: dashboard.Name, Namespace: ns}, &hav1alpha1.HomeAssistantDashboard{})
+			key := types.NamespacedName{Name: dashboard.Name, Namespace: ns}
+			return k8sClient.Get(ctx, key, &hav1alpha1.HomeAssistantDashboard{})
 		}).Should(HaveOccurred())
 	})
 
@@ -272,13 +327,15 @@ var _ = Describe("HomeAssistantDashboard Controller", func() {
 
 		updated := &hav1alpha1.HomeAssistantDashboard{}
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: dashboard.Name, Namespace: ns}, updated)).To(Succeed())
-		Expect(meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)).To(HaveField("Reason", "HomeAssistantUnavailable"))
+		ready := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
+		Expect(ready).To(HaveField("Reason", "HomeAssistantUnavailable"))
 
 		mockHA.setUnavailable(false)
 		reconcileDashboard(reconciler, dashboard.Name)
 		Expect(mockHA.saveCount()).To(Equal(1))
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: dashboard.Name, Namespace: ns}, updated)).To(Succeed())
-		Expect(meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)).To(HaveField("Status", metav1.ConditionTrue))
+		ready = meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
+		Expect(ready).To(HaveField("Status", metav1.ConditionTrue))
 	})
 
 	It("retries a rejected dashboard save without recording a successful hash", func() {
@@ -300,7 +357,8 @@ var _ = Describe("HomeAssistantDashboard Controller", func() {
 		updated := &hav1alpha1.HomeAssistantDashboard{}
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: dashboard.Name, Namespace: ns}, updated)).To(Succeed())
 		Expect(updated.Status.SourceHash).To(BeEmpty())
-		Expect(meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)).To(HaveField("Reason", "DashboardWriteFailed"))
+		ready := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
+		Expect(ready).To(HaveField("Reason", "DashboardWriteFailed"))
 
 		mockHA.setRejectSave(false)
 		reconcileDashboard(reconciler, dashboard.Name)
@@ -357,6 +415,7 @@ type dashboardMockHA struct {
 	deletes     int
 	unavailable bool
 	rejectSave  bool
+	config      map[string]interface{}
 	lastConfig  map[string]interface{}
 }
 
@@ -414,12 +473,15 @@ func (m *dashboardMockHA) handle(command map[string]interface{}) (interface{}, b
 		return map[string]interface{}{
 			"id": command["dashboard_id"], "url_path": "", "mode": "storage", "title": command["title"],
 		}, true
+	case "lovelace/config":
+		return m.config, true
 	case "lovelace/config/save":
 		m.saves++
 		if m.rejectSave {
 			return nil, false
 		}
 		m.lastConfig, _ = command["config"].(map[string]interface{})
+		m.config = m.lastConfig
 		return map[string]interface{}{}, true
 	case "lovelace/dashboards/delete":
 		m.deletes++
@@ -444,6 +506,12 @@ func (m *dashboardMockHA) setRejectSave(reject bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.rejectSave = reject
+}
+
+func (m *dashboardMockHA) setConfig(config map[string]interface{}) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.config = config
 }
 
 func (m *dashboardMockHA) lastSavedConfig() map[string]interface{} {
