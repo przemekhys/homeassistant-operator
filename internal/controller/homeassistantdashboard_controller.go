@@ -101,11 +101,13 @@ func (r *HomeAssistantDashboardReconciler) Reconcile(ctx context.Context, req ct
 			break
 		}
 	}
+	created := false
 	if existing == nil {
 		existing, err = haClient.CreateDashboard(ctx, token, metadata)
 		if err != nil {
 			return r.failed(ctx, dashboard, "DashboardWriteFailed", fmt.Sprintf("failed to create dashboard: %v", err))
 		}
+		created = true
 	} else if existing.Mode != haclient.DashboardModeStorage {
 		return r.failed(ctx, dashboard, "DashboardNotStorageManaged", "dashboard is not storage-managed")
 	} else if dashboard.Status.SourceHash != hash {
@@ -114,18 +116,24 @@ func (r *HomeAssistantDashboardReconciler) Reconcile(ctx context.Context, req ct
 			return r.failed(ctx, dashboard, "DashboardWriteFailed", fmt.Sprintf("failed to update dashboard: %v", err))
 		}
 	}
-	actualConfig, err := haClient.GetDashboardConfig(ctx, token, path)
-	if err != nil {
-		return r.failed(ctx, dashboard, "HomeAssistantUnavailable", fmt.Sprintf("failed to get dashboard config: %v", err))
-	}
-	configMatches, err := dashboardConfigsEqual(config, actualConfig)
-	if err != nil {
-		return r.failed(ctx, dashboard, "HomeAssistantUnavailable",
-			fmt.Sprintf("failed to compare dashboard config: %v", err))
-	}
-	if !configMatches {
+	if created {
 		if err := haClient.SaveDashboardConfig(ctx, token, path, config); err != nil {
 			return r.failed(ctx, dashboard, "DashboardWriteFailed", fmt.Sprintf("failed to save dashboard: %v", err))
+		}
+	} else {
+		actualConfig, err := haClient.GetDashboardConfig(ctx, token, path)
+		if err != nil {
+			return r.failed(ctx, dashboard, "HomeAssistantUnavailable", fmt.Sprintf("failed to get dashboard config: %v", err))
+		}
+		configMatches, err := dashboardConfigsEqual(config, actualConfig)
+		if err != nil {
+			return r.failed(ctx, dashboard, "HomeAssistantUnavailable",
+				fmt.Sprintf("failed to compare dashboard config: %v", err))
+		}
+		if !configMatches {
+			if err := haClient.SaveDashboardConfig(ctx, token, path, config); err != nil {
+				return r.failed(ctx, dashboard, "DashboardWriteFailed", fmt.Sprintf("failed to save dashboard: %v", err))
+			}
 		}
 	}
 	dashboard.Status.DashboardID = existing.ID
