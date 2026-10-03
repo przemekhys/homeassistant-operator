@@ -13,6 +13,7 @@ resources:
 - bases/ha.homeassistant.io_homeassistantlabels.yaml
 - bases/ha.homeassistant.io_homeassistantareas.yaml
 - bases/ha.homeassistant.io_homeassistantcommunityrepositories.yaml
+- bases/ha.homeassistant.io_homeassistantdashboards.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

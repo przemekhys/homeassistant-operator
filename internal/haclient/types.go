@@ -138,6 +138,26 @@ type WSError struct {
 	Message string `json:"message"`
 }
 
+// DashboardMode identifies how Home Assistant manages a Lovelace dashboard.
+type DashboardMode string
+
+const (
+	// DashboardModeStorage identifies a dashboard whose configuration is stored by Home Assistant.
+	DashboardModeStorage DashboardMode = "storage"
+)
+
+// Dashboard represents Lovelace dashboard metadata returned by Home Assistant.
+type Dashboard struct {
+	ID              string        `json:"id,omitempty"`
+	URLPath         string        `json:"url_path"`
+	Mode            DashboardMode `json:"mode,omitempty"`
+	Title           string        `json:"title"`
+	Icon            string        `json:"icon,omitempty"`
+	ShowInSidebar   bool          `json:"show_in_sidebar"`
+	RequireAdmin    bool          `json:"require_admin"`
+	AllowSingleWord bool          `json:"-"`
+}
+
 // BackupSchedule represents the schedule section of HA backup config
 type BackupSchedule struct {
 	Recurrence string  `json:"recurrence"` // "daily", "mon", "tue", ..., "never"

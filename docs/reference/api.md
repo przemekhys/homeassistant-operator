@@ -1878,6 +1878,8 @@ hardware the maintainers do not have.
 ### Resource Types
 - [HomeAssistantCommunityRepository](#homeassistantcommunityrepository)
 - [HomeAssistantCommunityRepositoryList](#homeassistantcommunityrepositorylist)
+- [HomeAssistantDashboard](#homeassistantdashboard)
+- [HomeAssistantDashboardList](#homeassistantdashboardlist)
 
 
 
@@ -1923,6 +1925,24 @@ _Appears in:_
 | `Installed` |  |
 | `Failed` |  |
 | `Removing` |  |
+
+
+#### ConfigMapKeyReference
+
+
+
+ConfigMapKeyReference identifies one dashboard definition in a ConfigMap in
+the same namespace as the HomeAssistantDashboard.
+
+
+
+_Appears in:_
+- [HomeAssistantDashboardSpec](#homeassistantdashboardspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name is the name of the ConfigMap. |  | MinLength: 1 <br />Required: \{\} <br /> |
+| `key` _string_ | Key is the ConfigMap data key containing the complete dashboard YAML document. |  | MinLength: 1 <br />Required: \{\} <br /> |
 
 
 #### HomeAssistantCommunityRepository
@@ -2008,6 +2028,90 @@ _Appears in:_
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the repository state |  | Optional: \{\} <br /> |
 
 
+#### HomeAssistantDashboard
+
+
+
+HomeAssistantDashboard is the Schema for a storage-mode Home Assistant Lovelace dashboard.
+
+
+
+_Appears in:_
+- [HomeAssistantDashboardList](#homeassistantdashboardlist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `ha.homeassistant.io/v1alpha1` | | |
+| `kind` _string_ | `HomeAssistantDashboard` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[HomeAssistantDashboardSpec](#homeassistantdashboardspec)_ |  |  |  |
+| `status` _[HomeAssistantDashboardStatus](#homeassistantdashboardstatus)_ |  |  |  |
+
+
+#### HomeAssistantDashboardList
+
+
+
+HomeAssistantDashboardList contains a list of HomeAssistantDashboard.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `ha.homeassistant.io/v1alpha1` | | |
+| `kind` _string_ | `HomeAssistantDashboardList` | | |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[HomeAssistantDashboard](#homeassistantdashboard) array_ |  |  |  |
+
+
+#### HomeAssistantDashboardSpec
+
+
+
+HomeAssistantDashboardSpec defines the desired state of a storage-mode
+Home Assistant Lovelace dashboard.
+
+
+
+_Appears in:_
+- [HomeAssistantDashboard](#homeassistantdashboard)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `homeAssistantRef` _[HomeAssistantReference](#homeassistantreference)_ | HomeAssistantRef references the HomeAssistant instance that owns this dashboard. |  | Required: \{\} <br /> |
+| `title` _string_ | Title is the title displayed for the dashboard. |  | MinLength: 1 <br />Required: \{\} <br /> |
+| `urlPath` _string_ | URLPath is the unique Home Assistant path for a named dashboard. It is<br />omitted when DefaultDashboard explicitly selects the default dashboard. |  | Pattern: `^[a-z0-9]+(?:-[a-z0-9]+)*$` <br />Optional: \{\} <br /> |
+| `defaultDashboard` _boolean_ | DefaultDashboard explicitly selects Home Assistant's default storage dashboard. | false | Optional: \{\} <br /> |
+| `icon` _string_ | Icon is an optional Material Design Icons icon displayed in the sidebar. |  | Optional: \{\} <br /> |
+| `showInSidebar` _boolean_ | ShowInSidebar controls whether Home Assistant displays this dashboard in its sidebar. | true | Optional: \{\} <br /> |
+| `requireAdmin` _boolean_ | RequireAdmin restricts the dashboard to Home Assistant administrators. | false | Optional: \{\} <br /> |
+| `inline` _string_ | Inline is the complete YAML dashboard definition.<br />Exactly one of Inline and ConfigMapKeyRef is required. |  | Optional: \{\} <br /> |
+| `configMapKeyRef` _[ConfigMapKeyReference](#configmapkeyreference)_ | ConfigMapKeyRef selects the ConfigMap key containing the complete YAML<br />dashboard definition. The ConfigMap must be in this resource's namespace.<br />Exactly one of Inline and ConfigMapKeyRef is required. |  | Optional: \{\} <br /> |
+
+
+#### HomeAssistantDashboardStatus
+
+
+
+HomeAssistantDashboardStatus defines the observed state of HomeAssistantDashboard.
+
+
+
+_Appears in:_
+- [HomeAssistantDashboard](#homeassistantdashboard)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `dashboardID` _string_ | DashboardID is Home Assistant's identifier for the dashboard. |  | Optional: \{\} <br /> |
+| `urlPath` _string_ | URLPath is the effective Home Assistant dashboard path, including lovelace<br />for the default dashboard. |  | Optional: \{\} <br /> |
+| `sourceHash` _string_ | SourceHash is the hash of the dashboard definition and metadata last saved to Home Assistant. |  | Optional: \{\} <br /> |
+| `lastError` _string_ | LastError contains the most recent reconciliation error and is cleared after success. |  | Optional: \{\} <br /> |
+| `observedGeneration` _integer_ | ObservedGeneration reflects the generation most recently reconciled. |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the dashboard state. |  | Optional: \{\} <br /> |
+
+
 #### HomeAssistantReference
 
 
@@ -2020,6 +2124,7 @@ experimental API group-version has no coupling to the stable v1 types.
 
 _Appears in:_
 - [HomeAssistantCommunityRepositorySpec](#homeassistantcommunityrepositoryspec)
+- [HomeAssistantDashboardSpec](#homeassistantdashboardspec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
