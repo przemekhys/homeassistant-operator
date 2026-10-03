@@ -278,6 +278,14 @@ spec:
 				"-o", "jsonpath={.status.dashboardID}")
 			g.Expect(id).To(Equal(dashboardID))
 		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+
+		By("Deleting the dashboard while Home Assistant is available")
+		_, err := utils.Run(exec.Command("kubectl", "delete", "hadashboard", "cp-dashboard", "-n", namespace, "--wait=false"))
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(func(g Gomega) {
+			output := utils.Kubectl("get", "hadashboard", "cp-dashboard", "-n", namespace, "--ignore-not-found")
+			g.Expect(output).To(BeEmpty())
+		}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
 	})
 
 	// -------------------------------------------------------------------------
