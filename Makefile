@@ -121,9 +121,9 @@ test: manifests generate fmt vet setup-envtest ## Run unit tests.
 K3D_CLUSTER_E2E ?= homeassistant-operator-test-e2e
 K3D_MEMORY_E2E ?= 12g
 # renovate: datasource=docker depName=rancher/k3s
-K3S_VERSION ?= v1.37.0-k3s1
+K3S_VERSION ?= v1.37.1-k3s1
 # renovate: datasource=docker depName=ghcr.io/home-assistant/home-assistant
-HA_VERSION ?= 2026.9.2
+HA_VERSION ?= 2026.9.4
 
 .PHONY: setup-test-e2e
 setup-test-e2e: ## Set up a k3d cluster for e2e tests (always creates fresh cluster)
@@ -397,7 +397,7 @@ HELM_DOCS_VERSION ?= v1.14.2
 # renovate: datasource=github-releases depName=yannh/kubeconform
 KUBECONFORM_VERSION ?= v0.8.0
 # renovate: datasource=github-releases depName=helm-unittest/helm-unittest
-HELM_UNITTEST_VERSION ?= v1.1.2
+HELM_UNITTEST_VERSION ?= v1.2.1
 
 .PHONY: helm-tools
 helm-tools: helm-docs-bin kubeconform helm-unittest-plugin ## Install Helm dev/CI tooling (helm-docs, kubeconform, helm-unittest plugin).
@@ -537,7 +537,7 @@ TRIVY ?= trivy
 # can't resolve against the unprefixed vX.Y.Z below — datasource=go instead
 # resolves through the module path itself, exactly as `go list -m` already does.
 # renovate: datasource=go depName=sigs.k8s.io/kustomize/kustomize/v5
-KUSTOMIZE_VERSION ?= v5.8.1
+KUSTOMIZE_VERSION ?= v5.8.2
 # renovate: datasource=github-releases depName=kubernetes-sigs/controller-tools
 CONTROLLER_TOOLS_VERSION ?= v0.22.0
 # renovate: datasource=github-releases depName=elastic/crd-ref-docs
@@ -547,7 +547,7 @@ ENVTEST_VERSION ?= $(shell go list -m -f "{{ .Version }}" sigs.k8s.io/controller
 #ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
 ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
 # renovate: datasource=github-releases depName=golangci/golangci-lint
-GOLANGCI_LINT_VERSION ?= v2.13.2
+GOLANGCI_LINT_VERSION ?= v2.14.0
 #GINKGO_VERSION is derived from go.mod (not a hardcoded/renovate-tracked value) so the
 #CLI installed by `make ginkgo` can never drift from the github.com/onsi/ginkgo/v2
 #package version imported by the test code — a mismatch produces a noisy but harmless
