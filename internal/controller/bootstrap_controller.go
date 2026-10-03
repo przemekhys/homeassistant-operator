@@ -77,7 +77,13 @@ func (r *HomeAssistantReconciler) reconcileBootstrap(
 		// the HA instance. Run a lightweight health check on every reconcile so that
 		// a post-bootstrap IP ban is detected and handleSelfBan is triggered.
 		haClient := newHAClientForHA(ha, r.NewHAClient).WithTimeout(10 * time.Second)
-		if err := haClient.CheckHealth(ctx); err != nil {
+		var healthErr error
+		if token, tokenErr := getAPIToken(ctx, r.Client, ha); tokenErr == nil && token != "" {
+			healthErr = haClient.CheckHealthWithToken(ctx, token)
+		} else {
+			healthErr = haClient.CheckHealth(ctx)
+		}
+		if err := healthErr; err != nil {
 			if haclient.IsBanned(err) {
 				log.Error(err, "Operator IP banned by Home Assistant, triggering ban-recovery restart")
 				return r.handleSelfBan(ctx, ha, err)
@@ -242,6 +248,10 @@ func (r *HomeAssistantReconciler) buildCoreConfigRequest(
 		req.TimeZone = loc.TimeZone
 	} else if ha.Spec.Timezone != "" {
 		req.TimeZone = ha.Spec.Timezone
+	}
+
+	if loc.Country != "" {
+		req.Country = loc.Country
 	}
 
 	return req

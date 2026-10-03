@@ -1465,6 +1465,7 @@ _Appears in:_
 | `unitSystem` _string_ | UnitSystem defines the unit system ("metric" or "us_customary") | metric | Enum: [metric us_customary] <br />Optional: \{\} <br /> |
 | `currency` _string_ | Currency is the ISO 4217 currency code (e.g., "USD", "EUR", "PLN") |  | Optional: \{\} <br /> |
 | `timeZone` _string_ | TimeZone is the IANA timezone (e.g., "Europe/Warsaw", "America/New_York")<br />If not specified, uses spec.timezone |  | Optional: \{\} <br /> |
+| `country` _string_ | Country is the ISO 3166-1 alpha-2 country code (e.g., "US", "PL") |  | Pattern: `^[A-Z]\{2\}$` <br />Optional: \{\} <br /> |
 
 
 #### LoggerConfig

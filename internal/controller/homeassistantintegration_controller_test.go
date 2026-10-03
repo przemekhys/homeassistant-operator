@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -97,9 +98,84 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 				// ListConfigEntries — return empty list by default
 				_ = json.NewEncoder(w).Encode([]haclient.ConfigEntry{})
 
-			case r.Method == http.MethodPost && r.URL.Path == "/api/config/config_entries/flow":
-				// StartConfigFlow — return a create_entry response immediately (zero-config style)
+			case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/config/config_entries/flow"):
 				flowRequests <- r.URL.Path
+				var reqBody map[string]interface{}
+				if r.Body != nil {
+					_ = json.NewDecoder(r.Body).Decode(&reqBody)
+				}
+
+				if r.URL.Path == "/api/config/config_entries/flow" {
+					handler, _ := reqBody["handler"].(string)
+
+					switch handler {
+					case "generic":
+						_ = json.NewEncoder(w).Encode(map[string]interface{}{
+							"flow_id": "flow-test-generic",
+							"type":    "form",
+							"step_id": "user",
+						})
+						return
+					case "unsupported":
+						_ = json.NewEncoder(w).Encode(map[string]interface{}{
+							"flow_id": "flow-test-unsupported",
+							"type":    "form",
+							"step_id": "some_unknown_step",
+						})
+						return
+					}
+
+					// StartConfigFlow default
+					result, _ := json.Marshal(map[string]interface{}{
+						"entry_id": "test-entry-id-001",
+						"domain":   "recorder",
+						"title":    "Recorder",
+					})
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{
+						"flow_id": "flow-test-001",
+						"type":    "create_entry",
+						"title":   "Recorder",
+						"result":  json.RawMessage(result),
+					})
+					return
+				}
+
+				// Handle SubmitConfigFlow
+				flowID := strings.TrimPrefix(r.URL.Path, "/api/config/config_entries/flow/")
+
+				switch flowID {
+				case "flow-test-generic":
+					if _, ok := reqBody["stream_source"]; ok {
+						_ = json.NewEncoder(w).Encode(map[string]interface{}{
+							"flow_id": "flow-test-generic",
+							"type":    "form",
+							"step_id": "user_confirm",
+						})
+						return
+					} else if confirmed, ok := reqBody["confirmed"].(bool); ok && confirmed {
+						result, _ := json.Marshal(map[string]interface{}{
+							"entry_id": "test-entry-id-generic",
+							"domain":   "generic",
+							"title":    "Generic Camera",
+						})
+						_ = json.NewEncoder(w).Encode(map[string]interface{}{
+							"flow_id": "flow-test-generic",
+							"type":    "create_entry",
+							"title":   "Generic Camera",
+							"result":  json.RawMessage(result),
+						})
+						return
+					}
+				case "flow-test-unsupported":
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{
+						"flow_id": "flow-test-unsupported",
+						"type":    "form",
+						"step_id": "some_unknown_step",
+					})
+					return
+				}
+
+				// Default SubmitConfigFlow for single-step config flow (e.g. recorder with config)
 				result, _ := json.Marshal(map[string]interface{}{
 					"entry_id": "test-entry-id-001",
 					"domain":   "recorder",
@@ -370,6 +446,75 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 			Expect(reconcileIntegrationTwice("int-flow-check")).To(Succeed())
 
 			Eventually(flowRequests, timeout, interval).Should(Receive())
+		})
+
+		It("should handle multi-step config flows like Generic Camera", func() {
+			integration := &hav1.HomeAssistantIntegration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "int-multi-step",
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantIntegrationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{Name: haName},
+					Domain:           "generic",
+					Configuration: map[string]hav1.IntegrationValue{
+						"stream_source": {
+							Value: ptr.To("http://test"),
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, integration)).To(Succeed())
+			Expect(reconcileIntegrationTwice("int-multi-step")).To(Succeed())
+
+			Eventually(func(g Gomega) {
+				updated := &hav1.HomeAssistantIntegration{}
+				g.Expect(k8sClient.Get(
+					ctx, types.NamespacedName{Name: "int-multi-step", Namespace: namespace}, updated,
+				)).To(Succeed())
+				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
+				g.Expect(condition).NotTo(BeNil())
+				g.Expect(condition.Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(condition.Reason).To(Equal(reasonIntegrationConfigured))
+				g.Expect(updated.Status.EntryID).To(Equal("test-entry-id-generic"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should set IntegrationReady=False when unsupported multi-step form is returned", func() {
+			integration := &hav1.HomeAssistantIntegration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "int-unsupported-step",
+					Namespace: namespace,
+				},
+				Spec: hav1.HomeAssistantIntegrationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{Name: haName},
+					Domain:           "unsupported",
+					Configuration: map[string]hav1.IntegrationValue{
+						"dummy": {
+							Value: ptr.To("dummy"),
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, integration)).To(Succeed())
+
+			_, err := reconcileIntegration("int-unsupported-step")
+			Expect(err).NotTo(HaveOccurred())
+			result, err := reconcileIntegration("int-unsupported-step")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(30 * time.Second))
+
+			Eventually(func(g Gomega) {
+				updated := &hav1.HomeAssistantIntegration{}
+				g.Expect(k8sClient.Get(
+					ctx, types.NamespacedName{Name: "int-unsupported-step", Namespace: namespace}, updated,
+				)).To(Succeed())
+				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
+				g.Expect(condition).NotTo(BeNil())
+				g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
+				g.Expect(condition.Reason).To(Equal(reasonConfigFlowFailed))
+				g.Expect(condition.Message).To(ContainSubstring("Unsupported form step: some_unknown_step"))
+			}, timeout, interval).Should(Succeed())
 		})
 
 		It("should set IntegrationReady=True when integration already configured (adopt)", func() {

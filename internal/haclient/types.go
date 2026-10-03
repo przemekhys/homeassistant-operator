@@ -57,6 +57,7 @@ type CoreConfigRequest struct {
 	UnitSystem   string  `json:"unit_system,omitempty"` // "metric" or "us_customary"
 	Currency     string  `json:"currency,omitempty"`
 	TimeZone     string  `json:"time_zone,omitempty"`
+	Country      string  `json:"country,omitempty"`
 }
 
 // AnalyticsRequest represents POST /api/onboarding/analytics request
@@ -97,6 +98,7 @@ type ConfigEntry struct {
 type FlowResponse struct {
 	FlowID     string          `json:"flow_id"`
 	Type       string          `json:"type"`
+	StepID     string          `json:"step_id,omitempty"`
 	Reason     string          `json:"reason,omitempty"`
 	Title      string          `json:"title"`
 	Result     json.RawMessage `json:"result"`

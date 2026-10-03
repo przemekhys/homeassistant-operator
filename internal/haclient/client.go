@@ -51,11 +51,24 @@ func (c *Client) WithTimeout(timeout time.Duration) *Client {
 // Returns nil if healthy, ErrorTypeNotReady if not ready, ErrorTypeBanned if IP is banned.
 // Note: 401 Unauthorized is considered healthy (HA is running but needs onboarding)
 func (c *Client) CheckHealth(ctx context.Context) error {
+	return c.checkHealth(ctx, "")
+}
+
+// CheckHealthWithToken is CheckHealth with a Bearer token, so HA does not log
+// (and eventually IP-ban) the request as an invalid authentication attempt.
+func (c *Client) CheckHealthWithToken(ctx context.Context, token string) error {
+	return c.checkHealth(ctx, token)
+}
+
+func (c *Client) checkHealth(ctx context.Context, token string) error {
 	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/", nil)
 	if err != nil {
 		return &Error{Type: ErrorTypeHTTP, Message: "failed to create request", Err: err}
 	}
 	req.Header.Set("User-Agent", userAgent)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -584,6 +597,42 @@ func (c *Client) SetCoreConfig(ctx context.Context, accessToken string, req *Cor
 	return nil
 }
 
+// UpdateCoreConfig applies location settings (including country) via the
+// config/core/update WebSocket command. The onboarding core_config endpoint
+// ignores its request body, so this is what actually persists the values.
+func (c *Client) UpdateCoreConfig(ctx context.Context, token string, req *CoreConfigRequest) error {
+	data := make(map[string]interface{})
+	if req.LocationName != "" {
+		data["location_name"] = req.LocationName
+	}
+	if req.Latitude != 0 {
+		data["latitude"] = req.Latitude
+	}
+	if req.Longitude != 0 {
+		data["longitude"] = req.Longitude
+	}
+	if req.Elevation != 0 {
+		data["elevation"] = req.Elevation
+	}
+	if req.UnitSystem != "" {
+		data["unit_system"] = req.UnitSystem
+	}
+	if req.Currency != "" {
+		data["currency"] = req.Currency
+	}
+	if req.TimeZone != "" {
+		data["time_zone"] = req.TimeZone
+	}
+	if req.Country != "" {
+		data["country"] = req.Country
+	}
+	if len(data) == 0 {
+		return nil
+	}
+	_, err := c.SendWebSocketCommand(ctx, token, "config/core/update", data)
+	return err
+}
+
 // SetAnalytics configures analytics preferences during onboarding
 func (c *Client) SetAnalytics(ctx context.Context, accessToken string, enabled bool) error {
 	var req AnalyticsRequest
@@ -735,6 +784,12 @@ func (c *Client) PerformBootstrap(
 	// non-admin users are blocked from accessing the websocket API.
 	if err := c.CompleteIntegrationStep(ctx, tokenResp.AccessToken); err != nil {
 		return "", err
+	}
+
+	// Persist location/country via WebSocket; only possible once onboarding is complete.
+	// Best-effort, like the other optional steps.
+	if opts.CoreConfig != nil {
+		_ = c.UpdateCoreConfig(ctx, tokenResp.AccessToken, opts.CoreConfig)
 	}
 
 	// 8. Create long-lived token if requested

@@ -94,6 +94,18 @@ var _ = Describe("HAClient", func() {
 		})
 	})
 
+	Describe("CheckHealthWithToken", func() {
+		It("Should send the Bearer token", func() {
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				Expect(r.Header.Get("Authorization")).To(Equal("Bearer llat"))
+				w.WriteHeader(http.StatusOK)
+			}))
+
+			client = NewClient(server.URL)
+			Expect(client.CheckHealthWithToken(ctx, "llat")).To(Succeed())
+		})
+	})
+
 	Describe("CheckAPIReady", func() {
 		It("Should return nil for 401 Unauthorized (API routes loaded)", func() {
 			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -340,6 +352,7 @@ var _ = Describe("HAClient", func() {
 				Expect(req.Latitude).To(Equal(52.2297))
 				Expect(req.Longitude).To(Equal(21.0122))
 				Expect(req.UnitSystem).To(Equal("metric"))
+				Expect(req.Country).To(Equal("PL"))
 
 				w.WriteHeader(http.StatusOK)
 			}))
@@ -350,6 +363,7 @@ var _ = Describe("HAClient", func() {
 				Latitude:     52.2297,
 				Longitude:    21.0122,
 				UnitSystem:   "metric",
+				Country:      "PL",
 			})
 			Expect(err).NotTo(HaveOccurred())
 		})

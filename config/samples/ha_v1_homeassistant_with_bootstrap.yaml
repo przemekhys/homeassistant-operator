@@ -83,6 +83,7 @@ spec:
       unitSystem: "metric"  # "metric" or "us_customary"
       currency: "PLN"
       timeZone: "Europe/Warsaw"  # If not specified, uses spec.timezone
+      country: "PL"
 
     # Analytics (optional, defaults to false)
     # Set to true to enable Home Assistant analytics

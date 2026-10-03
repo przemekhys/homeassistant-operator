@@ -245,21 +245,7 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 
 	// --- SUBMIT CONFIG FLOW (single-step) ---
 	if len(resolvedConfig) > 0 {
-		submitResp, submitErr := haClient.SubmitConfigFlow(ctx, token, flowResp.FlowID, resolvedConfig)
-		if submitErr != nil {
-			log.Error(submitErr, "Failed to submit config flow")
-			r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
-				fmt.Sprintf("Failed to submit config flow for %s: %v", integration.Spec.Domain, submitErr))
-			return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
-				fmt.Sprintf("Failed to submit config flow: %v", submitErr), 30*time.Second)
-		}
-		if submitResp.Type != "create_entry" {
-			r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
-				fmt.Sprintf("Config flow for %s did not reach create_entry (got: %s)", integration.Spec.Domain, submitResp.Type))
-			return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
-				fmt.Sprintf("Config flow did not complete: type=%s", submitResp.Type), 30*time.Second)
-		}
-		return r.handleCreateEntry(ctx, integration, configHash, submitResp, log)
+		return r.submitConfigFlow(ctx, integration, haClient, token, flowResp.FlowID, resolvedConfig, configHash, log)
 	}
 
 	// No configuration and flow returned a form — we can't proceed without data_schema fields
@@ -267,6 +253,56 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 		fmt.Sprintf("Config flow for %s requires configuration fields but none provided", integration.Spec.Domain))
 	return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
 		"Config flow requires configuration fields but spec.configuration is empty", 0)
+}
+
+// submitConfigFlow submits the resolved configuration and drives any follow-up confirmation steps.
+func (r *HomeAssistantIntegrationReconciler) submitConfigFlow(
+	ctx context.Context,
+	integration *hav1.HomeAssistantIntegration,
+	haClient *haclient.Client,
+	token, flowID string,
+	resolvedConfig map[string]interface{},
+	configHash string,
+	log interface{ Info(string, ...interface{}) },
+) (ctrl.Result, error) {
+	logErr := logf.FromContext(ctx)
+	submitResp, submitErr := haClient.SubmitConfigFlow(ctx, token, flowID, resolvedConfig)
+	if submitErr != nil {
+		logErr.Error(submitErr, "Failed to submit config flow")
+		r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
+			fmt.Sprintf("Failed to submit config flow for %s: %v", integration.Spec.Domain, submitErr))
+		return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
+			fmt.Sprintf("Failed to submit config flow: %v", submitErr), 30*time.Second)
+	}
+	// Handle multi-step flows
+	maxSteps := 5
+	for stepCount := 0; stepCount < maxSteps && submitResp.Type == "form"; stepCount++ {
+		if submitResp.StepID != "user_confirm" {
+			r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
+				fmt.Sprintf("Operator does not know how to satisfy multi-step form for %s (got step_id: %s)",
+					integration.Spec.Domain, submitResp.StepID))
+			return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
+				fmt.Sprintf("Unsupported form step: %s", submitResp.StepID), 30*time.Second)
+		}
+		submitResp, submitErr = haClient.SubmitConfigFlow(ctx, token, submitResp.FlowID, map[string]interface{}{
+			"confirmed": true,
+		})
+		if submitErr != nil {
+			logErr.Error(submitErr, "Failed to submit config flow confirmation step")
+			r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
+				fmt.Sprintf("Failed to submit confirmation step for %s: %v", integration.Spec.Domain, submitErr))
+			return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
+				fmt.Sprintf("Failed to submit confirmation step: %v", submitErr), 30*time.Second)
+		}
+	}
+
+	if submitResp.Type != "create_entry" {
+		r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
+			fmt.Sprintf("Config flow for %s did not reach create_entry (got: %s)", integration.Spec.Domain, submitResp.Type))
+		return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
+			fmt.Sprintf("Config flow did not complete: type=%s", submitResp.Type), 30*time.Second)
+	}
+	return r.handleCreateEntry(ctx, integration, configHash, submitResp, log)
 }
 
 // handleDeletion removes the config entry from HA (best-effort)

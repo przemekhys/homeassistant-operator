@@ -2339,6 +2339,11 @@ spec:
                       Location configures the location settings during onboarding
                       If not specified, location configuration step is skipped
                     properties:
+                      country:
+                        description: Country is the ISO 3166-1 alpha-2 country code
+                          (e.g., "US", "PL")
+                        pattern: ^[A-Z]{2}$
+                        type: string
                       currency:
                         description: Currency is the ISO 4217 currency code (e.g.,
                           "USD", "EUR", "PLN")

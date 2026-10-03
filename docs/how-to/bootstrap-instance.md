@@ -130,6 +130,7 @@ bootstrap:
     unitSystem: "metric"      # metric | us_customary
     currency: "PLN"
     timeZone: "Europe/Warsaw"
+    country: "PL"
 ```
 
 ## Every field

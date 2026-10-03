@@ -114,6 +114,18 @@ func TestInjectLocation(t *testing.T) {
 		Currency:   "PLN",
 	}
 
+	t.Run("injects country", func(t *testing.T) {
+		withCountry := *loc
+		withCountry.Country = "PL"
+		result, err := injectLocation("homeassistant:\n  name: My Home\n", &withCountry)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(result, "country: PL") {
+			t.Errorf("country not injected, got:\n%s", result)
+		}
+	})
+
 	t.Run("preserves !secret tags", func(t *testing.T) {
 		input := "homeassistant:\n  name: My Home\nrecorder:\n  db_url: !secret recorder_db_url\n"
 		result, err := injectLocation(input, loc)
