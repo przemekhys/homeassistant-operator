@@ -94,12 +94,12 @@ func (r *HomeAssistantDashboardReconciler) Reconcile(ctx context.Context, req ct
 	if err != nil {
 		return r.failed(ctx, dashboard, "HomeAssistantUnavailable", fmt.Sprintf("failed to list dashboards: %v", err))
 	}
-	var existing *haclient.Dashboard
-	for i := range dashboards {
-		if dashboards[i].URLPath == path {
-			existing = &dashboards[i]
-			break
-		}
+	existing, conflict := findDashboard(dashboards, dashboard.Status.DashboardID, path, dashboard.Spec.DefaultDashboard)
+	if conflict {
+		return r.failed(ctx, dashboard, "DashboardPathConflict", "a dashboard already exists at the requested urlPath")
+	}
+	if dashboard.Status.DashboardID != "" && existing == nil {
+		return r.failed(ctx, dashboard, "DashboardNotFound", "managed dashboard no longer exists")
 	}
 	created := false
 	if existing == nil {
@@ -107,10 +107,11 @@ func (r *HomeAssistantDashboardReconciler) Reconcile(ctx context.Context, req ct
 		if err != nil {
 			return r.failed(ctx, dashboard, "DashboardWriteFailed", fmt.Sprintf("failed to create dashboard: %v", err))
 		}
+		dashboard.Status.DashboardID = existing.ID
 		created = true
 	} else if existing.Mode != haclient.DashboardModeStorage {
 		return r.failed(ctx, dashboard, "DashboardNotStorageManaged", "dashboard is not storage-managed")
-	} else if dashboard.Status.SourceHash != hash {
+	} else if dashboard.Status.SourceHash != hash || existing.Title != metadata.Title {
 		existing, err = haClient.UpdateDashboard(ctx, token, existing.ID, metadata)
 		if err != nil {
 			return r.failed(ctx, dashboard, "DashboardWriteFailed", fmt.Sprintf("failed to update dashboard: %v", err))
@@ -150,6 +151,23 @@ func (r *HomeAssistantDashboardReconciler) Reconcile(ctx context.Context, req ct
 
 func (r *HomeAssistantDashboardReconciler) haClientFor(ha *hav1.HomeAssistant) *haclient.Client {
 	return newHAClientForHA(ha, r.NewHAClient)
+}
+
+func findDashboard(
+	dashboards []haclient.Dashboard, dashboardID, path string, defaultDashboard bool,
+) (*haclient.Dashboard, bool) {
+	for i := range dashboards {
+		if dashboardID != "" {
+			if dashboards[i].ID == dashboardID {
+				return &dashboards[i], false
+			}
+			continue
+		}
+		if dashboards[i].URLPath == path {
+			return &dashboards[i], !defaultDashboard
+		}
+	}
+	return nil, false
 }
 
 func (r *HomeAssistantDashboardReconciler) resolveConfig(
@@ -220,14 +238,17 @@ func (r *HomeAssistantDashboardReconciler) reconcileDeletion(
 	haRef := types.NamespacedName{Name: dashboard.Spec.HomeAssistantRef.Name, Namespace: dashboard.Namespace}
 	ha, err := getHomeAssistant(ctx, r.Client, haRef)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: dashboardRetry}, nil
+		if apierrors.IsNotFound(err) {
+			return r.failed(ctx, dashboard, "HomeAssistantNotFound", "referenced HomeAssistant was not found")
+		}
+		return r.failed(ctx, dashboard, "HomeAssistantLookupFailed", fmt.Sprintf("failed to get HomeAssistant: %v", err))
 	}
 	token, err := getAPIToken(ctx, r.Client, ha)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: dashboardRetry}, nil
+		return r.failed(ctx, dashboard, "TokenNotAvailable", "Home Assistant API token is not available")
 	}
 	if err := r.haClientFor(ha).DeleteDashboard(ctx, token, dashboard.Status.DashboardID); err != nil {
-		return ctrl.Result{RequeueAfter: dashboardRetry}, nil
+		return r.failed(ctx, dashboard, "DashboardDeleteFailed", fmt.Sprintf("failed to delete dashboard: %v", err))
 	}
 	controllerutil.RemoveFinalizer(dashboard, dashboardFinalizer)
 	return ctrl.Result{}, r.Update(ctx, dashboard)

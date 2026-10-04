@@ -93,7 +93,7 @@ var _ = Describe("HomeAssistantDashboard Controller", func() {
 		}
 		for _, name := range []string{
 			"inline-dashboard", "configmap-dashboard", "delete-dashboard", "unavailable-dashboard",
-			"rejected-save-dashboard", "missing-configmap-dashboard", "invalid-yaml-dashboard",
+			"rejected-save-dashboard", "missing-configmap-dashboard", "invalid-yaml-dashboard", "conflict-dashboard",
 		} {
 			dashboard := &hav1alpha1.HomeAssistantDashboard{}
 			if err := k8sClient.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, dashboard); err == nil {
@@ -169,6 +169,49 @@ var _ = Describe("HomeAssistantDashboard Controller", func() {
 		Expect(mockHA.updateCount()).To(Equal(1))
 		Expect(mockHA.saveCount()).To(Equal(2))
 		Expect(mockHA.lastSavedConfig()["title"]).To(Equal("After"))
+	})
+
+	It("updates dashboard metadata when the Home Assistant title drifts", func() {
+		setupHA()
+		dashboard := &hav1alpha1.HomeAssistantDashboard{
+			ObjectMeta: metav1.ObjectMeta{Name: "inline-dashboard", Namespace: ns},
+			Spec: hav1alpha1.HomeAssistantDashboardSpec{
+				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: haName},
+				Title:            "Expected Title", URLPath: "inline-dashboard", Inline: "views: []\n",
+			},
+		}
+		Expect(k8sClient.Create(ctx, dashboard)).To(Succeed())
+		reconciler := newReconciler()
+		reconcileDashboard(reconciler, dashboard.Name)
+		reconcileDashboard(reconciler, dashboard.Name)
+
+		mockHA.setDashboardTitle("Drifted Title")
+		reconcileDashboard(reconciler, dashboard.Name)
+
+		Expect(mockHA.updateCount()).To(Equal(1))
+	})
+
+	It("does not adopt a named dashboard that already uses the requested path", func() {
+		setupHA()
+		mockHA.addDashboard("external-dashboard", "conflict-dashboard", "External Dashboard")
+		dashboard := &hav1alpha1.HomeAssistantDashboard{
+			ObjectMeta: metav1.ObjectMeta{Name: "conflict-dashboard", Namespace: ns},
+			Spec: hav1alpha1.HomeAssistantDashboardSpec{
+				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: haName},
+				Title:            "Managed Dashboard", URLPath: "conflict-dashboard", Inline: "views: []\n",
+			},
+		}
+		Expect(k8sClient.Create(ctx, dashboard)).To(Succeed())
+		reconciler := newReconciler()
+		reconcileDashboard(reconciler, dashboard.Name)
+		result := reconcileDashboard(reconciler, dashboard.Name)
+
+		Expect(result.RequeueAfter).To(Equal(dashboardRetry))
+		Expect(mockHA.updateCount()).To(Equal(0))
+		updated := &hav1alpha1.HomeAssistantDashboard{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: dashboard.Name, Namespace: ns}, updated)).To(Succeed())
+		condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
+		Expect(condition).To(HaveField("Reason", "DashboardPathConflict"))
 	})
 
 	It("restores the desired config when the Home Assistant dashboard drifts", func() {
@@ -357,6 +400,7 @@ var _ = Describe("HomeAssistantDashboard Controller", func() {
 		updated := &hav1alpha1.HomeAssistantDashboard{}
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: dashboard.Name, Namespace: ns}, updated)).To(Succeed())
 		Expect(updated.Status.SourceHash).To(BeEmpty())
+		Expect(updated.Status.DashboardID).To(Equal("dashboard-1"))
 		ready := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
 		Expect(ready).To(HaveField("Reason", "DashboardWriteFailed"))
 
@@ -365,6 +409,32 @@ var _ = Describe("HomeAssistantDashboard Controller", func() {
 		Expect(mockHA.saveCount()).To(Equal(2))
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: dashboard.Name, Namespace: ns}, updated)).To(Succeed())
 		Expect(updated.Status.SourceHash).NotTo(BeEmpty())
+	})
+
+	It("retains its finalizer and records a missing HomeAssistant during deletion", func() {
+		setupHA()
+		dashboard := &hav1alpha1.HomeAssistantDashboard{
+			ObjectMeta: metav1.ObjectMeta{Name: "delete-dashboard", Namespace: ns},
+			Spec: hav1alpha1.HomeAssistantDashboardSpec{
+				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: haName},
+				Title:            "Delete Dashboard", URLPath: "delete-dashboard", Inline: "views: []\n",
+			},
+		}
+		Expect(k8sClient.Create(ctx, dashboard)).To(Succeed())
+		reconciler := newReconciler()
+		reconcileDashboard(reconciler, dashboard.Name)
+		reconcileDashboard(reconciler, dashboard.Name)
+		ha := &hav1.HomeAssistant{ObjectMeta: metav1.ObjectMeta{Name: haName, Namespace: ns}}
+		Expect(k8sClient.Delete(ctx, ha)).To(Succeed())
+		Expect(k8sClient.Delete(ctx, dashboard)).To(Succeed())
+
+		result := reconcileDashboard(reconciler, dashboard.Name)
+		Expect(result.RequeueAfter).To(Equal(dashboardRetry))
+		updated := &hav1alpha1.HomeAssistantDashboard{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: dashboard.Name, Namespace: ns}, updated)).To(Succeed())
+		Expect(controllerutil.ContainsFinalizer(updated, dashboardFinalizer)).To(BeTrue())
+		condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
+		Expect(condition).To(HaveField("Reason", "HomeAssistantNotFound"))
 	})
 
 	DescribeTable("retries invalid ConfigMap sources", func(dashboard *hav1alpha1.HomeAssistantDashboard, reason string) {
@@ -470,6 +540,11 @@ func (m *dashboardMockHA) handle(command map[string]interface{}) (interface{}, b
 		return dashboard, true
 	case "lovelace/dashboards/update":
 		m.updates++
+		for _, dashboard := range m.dashboards {
+			if dashboard["id"] == command["dashboard_id"] {
+				dashboard["title"] = command["title"]
+			}
+		}
 		return map[string]interface{}{
 			"id": command["dashboard_id"], "url_path": "", "mode": "storage", "title": command["title"],
 		}, true
@@ -512,6 +587,22 @@ func (m *dashboardMockHA) setConfig(config map[string]interface{}) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.config = config
+}
+
+func (m *dashboardMockHA) setDashboardTitle(title string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if len(m.dashboards) > 0 {
+		m.dashboards[0]["title"] = title
+	}
+}
+
+func (m *dashboardMockHA) addDashboard(id, urlPath, title string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.dashboards = append(m.dashboards, map[string]interface{}{
+		"id": id, "url_path": urlPath, "mode": "storage", "title": title,
+	})
 }
 
 func (m *dashboardMockHA) lastSavedConfig() map[string]interface{} {

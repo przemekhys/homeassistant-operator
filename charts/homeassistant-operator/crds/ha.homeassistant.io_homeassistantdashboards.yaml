@@ -227,7 +227,8 @@ spec:
         - message: spec.defaultDashboard requires omitting spec.urlPath, and named
             dashboards require spec.urlPath
           rule: 'self.spec.defaultDashboard ? !has(self.spec.urlPath) : has(self.spec.urlPath)'
-        - message: spec.urlPath lovelace requires spec.defaultDashboard
+        - message: spec.urlPath must not be lovelace; select the default dashboard
+            with spec.defaultDashboard and omit spec.urlPath
           rule: self.spec.defaultDashboard || self.spec.urlPath != 'lovelace'
     served: true
     storage: true

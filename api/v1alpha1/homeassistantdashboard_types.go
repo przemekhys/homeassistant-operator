@@ -124,7 +124,7 @@ type HomeAssistantDashboardStatus struct {
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.spec) || self.spec.homeAssistantRef == oldSelf.spec.homeAssistantRef",message="spec.homeAssistantRef is immutable after creation"
 // +kubebuilder:validation:XValidation:rule="has(self.spec.inline) != has(self.spec.configMapKeyRef)",message="exactly one of spec.inline or spec.configMapKeyRef must be specified"
 // +kubebuilder:validation:XValidation:rule="self.spec.defaultDashboard ? !has(self.spec.urlPath) : has(self.spec.urlPath)",message="spec.defaultDashboard requires omitting spec.urlPath, and named dashboards require spec.urlPath"
-// +kubebuilder:validation:XValidation:rule="self.spec.defaultDashboard || self.spec.urlPath != 'lovelace'",message="spec.urlPath lovelace requires spec.defaultDashboard"
+// +kubebuilder:validation:XValidation:rule="self.spec.defaultDashboard || self.spec.urlPath != 'lovelace'",message="spec.urlPath must not be lovelace; select the default dashboard with spec.defaultDashboard and omit spec.urlPath"
 
 // HomeAssistantDashboard is the Schema for a storage-mode Home Assistant Lovelace dashboard.
 type HomeAssistantDashboard struct {
