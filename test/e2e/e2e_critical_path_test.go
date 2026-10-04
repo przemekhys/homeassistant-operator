@@ -209,7 +209,87 @@ spec:
 	})
 
 	// -------------------------------------------------------------------------
-	// 2. HomeAssistantConfiguration — hot-reload on config change
+	// 2. HomeAssistantDashboard — inline dashboard create and update
+	// -------------------------------------------------------------------------
+	It("HomeAssistantDashboard — creates and updates an inline dashboard", func() {
+		dashboardYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1alpha1
+kind: HomeAssistantDashboard
+metadata:
+  name: cp-dashboard
+  namespace: %s
+spec:
+  homeAssistantRef:
+    name: %s
+  title: Critical Path Dashboard
+  urlPath: critical-path
+  inline: |
+    title: Critical Path Dashboard
+    views:
+      - title: Overview
+        cards: []
+`, namespace, haName)
+		By("Creating an inline HomeAssistantDashboard")
+		Expect(utils.ApplyYAML(dashboardYAML, namespace)).To(Succeed())
+
+		var dashboardID, initialHash string
+		By("Verifying the dashboard is ready with its Home Assistant identity")
+		Eventually(func(g Gomega) {
+			ready := utils.Kubectl("get", "hadashboard", "cp-dashboard", "-n", namespace,
+				"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}")
+			status := utils.Kubectl("get", "hadashboard", "cp-dashboard", "-n", namespace,
+				"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].reason}: {.status.lastError}")
+			g.Expect(ready).To(Equal("True"), status)
+			dashboardID = utils.Kubectl("get", "hadashboard", "cp-dashboard", "-n", namespace,
+				"-o", "jsonpath={.status.dashboardID}")
+			g.Expect(dashboardID).NotTo(BeEmpty())
+			path := utils.Kubectl("get", "hadashboard", "cp-dashboard", "-n", namespace,
+				"-o", "jsonpath={.status.urlPath}")
+			g.Expect(path).To(Equal("critical-path"))
+			initialHash = utils.Kubectl("get", "hadashboard", "cp-dashboard", "-n", namespace,
+				"-o", "jsonpath={.status.sourceHash}")
+			g.Expect(initialHash).NotTo(BeEmpty())
+		}, time.Minute, reconcileInterval).Should(Succeed())
+
+		By("Updating the inline dashboard")
+		updatedYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1alpha1
+kind: HomeAssistantDashboard
+metadata:
+  name: cp-dashboard
+  namespace: %s
+spec:
+  homeAssistantRef:
+    name: %s
+  title: Updated Critical Path Dashboard
+  urlPath: critical-path
+  inline: |
+    title: Updated Critical Path Dashboard
+    views:
+      - title: Updated Overview
+        cards: []
+`, namespace, haName)
+		Expect(utils.ApplyYAML(updatedYAML, namespace)).To(Succeed())
+
+		By("Verifying the same dashboard was updated")
+		Eventually(func(g Gomega) {
+			hash := utils.Kubectl("get", "hadashboard", "cp-dashboard", "-n", namespace,
+				"-o", "jsonpath={.status.sourceHash}")
+			g.Expect(hash).NotTo(Equal(initialHash))
+			id := utils.Kubectl("get", "hadashboard", "cp-dashboard", "-n", namespace,
+				"-o", "jsonpath={.status.dashboardID}")
+			g.Expect(id).To(Equal(dashboardID))
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+
+		By("Deleting the dashboard while Home Assistant is available")
+		_, err := utils.Run(exec.Command("kubectl", "delete", "hadashboard", "cp-dashboard", "-n", namespace, "--wait=false"))
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(func(g Gomega) {
+			output := utils.Kubectl("get", "hadashboard", "cp-dashboard", "-n", namespace, "--ignore-not-found")
+			g.Expect(output).To(BeEmpty())
+		}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
+	})
+
+	// -------------------------------------------------------------------------
+	// 3. HomeAssistantConfiguration — hot-reload on config change
 	// -------------------------------------------------------------------------
 	It("HomeAssistantConfiguration — hot-reload on config change", func() {
 		By("Capturing pod UID before config change")
