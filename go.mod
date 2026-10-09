@@ -2,7 +2,7 @@ module github.com/przemekhys/homeassistant-operator
 
 go 1.26.0
 
-toolchain go1.27.1
+toolchain go1.27.2
 
 require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
