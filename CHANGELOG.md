@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.5.1] - 2026-10-11
+
+### Fixed
+
+- **CI compatibility with Go 1.27 and HTTP/2 dependency vulnerabilities.**
+  Updated golangci-lint for Go 1.27 export data compatibility and upgraded
+  `golang.org/x/net` to v0.60.0 to remediate reported HTTP/2 vulnerabilities.
+
 ## [v1.5.0] - 2026-09-20
 
 
@@ -513,7 +521,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Primary: k3s on Raspberry Pi 4/5 (ARM64)
 - Also supported: Any Kubernetes cluster (AMD64/ARM64)
 
-[Unreleased]: https://github.com/przemekhys/homeassistant-operator/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/przemekhys/homeassistant-operator/compare/v1.5.1...HEAD
+[v1.5.1]: https://github.com/przemekhys/homeassistant-operator/compare/v1.5.0...v1.5.1
 [v1.5.0]: https://github.com/przemekhys/homeassistant-operator/compare/v1.4.2...v1.5.0
 [v1.4.2]: https://github.com/przemekhys/homeassistant-operator/compare/v1.4.1...v1.4.2
 [v1.4.1]: https://github.com/przemekhys/homeassistant-operator/compare/v1.4.0...v1.4.1
