@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their installed extension, status, and active version; new manifests should use
   `ha.homeassistant.io/v1`.
 
+## [v1.5.1] - 2026-10-11
+
+### Fixed
+
+- **CI compatibility with Go 1.27 and HTTP/2 dependency vulnerabilities.**
+  Updated golangci-lint for Go 1.27 export data compatibility and upgraded
+  `golang.org/x/net` to v0.60.0 to remediate reported HTTP/2 vulnerabilities.
+
+## [v1.5.0] - 2026-09-20
+
 ### Added
 
 - **Custom StatefulSet and Pod metadata (`spec.labels` and `spec.annotations`).**
@@ -42,6 +52,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   GatewayClass lookup or ownership. The field defaults to `traefik` when
   omitted; clusters using another Gateway controller must select its class
   explicitly.
+
+## [v1.4.2] - 2026-09-10
+
+### Fixed
+
+- Corrected security-scan handling for pull requests targeting `dev`.
+
+### Changed
+
+- Automated Helm values reference documentation and added the pull request
+  template.
+- Updated dependencies, including `google.golang.org/grpc` to `v1.83.2`.
+
+## [v1.4.1] - 2026-09-04
+
+### Changed
+
+- Restructured documentation according to the Diataxis framework.
+- Updated project dependencies, including controller-runtime to `v0.25.0` and
+  `google.golang.org/grpc` to `v1.83.1`.
 
 ## [v1.4.0] - 2026-09-01
 
@@ -497,7 +527,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Primary: k3s on Raspberry Pi 4/5 (ARM64)
 - Also supported: Any Kubernetes cluster (AMD64/ARM64)
 
-[Unreleased]: https://github.com/przemekhys/homeassistant-operator/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/przemekhys/homeassistant-operator/compare/v1.5.1...HEAD
+[v1.5.1]: https://github.com/przemekhys/homeassistant-operator/compare/v1.5.0...v1.5.1
+[v1.5.0]: https://github.com/przemekhys/homeassistant-operator/compare/v1.4.2...v1.5.0
+[v1.4.2]: https://github.com/przemekhys/homeassistant-operator/compare/v1.4.1...v1.4.2
+[v1.4.1]: https://github.com/przemekhys/homeassistant-operator/compare/v1.4.0...v1.4.1
 [v1.4.0]: https://github.com/przemekhys/homeassistant-operator/compare/v1.3.0...v1.4.0
 [v1.3.0]: https://github.com/przemekhys/homeassistant-operator/compare/v1.2.0...v1.3.0
 [v1.2.0]: https://github.com/przemekhys/homeassistant-operator/compare/v1.1.0...v1.2.0
