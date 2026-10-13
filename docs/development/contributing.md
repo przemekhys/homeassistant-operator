@@ -33,7 +33,7 @@ Every submission helps shape the project.
 
 ### Prerequisites
 
-- Go 1.26+
+- Go 1.27+
 - Docker or Podman
 - `kubectl`
 - `k3d` (for local cluster testing)
