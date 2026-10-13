@@ -47,7 +47,7 @@ the next feature cycle starts fresh on `dev`.
 
 After every release cut from `main` (patch or final), open a pull request that
 merges `main` back into `dev`. This carries released fixes into the next feature
-cycle without pushing directly to the protected `dev` branch:
+cycle and gives the synchronization its usual CI and review gate:
 
 ```bash
 git fetch origin
@@ -77,7 +77,8 @@ Renovate (`renovate.json`) watches **both** long-lived branches
 
 When `main` and `dev` hold the same dependency state you will get two
 near-identical PRs; merge the `main` one, and the routine `git merge --no-ff
-main` into `dev` makes Renovate close the redundant `dev` PR on its next run.
+origin/main` into `dev` makes Renovate close the redundant `dev` PR on its next
+run.
 
 ## Release candidates
 
