@@ -59,7 +59,7 @@ jobs:
           cache: pip
           cache-dependency-path: docs/requirements.lock
 
-      - name: Install MkDocs dependencies
+      - name: Install Zensical dependencies
         run: pip install --require-hashes -r docs/requirements.lock
 
       - name: Generate CRD API reference
@@ -81,10 +81,10 @@ jobs:
       - name: Generate Helm values reference
         run: make helm-docs HELM_DOCS=/usr/local/bin/helm-docs
 
-      # mkdocs offers no "error" level for link validation, only warn/info —
-      # --strict is what turns those warnings into a failing build.
+      # Zensical reports link diagnostics as warnings; --strict turns them into
+      # a failing build, while --clean prevents stale output from masking drift.
       - name: Build the site (strict; validates links and anchors)
-        run: mkdocs build --strict
+        run: zensical build --clean --strict
 
       # Documentation must stand on its own for anyone who clones this
       # repository. References to planning artefacts that live outside it are
@@ -102,7 +102,12 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # required for mkdocs gh-deploy (pushes to gh-pages branch)
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -122,7 +127,9 @@ jobs:
           cache: pip
           cache-dependency-path: docs/requirements.lock
 
-      - name: Install MkDocs dependencies
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+
+      - name: Install Zensical dependencies
         run: pip install --require-hashes -r docs/requirements.lock
 
       - name: Generate CRD API reference
@@ -132,8 +139,11 @@ jobs:
         run: make helm-docs HELM_DOCS=/usr/local/bin/helm-docs
 
       - name: Deploy to GitHub Pages
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          mkdocs gh-deploy --force
+        run: zensical build --clean --strict
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
