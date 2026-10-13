@@ -1,0 +1,13 @@
+apiVersion: ha.homeassistant.io/v1
+kind: HomeAssistantCommunityRepository
+metadata:
+  name: my-custom-theme
+  labels:
+    app.kubernetes.io/name: homeassistant-operator
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  homeAssistantRef:
+    name: my-homeassistant
+  category: theme
+  repository: someuser/some-hacs-theme
+  ref: v2.1.0

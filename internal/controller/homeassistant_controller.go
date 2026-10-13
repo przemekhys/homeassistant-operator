@@ -49,7 +49,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
-	hav1alpha1 "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 	"github.com/przemekhys/homeassistant-operator/internal/haclient"
 )
 
@@ -896,9 +895,7 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 	probeScheme := corev1.URISchemeHTTP
 
 	// Community repository sidecar: only injected when at least one
-	// HomeAssistantCommunityRepository actually targets this instance — the stable
-	// HomeAssistant CRD carries no footprint from this alpha feature unless it is
-	// in use.
+	// HomeAssistantCommunityRepository actually targets this instance.
 	containers := []corev1.Container{
 		{
 			Name:            "home-assistant",
@@ -2161,7 +2158,7 @@ func (r *HomeAssistantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.findHomeAssistantForConfigMap),
 		).
 		Watches(
-			&hav1alpha1.HomeAssistantCommunityRepository{},
+			&hav1.HomeAssistantCommunityRepository{},
 			handler.EnqueueRequestsFromMapFunc(r.findHomeAssistantForCommunityRepository),
 		).
 		Named("homeassistant").
@@ -2172,7 +2169,7 @@ func (r *HomeAssistantReconciler) findHomeAssistantForCommunityRepository(
 	_ context.Context,
 	obj client.Object,
 ) []reconcile.Request {
-	repo, ok := obj.(*hav1alpha1.HomeAssistantCommunityRepository)
+	repo, ok := obj.(*hav1.HomeAssistantCommunityRepository)
 	if !ok || repo.Spec.HomeAssistantRef.Name == "" {
 		return nil
 	}

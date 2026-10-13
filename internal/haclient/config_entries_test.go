@@ -3,12 +3,63 @@ package haclient
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
 )
+
+func TestUploadFile(t *testing.T) {
+	data := []byte{0x00, 0x01, 0xff, 'p', 'e', 'm'}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/file_upload" || r.Method != http.MethodPost {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Error("missing authorization header")
+		}
+		if err := r.ParseMultipartForm(1024); err != nil {
+			t.Fatalf("parse multipart form: %v", err)
+		}
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			t.Fatalf("read uploaded file: %v", err)
+		}
+		defer func() { _ = file.Close() }()
+		got, _ := io.ReadAll(file)
+		if string(got) != string(data) || header.Filename != "client.crt" {
+			t.Errorf("uploaded file did not preserve name or bytes")
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"file_id": "file-123"})
+	}))
+	defer server.Close()
+
+	fileID, err := NewClient(server.URL).UploadFile(context.Background(), "test-token", "client.crt", data)
+	if err != nil || fileID != "file-123" {
+		t.Fatalf("UploadFile() = %q, %v", fileID, err)
+	}
+}
+
+func TestUploadFileRejectsMissingIDAndCleanupIgnoresNotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			_ = json.NewEncoder(w).Encode(map[string]string{})
+		case http.MethodDelete:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	client := NewClient(server.URL)
+	if _, err := client.UploadFile(context.Background(), "token", "ca.crt", []byte("ca")); err == nil {
+		t.Fatal("expected missing file_id error")
+	}
+	if err := client.DeleteUploadedFile(context.Background(), "token", "gone"); err != nil {
+		t.Fatalf("DeleteUploadedFile() = %v", err)
+	}
+}
 
 func TestListConfigEntries(t *testing.T) {
 	entries := []ConfigEntry{

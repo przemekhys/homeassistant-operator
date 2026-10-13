@@ -6,7 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased]
+## [v1.6.0] - 2026-10-13
+
+### Added
+
+- **Storage-mode Lovelace dashboards (alpha).** New
+  `HomeAssistantDashboard` resources (`ha.homeassistant.io/v1alpha1`, short name
+  `hadashboard`) declaratively manage a Home Assistant storage-mode dashboard.
+  Supply its complete YAML definition inline or from a key in a same-namespace
+  ConfigMap; the operator creates, updates, restores drift in, and deletes only
+  the managed dashboard. Named dashboards use `spec.urlPath`; set
+  `spec.defaultDashboard: true` to explicitly manage the primary `lovelace`
+  dashboard. YAML-mode, built-in, and per-user dashboards are not supported.
+
+- **File uploads for integration Config Flows.**
+  `HomeAssistantIntegration.spec.configuration` values now support
+  `fileSecretKeyRef`, which reads binary content from a Kubernetes Secret and
+  uploads it only to a Config Flow field that accepts files. This supports
+  certificate, private-key, and CA-file fields such as MQTT mutual TLS without
+  placing their contents in the custom resource; `fileName` optionally controls
+  the filename presented to Home Assistant.
+
+### Changed
+
+- **`HomeAssistantCommunityRepository` promoted to stable `v1`.** Existing
+  `v1alpha1` resources remain served during a compatibility window and preserve
+  their installed extension, status, and active version; new manifests should use
+  `ha.homeassistant.io/v1`.
 
 ## [v1.5.1] - 2026-10-11
 
@@ -17,7 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `golang.org/x/net` to v0.60.0 to remediate reported HTTP/2 vulnerabilities.
 
 ## [v1.5.0] - 2026-09-20
-
 
 ### Added
 

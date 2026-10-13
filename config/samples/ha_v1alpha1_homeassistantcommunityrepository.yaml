@@ -1,3 +1,4 @@
+# Deprecated compatibility example. New resources must use ha.homeassistant.io/v1.
 apiVersion: ha.homeassistant.io/v1alpha1
 kind: HomeAssistantCommunityRepository
 metadata:

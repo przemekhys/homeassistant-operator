@@ -17,6 +17,8 @@ Package v1 contains API Schema definitions for the ha v1 API group.
 - [HomeAssistantAreaList](#homeassistantarealist)
 - [HomeAssistantAutomation](#homeassistantautomation)
 - [HomeAssistantAutomationList](#homeassistantautomationlist)
+- [HomeAssistantCommunityRepository](#homeassistantcommunityrepository)
+- [HomeAssistantCommunityRepositoryList](#homeassistantcommunityrepositorylist)
 - [HomeAssistantConfiguration](#homeassistantconfiguration)
 - [HomeAssistantConfigurationList](#homeassistantconfigurationlist)
 - [HomeAssistantFloor](#homeassistantfloor)
@@ -214,6 +216,50 @@ _Appears in:_
 | `message` _string_ | Message provides additional information about the bootstrap status |  | Optional: \{\} <br /> |
 | `onboardingDoneFirstSeen` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | OnboardingDoneFirstSeen is the timestamp when /api/onboarding first returned 404.<br />Used to implement confirmation delay without relying on condition LastTransitionTime<br />(which does not update when only the Reason changes). |  | Optional: \{\} <br /> |
 | `loginRecoveryAttempts` _integer_ | LoginRecoveryAttempts tracks how many times login recovery was attempted.<br />Reset to zero when onboarding is confirmed fresh or bootstrap succeeds. |  | Optional: \{\} <br /> |
+
+
+#### CommunityRepositoryCategory
+
+_Underlying type:_ _string_
+
+CommunityRepositoryCategory is a HACS repository category. Values match the
+hacs.json category field exactly.
+
+_Validation:_
+- Enum: [integration plugin theme python_script template]
+
+_Appears in:_
+- [HomeAssistantCommunityRepositorySpec](#homeassistantcommunityrepositoryspec)
+
+| Field | Description |
+| --- | --- |
+| `integration` |  |
+| `plugin` |  |
+| `theme` |  |
+| `python_script` |  |
+| `template` |  |
+
+
+#### CommunityRepositoryPhase
+
+_Underlying type:_ _string_
+
+CommunityRepositoryPhase is the reconciliation lifecycle phase of a
+HomeAssistantCommunityRepository.
+
+
+
+_Appears in:_
+- [HomeAssistantCommunityRepositoryStatus](#homeassistantcommunityrepositorystatus)
+
+| Field | Description |
+| --- | --- |
+| `Pending` |  |
+| `Validating` |  |
+| `Installing` |  |
+| `Installed` |  |
+| `Failed` |  |
+| `Removing` |  |
 
 
 #### ConfigurationReloadStrategy
@@ -655,6 +701,88 @@ _Appears in:_
 | `observedGeneration` _integer_ | ObservedGeneration reflects the generation of the most recently observed HomeAssistantAutomation |  | Optional: \{\} <br /> |
 
 
+#### HomeAssistantCommunityRepository
+
+
+
+HomeAssistantCommunityRepository installs a HACS-compatible community extension
+into an existing HomeAssistant instance without requiring HACS or its UI.
+
+
+
+_Appears in:_
+- [HomeAssistantCommunityRepositoryList](#homeassistantcommunityrepositorylist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
+| `kind` _string_ | `HomeAssistantCommunityRepository` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[HomeAssistantCommunityRepositorySpec](#homeassistantcommunityrepositoryspec)_ |  |  |  |
+| `status` _[HomeAssistantCommunityRepositoryStatus](#homeassistantcommunityrepositorystatus)_ |  |  |  |
+
+
+#### HomeAssistantCommunityRepositoryList
+
+
+
+HomeAssistantCommunityRepositoryList contains a list of community repositories.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
+| `kind` _string_ | `HomeAssistantCommunityRepositoryList` | | |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[HomeAssistantCommunityRepository](#homeassistantcommunityrepository) array_ |  |  |  |
+
+
+#### HomeAssistantCommunityRepositorySpec
+
+
+
+HomeAssistantCommunityRepositorySpec defines the desired state of a
+HomeAssistantCommunityRepository.
+
+
+
+_Appears in:_
+- [HomeAssistantCommunityRepository](#homeassistantcommunityrepository)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `homeAssistantRef` _[HomeAssistantReference](#homeassistantreference)_ | HomeAssistantRef references the HomeAssistant instance to install this repository into. |  | Required: \{\} <br /> |
+| `category` _[CommunityRepositoryCategory](#communityrepositorycategory)_ | Category is the HACS repository category. appdaemon and netdaemon require a<br />separate runtime this operator does not deploy. |  | Enum: [integration plugin theme python_script template] <br />Required: \{\} <br /> |
+| `repository` _string_ | Repository is the GitHub "owner/repo" shorthand, not a full URL. |  | Pattern: `^[\w.-]+/[\w.-]+$` <br />Required: \{\} <br /> |
+| `ref` _string_ | Ref is the explicit tag, branch, or commit SHA to install. |  | MinLength: 1 <br />Pattern: `^[\w][\w.\-/]*$` <br />Required: \{\} <br /> |
+
+
+#### HomeAssistantCommunityRepositoryStatus
+
+
+
+HomeAssistantCommunityRepositoryStatus defines the observed state of a
+HomeAssistantCommunityRepository.
+
+
+
+_Appears in:_
+- [HomeAssistantCommunityRepository](#homeassistantcommunityrepository)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `phase` _[CommunityRepositoryPhase](#communityrepositoryphase)_ | Phase is the current lifecycle phase. |  | Optional: \{\} <br /> |
+| `installedVersion` _string_ | InstalledVersion is the last ref that was successfully validated and activated. |  | Optional: \{\} <br /> |
+| `resolvedTarget` _string_ | ResolvedTarget is the source-manifest install target used for conflict detection. |  | Optional: \{\} <br /> |
+| `lastError` _string_ | LastError contains a human-readable error message from the last failed operation. |  | Optional: \{\} <br /> |
+| `installingSince` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | InstallingSince records when the resource most recently entered Installing. |  | Optional: \{\} <br /> |
+| `observedGeneration` _integer_ | ObservedGeneration reflects the generation most recently observed by the controller. |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of repository state. |  | Optional: \{\} <br /> |
+
+
 #### HomeAssistantConfiguration
 
 
@@ -1018,6 +1146,7 @@ HomeAssistantReference references a HomeAssistant CR.
 _Appears in:_
 - [HomeAssistantAreaSpec](#homeassistantareaspec)
 - [HomeAssistantAutomationSpec](#homeassistantautomationspec)
+- [HomeAssistantCommunityRepositorySpec](#homeassistantcommunityrepositoryspec)
 - [HomeAssistantConfigurationSpec](#homeassistantconfigurationspec)
 - [HomeAssistantFloorSpec](#homeassistantfloorspec)
 - [HomeAssistantIntegrationSpec](#homeassistantintegrationspec)
@@ -1389,6 +1518,24 @@ _Appears in:_
 | `tag` _string_ | Tag is the container image tag (e.g. "1.36", "latest") | 1.36 | Optional: \{\} <br /> |
 
 
+#### IntegrationFileSecretKeyRef
+
+
+
+IntegrationFileSecretKeyRef references a file stored in a specific Kubernetes Secret key.
+
+
+
+_Appears in:_
+- [IntegrationValue](#integrationvalue)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name of the Secret. |  | MinLength: 1 <br /> |
+| `key` _string_ | Key within the Secret containing the file bytes. |  | MinLength: 1 <br /> |
+| `fileName` _string_ | FileName is the name presented to Home Assistant. Defaults to Key when omitted. |  | Optional: \{\} <br /> |
+
+
 #### IntegrationSecretKeyRef
 
 
@@ -1410,8 +1557,8 @@ _Appears in:_
 
 
 
-IntegrationValue holds a plain text value, a JSON value, or a reference to a Kubernetes Secret key.
-Exactly one of Value, JSONValue, or SecretKeyRef must be set.
+IntegrationValue holds a plain text value, a JSON value, a text Secret reference, or a file Secret reference.
+Exactly one source must be set.
 
 
 
@@ -1423,6 +1570,7 @@ _Appears in:_
 | `value` _string_ | Value is a plain text configuration value sent as a string to the Config Flow API. |  | Optional: \{\} <br /> |
 | `jsonValue` _string_ | JSONValue is a JSON-encoded value that will be parsed and sent as a native JSON<br />object to the Config Flow API. Use this for fields that expect a dictionary or<br />array (e.g. location: '\{"latitude": 54.17, "longitude": 18.55\}'). |  | Optional: \{\} <br /> |
 | `secretKeyRef` _[IntegrationSecretKeyRef](#integrationsecretkeyref)_ | SecretKeyRef references a key in a Kubernetes Secret |  | Optional: \{\} <br /> |
+| `fileSecretKeyRef` _[IntegrationFileSecretKeyRef](#integrationfilesecretkeyref)_ | FileSecretKeyRef references binary file content in a Kubernetes Secret.<br />The operator uploads it only when the corresponding Home Assistant flow field accepts a file. |  | Optional: \{\} <br /> |
 
 
 #### IssuerReference
@@ -1730,6 +1878,8 @@ hardware the maintainers do not have.
 ### Resource Types
 - [HomeAssistantCommunityRepository](#homeassistantcommunityrepository)
 - [HomeAssistantCommunityRepositoryList](#homeassistantcommunityrepositorylist)
+- [HomeAssistantDashboard](#homeassistantdashboard)
+- [HomeAssistantDashboardList](#homeassistantdashboardlist)
 
 
 
@@ -1777,6 +1927,24 @@ _Appears in:_
 | `Removing` |  |
 
 
+#### ConfigMapKeyReference
+
+
+
+ConfigMapKeyReference identifies one dashboard definition in a ConfigMap in
+the same namespace as the HomeAssistantDashboard.
+
+
+
+_Appears in:_
+- [HomeAssistantDashboardSpec](#homeassistantdashboardspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name is the name of the ConfigMap. |  | MinLength: 1 <br />Required: \{\} <br /> |
+| `key` _string_ | Key is the ConfigMap data key containing the complete dashboard YAML document. |  | MinLength: 1 <br />Required: \{\} <br /> |
+
+
 #### HomeAssistantCommunityRepository
 
 
@@ -1784,8 +1952,8 @@ _Appears in:_
 HomeAssistantCommunityRepository installs a HACS-compatible community extension
 (integration, plugin, theme, python_script, or template) into an existing
 HomeAssistant instance, without requiring HACS or its UI to be present. This is an
-EXPERIMENTAL, alpha-quality resource: it carries no API stability guarantee between
-releases.
+DEPRECATED: use the stable ha.homeassistant.io/v1 API. This version remains
+served during the documented compatibility window for existing manifests.
 
 
 
@@ -1860,6 +2028,90 @@ _Appears in:_
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the repository state |  | Optional: \{\} <br /> |
 
 
+#### HomeAssistantDashboard
+
+
+
+HomeAssistantDashboard is the Schema for a storage-mode Home Assistant Lovelace dashboard.
+
+
+
+_Appears in:_
+- [HomeAssistantDashboardList](#homeassistantdashboardlist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `ha.homeassistant.io/v1alpha1` | | |
+| `kind` _string_ | `HomeAssistantDashboard` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[HomeAssistantDashboardSpec](#homeassistantdashboardspec)_ |  |  |  |
+| `status` _[HomeAssistantDashboardStatus](#homeassistantdashboardstatus)_ |  |  |  |
+
+
+#### HomeAssistantDashboardList
+
+
+
+HomeAssistantDashboardList contains a list of HomeAssistantDashboard.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `ha.homeassistant.io/v1alpha1` | | |
+| `kind` _string_ | `HomeAssistantDashboardList` | | |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[HomeAssistantDashboard](#homeassistantdashboard) array_ |  |  |  |
+
+
+#### HomeAssistantDashboardSpec
+
+
+
+HomeAssistantDashboardSpec defines the desired state of a storage-mode
+Home Assistant Lovelace dashboard.
+
+
+
+_Appears in:_
+- [HomeAssistantDashboard](#homeassistantdashboard)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `homeAssistantRef` _[HomeAssistantReference](#homeassistantreference)_ | HomeAssistantRef references the HomeAssistant instance that owns this dashboard. |  | Required: \{\} <br /> |
+| `title` _string_ | Title is the title displayed for the dashboard. |  | MinLength: 1 <br />Required: \{\} <br /> |
+| `urlPath` _string_ | URLPath is the unique Home Assistant path for a named dashboard. It is<br />omitted when DefaultDashboard explicitly selects the default dashboard. |  | Pattern: `^[a-z0-9]+(?:-[a-z0-9]+)*$` <br />Optional: \{\} <br /> |
+| `defaultDashboard` _boolean_ | DefaultDashboard explicitly selects Home Assistant's default storage dashboard. | false | Optional: \{\} <br /> |
+| `icon` _string_ | Icon is an optional Material Design Icons icon displayed in the sidebar. |  | Optional: \{\} <br /> |
+| `showInSidebar` _boolean_ | ShowInSidebar controls whether Home Assistant displays this dashboard in its sidebar. | true | Optional: \{\} <br /> |
+| `requireAdmin` _boolean_ | RequireAdmin restricts the dashboard to Home Assistant administrators. | false | Optional: \{\} <br /> |
+| `inline` _string_ | Inline is the complete YAML dashboard definition.<br />Exactly one of Inline and ConfigMapKeyRef is required. |  | Optional: \{\} <br /> |
+| `configMapKeyRef` _[ConfigMapKeyReference](#configmapkeyreference)_ | ConfigMapKeyRef selects the ConfigMap key containing the complete YAML<br />dashboard definition. The ConfigMap must be in this resource's namespace.<br />Exactly one of Inline and ConfigMapKeyRef is required. |  | Optional: \{\} <br /> |
+
+
+#### HomeAssistantDashboardStatus
+
+
+
+HomeAssistantDashboardStatus defines the observed state of HomeAssistantDashboard.
+
+
+
+_Appears in:_
+- [HomeAssistantDashboard](#homeassistantdashboard)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `dashboardID` _string_ | DashboardID is Home Assistant's identifier for the dashboard. |  | Optional: \{\} <br /> |
+| `urlPath` _string_ | URLPath is the effective Home Assistant dashboard path, including lovelace<br />for the default dashboard. |  | Optional: \{\} <br /> |
+| `sourceHash` _string_ | SourceHash is the hash of the dashboard definition and metadata last saved to Home Assistant. |  | Optional: \{\} <br /> |
+| `lastError` _string_ | LastError contains the most recent reconciliation error and is cleared after success. |  | Optional: \{\} <br /> |
+| `observedGeneration` _integer_ | ObservedGeneration reflects the generation most recently reconciled. |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the dashboard state. |  | Optional: \{\} <br /> |
+
+
 #### HomeAssistantReference
 
 
@@ -1872,6 +2124,7 @@ experimental API group-version has no coupling to the stable v1 types.
 
 _Appears in:_
 - [HomeAssistantCommunityRepositorySpec](#homeassistantcommunityrepositoryspec)
+- [HomeAssistantDashboardSpec](#homeassistantdashboardspec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -1205,6 +1206,83 @@ func (c *Client) StartConfigFlow(ctx context.Context, token, domain string) (*Fl
 		return nil, &Error{Type: ErrorTypeInvalidResponse, Message: "failed to decode flow response", Err: err}
 	}
 	return &flowResp, nil
+}
+
+// UploadFile uploads bytes for a Home Assistant FileSelector and returns its temporary file ID.
+func (c *Client) UploadFile(ctx context.Context, token, fileName string, data []byte) (string, error) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", fileName)
+	if err != nil {
+		return "", &Error{Type: ErrorTypeHTTP, Message: "failed to create file upload", Err: err}
+	}
+	if _, err := part.Write(data); err != nil {
+		return "", &Error{Type: ErrorTypeHTTP, Message: "failed to write file upload", Err: err}
+	}
+	if err := writer.Close(); err != nil {
+		return "", &Error{Type: ErrorTypeHTTP, Message: "failed to finalize file upload", Err: err}
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/file_upload", &body)
+	if err != nil {
+		return "", &Error{Type: ErrorTypeHTTP, Message: "failed to create file upload request", Err: err}
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("User-Agent", userAgent)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", &Error{Type: ErrorTypeNotReady, Message: "failed to upload file", Err: err}
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return "", &Error{
+			Type:       ErrorTypeHTTP,
+			Message:    fmt.Sprintf("file upload failed: %s", string(bodyBytes)),
+			StatusCode: resp.StatusCode,
+		}
+	}
+	var result struct {
+		FileID string `json:"file_id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", &Error{Type: ErrorTypeInvalidResponse, Message: "failed to decode file upload response", Err: err}
+	}
+	if result.FileID == "" {
+		return "", &Error{Type: ErrorTypeInvalidResponse, Message: "file upload response missing file_id"}
+	}
+	return result.FileID, nil
+}
+
+// DeleteUploadedFile removes an unconsumed temporary file. A missing file is already cleaned up.
+func (c *Client) DeleteUploadedFile(ctx context.Context, token, fileID string) error {
+	body, err := json.Marshal(map[string]string{"file_id": fileID})
+	if err != nil {
+		return &Error{Type: ErrorTypeHTTP, Message: "failed to marshal file cleanup request", Err: err}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/api/file_upload", bytes.NewReader(body))
+	if err != nil {
+		return &Error{Type: ErrorTypeHTTP, Message: "failed to create file cleanup request", Err: err}
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", userAgent)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return &Error{Type: ErrorTypeNotReady, Message: "failed to clean up uploaded file", Err: err}
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	return &Error{
+		Type:       ErrorTypeHTTP,
+		Message:    fmt.Sprintf("file cleanup failed: %s", string(bodyBytes)),
+		StatusCode: resp.StatusCode,
+	}
 }
 
 // SubmitConfigFlow submits data to a config entry flow step.

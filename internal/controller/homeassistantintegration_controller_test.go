@@ -18,6 +18,7 @@ package controller
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -624,6 +625,158 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 			Expect(reconcileIntegrationTwice("int-secret-config")).To(Succeed())
 
 			Eventually(submitted, timeout, interval).Should(Receive(HaveKeyWithValue("broker", "secret-broker.default.svc")))
+		})
+
+		It("should upload file Secret values for FileSelector fields", func() {
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: "mqtt-tls", Namespace: namespace},
+				Data:       map[string][]byte{"client.crt": {0, 1, 255, 'p', 'e', 'm'}},
+			}
+			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+			integration := &hav1.HomeAssistantIntegration{
+				ObjectMeta: metav1.ObjectMeta{Name: "int-file-config", Namespace: namespace},
+				Spec: hav1.HomeAssistantIntegrationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{Name: haName}, Domain: "mqtt",
+					Configuration: map[string]hav1.IntegrationValue{
+						"client_cert": {
+							FileSecretKeyRef: &hav1.IntegrationFileSecretKeyRef{Name: "mqtt-tls", Key: "client.crt"},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, integration)).To(Succeed())
+
+			uploaded := make(chan []byte, 1)
+			submitted := make(chan map[string]interface{}, 1)
+			mockServer.Close()
+			mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch {
+				case r.Method == http.MethodGet && r.URL.Path == "/api/config/config_entries/entry":
+					_ = json.NewEncoder(w).Encode([]haclient.ConfigEntry{})
+				case r.Method == http.MethodPost && r.URL.Path == "/api/config/config_entries/flow":
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{
+						"flow_id": "flow-file-001",
+						"type":    "form",
+						"data_schema": []interface{}{
+							map[string]interface{}{
+								"name":     "client_cert",
+								"selector": map[string]interface{}{"file": map[string]interface{}{}},
+							},
+						},
+					})
+				case r.Method == http.MethodPost && r.URL.Path == "/api/file_upload":
+					Expect(r.ParseMultipartForm(1024)).To(Succeed())
+					file, _, err := r.FormFile("file")
+					Expect(err).NotTo(HaveOccurred())
+					data, _ := io.ReadAll(file)
+					uploaded <- data
+					_ = json.NewEncoder(w).Encode(map[string]string{"file_id": "file-123"})
+				case r.Method == http.MethodPost:
+					body := map[string]interface{}{}
+					_ = json.NewDecoder(r.Body).Decode(&body)
+					submitted <- body
+					result, _ := json.Marshal(map[string]string{"entry_id": "file-entry-001", "domain": "mqtt", "title": "MQTT"})
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{
+						"flow_id": "flow-file-001", "type": "create_entry", "result": json.RawMessage(result),
+					})
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			reconciler.NewHAClient = func(_ string) *haclient.Client { return haclient.NewClient(mockServer.URL) }
+
+			Expect(reconcileIntegrationTwice("int-file-config")).To(Succeed())
+			Eventually(uploaded, timeout, interval).Should(Receive(Equal([]byte{0, 1, 255, 'p', 'e', 'm'})))
+			Eventually(submitted, timeout, interval).Should(Receive(HaveKeyWithValue("client_cert", "file-123")))
+		})
+
+		It("should re-upload and reconfigure when a referenced file Secret key changes", func() {
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: "mqtt-tls-rotation", Namespace: namespace},
+				Data:       map[string][]byte{"client.crt": []byte("original-certificate")},
+			}
+			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+			integration := &hav1.HomeAssistantIntegration{
+				ObjectMeta: metav1.ObjectMeta{Name: "int-file-rotation", Namespace: namespace},
+				Spec: hav1.HomeAssistantIntegrationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{Name: haName}, Domain: "mqtt",
+					Configuration: map[string]hav1.IntegrationValue{
+						"client_cert": {
+							FileSecretKeyRef: &hav1.IntegrationFileSecretKeyRef{Name: secret.Name, Key: "client.crt"},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, integration)).To(Succeed())
+
+			uploaded := make(chan []byte, 2)
+			submitted := make(chan map[string]interface{}, 2)
+			entryID := "file-entry-original"
+			mockServer.Close()
+			mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch {
+				case r.Method == http.MethodGet && r.URL.Path == "/api/config/config_entries/entry":
+					_ = json.NewEncoder(w).Encode([]haclient.ConfigEntry{})
+				case r.Method == http.MethodPost && r.URL.Path == "/api/config/config_entries/flow":
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{
+						"flow_id": "flow-file-rotation", "type": "form",
+						"data_schema": []interface{}{map[string]interface{}{
+							"name": "client_cert", "selector": map[string]interface{}{"file": map[string]interface{}{}},
+						}},
+					})
+				case r.Method == http.MethodPost && r.URL.Path == "/api/file_upload":
+					Expect(r.ParseMultipartForm(1024)).To(Succeed())
+					file, _, err := r.FormFile("file")
+					Expect(err).NotTo(HaveOccurred())
+					data, _ := io.ReadAll(file)
+					uploaded <- data
+					_ = json.NewEncoder(w).Encode(map[string]string{"file_id": "file-" + entryID})
+				case r.Method == http.MethodPost:
+					body := map[string]interface{}{}
+					_ = json.NewDecoder(r.Body).Decode(&body)
+					submitted <- body
+					result, _ := json.Marshal(map[string]string{"entry_id": entryID, "domain": "mqtt", "title": "MQTT"})
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{
+						"flow_id": "flow-file-rotation", "type": "create_entry", "result": json.RawMessage(result),
+					})
+				case r.Method == http.MethodDelete:
+					deleteRequests <- r.URL.Path
+					w.WriteHeader(http.StatusOK)
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			reconciler.NewHAClient = func(_ string) *haclient.Client { return haclient.NewClient(mockServer.URL) }
+
+			Expect(reconcileIntegrationTwice(integration.Name)).To(Succeed())
+			Eventually(uploaded, timeout, interval).Should(Receive(Equal([]byte("original-certificate"))))
+			Eventually(submitted, timeout, interval).Should(Receive(HaveKeyWithValue("client_cert", "file-file-entry-original")))
+
+			updated := &hav1.HomeAssistantIntegration{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: integration.Name, Namespace: namespace}, updated)).To(Succeed())
+			originalHash := updated.Status.ConfigHash
+			Expect(originalHash).NotTo(BeEmpty())
+
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: secret.Name, Namespace: namespace}, secret)).To(Succeed())
+			secret.Data["client.crt"] = []byte("rotated-certificate")
+			Expect(k8sClient.Update(ctx, secret)).To(Succeed())
+			entryID = "file-entry-rotated"
+
+			_, err := reconcileIntegration(integration.Name)
+			Expect(err).NotTo(HaveOccurred())
+			Eventually(deleteRequests, timeout, interval).Should(Receive(ContainSubstring("file-entry-original")))
+			Eventually(uploaded, timeout, interval).Should(Receive(Equal([]byte("rotated-certificate"))))
+			Eventually(submitted, timeout, interval).Should(Receive(HaveKeyWithValue("client_cert", "file-file-entry-rotated")))
+
+			Eventually(func(g Gomega) {
+				current := &hav1.HomeAssistantIntegration{}
+				key := types.NamespacedName{Name: integration.Name, Namespace: namespace}
+				g.Expect(k8sClient.Get(ctx, key, current)).To(Succeed())
+				g.Expect(current.Status.EntryID).To(Equal("file-entry-rotated"))
+				g.Expect(current.Status.ConfigHash).NotTo(Equal(originalHash))
+			}, timeout, interval).Should(Succeed())
 		})
 
 		It("should set IntegrationReady=False when Secret key not found", func() {

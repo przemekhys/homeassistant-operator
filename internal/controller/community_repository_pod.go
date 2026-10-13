@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
-	hav1alpha1 "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 )
 
 const (
@@ -42,14 +41,13 @@ const (
 )
 
 // hasCommunityRepositories reports whether at least one HomeAssistantCommunityRepository
-// targets ha, which gates the sidecar/init-container/ConfigMap-volume injection —
-// the stable HomeAssistant CRD never gets this alpha-feature footprint unless the
-// alpha CRD is actually in use. A List error is propagated rather than treated as
+// targets ha, which gates the sidecar/init-container/ConfigMap-volume injection.
+// A List error is propagated rather than treated as
 // "no": silently degrading to "no repositories" on a transient API error would let
 // callers build a StatefulSet spec that strips an already-installed sidecar, doing
 // an unwanted rolling restart the moment the API server hiccups.
 func hasCommunityRepositories(ctx context.Context, c client.Client, ha *hav1.HomeAssistant) (bool, error) {
-	list := &hav1alpha1.HomeAssistantCommunityRepositoryList{}
+	list := &hav1.HomeAssistantCommunityRepositoryList{}
 	if err := c.List(ctx, list, client.InNamespace(ha.Namespace)); err != nil {
 		return false, err
 	}
@@ -112,7 +110,7 @@ func calculateIntegrationRepositoryHash(configMapContent string) string {
 	_ = json.Unmarshal([]byte(configMapContent), &payload)
 	var fingerprint strings.Builder
 	for _, entry := range payload.Repositories {
-		if entry.Category == string(hav1alpha1.CategoryIntegration) {
+		if entry.Category == string(hav1.CategoryIntegration) {
 			for _, field := range []string{
 				entry.Category, entry.Repository, entry.Ref, entry.ResolvedTarget, entry.SourcePath,
 			} {

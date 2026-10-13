@@ -40,7 +40,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
-	hav1alpha1 "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 )
 
 type testClientWithWatch struct {
@@ -2866,7 +2865,7 @@ var _ = Describe("HomeAssistant Controller", func() {
 		})
 
 		AfterEach(func() {
-			list := &hav1alpha1.HomeAssistantCommunityRepositoryList{}
+			list := &hav1.HomeAssistantCommunityRepositoryList{}
 			_ = k8sClient.List(ctx, list, &client.ListOptions{Namespace: "default"})
 			for i := range list.Items {
 				_ = k8sClient.Delete(ctx, &list.Items[i])
@@ -2901,11 +2900,11 @@ var _ = Describe("HomeAssistant Controller", func() {
 				Spec:       hav1.HomeAssistantSpec{Version: "2024.1.0"},
 			}
 
-			repo := &hav1alpha1.HomeAssistantCommunityRepository{
+			repo := &hav1.HomeAssistantCommunityRepository{
 				ObjectMeta: metav1.ObjectMeta{Name: "cr-inject-some-theme", Namespace: "default"},
-				Spec: hav1alpha1.HomeAssistantCommunityRepositorySpec{
-					HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: ha.Name},
-					Category:         hav1alpha1.CategoryTheme,
+				Spec: hav1.HomeAssistantCommunityRepositorySpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{Name: ha.Name},
+					Category:         hav1.CategoryTheme,
 					Repository:       "acme/some-theme",
 					Ref:              "v1.0.0",
 				},

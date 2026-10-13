@@ -112,7 +112,7 @@ Install the custom integration directly from its HACS-compatible repository. A
 pinned tag makes upgrades deliberate and reproducible:
 
 ```yaml
-apiVersion: ha.homeassistant.io/v1alpha1
+apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistantCommunityRepository
 metadata:
   name: hass-ingress
@@ -125,9 +125,9 @@ spec:
   ref: 1.3.2
 ```
 
-`HomeAssistantCommunityRepository` is an experimental `v1alpha1` resource with
-no API stability guarantee. Installing an integration causes the operator to
-restart Home Assistant so that the custom component becomes available.
+`HomeAssistantCommunityRepository` is a stable `v1` resource. Installing an
+integration causes the operator to restart Home Assistant so that the custom
+component becomes available.
 
 Apply the resource and wait for both the repository and the restarted Home
 Assistant pod:

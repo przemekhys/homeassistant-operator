@@ -125,7 +125,7 @@ type HomeAssistantCommunityRepositoryStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
-// +kubebuilder:storageversion
+// +kubebuilder:deprecatedversion:warning="HomeAssistantCommunityRepository v1alpha1 is deprecated; use ha.homeassistant.io/v1."
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=hacr,categories=homeassistant
@@ -141,8 +141,8 @@ type HomeAssistantCommunityRepositoryStatus struct {
 // HomeAssistantCommunityRepository installs a HACS-compatible community extension
 // (integration, plugin, theme, python_script, or template) into an existing
 // HomeAssistant instance, without requiring HACS or its UI to be present. This is an
-// EXPERIMENTAL, alpha-quality resource: it carries no API stability guarantee between
-// releases.
+// DEPRECATED: use the stable ha.homeassistant.io/v1 API. This version remains
+// served during the documented compatibility window for existing manifests.
 type HomeAssistantCommunityRepository struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

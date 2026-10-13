@@ -84,6 +84,21 @@ ha.homeassistant.io/homeassistantcommunityrepositories/status/get
 ha.homeassistant.io/homeassistantcommunityrepositories/status/patch
 ha.homeassistant.io/homeassistantcommunityrepositories/status/update
 
+# HomeAssistantDashboard reconciliation. The operator manages one
+# storage-mode Home Assistant dashboard per namespaced declaration and persists
+# its observed dashboard identity and conditions through the status subresource.
+ha.homeassistant.io/homeassistantdashboards/create
+ha.homeassistant.io/homeassistantdashboards/delete
+ha.homeassistant.io/homeassistantdashboards/get
+ha.homeassistant.io/homeassistantdashboards/list
+ha.homeassistant.io/homeassistantdashboards/patch
+ha.homeassistant.io/homeassistantdashboards/update
+ha.homeassistant.io/homeassistantdashboards/watch
+ha.homeassistant.io/homeassistantdashboards/finalizers/update
+ha.homeassistant.io/homeassistantdashboards/status/get
+ha.homeassistant.io/homeassistantdashboards/status/patch
+ha.homeassistant.io/homeassistantdashboards/status/update
+
 # Device passthrough diagnosability (spec.alpha.devices). Read-only: lists
 # namespace Events to detect FailedMount for a declared hostPath and surface
 # it via the DevicesReady status condition, instead of a generic "Pod not

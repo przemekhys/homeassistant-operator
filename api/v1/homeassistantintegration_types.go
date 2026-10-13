@@ -37,10 +37,10 @@ type HomeAssistantIntegrationSpec struct {
 	Configuration map[string]IntegrationValue `json:"configuration,omitempty"`
 }
 
-// IntegrationValue holds a plain text value, a JSON value, or a reference to a Kubernetes Secret key.
-// Exactly one of Value, JSONValue, or SecretKeyRef must be set.
-// +kubebuilder:validation:XValidation:rule="has(self.value) || has(self.jsonValue) || has(self.secretKeyRef)",message="at least one of value, jsonValue, or secretKeyRef must be set"
-// +kubebuilder:validation:XValidation:rule="!(has(self.value) && has(self.jsonValue)) && !(has(self.value) && has(self.secretKeyRef)) && !(has(self.jsonValue) && has(self.secretKeyRef))",message="only one of value, jsonValue, or secretKeyRef may be set"
+// IntegrationValue holds a plain text value, a JSON value, a text Secret reference, or a file Secret reference.
+// Exactly one source must be set.
+// +kubebuilder:validation:XValidation:rule="has(self.value) || has(self.jsonValue) || has(self.secretKeyRef) || has(self.fileSecretKeyRef)",message="at least one of value, jsonValue, secretKeyRef, or fileSecretKeyRef must be set"
+// +kubebuilder:validation:XValidation:rule="(has(self.value) ? 1 : 0) + (has(self.jsonValue) ? 1 : 0) + (has(self.secretKeyRef) ? 1 : 0) + (has(self.fileSecretKeyRef) ? 1 : 0) == 1",message="only one of value, jsonValue, secretKeyRef, or fileSecretKeyRef may be set"
 type IntegrationValue struct {
 	// Value is a plain text configuration value sent as a string to the Config Flow API.
 	// +optional
@@ -55,6 +55,11 @@ type IntegrationValue struct {
 	// SecretKeyRef references a key in a Kubernetes Secret
 	// +optional
 	SecretKeyRef *IntegrationSecretKeyRef `json:"secretKeyRef,omitempty"`
+
+	// FileSecretKeyRef references binary file content in a Kubernetes Secret.
+	// The operator uploads it only when the corresponding Home Assistant flow field accepts a file.
+	// +optional
+	FileSecretKeyRef *IntegrationFileSecretKeyRef `json:"fileSecretKeyRef,omitempty"`
 }
 
 // IntegrationSecretKeyRef references a specific key within a Kubernetes Secret
@@ -65,6 +70,19 @@ type IntegrationSecretKeyRef struct {
 	// Key within the Secret
 	// +kubebuilder:validation:MinLength=1
 	Key string `json:"key"`
+}
+
+// IntegrationFileSecretKeyRef references a file stored in a specific Kubernetes Secret key.
+type IntegrationFileSecretKeyRef struct {
+	// Name of the Secret.
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+	// Key within the Secret containing the file bytes.
+	// +kubebuilder:validation:MinLength=1
+	Key string `json:"key"`
+	// FileName is the name presented to Home Assistant. Defaults to Key when omitted.
+	// +optional
+	FileName string `json:"fileName,omitempty"`
 }
 
 // HomeAssistantIntegrationStatus defines the observed state of HomeAssistantIntegration

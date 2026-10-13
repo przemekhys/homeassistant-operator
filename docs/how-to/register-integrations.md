@@ -106,12 +106,13 @@ Status:
     IntegrationReady: True (reason: IntegrationConfigured)
 ```
 
-## Supply values, in plain text or from a Secret
+## Supply values, files, or Secrets
 
 Key-value map of configuration values passed to the Config Flow. Each value is either:
 
 - **Plain text**: `value: "some-string"`
-- **Secret reference**: resolved from a Kubernetes Secret at reconcile time
+- **Secret reference**: `secretKeyRef`, resolved as text from a Kubernetes Secret at reconcile time
+- **File Secret reference**: `fileSecretKeyRef`, uploaded from a Kubernetes Secret only for fields whose Config Flow accepts a file
 
 ```yaml
 configuration:
@@ -122,6 +123,48 @@ configuration:
       name: mqtt-credentials
       key: password
 ```
+
+For MQTT mutual TLS, keep the certificate material in a Secret and reference
+the certificate, private key, and CA file separately. The Secret key name is
+used as the uploaded filename unless `fileName` is set.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mqtt-tls
+type: Opaque
+stringData:
+  client.crt: "<PEM-ENCODED-CLIENT-CERTIFICATE>"
+  client.key: "<PEM-ENCODED-CLIENT-PRIVATE-KEY>"
+  ca.crt: "<PEM-ENCODED-CA-CERTIFICATE>"
+---
+apiVersion: ha.homeassistant.io/v1
+kind: HomeAssistantIntegration
+metadata:
+  name: mqtt-tls
+spec:
+  homeAssistantRef:
+    name: home
+  domain: mqtt
+  configuration:
+    client_cert:
+      fileSecretKeyRef:
+        name: mqtt-tls
+        key: client.crt
+    client_key:
+      fileSecretKeyRef:
+        name: mqtt-tls
+        key: client.key
+    certificate:
+      fileSecretKeyRef:
+        name: mqtt-tls
+        key: ca.crt
+```
+
+The operator rejects a file reference for a field that does not accept files,
+or an unsafe `fileName`, before submitting the Config Flow. Updating the
+referenced Secret reconfigures the integration.
 
 ## Every field
 
