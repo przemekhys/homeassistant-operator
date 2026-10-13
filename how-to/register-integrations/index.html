@@ -16,7 +16,7 @@
         <link rel="prev" href="../manage-scripts/">
       
       
-        <link rel="next" href="../model-house-structure/">
+        <link rel="next" href="../manage-dashboards/">
       
       
         
@@ -1071,10 +1071,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#supply-values-in-plain-text-or-from-a-secret" class="md-nav__link">
+  <a href="#supply-values-files-or-secrets" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Supply values, in plain text or from a Secret
+        Supply values, files, or Secrets
       
     </span>
   </a>
@@ -1096,6 +1096,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../manage-dashboards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manage dashboards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -2307,10 +2335,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#supply-values-in-plain-text-or-from-a-secret" class="md-nav__link">
+  <a href="#supply-values-files-or-secrets" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Supply values, in plain text or from a Secret
+        Supply values, files, or Secrets
       
     </span>
   </a>
@@ -2485,11 +2513,12 @@
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  Conditions:
 <a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    IntegrationReady: True (reason: IntegrationConfigured)
 </code></pre></div></p>
-<h2 id="supply-values-in-plain-text-or-from-a-secret">Supply values, in plain text or from a Secret<a class="headerlink" href="#supply-values-in-plain-text-or-from-a-secret" title="Permanent link">&para;</a></h2>
+<h2 id="supply-values-files-or-secrets">Supply values, files, or Secrets<a class="headerlink" href="#supply-values-files-or-secrets" title="Permanent link">&para;</a></h2>
 <p>Key-value map of configuration values passed to the Config Flow. Each value is either:</p>
 <ul>
 <li><strong>Plain text</strong>: <code>value: "some-string"</code></li>
-<li><strong>Secret reference</strong>: resolved from a Kubernetes Secret at reconcile time</li>
+<li><strong>Secret reference</strong>: <code>secretKeyRef</code>, resolved as text from a Kubernetes Secret at reconcile time</li>
+<li><strong>File Secret reference</strong>: <code>fileSecretKeyRef</code>, uploaded from a Kubernetes Secret only for fields whose Config Flow accepts a file</li>
 </ul>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">configuration</span><span class="p">:</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">broker</span><span class="p">:</span>
@@ -2499,6 +2528,44 @@
 <a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mqtt-credentials</span>
 <a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">      </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">password</span>
 </code></pre></div>
+<p>For MQTT mutual TLS, keep the certificate material in a Secret and reference
+the certificate, private key, and CA file separately. The Secret key name is
+used as the uploaded filename unless <code>fileName</code> is set.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mqtt-tls</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Opaque</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="nt">stringData</span><span class="p">:</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">  </span><span class="nt">client.crt</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&lt;PEM-ENCODED-CLIENT-CERTIFICATE&gt;&quot;</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">  </span><span class="nt">client.key</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&lt;PEM-ENCODED-CLIENT-PRIVATE-KEY&gt;&quot;</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">  </span><span class="nt">ca.crt</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&lt;PEM-ENCODED-CA-CERTIFICATE&gt;&quot;</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="nn">---</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistantIntegration</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mqtt-tls</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="w">  </span><span class="nt">homeAssistantRef</span><span class="p">:</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">home</span>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="w">  </span><span class="nt">domain</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mqtt</span>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="w">  </span><span class="nt">configuration</span><span class="p">:</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a><span class="w">    </span><span class="nt">client_cert</span><span class="p">:</span>
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a><span class="w">      </span><span class="nt">fileSecretKeyRef</span><span class="p">:</span>
+<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mqtt-tls</span>
+<a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a><span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">client.crt</span>
+<a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a><span class="w">    </span><span class="nt">client_key</span><span class="p">:</span>
+<a id="__codelineno-9-25" name="__codelineno-9-25" href="#__codelineno-9-25"></a><span class="w">      </span><span class="nt">fileSecretKeyRef</span><span class="p">:</span>
+<a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mqtt-tls</span>
+<a id="__codelineno-9-27" name="__codelineno-9-27" href="#__codelineno-9-27"></a><span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">client.key</span>
+<a id="__codelineno-9-28" name="__codelineno-9-28" href="#__codelineno-9-28"></a><span class="w">    </span><span class="nt">certificate</span><span class="p">:</span>
+<a id="__codelineno-9-29" name="__codelineno-9-29" href="#__codelineno-9-29"></a><span class="w">      </span><span class="nt">fileSecretKeyRef</span><span class="p">:</span>
+<a id="__codelineno-9-30" name="__codelineno-9-30" href="#__codelineno-9-30"></a><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mqtt-tls</span>
+<a id="__codelineno-9-31" name="__codelineno-9-31" href="#__codelineno-9-31"></a><span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca.crt</span>
+</code></pre></div>
+<p>The operator rejects a file reference for a field that does not accept files,
+or an unsafe <code>fileName</code>, before submitting the Config Flow. Updating the
+referenced Secret reconfigures the integration.</p>
 <h2 id="every-field">Every field<a class="headerlink" href="#every-field" title="Permanent link">&para;</a></h2>
 <p>This guide shows the fields you need for the task. For the complete list of
 <code>HomeAssistantIntegration</code> fields, with types and defaults, see the

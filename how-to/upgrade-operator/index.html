@@ -789,6 +789,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Upgrade from the previous version">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantcommunityrepository-v1-migration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantCommunityRepository v1 migration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#storage-migration-before-restoring-an-alpha-only-crd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Storage migration before restoring an alpha-only CRD
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1033,6 +1061,34 @@
     
   
     Register integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../manage-dashboards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manage dashboards
   
 
     
@@ -2194,6 +2250,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Upgrade from the previous version">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#homeassistantcommunityrepository-v1-migration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HomeAssistantCommunityRepository v1 migration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#storage-migration-before-restoring-an-alpha-only-crd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Storage migration before restoring an alpha-only CRD
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2357,6 +2441,27 @@ then the Helm release:</p>
 <p>Your existing Custom Resources (<code>HomeAssistant</code>, <code>HomeAssistantConfiguration</code>,
 automations, scenes, scripts, integrations, …) are preserved across the upgrade;
 the CRD apply is additive and does not delete resources.</p>
+<h3 id="homeassistantcommunityrepository-v1-migration">HomeAssistantCommunityRepository v1 migration<a class="headerlink" href="#homeassistantcommunityrepository-v1-migration" title="Permanent link">&para;</a></h3>
+<p><code>HomeAssistantCommunityRepository</code> is now stable at
+<code>ha.homeassistant.io/v1</code>. The upgraded CRD continues to serve existing
+<code>v1alpha1</code> resources for at least one full minor release. After the CRD and
+operator upgrade, change only <code>apiVersion</code> in source-controlled manifests and
+apply them normally. Do not create a second resource for the same extension:
+the existing object, installed files, active revision, status, and finalizer are
+preserved. Before rolling back to an operator release that predates <code>v1</code> support,
+keep the dual-version CRD installed: the older operator can continue to reconcile
+the alpha representation while Kubernetes retains <code>v1</code> as storage. Do not restore
+an alpha-only CRD until you have completed <a href="#storage-migration-before-restoring-an-alpha-only-crd">storage migration before restoring an
+alpha-only CRD</a>.</p>
+<h3 id="storage-migration-before-restoring-an-alpha-only-crd">Storage migration before restoring an alpha-only CRD<a class="headerlink" href="#storage-migration-before-restoring-an-alpha-only-crd" title="Permanent link">&para;</a></h3>
+<p>Rolling back the operator does not require changing this CRD. Keep its <code>v1</code> and
+<code>v1alpha1</code> versions served while the older operator is running. Restoring an
+alpha-only CRD is a separate storage migration and is not part of a normal
+operator rollback: first use a Kubernetes storage-version migration procedure
+supported by your cluster to rewrite every stored community repository as
+<code>v1alpha1</code>, then verify no stored objects remain at <code>v1</code>, and only then apply the
+alpha-only CRD. Do not remove <code>v1</code> from the CRD before that migration is complete;
+doing so can make existing resources unreadable.</p>
 <div class="admonition warning">
 <p class="admonition-title">Do not skip intermediate versions</p>
 <p>Only the <strong>N-1 → latest</strong> path is tested. If you are several versions behind

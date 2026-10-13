@@ -951,6 +951,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../manage-dashboards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manage dashboards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../model-house-structure/" class="md-nav__link">
         
   
@@ -1054,6 +1082,17 @@
     <span class="md-ellipsis">
       
         Install a theme
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migrate-from-v1alpha1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrate from v1alpha1
       
     </span>
   </a>
@@ -2219,6 +2258,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#migrate-from-v1alpha1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrate from v1alpha1
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#categories" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2359,17 +2409,9 @@
 
 <h1 id="install-hacs-compatible-extensions">Install HACS-compatible extensions<a class="headerlink" href="#install-hacs-compatible-extensions" title="Permanent link">&para;</a></h1>
 <p><em>How-to — install a community integration, theme, plugin, script or template into an instance. Assumes a running instance.</em></p>
-<div class="admonition warning">
-<p class="admonition-title">Experimental resource</p>
-<p><code>HomeAssistantCommunityRepository</code> is served from the <code>v1alpha1</code> API group. It
-is alpha-quality and carries <strong>no API stability guarantee between releases</strong> —
-fields may change or disappear without a deprecation period. Do not build
-anything you cannot re-do by hand on top of it yet — see
-<a href="../../explanation/alpha-lifecycle/">what <code>spec.alpha</code> means</a>.</p>
-<p>If you turn this on, please
-<a href="https://github.com/przemekhys/homeassistant-operator/discussions/new/choose">say how it went</a>
-— whether it worked is the evidence that decides whether it stays.</p>
-</div>
+<p><code>HomeAssistantCommunityRepository</code> is a stable <code>v1</code> resource. Existing
+<code>v1alpha1</code> manifests remain supported during the documented compatibility window;
+new resources should use <code>v1</code>.</p>
 <p>This installs extensions that follow the <a href="https://hacs.xyz/">HACS</a> repository
 layout, without HACS itself being installed and without anyone clicking through
 its UI. The operator fetches the repository at a ref you pin, checks that its
@@ -2381,7 +2423,7 @@ instance's configuration volume.</p>
 <li>The GitHub repository in <code>owner/repo</code> form, and the exact tag, branch or commit you want</li>
 </ul>
 <h2 id="install-a-theme">Install a theme<a class="headerlink" href="#install-a-theme" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1alpha1</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistantCommunityRepository</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">metadata</span><span class="p">:</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-custom-theme</span>
@@ -2398,6 +2440,14 @@ instance's configuration volume.</p>
 <p><code>ref</code> is required and is never resolved for you. The operator does not track a
 "latest" release: an extension only changes version when you change this field,
 which is what makes a rollback a <code>git revert</code> rather than an investigation.</p>
+<h2 id="migrate-from-v1alpha1">Migrate from v1alpha1<a class="headerlink" href="#migrate-from-v1alpha1" title="Permanent link">&para;</a></h2>
+<p>Upgrade the CRDs and operator first, following <a href="../upgrade-operator/">upgrade the
+operator</a>. Existing alpha resources continue to represent
+the same installed extension; do not create a second resource to migrate. Update
+the <code>apiVersion</code> in the manifest you manage to <code>ha.homeassistant.io/v1</code> and apply
+it normally. The operator preserves the active revision, status, and installed
+files. The alpha version is deprecated and remains supported for at least one full
+minor release after this promotion.</p>
 <h2 id="categories">Categories<a class="headerlink" href="#categories" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

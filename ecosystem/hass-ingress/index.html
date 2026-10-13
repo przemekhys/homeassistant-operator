@@ -948,6 +948,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../how-to/manage-dashboards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manage dashboards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../how-to/model-house-structure/" class="md-nav__link">
         
   
@@ -2520,7 +2548,7 @@ Node-RED documentation on
 <h2 id="install-hass_ingress">Install hass_ingress<a class="headerlink" href="#install-hass_ingress" title="Permanent link">&para;</a></h2>
 <p>Install the custom integration directly from its HACS-compatible repository. A
 pinned tag makes upgrades deliberate and reproducible:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1alpha1</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ha.homeassistant.io/v1</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HomeAssistantCommunityRepository</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">metadata</span><span class="p">:</span>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hass-ingress</span>
@@ -2532,9 +2560,9 @@ pinned tag makes upgrades deliberate and reproducible:</p>
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lovelylain/hass_ingress</span>
 <a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">  </span><span class="nt">ref</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.3.2</span>
 </code></pre></div>
-<p><code>HomeAssistantCommunityRepository</code> is an experimental <code>v1alpha1</code> resource with
-no API stability guarantee. Installing an integration causes the operator to
-restart Home Assistant so that the custom component becomes available.</p>
+<p><code>HomeAssistantCommunityRepository</code> is a stable <code>v1</code> resource. Installing an
+integration causes the operator to restart Home Assistant so that the custom
+component becomes available.</p>
 <p>Apply the resource and wait for both the repository and the restarted Home
 Assistant pod:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>hass-ingress.yaml
