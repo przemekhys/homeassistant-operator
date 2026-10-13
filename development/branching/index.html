@@ -2430,7 +2430,7 @@ the next feature cycle starts fresh on <code>dev</code>.</p>
 <h2 id="keeping-dev-in-sync-with-main">Keeping <code>dev</code> in sync with <code>main</code><a class="headerlink" href="#keeping-dev-in-sync-with-main" title="Permanent link">&para;</a></h2>
 <p>After every release cut from <code>main</code> (patch or final), open a pull request that
 merges <code>main</code> back into <code>dev</code>. This carries released fixes into the next feature
-cycle without pushing directly to the protected <code>dev</code> branch:</p>
+cycle and gives the synchronization its usual CI and review gate:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>fetch<span class="w"> </span>origin
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>git<span class="w"> </span>switch<span class="w"> </span>-c<span class="w"> </span>sync/main-into-dev<span class="w"> </span>origin/dev
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>git<span class="w"> </span>merge<span class="w"> </span>--no-ff<span class="w"> </span>origin/main
@@ -2455,7 +2455,8 @@ Never rebase <code>dev</code> onto <code>main</code> or force-push either branch
 </ul>
 <p>When <code>main</code> and <code>dev</code> hold the same dependency state you will get two
 near-identical PRs; merge the <code>main</code> one, and the routine <code>git merge --no-ff
-main</code> into <code>dev</code> makes Renovate close the redundant <code>dev</code> PR on its next run.</p>
+origin/main</code> into <code>dev</code> makes Renovate close the redundant <code>dev</code> PR on its next
+run.</p>
 <h2 id="release-candidates">Release candidates<a class="headerlink" href="#release-candidates" title="Permanent link">&para;</a></h2>
 <ul>
 <li>RC tags follow SemVer prerelease syntax: <code>v1.4.0-rc.1</code>, <code>v1.4.0-rc.2</code>, …</li>
