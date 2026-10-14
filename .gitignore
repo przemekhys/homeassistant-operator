@@ -49,6 +49,6 @@ kubeconfig*
 # Project notes (personal)
 temp/
 
-# MkDocs
+# Documentation site
 site/
 .venv/

@@ -5,21 +5,14 @@ repo_name: przemekhys/homeassistant-operator
 repo_url: https://github.com/przemekhys/homeassistant-operator
 edit_uri: edit/main/docs/
 
-# Link integrity gate. MkDocs only offers warn/info/ignore for these checks
-# (there is no "error" level), so they become hard failures via
-# `mkdocs build --strict`, which the Makefile and the docs workflow both use.
 validation:
-  links:
-    not_found: warn
-    anchors: warn
-    unrecognized_links: warn
-    absolute_links: warn
-  nav:
-    not_found: warn
-    omitted_files: warn
+  invalid_links: true
+  invalid_link_anchors: true
 
 theme:
   name: material
+  variant: classic
+  language: en
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -51,9 +44,6 @@ theme:
     repo: fontawesome/brands/github
 
 plugins:
-  - search:
-      lang: en
-  - include-markdown:
   # Every path that was ever published stays reachable. Some of these URLs are
   # quoted in released changelog entries, which are a historical record and are
   # not rewritten — a redirect is the only way to keep those entries true.
@@ -89,11 +79,14 @@ markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path:
+        - .
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.emoji:
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      emoji_index: !!python/name:zensical.extensions.emoji.twemoji
+      emoji_generator: !!python/name:zensical.extensions.emoji.to_svg
   - attr_list
   - md_in_html
   - tables

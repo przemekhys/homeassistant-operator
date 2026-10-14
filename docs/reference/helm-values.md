@@ -15,9 +15,4 @@ helm show values oci://ghcr.io/przemekhys/charts/homeassistant-operator --versio
 
 For how to apply these, see [install the operator](../how-to/install-operator.md).
 
-## Values
-
-{%
-  include-markdown "../../charts/homeassistant-operator/README.md"
-  start="## Values"
-%}
+--8<-- "charts/homeassistant-operator/README.md:23"

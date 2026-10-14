@@ -4,7 +4,10 @@
   "timezone": "UTC",
   "schedule": ["at any time"],
   "baseBranches": ["main", "dev"],
-  "enabledManagers": ["gomod", "github-actions", "dockerfile", "custom.regex"],
+  "enabledManagers": ["gomod", "github-actions", "dockerfile", "pip-compile", "custom.regex"],
+  "pip-compile": {
+    "managerFilePatterns": ["/^docs\\/requirements\\.lock$/"]
+  },
   "commitMessagePrefix": "chore(deps):",
   "dependencyDashboard": false,
   "osvVulnerabilityAlerts": true,
