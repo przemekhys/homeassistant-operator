@@ -50,7 +50,7 @@ Every page, whatever its type:
 
 - exactly one `#` heading, at the top;
 - directly underneath, one italic line declaring its type (the templates below);
-- reachable from the navigation in `mkdocs.yml`;
+- reachable from the navigation in `mkdocs.yml`, which is read by Zensical;
 - no links to files that are not in this repository (see [self-contained](#self-contained-content));
 - code blocks that can be copied and run without editing, apart from clearly
   marked placeholders.
@@ -163,7 +163,7 @@ Published URLs are quoted in released changelog entries, which are a historical
 record and are not rewritten. So:
 
 1. move the file;
-2. add the old path to `redirect_maps` in `mkdocs.yml`;
+2. add the old path to the `redirects.redirect_maps` section in `mkdocs.yml`;
 3. fix every internal link — the strict build will tell you which.
 
 Never delete a page without a redirect, and never leave a page in the navigation
@@ -179,3 +179,18 @@ make docs-serve     # live preview at http://127.0.0.1:8000
 The build is strict: a broken link, a broken anchor, or a page missing from the
 navigation fails it. That is deliberate — those errors are cheap to fix now and
 invisible once published.
+
+## Site configuration and release
+
+Zensical reads `mkdocs.yml`; keep its navigation, theme settings, Markdown
+extensions, and `redirect_maps` in sync with the pages. For page moves, add the
+old Markdown path to `redirect_maps` before removing the old source page.
+
+Before relying on automatic publication, a repository administrator must select
+**GitHub Actions** under **Settings > Pages**. The documentation workflow builds
+and validates the site, uploads the resulting Pages artifact, and deploys it
+only after verification passes. It does not push generated content to a branch.
+
+```sh
+make docs-verify
+```

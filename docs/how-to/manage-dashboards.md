@@ -15,7 +15,7 @@ spec:
   homeAssistantRef:
     name: home
   title: Kitchen
-  urlPath: kitchen
+  urlPath: dash-kitchen
   inline: |
     title: Kitchen
     views:
@@ -46,7 +46,7 @@ spec:
   homeAssistantRef:
     name: home
   title: Kitchen
-  urlPath: kitchen
+  urlPath: dash-kitchen
   configMapKeyRef:
     name: dashboards
     key: kitchen.yaml
