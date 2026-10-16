@@ -60,6 +60,9 @@ The operator supports and tests upgrades from the **directly previous released
 version (N-1)** to the latest. Perform the steps **in this order** — CRDs first,
 then the Helm release:
 
+Before applying the general procedure, check whether your source and target
+versions have [release-specific upgrade notes](#release-specific-upgrade-notes).
+
 ```bash
 # 1. Update the CRDs explicitly (Helm does NOT do this on upgrade).
 #    Pull the exact CRDs for the target version and apply them:
@@ -83,30 +86,13 @@ Your existing Custom Resources (`HomeAssistant`, `HomeAssistantConfiguration`,
 automations, scenes, scripts, integrations, …) are preserved across the upgrade;
 the CRD apply is additive and does not delete resources.
 
-### HomeAssistantCommunityRepository v1 migration
+### Release-specific upgrade notes
 
-`HomeAssistantCommunityRepository` is served only at
-`ha.homeassistant.io/v1`. Before installing this release, migrate every manifest
-and every stored repository object from `v1alpha1` to `v1`; the operator does not
-rewrite them automatically.
+Complete any applicable guide before step 1 above.
 
-1. Update source-controlled manifests to use `apiVersion:
-   ha.homeassistant.io/v1`. Do not create a second resource for the same
-   extension.
-2. Use the Kubernetes storage-version migration procedure supported by your
-   cluster to rewrite any repository objects still persisted as `v1alpha1`.
-3. Confirm the CRD no longer records `v1alpha1` as a stored version:
-
-   ```sh
-   kubectl get crd homeassistantcommunityrepositories.ha.homeassistant.io \
-     -o jsonpath='{.status.storedVersions}{"\n"}'
-   ```
-
-4. Install the new CRD and operator only after the output contains `v1` and does
-   not contain `v1alpha1`.
-
-The removed alpha endpoint rejects old manifests. A rollback to a release that
-requires alpha is not supported after this storage migration.
+| From | To | Required guide |
+|------|----|----------------|
+| 1.6 | 1.7 | [Migrate the community repository API](upgrade-1.6-to-1.7.md) |
 
 !!! warning "Do not skip intermediate versions"
     Only the **N-1 → latest** path is tested. If you are several versions behind
