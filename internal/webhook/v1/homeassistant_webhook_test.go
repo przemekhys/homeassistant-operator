@@ -33,6 +33,7 @@ func TestValidateHomeAssistantTLS(t *testing.T) {
 		spec         hav1.HomeAssistantSpec
 		wantErrs     int
 		wantWarnings int
+		wantErr      string
 	}{
 		{
 			name: "empty spec is valid",
@@ -91,6 +92,14 @@ func TestValidateHomeAssistantTLS(t *testing.T) {
 			}},
 			wantErrs: 1,
 		},
+		{
+			name: "removed native TLS is rejected with edge TLS guidance",
+			spec: hav1.HomeAssistantSpec{Alpha: &hav1.AlphaSpec{
+				TLS: &hav1.RemovedNativeTLSSpec{},
+			}},
+			wantErrs: 1,
+			wantErr:  "spec.ingress.tls or spec.gateway",
+		},
 	}
 
 	for _, tc := range tests {
@@ -98,6 +107,9 @@ func TestValidateHomeAssistantTLS(t *testing.T) {
 			warnings, errs := validateHomeAssistantTLS(&tc.spec)
 			if len(errs) != tc.wantErrs {
 				t.Fatalf("errs = %d (%v), want %d", len(errs), errs, tc.wantErrs)
+			}
+			if tc.wantErr != "" && !strings.Contains(strings.Join(errs, "; "), tc.wantErr) {
+				t.Fatalf("errs = %v, want message containing %q", errs, tc.wantErr)
 			}
 			if len(warnings) != tc.wantWarnings {
 				t.Fatalf("warnings = %d (%v), want %d", len(warnings), warnings, tc.wantWarnings)

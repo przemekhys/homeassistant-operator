@@ -27,7 +27,6 @@ successful automation, scene or script reload is reported only as the
 | `CertificateRequested` | Normal | A cert-manager `Certificate` was created for the instance |
 | `CertManagerUnavailable` | Warning | A cert-manager-backed mode is enabled but cert-manager is not installed. Exposure keeps working over HTTP. |
 | `ExposureConfigured` | Normal | Ingress or Gateway resources were reconciled |
-| `NativeTLSRemoved` | Warning | Emitted once on an instance that still had the removed native-TLS mode enabled, while cleaning up after it |
 
 ## HomeAssistantConfiguration
 

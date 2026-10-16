@@ -2206,7 +2206,16 @@ spec:
                           silently re-defaulted to true by the API server once that happens.
                         type: boolean
                     type: object
+                  tls:
+                    description: |-
+                      TLS is retained only so removed native TLS declarations produce an
+                      actionable validation error instead of being silently pruned.
+                    type: object
                 type: object
+                x-kubernetes-validations:
+                - message: spec.alpha.tls has been removed; use spec.ingress.tls or
+                    spec.gateway for HTTPS
+                  rule: '!has(self.tls)'
               annotations:
                 additionalProperties:
                   type: string

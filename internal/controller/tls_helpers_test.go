@@ -18,12 +18,9 @@ package controller
 
 import (
 	"context"
-	"errors"
-	"strings"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -31,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -245,195 +241,4 @@ func TestReconcileTLSAvailableSetsCondition(t *testing.T) {
 	if cond == nil || cond.Status != metav1.ConditionTrue || cond.Reason != reasonCertManagerInstalled {
 		t.Fatalf("expected CertManagerAvailable=True/%s, got %+v", reasonCertManagerInstalled, cond)
 	}
-}
-
-// nativeCert builds the (now-obsolete) operator-managed native TLS Certificate
-// object for ha, with the controller owner reference the operator would have set,
-// as a transition-era instance would still have on the cluster.
-func nativeCert(ha *hav1.HomeAssistant) *unstructured.Unstructured {
-	c := foreignCert(ha)
-	c.SetOwnerReferences([]metav1.OwnerReference{{
-		APIVersion: hav1.GroupVersion.String(),
-		Kind:       "HomeAssistant",
-		Name:       ha.Name,
-		UID:        ha.UID,
-		Controller: ptr.To(true),
-	}})
-	return c
-}
-
-// foreignCert is a Certificate sharing the native-TLS name but NOT owned by the
-// operator — a user-managed resource the cleanup must leave alone.
-func foreignCert(ha *hav1.HomeAssistant) *unstructured.Unstructured {
-	c := &unstructured.Unstructured{Object: map[string]interface{}{}}
-	c.SetGroupVersionKind(certificateGVK)
-	c.SetName(nativeTLSCertificateName(ha))
-	c.SetNamespace(ha.Namespace)
-	return c
-}
-
-func withCondition(ha *hav1.HomeAssistant, condType string) *hav1.HomeAssistant {
-	meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
-		Type: condType, Status: metav1.ConditionTrue, Reason: "Test",
-	})
-	return ha
-}
-
-func certGone(t *testing.T, r *HomeAssistantReconciler, ha *hav1.HomeAssistant) bool {
-	t.Helper()
-	u := &unstructured.Unstructured{}
-	u.SetGroupVersionKind(certificateGVK)
-	err := r.Get(context.Background(), client.ObjectKey{Name: nativeTLSCertificateName(ha), Namespace: ha.Namespace}, u)
-	return err != nil
-}
-
-func warningEvents(r *HomeAssistantReconciler) []string {
-	fr := r.Recorder.(*events.FakeRecorder)
-	var got []string
-	for {
-		select {
-		case e := <-fr.Events:
-			got = append(got, e)
-		default:
-			return got
-		}
-	}
-}
-
-// TestReconcileNativeTLSRemoval covers the transitional cleanup of the removed
-// native TLS feature.
-func TestReconcileNativeTLSRemoval(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("removes condition + certificate and emits one warning", func(t *testing.T) {
-		ha := withCondition(&hav1.HomeAssistant{
-			ObjectMeta: metav1.ObjectMeta{Name: "home", Namespace: "default", UID: "home-uid"},
-		}, conditionTLSReady)
-		r := newTLSTestReconciler(t, true, ha, nativeCert(ha))
-
-		if err := r.reconcileNativeTLSRemoval(ctx, ha); err != nil {
-			t.Fatalf("reconcileNativeTLSRemoval error: %v", err)
-		}
-		if meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady) != nil {
-			t.Fatal("expected TLSReady condition to be removed")
-		}
-		if !certGone(t, r, ha) {
-			t.Fatal("expected native TLS Certificate to be deleted")
-		}
-		evs := warningEvents(r)
-		count := 0
-		for _, e := range evs {
-			if strings.Contains(e, eventNativeTLSRemoved) {
-				count++
-			}
-		}
-		if count != 1 {
-			t.Fatalf("expected exactly one %s event, got %d (%v)", eventNativeTLSRemoved, count, evs)
-		}
-	})
-
-	t.Run("silent no-op for an instance that never used native TLS", func(t *testing.T) {
-		ha := &hav1.HomeAssistant{ObjectMeta: metav1.ObjectMeta{Name: "plain", Namespace: "default"}}
-		r := newTLSTestReconciler(t, true, ha)
-
-		if err := r.reconcileNativeTLSRemoval(ctx, ha); err != nil {
-			t.Fatalf("reconcileNativeTLSRemoval error: %v", err)
-		}
-		for _, e := range warningEvents(r) {
-			if strings.Contains(e, eventNativeTLSRemoved) {
-				t.Fatalf("unexpected %s event for plain instance: %s", eventNativeTLSRemoved, e)
-			}
-		}
-	})
-
-	t.Run("does not delete a same-named Certificate the operator does not own", func(t *testing.T) {
-		ha := &hav1.HomeAssistant{ObjectMeta: metav1.ObjectMeta{Name: "home", Namespace: "default", UID: "home-uid"}}
-		r := newTLSTestReconciler(t, true, ha, foreignCert(ha))
-
-		if err := r.reconcileNativeTLSRemoval(ctx, ha); err != nil {
-			t.Fatalf("reconcileNativeTLSRemoval error: %v", err)
-		}
-		if certGone(t, r, ha) {
-			t.Fatal("a user-managed Certificate sharing the native-TLS name must not be deleted")
-		}
-		for _, e := range warningEvents(r) {
-			if strings.Contains(e, eventNativeTLSRemoved) {
-				t.Fatalf("unexpected %s event for a foreign Certificate", eventNativeTLSRemoved)
-			}
-		}
-	})
-
-	t.Run("Certificate replaced between the validating Get and the Delete is not removed", func(t *testing.T) {
-		ha := withCondition(&hav1.HomeAssistant{
-			ObjectMeta: metav1.ObjectMeta{Name: "home", Namespace: "default", UID: "home-uid"},
-		}, conditionTLSReady)
-		owned := nativeCert(ha)
-		owned.SetUID("native-cert-uid")
-
-		var gotUID *types.UID
-		funcs := interceptor.Funcs{
-			Delete: func(
-				_ context.Context, _ client.WithWatch, _ client.Object, opts ...client.DeleteOption,
-			) error {
-				do := &client.DeleteOptions{}
-				do.ApplyOptions(opts)
-				if do.Preconditions != nil {
-					gotUID = do.Preconditions.UID
-				}
-				// Simulate the object having been deleted and recreated with a
-				// different identity since reconcileNativeTLSRemoval fetched it:
-				// the API server rejects the UID precondition with a Conflict.
-				return apierrors.NewConflict(
-					certificateGVK.GroupVersion().WithResource("certificates").GroupResource(),
-					owned.GetName(), errors.New("uid precondition mismatch"))
-			},
-		}
-		r := newTLSTestReconcilerWithFuncs(t, true, funcs, ha, owned)
-
-		if err := r.reconcileNativeTLSRemoval(ctx, ha); err != nil {
-			t.Fatalf("reconcileNativeTLSRemoval must swallow the precondition Conflict, got: %v", err)
-		}
-		if gotUID == nil || *gotUID != "native-cert-uid" {
-			t.Fatalf("delete must be pinned to the validated Certificate UID, got %v", gotUID)
-		}
-		if meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady) != nil {
-			t.Fatal("cleanup should still strip TLSReady after a tolerated delete Conflict")
-		}
-	})
-
-	t.Run("keeps CertManagerAvailable when an edge TLS mode still needs it", func(t *testing.T) {
-		ha := withCondition(ingressTLSHA("edge"), conditionTLSReady)
-		withCondition(ha, conditionCertManagerAvailable)
-		r := newTLSTestReconciler(t, true, ha, nativeCert(ha))
-
-		if err := r.reconcileNativeTLSRemoval(ctx, ha); err != nil {
-			t.Fatalf("reconcileNativeTLSRemoval error: %v", err)
-		}
-		if meta.FindStatusCondition(ha.Status.Conditions, conditionTLSReady) != nil {
-			t.Fatal("expected TLSReady removed")
-		}
-		if meta.FindStatusCondition(ha.Status.Conditions, conditionCertManagerAvailable) == nil {
-			t.Fatal("expected CertManagerAvailable kept for an active edge TLS mode")
-		}
-	})
-
-	t.Run("idempotent: second run is a no-op with no extra event", func(t *testing.T) {
-		ha := withCondition(&hav1.HomeAssistant{
-			ObjectMeta: metav1.ObjectMeta{Name: "home", Namespace: "default", UID: "home-uid"},
-		}, conditionTLSReady)
-		r := newTLSTestReconciler(t, true, ha, nativeCert(ha))
-
-		if err := r.reconcileNativeTLSRemoval(ctx, ha); err != nil {
-			t.Fatalf("first run error: %v", err)
-		}
-		_ = warningEvents(r) // drain
-		if err := r.reconcileNativeTLSRemoval(ctx, ha); err != nil {
-			t.Fatalf("second run error: %v", err)
-		}
-		for _, e := range warningEvents(r) {
-			if strings.Contains(e, eventNativeTLSRemoved) {
-				t.Fatalf("second run must not emit %s: %s", eventNativeTLSRemoved, e)
-			}
-		}
-	})
 }
