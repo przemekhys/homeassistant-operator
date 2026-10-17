@@ -91,7 +91,7 @@ spec:
                   that owns this dashboard.
                 properties:
                   name:
-                    description: Name of the HomeAssistant resource
+                    description: Name of the HomeAssistant resource.
                     minLength: 1
                     type: string
                 required:

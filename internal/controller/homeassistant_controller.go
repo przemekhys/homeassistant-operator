@@ -266,13 +266,6 @@ func (r *HomeAssistantReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return r.updateStatusFailed(ctx, ha, err)
 	}
 
-	// Transitional: clean up after the removed native TLS feature (spec.alpha.tls)
-	// before reconcileTLS, so a stale CertManagerAvailable is dropped before the
-	// edge-TLS gate below may legitimately re-add it. Best-effort; never blocks.
-	if err := r.reconcileNativeTLSRemoval(ctx, ha); err != nil {
-		log.Error(err, "Failed to clean up removed native TLS state")
-	}
-
 	// Reconcile TLS / cert-manager integration (opt-in). Missing cert-manager is
 	// never an error: it degrades to a status condition + requeue so the rest of
 	// the reconcile (and other resources) keep working. The requeue itself is

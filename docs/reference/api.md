@@ -71,6 +71,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `networkPolicy` _[NetworkPolicyAlphaSpec](#networkpolicyalphaspec)_ | NetworkPolicy controls whether the operator creates a NetworkPolicy<br />restricting ingress to the Home Assistant pod. |  | Optional: \{\} <br /> |
 | `devices` _[DevicePassthroughEntry](#devicepassthroughentry) array_ | Devices declares host device nodes (e.g. /dev/ttyACM0 for a Zigbee/<br />Z-Wave USB coordinator) to mount into the Home Assistant container.<br />Each entry is mounted via a hostPath volume typed as a character<br />device; the container is never granted `privileged: true` for this.<br />Declaring at least one entry changes the pod's security context, so<br />this starts in spec.alpha until it stabilizes. This does not affect<br />where the pod is scheduled — the declared device(s) must already<br />exist on whichever node the pod lands on (see node pinning, a<br />separate capability) for this to be useful. |  | Optional: \{\} <br /> |
+| `tls` _[RemovedNativeTLSSpec](#removednativetlsspec)_ | TLS is retained only so removed native TLS declarations produce an<br />actionable validation error instead of being silently pruned. |  | Optional: \{\} <br /> |
 
 
 #### AutomationAction
@@ -1688,6 +1689,20 @@ _Appears in:_
 | `purgeKeepDays` _integer_ | PurgeKeepDays specifies how many days of history to keep | 30 | Minimum: 1 <br />Optional: \{\} <br /> |
 
 
+#### RemovedNativeTLSSpec
+
+
+
+RemovedNativeTLSSpec intentionally has no supported fields. Its presence is
+rejected by AlphaSpec validation; supported HTTPS is configured at the edge.
+
+
+
+_Appears in:_
+- [AlphaSpec](#alphaspec)
+
+
+
 #### SceneEntity
 
 
@@ -1876,55 +1891,9 @@ tests alone; it graduates to a stable group once it has been exercised on
 hardware the maintainers do not have.
 
 ### Resource Types
-- [HomeAssistantCommunityRepository](#homeassistantcommunityrepository)
-- [HomeAssistantCommunityRepositoryList](#homeassistantcommunityrepositorylist)
 - [HomeAssistantDashboard](#homeassistantdashboard)
 - [HomeAssistantDashboardList](#homeassistantdashboardlist)
 
-
-
-#### CommunityRepositoryCategory
-
-_Underlying type:_ _string_
-
-CommunityRepositoryCategory is a HACS repository category. Values match HACS's own
-hacs.json "category" field exactly.
-
-_Validation:_
-- Enum: [integration plugin theme python_script template]
-
-_Appears in:_
-- [HomeAssistantCommunityRepositorySpec](#homeassistantcommunityrepositoryspec)
-
-| Field | Description |
-| --- | --- |
-| `integration` |  |
-| `plugin` |  |
-| `theme` |  |
-| `python_script` |  |
-| `template` |  |
-
-
-#### CommunityRepositoryPhase
-
-_Underlying type:_ _string_
-
-CommunityRepositoryPhase is the reconciliation lifecycle phase of a
-HomeAssistantCommunityRepository.
-
-
-
-_Appears in:_
-- [HomeAssistantCommunityRepositoryStatus](#homeassistantcommunityrepositorystatus)
-
-| Field | Description |
-| --- | --- |
-| `Pending` |  |
-| `Validating` |  |
-| `Installing` |  |
-| `Installed` |  |
-| `Failed` |  |
-| `Removing` |  |
 
 
 #### ConfigMapKeyReference
@@ -1943,89 +1912,6 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `name` _string_ | Name is the name of the ConfigMap. |  | MinLength: 1 <br />Required: \{\} <br /> |
 | `key` _string_ | Key is the ConfigMap data key containing the complete dashboard YAML document. |  | MinLength: 1 <br />Required: \{\} <br /> |
-
-
-#### HomeAssistantCommunityRepository
-
-
-
-HomeAssistantCommunityRepository installs a HACS-compatible community extension
-(integration, plugin, theme, python_script, or template) into an existing
-HomeAssistant instance, without requiring HACS or its UI to be present. This is an
-DEPRECATED: use the stable ha.homeassistant.io/v1 API. This version remains
-served during the documented compatibility window for existing manifests.
-
-
-
-_Appears in:_
-- [HomeAssistantCommunityRepositoryList](#homeassistantcommunityrepositorylist)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `apiVersion` _string_ | `ha.homeassistant.io/v1alpha1` | | |
-| `kind` _string_ | `HomeAssistantCommunityRepository` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[HomeAssistantCommunityRepositorySpec](#homeassistantcommunityrepositoryspec)_ |  |  |  |
-| `status` _[HomeAssistantCommunityRepositoryStatus](#homeassistantcommunityrepositorystatus)_ |  |  |  |
-
-
-#### HomeAssistantCommunityRepositoryList
-
-
-
-HomeAssistantCommunityRepositoryList contains a list of HomeAssistantCommunityRepository
-
-
-
-
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `apiVersion` _string_ | `ha.homeassistant.io/v1alpha1` | | |
-| `kind` _string_ | `HomeAssistantCommunityRepositoryList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `items` _[HomeAssistantCommunityRepository](#homeassistantcommunityrepository) array_ |  |  |  |
-
-
-#### HomeAssistantCommunityRepositorySpec
-
-
-
-HomeAssistantCommunityRepositorySpec defines the desired state of HomeAssistantCommunityRepository
-
-
-
-_Appears in:_
-- [HomeAssistantCommunityRepository](#homeassistantcommunityrepository)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `homeAssistantRef` _[HomeAssistantReference](#homeassistantreference)_ | HomeAssistantRef references the HomeAssistant instance to install this repository into |  | Required: \{\} <br /> |
-| `category` _[CommunityRepositoryCategory](#communityrepositorycategory)_ | Category is the HACS repository category. appdaemon and netdaemon are intentionally<br />not accepted here: they require a separate runtime this operator does not deploy. |  | Enum: [integration plugin theme python_script template] <br />Required: \{\} <br /> |
-| `repository` _string_ | Repository is the GitHub "owner/repo" shorthand (not a full URL). |  | Pattern: `^[\w.-]+/[\w.-]+$` <br />Required: \{\} <br /> |
-| `ref` _string_ | Ref is the tag, branch, or commit SHA to install. Pinned and explicit — this<br />operator never tracks a "latest" release automatically. Restricted to<br />characters valid in a git ref: word characters, dot, dash and slash, so<br />branch names such as release/v1 are accepted. URL-reserved characters that<br />could alter the codeload request path are not. |  | MinLength: 1 <br />Pattern: `^[\w][\w.\-/]*$` <br />Required: \{\} <br /> |
-
-
-#### HomeAssistantCommunityRepositoryStatus
-
-
-
-HomeAssistantCommunityRepositoryStatus defines the observed state of HomeAssistantCommunityRepository
-
-
-
-_Appears in:_
-- [HomeAssistantCommunityRepository](#homeassistantcommunityrepository)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `phase` _[CommunityRepositoryPhase](#communityrepositoryphase)_ | Phase is the current lifecycle phase. |  | Optional: \{\} <br /> |
-| `installedVersion` _string_ | InstalledVersion is the last ref that was successfully validated and activated.<br />It does NOT change until a newly requested ref is fully confirmed, so a failed<br />update never reports a broken version as installed. |  | Optional: \{\} <br /> |
-| `resolvedTarget` _string_ | ResolvedTarget is the install target computed from the source repository's own<br />manifest (the integration domain, or the theme/script/template/plugin file name).<br />Together with the referenced HomeAssistant name and Category it forms the<br />conflict-detection key, so the same target may be installed into two<br />different instances. |  | Optional: \{\} <br /> |
-| `lastError` _string_ | LastError contains a human-readable error message from the last failed operation.<br />Cleared when the operation succeeds. |  | Optional: \{\} <br /> |
-| `installingSince` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | InstallingSince records when the resource most recently entered the<br />Installing phase. Used to bound the activation retry window; cleared when<br />the resource leaves Installing (Installed or Failed). |  | Optional: \{\} <br /> |
-| `observedGeneration` _integer_ | ObservedGeneration reflects the generation of the most recently observed CR |  | Optional: \{\} <br /> |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the repository state |  | Optional: \{\} <br /> |
 
 
 #### HomeAssistantDashboard
@@ -2116,16 +2002,13 @@ _Appears in:_
 
 
 
-HomeAssistantReference references the HomeAssistant instance a community repository
-targets. Declared locally in v1alpha1 (rather than reusing api/v1's type) so this
-experimental API group-version has no coupling to the stable v1 types.
+HomeAssistantReference references the HomeAssistant instance a dashboard targets.
 
 
 
 _Appears in:_
-- [HomeAssistantCommunityRepositorySpec](#homeassistantcommunityrepositoryspec)
 - [HomeAssistantDashboardSpec](#homeassistantdashboardspec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name of the HomeAssistant resource |  | MinLength: 1 <br />Required: \{\} <br /> |
+| `name` _string_ | Name of the HomeAssistant resource. |  | MinLength: 1 <br />Required: \{\} <br /> |

@@ -20,56 +20,41 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes/scheme"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
-	hav1alpha1 "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 	"github.com/przemekhys/homeassistant-operator/internal/communityrepo"
 )
 
 var _ = Describe("HomeAssistantCommunityRepository API versions", func() {
-	It("serves an existing alpha resource through the stable API", func() {
-		alpha := &hav1alpha1.HomeAssistantCommunityRepository{
-			ObjectMeta: metav1.ObjectMeta{Name: "alpha-compatible", Namespace: "default"},
-			Spec: hav1alpha1.HomeAssistantCommunityRepositorySpec{
-				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: "home"},
-				Category:         hav1alpha1.CategoryTheme,
-				Repository:       "acme/theme",
-				Ref:              "v1.0.0",
-			},
-		}
-		Expect(k8sClient.Create(ctx, alpha)).To(Succeed())
-		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, alpha)).To(Succeed()) })
-		alpha.Status.InstalledVersion = "v0.9.0"
-		alpha.Status.ResolvedTarget = "legacy_theme"
-		Expect(k8sClient.Status().Update(ctx, alpha)).To(Succeed())
-
-		stable := &hav1.HomeAssistantCommunityRepository{}
-		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: alpha.Name, Namespace: alpha.Namespace}, stable)).To(Succeed())
-		Expect(stable.UID).To(Equal(alpha.UID))
-		Expect(stable.Spec.HomeAssistantRef.Name).To(Equal(alpha.Spec.HomeAssistantRef.Name))
-		Expect(stable.Spec.Category).To(Equal(hav1.CategoryTheme))
-		Expect(stable.Spec.Repository).To(Equal(alpha.Spec.Repository))
-		Expect(stable.Spec.Ref).To(Equal(alpha.Spec.Ref))
-		Expect(stable.Status.InstalledVersion).To(Equal(alpha.Status.InstalledVersion))
-		Expect(stable.Status.ResolvedTarget).To(Equal(alpha.Status.ResolvedTarget))
+	It("registers only the stable community repository kind", func() {
+		knownTypes := scheme.Scheme.AllKnownTypes()
+		_, alphaRegistered := knownTypes[schema.GroupVersionKind{
+			Group: "ha.homeassistant.io", Version: "v1alpha1", Kind: "HomeAssistantCommunityRepository",
+		}]
+		_, stableRegistered := knownTypes[schema.GroupVersionKind{
+			Group: "ha.homeassistant.io", Version: "v1", Kind: "HomeAssistantCommunityRepository",
+		}]
+		Expect(alphaRegistered).To(BeFalse())
+		Expect(stableRegistered).To(BeTrue())
 	})
 
-	It("detects an alpha owner when a stable declaration targets the same extension", func() {
-		alpha := &hav1alpha1.HomeAssistantCommunityRepository{
-			ObjectMeta: metav1.ObjectMeta{Name: "alpha-owner", Namespace: "default"},
-			Spec: hav1alpha1.HomeAssistantCommunityRepositorySpec{
-				HomeAssistantRef: hav1alpha1.HomeAssistantReference{Name: "home"},
-				Category:         hav1alpha1.CategoryTheme,
+	It("detects a stable owner when another declaration targets the same extension", func() {
+		ownerRepo := &hav1.HomeAssistantCommunityRepository{
+			ObjectMeta: metav1.ObjectMeta{Name: "stable-owner", Namespace: "default"},
+			Spec: hav1.HomeAssistantCommunityRepositorySpec{
+				HomeAssistantRef: hav1.HomeAssistantReference{Name: "home"},
+				Category:         hav1.CategoryTheme,
 				Repository:       "acme/theme",
 				Ref:              "v1.0.0",
 			},
 		}
-		Expect(k8sClient.Create(ctx, alpha)).To(Succeed())
-		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, alpha)).To(Succeed()) })
-		alpha.Status.Phase = hav1alpha1.PhaseInstalled
-		alpha.Status.ResolvedTarget = "example_theme"
-		Expect(k8sClient.Status().Update(ctx, alpha)).To(Succeed())
+		Expect(k8sClient.Create(ctx, ownerRepo)).To(Succeed())
+		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, ownerRepo)).To(Succeed()) })
+		ownerRepo.Status.Phase = hav1.CommunityRepositoryPhaseInstalled
+		ownerRepo.Status.ResolvedTarget = "example_theme"
+		Expect(k8sClient.Status().Update(ctx, ownerRepo)).To(Succeed())
 
 		candidate := &hav1.HomeAssistantCommunityRepository{
 			ObjectMeta: metav1.ObjectMeta{Name: "stable-candidate", Namespace: "default"},
@@ -85,6 +70,6 @@ var _ = Describe("HomeAssistantCommunityRepository API versions", func() {
 		)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(owner).NotTo(BeNil())
-		Expect(owner.Name).To(Equal(alpha.Name))
+		Expect(owner.Name).To(Equal(ownerRepo.Name))
 	})
 })

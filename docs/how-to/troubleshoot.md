@@ -77,7 +77,7 @@ kubectl get homeassistant <name> -o jsonpath='{.status.conditions}' | jq
 - **Edge certificate not issued** — the `Certificate` exists but has not been issued.
   Inspect it: `kubectl describe certificate <name>-ingress-tls` (or `-gateway-tls`)
   and check the referenced `Issuer`/`ClusterIssuer` is Ready.
-- **`spec.alpha.tls` seems to be ignored** — native TLS was removed. Move to
+- **`spec.alpha.tls` is rejected** — native TLS was removed. Use
   `spec.ingress.tls` or `spec.gateway` (see the [TLS guide](expose-with-tls.md)).
 
 ## HomeAssistantCommunityRepository fails with an extraction limit error

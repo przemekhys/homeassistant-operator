@@ -95,10 +95,6 @@ operator recovers by restarting the pod — see
 |--------|---------|
 | `ExposureReady` | Ingress or Gateway resources are reconciled |
 
-!!! note "`TLSReady` is gone"
-    Older releases set a `TLSReady` condition for the removed native-TLS mode.
-    The operator now strips it from any resource that still carries it.
-
 ## HomeAssistantConfiguration
 
 ### `Ready`
@@ -190,9 +186,7 @@ starts.
 ## HomeAssistantCommunityRepository
 
 Stable (`v1`). `status.phase` carries the same information in a single field:
-`Pending → Validating → Installing → Installed`, or `Failed`. The prior
-`v1alpha1` version is deprecated but remains temporarily supported for existing
-manifests.
+`Pending → Validating → Installing → Installed`, or `Failed`.
 
 ### `Ready`
 

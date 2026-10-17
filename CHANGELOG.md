@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Changed
+
+- **`HomeAssistantCommunityRepository` now serves only stable `v1`.** Migrate
+  source manifests and any `v1alpha1`-stored objects before upgrading; the
+  operator does not rewrite them automatically.
+
 ## [v1.6.0] - 2026-10-13
 
 ### Added
@@ -24,8 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `fileSecretKeyRef`, which reads binary content from a Kubernetes Secret and
   uploads it only to a Config Flow field that accepts files. This supports
   certificate, private-key, and CA-file fields such as MQTT mutual TLS without
-  placing their contents in the custom resource; `fileName` optionally controls
-  the filename presented to Home Assistant.
+   placing their contents in the custom resource; `fileName` optionally controls
+   the filename presented to Home Assistant.
 
 ### Changed
 

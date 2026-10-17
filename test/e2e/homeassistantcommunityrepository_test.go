@@ -437,9 +437,7 @@ spec:
 		Label("community-repository", "fast", "group-a"), func() {
 			podStartBefore := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.startTime}")
 
-			// Existing v1alpha1 manifests remain supported while users migrate their
-			// source-controlled manifests to v1.
-			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1alpha1
+			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistantCommunityRepository
 metadata:
   name: e2e-integration
@@ -536,14 +534,14 @@ spec:
 			}, utils.HotReloadTimeout, reconcileInterval).Should(Succeed())
 		})
 
-	It("migrates an installed alpha manifest to v1 without replacing the repository",
+	It("rejects an alpha manifest without changing an installed stable repository",
 		Label("community-repository", "fast", "group-a"), func() {
 			repositoryUID := utils.Kubectl("get", "hacr", "e2e-integration", "-n", namespace,
 				"-o", "jsonpath={.metadata.uid}")
 			podUID := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
 				"-o", "jsonpath={.metadata.uid}")
 
-			stableYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
+			alphaYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1alpha1
 kind: HomeAssistantCommunityRepository
 metadata:
   name: e2e-integration
@@ -555,7 +553,7 @@ spec:
   repository: %s
   ref: v1.0.0
 `, namespace, haName, crFixtureIntegration)
-			Expect(utils.ApplyYAML(stableYAML, namespace)).To(Succeed())
+			Expect(utils.ApplyYAML(alphaYAML, namespace)).NotTo(Succeed())
 
 			Eventually(func(g Gomega) {
 				g.Expect(getPhase("e2e-integration")).To(Equal("Installed"))

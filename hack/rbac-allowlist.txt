@@ -22,8 +22,7 @@ networking.k8s.io/networkpolicies/watch
 
 # cert-manager Certificate provisioning for TLS modes (Ingress / Gateway API
 # exposure, webhook serving cert). The operator issues certificates via
-# cert-manager; it never installs cert-manager. The transitional native-TLS
-# cleanup also deletes a leftover "<name>-native-tls" Certificate.
+# cert-manager; it never installs cert-manager.
 cert-manager.io/certificates/create
 cert-manager.io/certificates/delete
 cert-manager.io/certificates/get

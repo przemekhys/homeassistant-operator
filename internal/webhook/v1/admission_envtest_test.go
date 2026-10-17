@@ -104,6 +104,31 @@ func TestGatewayClassNameAdmission(t *testing.T) {
 	}
 }
 
+func TestRemovedNativeTLSAdmission(t *testing.T) {
+	k8sClient, _, cleanup := setupWebhookTestEnv(t)
+	defer cleanup()
+
+	obj := &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": hav1.GroupVersion.String(),
+		"kind":       "HomeAssistant",
+		"metadata": map[string]interface{}{
+			"name":      "removed-native-tls",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"alpha": map[string]interface{}{"tls": map[string]interface{}{"enabled": true}},
+		},
+	}}
+
+	err := k8sClient.Create(context.Background(), obj)
+	if err == nil {
+		t.Fatal("expected spec.alpha.tls to be rejected")
+	}
+	if !strings.Contains(err.Error(), "spec.ingress.tls or spec.gateway") {
+		t.Fatalf("expected edge TLS guidance, got %v", err)
+	}
+}
+
 // setupWebhookTestEnv spins up a real envtest API server, a real
 // ValidatingWebhookConfiguration, and a real webhook server (the same wiring
 // cmd/main.go uses via SetupHomeAssistantWebhookWithManager), then waits for

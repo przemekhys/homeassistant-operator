@@ -171,6 +171,7 @@ type SchedulingSpec struct {
 // AlphaSpec groups experimental fields that are not yet stable enough for the
 // top-level spec. See spec.alpha.* lifecycle: alpha (opt-in,
 // default false) -> stable default false -> stable default true -> mandatory.
+// +kubebuilder:validation:XValidation:rule="!has(self.tls)",message="spec.alpha.tls has been removed; use spec.ingress.tls or spec.gateway for HTTPS"
 type AlphaSpec struct {
 	// NetworkPolicy controls whether the operator creates a NetworkPolicy
 	// restricting ingress to the Home Assistant pod.
@@ -188,7 +189,16 @@ type AlphaSpec struct {
 	// separate capability) for this to be useful.
 	// +optional
 	Devices []DevicePassthroughEntry `json:"devices,omitempty"`
+
+	// TLS is retained only so removed native TLS declarations produce an
+	// actionable validation error instead of being silently pruned.
+	// +optional
+	TLS *RemovedNativeTLSSpec `json:"tls,omitempty"`
 }
+
+// RemovedNativeTLSSpec intentionally has no supported fields. Its presence is
+// rejected by AlphaSpec validation; supported HTTPS is configured at the edge.
+type RemovedNativeTLSSpec struct{}
 
 // DevicePassthroughEntry declares one host device node to expose inside the
 // Home Assistant container.
