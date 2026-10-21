@@ -77,9 +77,21 @@ func (c *Client) checkHealth(ctx context.Context, token string) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	// Both 200 and 401 prove that HA is responding, regardless of onboarding state.
-	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusUnauthorized {
+	if resp.StatusCode == http.StatusOK {
 		return nil
+	}
+	// An unauthenticated probe uses 401 solely as an availability signal. A probe
+	// that supplied a token must surface it so callers do not treat a rejected
+	// credential as a healthy connection.
+	if resp.StatusCode == http.StatusUnauthorized {
+		if token == "" {
+			return nil
+		}
+		return &Error{
+			Type:       ErrorTypeAuth,
+			Message:    "Home Assistant rejected health check token",
+			StatusCode: resp.StatusCode,
+		}
 	}
 
 	// 403 Forbidden = operator IP has been banned by HA's ip_bans.yaml.

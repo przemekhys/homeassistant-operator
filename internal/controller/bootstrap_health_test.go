@@ -22,12 +22,13 @@ import (
 
 func TestReconcileBootstrapHealth(t *testing.T) {
 	for _, tt := range []struct {
-		name       string
-		secretName string
-		secretData map[string][]byte
-		completed  bool
-		statusCode int
-		wantAuth   string
+		name         string
+		secretName   string
+		secretData   map[string][]byte
+		completed    bool
+		statusCode   int
+		wantAuth     string
+		keepRecovery bool
 	}{
 		{
 			name: "token from status", secretName: "custom-api-token",
@@ -67,6 +68,14 @@ func TestReconcileBootstrapHealth(t *testing.T) {
 			secretData: map[string][]byte{"token": []byte("valid-token")},
 			completed:  true, statusCode: http.StatusTooManyRequests, wantAuth: "Bearer valid-token",
 		},
+		{
+			name:         "rejected token does not reset ban recovery",
+			secretData:   map[string][]byte{"token": []byte("rejected-token")},
+			completed:    true,
+			statusCode:   http.StatusUnauthorized,
+			wantAuth:     "Bearer rejected-token",
+			keepRecovery: true,
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
@@ -81,6 +90,9 @@ func TestReconcileBootstrapHealth(t *testing.T) {
 				Status: hav1.HomeAssistantStatus{Bootstrap: &hav1.BootstrapStatus{
 					Completed: tt.completed, APITokenSecretName: tt.secretName,
 				}},
+			}
+			if tt.keepRecovery {
+				ha.Status.BanRestartWindowCount = 1
 			}
 			pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "home-0", Namespace: ha.Namespace}}
 			objects := []client.Object{ha, pod, &corev1.Secret{
@@ -151,6 +163,9 @@ func TestReconcileBootstrapHealth(t *testing.T) {
 				}
 				if updated.Status.SelfUnbanCount != 0 {
 					t.Fatal("health check unexpectedly triggered ban recovery")
+				}
+				if tt.keepRecovery && updated.Status.BanRestartWindowCount != 1 {
+					t.Fatal("rejected token should not reset ban recovery state")
 				}
 				if tt.completed && result.RequeueAfter != 0 {
 					t.Fatalf("post-bootstrap health check unexpectedly requeued: %+v", result)
