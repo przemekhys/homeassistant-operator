@@ -172,7 +172,8 @@ func TestReconcileBootstrapHealth(t *testing.T) {
 				}
 				if !tt.completed {
 					condition := meta.FindStatusCondition(updated.Status.Conditions, "BootstrapReady")
-					if condition == nil || condition.Reason != reasonBootstrapNotReady || result.RequeueAfter != bootstrapHealthCheckRetry {
+					if condition == nil || condition.Reason != reasonBootstrapNotReady ||
+						result.RequeueAfter != bootstrapHealthCheckRetry {
 						t.Fatalf("pre-bootstrap health failure should requeue as not ready: %+v, %+v", result, condition)
 					}
 				}
