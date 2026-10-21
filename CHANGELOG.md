@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.6.1] - 2026-10-21
+
+### Security
+
+- Updated the Go toolchain from `go1.27.2` to `go1.27.3` to address a reported
+  security vulnerability.
+
 ## [v1.6.0] - 2026-10-13
 
 ### Added
