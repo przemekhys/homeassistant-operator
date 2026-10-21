@@ -50,13 +50,26 @@ func (c *Client) WithTimeout(timeout time.Duration) *Client {
 
 // CheckHealth checks if Home Assistant is responding
 // Returns nil if healthy, ErrorTypeNotReady if not ready, ErrorTypeBanned if IP is banned.
-// Note: 401 Unauthorized is considered healthy (HA is running but needs onboarding)
+// Note: 401 Unauthorized is considered healthy (HA is responding but requires authentication).
 func (c *Client) CheckHealth(ctx context.Context) error {
+	return c.checkHealth(ctx, "")
+}
+
+// CheckHealthWithToken checks availability using a Bearer token to avoid generating
+// invalid authentication attempts (and potential IP bans) after bootstrap.
+func (c *Client) CheckHealthWithToken(ctx context.Context, token string) error {
+	return c.checkHealth(ctx, token)
+}
+
+func (c *Client) checkHealth(ctx context.Context, token string) error {
 	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/", nil)
 	if err != nil {
 		return &Error{Type: ErrorTypeHTTP, Message: "failed to create request", Err: err}
 	}
 	req.Header.Set("User-Agent", userAgent)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -64,7 +77,7 @@ func (c *Client) CheckHealth(ctx context.Context) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	// 200 OK = healthy with auth, 401 Unauthorized = healthy but needs onboarding
+	// Both 200 and 401 prove that HA is responding, regardless of onboarding state.
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusUnauthorized {
 		return nil
 	}
