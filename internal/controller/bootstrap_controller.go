@@ -77,7 +77,14 @@ func (r *HomeAssistantReconciler) reconcileBootstrap(
 		// the HA instance. Run a lightweight health check on every reconcile so that
 		// a post-bootstrap IP ban is detected and handleSelfBan is triggered.
 		haClient := newHAClientForHA(ha, r.NewHAClient).WithTimeout(10 * time.Second)
-		if err := haClient.CheckHealth(ctx); err != nil {
+		// Prefer the bootstrap token so periodic probes do not count as failed
+		// logins. Keep availability checks working when the token is unavailable.
+		token, tokenErr := getAPIToken(ctx, r.Client, ha)
+		if tokenErr != nil {
+			log.V(1).Info("API token unavailable for health check, using unauthenticated probe", "error", tokenErr.Error())
+			token = ""
+		}
+		if err := haClient.CheckHealthWithToken(ctx, token); err != nil {
 			if haclient.IsBanned(err) {
 				log.Error(err, "Operator IP banned by Home Assistant, triggering ban-recovery restart")
 				return r.handleSelfBan(ctx, ha, err)

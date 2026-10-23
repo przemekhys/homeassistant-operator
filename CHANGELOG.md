@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source manifests and any `v1alpha1`-stored objects before upgrading; the
   operator does not rewrite them automatically.
 
+### Fixed
+
+- **Post-bootstrap health checks now authenticate with the API token.** When
+  available, the operator sends its long-lived token with the periodic `GET
+  /api/` probe, preventing Home Assistant from recording the probe as a failed
+  login and potentially banning the operator IP. Unauthenticated fallback is
+  retained while the token Secret is unavailable.
+
 ## [v1.6.0] - 2026-10-13
 
 ### Added

@@ -94,6 +94,30 @@ var _ = Describe("HAClient", func() {
 		})
 	})
 
+	Describe("CheckHealthWithToken", func() {
+		It("Should send the Bearer token", func() {
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				Expect(r.Header.Get("Authorization")).To(Equal("Bearer llat"))
+				w.WriteHeader(http.StatusOK)
+			}))
+
+			client = NewClient(server.URL)
+			Expect(client.CheckHealthWithToken(ctx, "llat")).To(Succeed())
+		})
+
+		It("Should return Auth error for 401 Unauthorized", func() {
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusUnauthorized)
+			}))
+
+			client = NewClient(server.URL)
+			err := client.CheckHealthWithToken(ctx, "rejected-token")
+			Expect(err).To(MatchError(ContainSubstring("Home Assistant rejected health check token")))
+			Expect(err.(*Error).Type).To(Equal(ErrorTypeAuth))
+			Expect(err.(*Error).StatusCode).To(Equal(http.StatusUnauthorized))
+		})
+	})
+
 	Describe("CheckAPIReady", func() {
 		It("Should return nil for 401 Unauthorized (API routes loaded)", func() {
 			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
