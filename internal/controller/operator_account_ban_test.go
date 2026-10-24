@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/events"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -42,7 +43,9 @@ func TestDedicatedAccountBanRecovery(t *testing.T) {
 		{"credential login ban", "/auth/login_flow/flow", false, 403},
 		{"token exchange ban", "/auth/token", false, 403},
 		{"provisioning ban", "/api/websocket", false, 403},
-		{"successful owner login resets recovery", "/api/websocket", false, 500},
+		{"provisioning limit", "/api/websocket", false, 403},
+		{"provisioning cooldown", "/api/websocket", false, 403},
+		{"owner login alone preserves recovery", "/api/websocket", false, 500},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
@@ -61,7 +64,7 @@ func TestDedicatedAccountBanRecovery(t *testing.T) {
 					},
 				},
 			}
-			if tc.status != 403 {
+			{
 				ha.Status.BanRestartWindowCount = 1
 				past := metav1.NewTime(time.Now().Add(-10 * time.Minute))
 				ha.Status.LastSelfUnban = &past
@@ -75,6 +78,13 @@ func TestDedicatedAccountBanRecovery(t *testing.T) {
 						Message: "previous ban",
 					},
 				)
+			}
+			switch tc.name {
+			case "provisioning limit":
+				ha.Status.BanRestartWindowCount = banRestartMaxCount
+			case "provisioning cooldown":
+				recent := metav1.Now()
+				ha.Status.LastSelfUnban = &recent
 			}
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -167,31 +177,145 @@ func TestDedicatedAccountBanRecovery(t *testing.T) {
 				t.Fatal(err)
 			}
 			podErr := c.Get(ctx, client.ObjectKeyFromObject(pod), &corev1.Pod{})
-			if tc.status == 403 {
-				if !apierrors.IsNotFound(podErr) || result.RequeueAfter != selfUnbanRequeueWait ||
-					updated.Status.SelfUnbanCount != 1 {
-					t.Fatalf(
-						"ban did not trigger bounded pod recovery: result=%v status=%+v podError=%v",
-						result,
-						updated.Status,
-						podErr,
+			assertDedicatedBanRecoveryResult(t, tc.name, tc.status, result, updated, podErr)
+		})
+	}
+}
+
+func assertDedicatedBanRecoveryResult(
+	t *testing.T, name string, status int, result ctrl.Result, updated *hav1.HomeAssistant, podErr error,
+) {
+	t.Helper()
+	if name == "provisioning limit" {
+		condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeBanRecovery)
+		if podErr != nil || updated.Status.SelfUnbanCount != 0 || condition == nil ||
+			condition.Reason != reasonBanRecoveryLimitExceeded || result.RequeueAfter != banRestartWindow {
+			t.Fatal("owner login bypassed the restart limit")
+		}
+		return
+	}
+	if name == "provisioning cooldown" {
+		if podErr != nil || updated.Status.SelfUnbanCount != 0 || updated.Status.BanRestartWindowCount != 1 ||
+			result.RequeueAfter <= 0 || result.RequeueAfter > selfUnbanCooldown {
+			t.Fatal("owner login bypassed the restart cooldown")
+		}
+		return
+	}
+	if status == 403 {
+		if !apierrors.IsNotFound(podErr) || result.RequeueAfter != selfUnbanRequeueWait ||
+			updated.Status.SelfUnbanCount != 1 || updated.Status.BanRestartWindowCount != 2 {
+			t.Fatalf(
+				"ban did not trigger bounded pod recovery: result=%v status=%+v podError=%v",
+				result,
+				updated.Status,
+				podErr,
+			)
+		}
+		return
+	}
+	if podErr != nil || updated.Status.SelfUnbanCount != 0 {
+		t.Fatal("non-ban response restarted the pod")
+	}
+	wantCount := int32(0)
+	if status != 200 {
+		wantCount = 1
+	}
+	if updated.Status.BanRestartWindowCount != wantCount {
+		t.Fatalf("ban window count=%d want=%d", updated.Status.BanRestartWindowCount, wantCount)
+	}
+	banCondition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeBanRecovery)
+	if wantCount == 0 && (updated.Status.LastSelfUnban != nil || banCondition != nil) {
+		t.Fatal("successful authentication left stale ban recovery state")
+	}
+}
+
+func TestOperatorIssuanceBanPreservesRestartWindow(t *testing.T) {
+	for _, failAt := range []string{"token issuance", "principal verification", "health verification"} {
+		t.Run(failAt, func(t *testing.T) {
+			ctx := context.Background()
+			scheme := runtime.NewScheme()
+			_ = hav1.AddToScheme(scheme)
+			_ = corev1.AddToScheme(scheme)
+			past := metav1.NewTime(time.Now().Add(-10 * time.Minute))
+			ha := &hav1.HomeAssistant{
+				ObjectMeta: metav1.ObjectMeta{Name: "home", Namespace: "home", UID: "uid"},
+				Status: hav1.HomeAssistantStatus{
+					BanRestartWindowCount: 2,
+					BanRestartWindowStart: &past,
+					LastSelfUnban:         &past,
+				},
+			}
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: "operator", Namespace: "home", Annotations: map[string]string{}},
+			}
+			c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(ha).WithObjects(ha, secret).Build()
+			attempt := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				switch req.URL.Path {
+				case "/auth/login_flow":
+					_ = json.NewEncoder(w).Encode(map[string]string{"flow_id": "flow"})
+				case "/auth/login_flow/flow":
+					_ = json.NewEncoder(w).Encode(map[string]string{"type": "create_entry", "result": "code"})
+				case "/auth/token":
+					_ = json.NewEncoder(w).Encode(map[string]string{"access_token": "session"})
+				case "/api/":
+					w.WriteHeader(http.StatusForbidden)
+				case "/api/websocket":
+					attempt++
+					if (failAt == "token issuance" && attempt == 2) ||
+						(failAt == "principal verification" && attempt == 3) {
+						w.WriteHeader(http.StatusForbidden)
+						return
+					}
+					conn, err := (&websocket.Upgrader{}).Upgrade(w, req, nil)
+					if err != nil {
+						return
+					}
+					defer func() { _ = conn.Close() }()
+					_ = conn.WriteJSON(map[string]string{"type": "auth_required"})
+					var msg map[string]interface{}
+					_ = conn.ReadJSON(&msg)
+					_ = conn.WriteJSON(map[string]string{"type": "auth_ok"})
+					_ = conn.ReadJSON(&msg)
+					var result interface{}
+					switch msg["type"] {
+					case "config/auth_provider/homeassistant/create":
+					case "auth/long_lived_access_token":
+						result = "issued-token"
+					case "auth/current_user":
+						result = haclient.AuthUser{ID: "operator-id", IsAdmin: true}
+					default:
+						t.Errorf("unexpected command %v", msg["type"])
+					}
+					_ = conn.WriteJSON(
+						map[string]interface{}{"id": 1, "type": "result", "success": true, "result": result},
 					)
+				default:
+					t.Errorf("unexpected path %s", req.URL.Path)
+					w.WriteHeader(500)
 				}
-			} else {
-				if podErr != nil || updated.Status.SelfUnbanCount != 0 {
-					t.Fatal("non-ban response restarted the pod")
-				}
-				wantCount := int32(0)
-				if tc.status == 429 {
-					wantCount = 1
-				}
-				if updated.Status.BanRestartWindowCount != wantCount {
-					t.Fatalf("ban window count=%d want=%d", updated.Status.BanRestartWindowCount, wantCount)
-				}
-				banCondition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeBanRecovery)
-				if wantCount == 0 && (updated.Status.LastSelfUnban != nil || banCondition != nil) {
-					t.Fatal("successful authentication left stale ban recovery state")
-				}
+			}))
+			defer server.Close()
+			r := &HomeAssistantReconciler{Client: c, Scheme: scheme}
+			err := r.issueOperatorCredential(
+				ctx,
+				ha,
+				secret,
+				haclient.NewClient(server.URL),
+				&haclient.AuthUser{ID: "operator-id"},
+				"owner-session",
+				false,
+			)
+			if !haclient.IsBanned(err) {
+				t.Fatalf("expected late ban, got %v", err)
+			}
+			updated := &hav1.HomeAssistant{}
+			if err := c.Get(ctx, client.ObjectKeyFromObject(ha), updated); err != nil {
+				t.Fatal(err)
+			}
+			if updated.Status.BanRestartWindowCount != 2 || updated.Status.LastSelfUnban == nil ||
+				updated.Status.LastSelfUnban.Unix() != past.Unix() {
+				t.Fatal("partial issuance cleared the restart window or cooldown")
 			}
 		})
 	}

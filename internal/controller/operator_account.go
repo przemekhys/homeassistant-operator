@@ -158,7 +158,6 @@ func (r *HomeAssistantReconciler) observeOperatorToken(
 		return r.operatorAccountStatus(ctx, ha, secret, reason,
 			"Check service availability or request explicit credential recovery")
 	}
-	r.resetBanRecovery(ctx, ha)
 	if user.ID != secret.Annotations[operatorUserAnnotation] || user.IsOwner {
 		return r.operatorAccountStatus(ctx, ha, secret, reasonCredentialRejected,
 			"Token identifies another user; restore the dedicated credential or request recovery")
@@ -176,6 +175,7 @@ func (r *HomeAssistantReconciler) observeOperatorToken(
 			return ctrl.Result{}, err
 		}
 	}
+	r.resetBanRecovery(ctx, ha)
 	return r.operatorAccountStatus(ctx, ha, secret, "Verified",
 		"Dedicated credential verified; bootstrap credentials retired from routine use")
 }
@@ -299,7 +299,6 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 			"Cannot authenticate bootstrap owner; correct credentials and submit a new recoveryRequestID",
 		)
 	}
-	r.resetBanRecovery(ctx, ha)
 	if err := r.provisionOperatorCredential(ctx, ha, secret, haClient, session.AccessToken, recovery); err != nil {
 		logOperatorProvisioningError(ctx, err)
 		if haclient.IsBanned(err) {
@@ -317,6 +316,9 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 			"Dedicated credential provisioning failed; check the owner account and submit a new recoveryRequestID",
 		)
 	}
+	// Partial authentication must not clear the restart window: later account
+	// commands can still encounter a ban in this provisioning attempt.
+	r.resetBanRecovery(ctx, ha)
 	return r.operatorAccountStatus(
 		ctx,
 		ha,
@@ -471,7 +473,6 @@ func (r *HomeAssistantReconciler) issueOperatorCredential(
 	if err != nil {
 		return err
 	}
-	r.resetBanRecovery(ctx, ha)
 	issued, err := c.CreateLongLivedToken(
 		ctx,
 		session.AccessToken,
@@ -493,7 +494,6 @@ func (r *HomeAssistantReconciler) issueOperatorCredential(
 	if err != nil {
 		return err
 	}
-	r.resetBanRecovery(ctx, ha)
 	if principal.ID != user.ID || principal.IsOwner || !principal.IsAdmin {
 		return fmt.Errorf("unexpected runtime principal or role")
 	}
