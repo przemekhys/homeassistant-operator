@@ -1,0 +1,236 @@
+language: en-US
+tone_instructions: ''
+early_access: false
+enable_free_tier: true
+inheritance: false
+
+reviews:
+  profile: chill
+  high_level_summary: true
+  high_level_summary_instructions: ''
+  high_level_summary_placeholder: '@coderabbitai summary'
+  high_level_summary_in_walkthrough: false
+  auto_title_placeholder: '@coderabbitai'
+  auto_title_instructions: ''
+  review_status: true
+  review_details: false
+  review_progress: true
+  commit_status: true
+  fail_commit_status: false
+  collapse_walkthrough: true
+  changed_files_summary: true
+  sequence_diagrams: true
+  estimate_code_review_effort: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  suggested_labels: true
+  auto_apply_labels: false
+  suggested_reviewers: true
+  auto_assign_reviewers: false
+  in_progress_fortune: true
+  poem: true
+  enable_prompt_for_ai_agents: true
+  abort_on_close: true
+  disable_cache: false
+  slop_detection:
+    enabled: true
+  auto_review:
+    enabled: true
+    description_keyword: ''
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 5
+    drafts: false
+    base_branches:
+      - dev
+      - main
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: false
+    simplify:
+      enabled: false
+    autofix:
+      enabled: true
+  pre_merge_checks:
+    override_requested_reviewers_only: false
+    docstrings:
+      mode: warning
+      threshold: 80
+    title:
+      mode: warning
+      requirements: ''
+    description:
+      mode: warning
+    issue_assessment:
+      mode: warning
+  tools:
+    ast-grep:
+      essential_rules: true
+    shellcheck:
+      enabled: true
+    ruff:
+      enabled: true
+    markdownlint:
+      enabled: true
+    github-checks:
+      enabled: true
+    languagetool:
+      enabled: true
+      enabled_only: false
+      level: default
+    biome:
+      enabled: true
+    hadolint:
+      enabled: true
+    swiftlint:
+      enabled: true
+    phpstan:
+      enabled: true
+      level: default
+    phpmd:
+      enabled: true
+    phpcs:
+      enabled: true
+    golangci-lint:
+      enabled: true
+    yamllint:
+      enabled: true
+    gitleaks:
+      enabled: true
+    trufflehog:
+      enabled: true
+    checkov:
+      enabled: true
+    tflint:
+      enabled: true
+    detekt:
+      enabled: true
+    eslint:
+      enabled: true
+      e18e:
+        enabled: true
+    flake8:
+      enabled: true
+    fbinfer:
+      enabled: true
+      enable_java: false
+    fortitudeLint:
+      enabled: true
+    rubocop:
+      enabled: true
+    buf:
+      enabled: true
+    regal:
+      enabled: true
+    actionlint:
+      enabled: true
+    zizmor:
+      enabled: true
+    pmd:
+      enabled: true
+    clang:
+      enabled: true
+    cppcheck:
+      enabled: true
+    opengrep:
+      enabled: true
+    semgrep:
+      enabled: true
+    circleci:
+      enabled: true
+    clippy:
+      enabled: true
+    sqlfluff:
+      enabled: true
+    squawk:
+      enabled: true
+    trivy:
+      enabled: true
+    prismaLint:
+      enabled: true
+    pylint:
+      enabled: true
+    oxc:
+      enabled: true
+    shopifyThemeCheck:
+      enabled: true
+    luacheck:
+      enabled: true
+    brakeman:
+      enabled: true
+    dotenvLint:
+      enabled: true
+    htmlhint:
+      enabled: true
+    stylelint:
+      enabled: true
+    checkmake:
+      enabled: true
+    osvScanner:
+      enabled: true
+    oasdiff:
+      enabled: true
+    reactDoctor:
+      enabled: true
+    presidio:
+      enabled: true
+    blinter:
+      enabled: true
+    smartyLint:
+      enabled: true
+    emberTemplateLint:
+      enabled: true
+    skillspector:
+      enabled: true
+    psscriptanalyzer:
+      enabled: true
+  auto_approvals:
+    enabled: false
+
+chat:
+  art: true
+  allow_non_org_members: true
+  auto_reply: true
+  integrations:
+    jira:
+      usage: auto
+    linear:
+      usage: auto
+
+knowledge_base:
+  opt_out: false
+  web_search:
+    enabled: true
+  code_guidelines:
+    enabled: true
+  learnings:
+    scope: auto
+    approval_delay: 0
+  issues:
+    scope: auto
+  jira:
+    usage: auto
+  linear:
+    usage: auto
+  pull_requests:
+    scope: auto
+  mcp:
+    usage: auto
+  automatic_linking_mode: disabled
+  automatic_repository_linking: false
+
+code_generation:
+  docstrings:
+    language: en-US
+
+issue_enrichment:
+  auto_enrich:
+    enabled: false
+  planning:
+    enabled: true
+    auto_planning:
+      enabled: true
+  labeling:
+    auto_apply_labels: false
