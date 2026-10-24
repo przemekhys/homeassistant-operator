@@ -17,14 +17,20 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/przemekhys/homeassistant-operator/internal/haclient"
 	"github.com/przemekhys/homeassistant-operator/test/utils"
 )
 
@@ -94,6 +100,9 @@ spec:
         name: ha-bootstrap-creds
     createApiToken: true
     apiTokenSecretName: %s-homeassistant-api-token
+    operatorAccount:
+      mode: dedicated
+      tokenSecretName: %s-homeassistant-api-token
     ownerName: "E2E Critical Path"
     language: "en"
   backup:
@@ -103,7 +112,7 @@ spec:
     retentionCopies: 3
     includeDatabase: true
   %s
-`, haName, namespace, haVersion(), haName, utils.GetEnhancedHAResourceRequests())
+`, haName, namespace, haVersion(), haName, haName, utils.GetEnhancedHAResourceRequests())
 		Expect(utils.ApplyYAML(haYAML, namespace)).To(Succeed())
 
 		By("Creating HomeAssistantConfiguration CR")
@@ -162,6 +171,85 @@ spec:
 		if err := utils.DeleteNamespace(namespace); err != nil {
 			_, _ = fmt.Fprintf(GinkgoWriter, "Warning: failed to delete namespace %s: %v\n", namespace, err)
 		}
+	})
+
+	It("dedicated bootstrap isolates the runtime principal and retires bootstrap access", func() {
+		By("Verifying the namespace-local managed Secret metadata")
+		owner := utils.Kubectl(
+			"get",
+			"secret",
+			haName+"-homeassistant-api-token",
+			"-n",
+			namespace,
+			"-o",
+			"jsonpath={.metadata.ownerReferences[?(@.controller==true)].uid}",
+		)
+		uid := utils.Kubectl("get", "ha", haName, "-n", namespace, "-o", "jsonpath={.metadata.uid}")
+		Expect(owner).To(Equal(uid))
+		secretList, listErr := exec.Command("kubectl", "get", "secrets", "--all-namespaces", "-o", "json").Output()
+		Expect(listErr).NotTo(HaveOccurred())
+		var allSecrets struct {
+			Items []struct {
+				Metadata struct {
+					Name      string `json:"name"`
+					Namespace string `json:"namespace"`
+				} `json:"metadata"`
+				Data map[string][]byte `json:"data"`
+			} `json:"items"`
+		}
+		Expect(json.Unmarshal(secretList, &allSecrets)).To(Succeed())
+		principal := utils.Kubectl(
+			"get",
+			"ha",
+			haName,
+			"-n",
+			namespace,
+			"-o",
+			"jsonpath={.status.bootstrap.operatorAccount.userID}",
+		)
+		Expect(principal).NotTo(BeEmpty())
+		apiClient, cleanup := criticalPathHAClient(namespace, haName)
+		defer cleanup()
+		token := criticalPathOperatorToken(namespace, haName+"-homeassistant-api-token")
+		for _, secret := range allSecrets.Items {
+			if secret.Metadata.Name == haName+"-homeassistant-api-token" && secret.Metadata.Namespace == namespace {
+				continue
+			}
+			for _, value := range secret.Data {
+				Expect(strings.Contains(string(value), token)).To(BeFalse(), "operator token copied to another Secret")
+			}
+		}
+		user, err := apiClient.CurrentUser(context.Background(), token)
+		Expect(err).NotTo(HaveOccurred(), "dedicated principal query failed")
+		Expect(user.ID).To(Equal(principal))
+		Expect(user.IsOwner).To(BeFalse())
+		Expect(user.IsAdmin).To(BeTrue())
+		users, err := apiClient.ListUsers(context.Background(), token)
+		Expect(err).NotTo(HaveOccurred())
+		ownerFound := false
+		for _, candidate := range users {
+			if candidate.ID == user.ID {
+				Expect(candidate.GroupIDs).To(ContainElement("system-admin"))
+			}
+			if candidate.IsOwner && candidate.ID != user.ID {
+				ownerFound = true
+			}
+		}
+		Expect(ownerFound).To(BeTrue(), "onboarding owner and operator must be distinct")
+		By("Checking the credential is absent from status, events, and operator logs")
+		for _, args := range [][]string{
+			{"get", "ha", haName, "-n", namespace, "-o", "json"},
+			{"get", "events", "-n", namespace, "-o", "json"},
+			{"logs", "-n", "homeassistant-operator-system", "-l", "control-plane=controller-manager"},
+		} {
+			out, readErr := exec.Command("kubectl", args...).Output()
+			Expect(readErr).NotTo(HaveOccurred())
+			Expect(strings.Contains(string(out), token)).To(BeFalse(), "credential leaked into diagnostics")
+		}
+		By("Removing bootstrap credentials before the remaining management scenarios")
+		_, err = utils.Run(exec.Command("kubectl", "delete", "secret", "ha-bootstrap-creds", "-n", namespace))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(apiClient.CheckHealthWithToken(context.Background(), token)).To(Succeed())
 	})
 
 	// -------------------------------------------------------------------------
@@ -280,7 +368,9 @@ spec:
 		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
 
 		By("Deleting the dashboard while Home Assistant is available")
-		_, err := utils.Run(exec.Command("kubectl", "delete", "hadashboard", "cp-dashboard", "-n", namespace, "--wait=false"))
+		_, err := utils.Run(
+			exec.Command("kubectl", "delete", "hadashboard", "cp-dashboard", "-n", namespace, "--wait=false"),
+		)
 		Expect(err).NotTo(HaveOccurred())
 		Eventually(func(g Gomega) {
 			output := utils.Kubectl("get", "hadashboard", "cp-dashboard", "-n", namespace, "--ignore-not-found")
@@ -489,7 +579,16 @@ stringData:
 		}, utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
 
 		By("Deleting HomeAssistantSecrets CR")
-		cmd := exec.Command("kubectl", "delete", "hasecrets", secretsName, "-n", namespace, "--wait=true", "--timeout=30s")
+		cmd := exec.Command(
+			"kubectl",
+			"delete",
+			"hasecrets",
+			secretsName,
+			"-n",
+			namespace,
+			"--wait=true",
+			"--timeout=30s",
+		)
 		_, err := utils.Run(cmd)
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -982,7 +1081,229 @@ spec:
 		}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
 	})
 
+	It("operator credential loss requires explicit recovery and does not replay an observed request", func() {
+		secretName := haName + "-homeassistant-api-token"
+		oldToken := criticalPathOperatorToken(namespace, secretName)
+		_, err := utils.Run(exec.Command("kubectl", "delete", "secret", secretName, "-n", namespace))
+		Expect(err).NotTo(HaveOccurred())
+		// A spec update guarantees an immediate reconciliation without relying on
+		// the periodic health interval or Secret watch delivery.
+		_, err = utils.Run(
+			exec.Command("kubectl", "annotate", "ha", haName, "-n", namespace, "credential-check=loss", "--overwrite"),
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() string {
+			return utils.Kubectl(
+				"get",
+				"ha",
+				haName,
+				"-n",
+				namespace,
+				"-o",
+				`jsonpath={.status.conditions[?(@.type=="Degraded")].reason}`,
+			)
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Equal("CredentialMissing"))
+		Expect(utils.Kubectl("get", "secret", secretName, "-n", namespace, "--ignore-not-found")).To(BeEmpty())
+		By("Restoring owner credentials and requesting one replacement")
+		credentials := fmt.Sprintf(
+			"apiVersion: v1\nkind: Secret\nmetadata:\n  name: ha-bootstrap-creds\n  namespace: %s\n"+
+				"type: Opaque\nstringData:\n  username: admin\n  password: e2e-critical-path-pwd-123456\n",
+			namespace,
+		)
+		Expect(utils.ApplyYAML(credentials, namespace)).To(Succeed())
+		_, err = utils.Run(
+			exec.Command(
+				"kubectl",
+				"patch",
+				"ha",
+				haName,
+				"-n",
+				namespace,
+				"--type=merge",
+				"-p",
+				`{"spec":{"bootstrap":{"operatorAccount":{"recoveryRequestID":"critical-path-1"}}}}`,
+			),
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() string {
+			return utils.Kubectl(
+				"get",
+				"ha",
+				haName,
+				"-n",
+				namespace,
+				"-o",
+				"jsonpath={.status.bootstrap.operatorAccount.recoveryResult}",
+			)
+		}, utils.BootstrapTimeout, reconcileInterval).Should(Equal("Succeeded"))
+		newToken := criticalPathOperatorToken(namespace, secretName)
+		// Comparing a boolean keeps both sensitive operands out of failure output.
+		replaced := newToken != oldToken
+		Expect(replaced).To(BeTrue(), "recovery did not replace the token")
+		apiClient, cleanup := criticalPathHAClient(namespace, haName)
+		defer cleanup()
+		Expect(apiClient.CheckHealthWithToken(context.Background(), newToken)).To(Succeed())
+		_, err = utils.Run(
+			exec.Command(
+				"kubectl",
+				"annotate",
+				"ha",
+				haName,
+				"-n",
+				namespace,
+				"credential-check=replay",
+				"--overwrite",
+			),
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Consistently(
+			func() bool { return criticalPathOperatorToken(namespace, secretName) == newToken },
+			10*time.Second,
+			reconcileInterval,
+		).Should(BeTrue(), "observed recovery request replayed")
+	})
+
+	It("legacy adoption reports collisions and retains its original token until deliberate cleanup", func() {
+		migrationName := "ha-migration"
+		manifest := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
+kind: HomeAssistant
+metadata:
+  name: %s
+  namespace: %s
+spec:
+  version: "%s"
+  storage:
+    size: 1Gi
+  bootstrap:
+    enabled: true
+    credentials:
+      secretRef:
+        name: ha-bootstrap-creds
+    createApiToken: true
+---
+apiVersion: ha.homeassistant.io/v1
+kind: HomeAssistantConfiguration
+metadata:
+  name: ha-migration-config
+  namespace: %s
+spec:
+  homeAssistantRef:
+    name: %s
+  configuration: |
+    default_config:
+`, migrationName, namespace, haVersion(), namespace, migrationName)
+		Expect(utils.ApplyYAML(manifest, namespace)).To(Succeed())
+		Eventually(func() string {
+			return utils.Kubectl(
+				"get",
+				"ha",
+				migrationName,
+				"-n",
+				namespace,
+				"-o",
+				"jsonpath={.status.bootstrap.completed}",
+			)
+		}, utils.BootstrapTimeout, bootstrapInterval).Should(Equal("true"))
+		legacyName := migrationName + "-homeassistant-api-token"
+		legacyToken := criticalPathOperatorToken(namespace, legacyName)
+		_, err := utils.Run(
+			exec.Command(
+				"kubectl",
+				"patch",
+				"ha",
+				migrationName,
+				"-n",
+				namespace,
+				"--type=merge",
+				"-p",
+				`{"spec":{"bootstrap":{"operatorAccount":{"mode":"dedicated","tokenSecretName":"ha-bootstrap-creds"}}}}`,
+			),
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() string {
+			return utils.Kubectl(
+				"get",
+				"ha",
+				migrationName,
+				"-n",
+				namespace,
+				"-o",
+				`jsonpath={.status.conditions[?(@.type=="OperatorCredentialReady")].reason}`,
+			)
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Equal("CredentialMalformed"))
+		retained := criticalPathOperatorToken(namespace, legacyName) == legacyToken
+		Expect(retained).To(BeTrue())
+		_, err = utils.Run(
+			exec.Command(
+				"kubectl",
+				"patch",
+				"ha",
+				migrationName,
+				"-n",
+				namespace,
+				"--type=merge",
+				"-p",
+				`{"spec":{"bootstrap":{"operatorAccount":{"tokenSecretName":"ha-migration-dedicated"}}}}`,
+			),
+		)
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() string {
+			return utils.Kubectl(
+				"get",
+				"ha",
+				migrationName,
+				"-n",
+				namespace,
+				"-o",
+				"jsonpath={.status.bootstrap.operatorAccount.migrationPhase}",
+			)
+		}, utils.BootstrapTimeout, reconcileInterval).Should(Equal("Completed"))
+		retained = criticalPathOperatorToken(namespace, legacyName) == legacyToken
+		Expect(retained).To(BeTrue(), "migration modified the legacy token")
+		Expect(
+			utils.Kubectl(
+				"get",
+				"ha",
+				migrationName,
+				"-n",
+				namespace,
+				"-o",
+				"jsonpath={.status.bootstrap.operatorAccount.legacySecretName}",
+			),
+		).To(Equal(legacyName))
+	})
 })
+
+// Read sensitive output directly so command errors cannot print a credential.
+func criticalPathOperatorToken(namespace, name string) string {
+	data, err := exec.Command("kubectl", "get", "secret", name, "-n", namespace, "-o", "json").Output()
+	Expect(err).NotTo(HaveOccurred(), "cannot read managed token Secret")
+	var secret struct {
+		Data map[string]string `json:"data"`
+	}
+	Expect(json.Unmarshal(data, &secret)).To(Succeed())
+	token, err := base64.StdEncoding.DecodeString(secret.Data["token"])
+	Expect(err == nil && len(token) > 0).To(BeTrue(), "invalid managed token payload")
+	return string(token)
+}
+
+func criticalPathHAClient(namespace, name string) (*haclient.Client, func()) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	Expect(err).NotTo(HaveOccurred())
+	port := listener.Addr().(*net.TCPAddr).Port
+	Expect(listener.Close()).To(Succeed())
+	cmd := exec.Command("kubectl", "port-forward", "-n", namespace, "service/"+name, fmt.Sprintf("%d:8123", port))
+	Expect(cmd.Start()).To(Succeed())
+	cleanup := func() { _ = cmd.Process.Kill(); _ = cmd.Wait() }
+	DeferCleanup(cleanup)
+	c := haclient.NewClient(fmt.Sprintf("http://127.0.0.1:%d", port))
+	Eventually(
+		func() error { return c.CheckHealth(context.Background()) },
+		utils.ResourceTimeout,
+		reconcileInterval,
+	).Should(Succeed())
+	return c, func() {} // registered cleanup also runs if a caller assertion fails
+}
 
 // collectCriticalPathDebugInfo gathers diagnostic information on failure.
 func collectCriticalPathDebugInfo(namespace, haName, configName string) {

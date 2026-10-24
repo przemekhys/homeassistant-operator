@@ -20,10 +20,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -124,6 +126,42 @@ func getAPIToken(
 	c client.Client,
 	ha *hav1.HomeAssistant,
 ) (string, error) {
+	// Keep the legacy token active until explicit migration verifies a replacement.
+	migrating := dedicatedOperatorAccount(ha) && ha.Status.Bootstrap != nil &&
+		ha.Status.Bootstrap.APITokenSecretName != "" &&
+		ha.Status.Bootstrap.APITokenSecretName != ha.Spec.Bootstrap.OperatorAccount.TokenSecretName &&
+		(ha.Status.Bootstrap.OperatorAccount == nil || ha.Status.Bootstrap.OperatorAccount.Phase != "Verified")
+	if dedicatedOperatorAccount(ha) && !migrating {
+		secret := &corev1.Secret{}
+		err := c.Get(
+			ctx,
+			types.NamespacedName{Name: ha.Spec.Bootstrap.OperatorAccount.TokenSecretName, Namespace: ha.Namespace},
+			secret,
+		)
+		if err != nil {
+			reason := reasonHomeAssistantUnavailable
+			if errors.IsNotFound(err) {
+				reason = reasonCredentialMissing
+			}
+			if errors.IsForbidden(err) || errors.IsUnauthorized(err) {
+				reason = reasonSecretAccessDenied
+			}
+			return "", &operatorCredentialError{reason: reason}
+		}
+		if err := validateOperatorSecret(ha, secret); err != nil {
+			return "", err
+		}
+		if secret.Annotations[operatorStageAnnotation] != "Verified" ||
+			secret.Annotations[operatorUserAnnotation] == "" {
+			return "", &operatorCredentialError{reason: reasonCredentialMalformed}
+		}
+		token := string(secret.Data[apiTokenSecretKeyName])
+		if strings.TrimSpace(token) == "" || strings.TrimSpace(token) != token ||
+			strings.ContainsAny(token, "\r\n\t ") {
+			return "", &operatorCredentialError{reason: reasonCredentialMalformed}
+		}
+		return token, nil
+	}
 	log := logf.FromContext(ctx)
 
 	// Derive token secret name: prefer status field set by bootstrap controller,
@@ -132,9 +170,16 @@ func getAPIToken(
 	if ha.Status.Bootstrap != nil && ha.Status.Bootstrap.APITokenSecretName != "" {
 		tokenSecretName = ha.Status.Bootstrap.APITokenSecretName
 	} else {
-		log.V(1).Info("Bootstrap API token secret name not set, using default token secret name", "secret", tokenSecretName)
+		log.V(1).
+			Info("Bootstrap API token secret name not set, using default token secret name", "secret", tokenSecretName)
 	}
 
+	if ha.Spec.Bootstrap != nil && ha.Spec.Bootstrap.OperatorAccount != nil &&
+		ha.Spec.Bootstrap.OperatorAccount.Mode == "legacy" && ha.Spec.Bootstrap.APITokenSecretName != "" {
+		// Explicit rollback selects the retained legacy Secret even when status
+		// still describes the previously verified dedicated credential.
+		tokenSecretName = ha.Spec.Bootstrap.APITokenSecretName
+	}
 	tokenSecret := &corev1.Secret{}
 	err := c.Get(ctx, types.NamespacedName{Name: tokenSecretName, Namespace: ha.Namespace}, tokenSecret)
 
@@ -153,4 +198,36 @@ func getAPIToken(
 	}
 
 	return string(tokenBytes), nil
+}
+
+func dedicatedOperatorAccount(ha *hav1.HomeAssistant) bool {
+	return ha.Spec.Bootstrap != nil && ha.Spec.Bootstrap.OperatorAccount != nil &&
+		ha.Spec.Bootstrap.OperatorAccount.Mode == "dedicated"
+}
+
+// operatorCredentialError deliberately contains no API response or credential data.
+type operatorCredentialError struct{ reason string }
+
+func (e *operatorCredentialError) Error() string { return "operator credential: " + e.reason }
+
+func validateOperatorSecret(ha *hav1.HomeAssistant, secret *corev1.Secret) error {
+	switch secret.Annotations[operatorStageAnnotation] {
+	case "Provisioning", "Creating", "Issuing", "Recovering", "Verified":
+	default:
+		return &operatorCredentialError{reason: reasonCredentialMalformed}
+	}
+	if len(secret.Data[apiTokenSecretKeyName]) > 0 && secret.Annotations[operatorUserAnnotation] == "" {
+		return &operatorCredentialError{reason: reasonCredentialMalformed}
+	}
+	owner := metav1.GetControllerOf(secret)
+	if secret.Namespace != ha.Namespace || owner == nil || owner.UID != ha.UID || owner.Name != ha.Name ||
+		owner.Kind != "HomeAssistant" ||
+		owner.APIVersion != hav1.GroupVersion.String() ||
+		secret.Type != corev1.SecretTypeOpaque ||
+		secret.Labels["app.kubernetes.io/managed-by"] != "homeassistant-operator" ||
+		secret.Labels[operatorPurposeLabel] != "operator-api-token" ||
+		len(secret.Data) > 1 {
+		return &operatorCredentialError{reason: reasonCredentialMalformed}
+	}
+	return nil
 }

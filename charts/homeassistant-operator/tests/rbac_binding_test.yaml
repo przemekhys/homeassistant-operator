@@ -1,5 +1,24 @@
 suite: RBAC binding mode by watchNamespaces
 tests:
+  - it: keeps dedicated token access bound only to the managed namespace
+    templates:
+      - watched_namespace_rolebindings.yaml
+    set:
+      watchNamespaces: [home]
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: RoleBinding
+      - equal:
+          path: metadata.namespace
+          value: home
+      - equal:
+          path: subjects[0].namespace
+          value: NAMESPACE
+      - equal:
+          path: roleRef.kind
+          value: ClusterRole
   - it: creates a ClusterRoleBinding when watchNamespaces is empty (default)
     templates:
       - clusterrolebinding.yaml

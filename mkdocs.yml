@@ -105,6 +105,7 @@ nav:
     - Upgrade the operator: how-to/upgrade-operator.md
     - Deploy an instance: how-to/deploy-instance.md
     - Bootstrap an instance: how-to/bootstrap-instance.md
+    - Recover the operator credential: how-to/recover-operator-credential.md
     - Manage configuration: how-to/manage-configuration.md
     - Manage secrets: how-to/manage-secrets.md
     - Manage automations: how-to/manage-automations.md

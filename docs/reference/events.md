@@ -18,6 +18,12 @@ successful automation, scene or script reload is reported only as the
 
 ## HomeAssistant
 
+Dedicated credential lifecycle results are durable status conditions
+(`OperatorCredentialReady`, `Degraded`) and recovery request observations, not
+credential-bearing Events. No event includes the operator token or temporary
+password. See [conditions](conditions.md) and
+[explicit recovery](../how-to/recover-operator-credential.md).
+
 | Event | Type | Meaning |
 |-------|------|---------|
 | `BanRecoveryRestart` | Normal | Home Assistant had banned the operator's IP; the pod was restarted to clear the ban |

@@ -101,6 +101,13 @@ Complete any applicable guide before step 1 above.
 
 ## RBAC on upgrade
 
+Existing resources keep legacy administrator-derived tokens unless dedicated
+mode is explicitly enabled. After updating CRDs, follow
+[dedicated account migration](bootstrap-instance.md#migrate-an-existing-installation).
+The legacy Secret is retained until you revoke and remove it deliberately;
+you can return to legacy mode while that credential is still valid. Dedicated
+tokens reuse existing managed-namespace Secret permissions.
+
 `helm upgrade` reconciles the operator's RBAC (ClusterRole / Role / bindings) to
 exactly what the target chart version declares. The project's CI enforces that a
 chart upgrade never silently broadens the operator's permissions — any new

@@ -43,6 +43,34 @@ import (
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
 )
 
+func TestOperatorAccountAdmission(t *testing.T) {
+	c, _, cleanup := setupWebhookTestEnv(t)
+	defer cleanup()
+	for i, tt := range []struct {
+		mode, secret string
+		accepted     bool
+	}{
+		{"dedicated", "operator-token", true}, {"dedicated", "", false},
+		{"invalid", "operator-token", false}, {"legacy", "", true},
+		{"dedicated", "Invalid_Name", false},
+	} {
+		t.Run(fmt.Sprintf("%s-%d", tt.mode, i), func(t *testing.T) {
+			account := map[string]interface{}{"mode": tt.mode}
+			if tt.secret != "" {
+				account["tokenSecretName"] = tt.secret
+			}
+			obj := &unstructured.Unstructured{Object: map[string]interface{}{
+				"apiVersion": hav1.GroupVersion.String(), "kind": "HomeAssistant",
+				"metadata": map[string]interface{}{"name": fmt.Sprintf("operator-account-%d", i), "namespace": "default"},
+				"spec":     map[string]interface{}{"bootstrap": map[string]interface{}{"operatorAccount": account}},
+			}}
+			if err := c.Create(context.Background(), obj); (err == nil) != tt.accepted {
+				t.Fatalf("accepted=%v error=%v", tt.accepted, err)
+			}
+		})
+	}
+}
+
 func TestGatewayClassNameAdmission(t *testing.T) {
 	k8sClient, _, cleanup := setupWebhookTestEnv(t)
 	defer cleanup()

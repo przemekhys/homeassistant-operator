@@ -2,6 +2,17 @@ package haclient
 
 import "encoding/json"
 
+// AuthUser is an identity returned by Home Assistant's authenticated user API.
+type AuthUser struct {
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Username string   `json:"username"`
+	IsOwner  bool     `json:"is_owner"`
+	IsAdmin  bool     `json:"is_admin"`
+	IsActive bool     `json:"is_active"`
+	GroupIDs []string `json:"group_ids"`
+}
+
 // OnboardingStep represents a step in the onboarding array returned by GET /api/onboarding.
 type OnboardingStep struct {
 	Step string `json:"step"`
