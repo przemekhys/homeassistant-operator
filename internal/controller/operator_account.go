@@ -20,6 +20,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -146,6 +147,9 @@ func (r *HomeAssistantReconciler) observeOperatorToken(
 	// a valid token belonging to the human owner is not a dedicated credential.
 	user, healthErr := c.CurrentUser(ctx, token)
 	if healthErr != nil {
+		if haclient.IsBanned(healthErr) {
+			return r.handleSelfBan(ctx, ha, healthErr)
+		}
 		reason := reasonHomeAssistantUnavailable
 		var haErr *haclient.Error
 		if errors.As(healthErr, &haErr) && haErr.Type == haclient.ErrorTypeAuth {
@@ -154,6 +158,7 @@ func (r *HomeAssistantReconciler) observeOperatorToken(
 		return r.operatorAccountStatus(ctx, ha, secret, reason,
 			"Check service availability or request explicit credential recovery")
 	}
+	r.resetBanRecovery(ctx, ha)
 	if user.ID != secret.Annotations[operatorUserAnnotation] || user.IsOwner {
 		return r.operatorAccountStatus(ctx, ha, secret, reasonCredentialRejected,
 			"Token identifies another user; restore the dedicated credential or request recovery")
@@ -245,6 +250,9 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 	}
 	if !recovery {
 		if err := haClient.CheckAPIReady(ctx); err != nil {
+			if haclient.IsBanned(err) {
+				return r.handleSelfBan(ctx, ha, err)
+			}
 			return r.operatorAccountStatus(
 				ctx,
 				ha,
@@ -266,6 +274,9 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 			opts,
 		)
 		if err != nil && !haclient.IsOnboardingDone(err) {
+			if haclient.IsBanned(err) {
+				return r.handleSelfBan(ctx, ha, err)
+			}
 			return r.operatorAccountStatus(
 				ctx,
 				ha,
@@ -277,6 +288,9 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 	}
 	session, err := haClient.LoginWithCredentials(ctx, username, password)
 	if err != nil {
+		if haclient.IsBanned(err) {
+			return r.handleSelfBan(ctx, ha, err)
+		}
 		return r.operatorAccountStatus(
 			ctx,
 			ha,
@@ -285,7 +299,12 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 			"Cannot authenticate bootstrap owner; correct credentials and submit a new recoveryRequestID",
 		)
 	}
+	r.resetBanRecovery(ctx, ha)
 	if err := r.provisionOperatorCredential(ctx, ha, secret, haClient, session.AccessToken, recovery); err != nil {
+		logOperatorProvisioningError(ctx, err)
+		if haclient.IsBanned(err) {
+			return r.handleSelfBan(ctx, ha, err)
+		}
 		if apierrors.IsForbidden(err) || apierrors.IsUnauthorized(err) {
 			return r.operatorAccountStatus(ctx, ha, secret, reasonSecretAccessDenied,
 				"Cannot write managed token Secret; check managed-namespace permissions")
@@ -305,6 +324,20 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 		"Verified",
 		"Dedicated operator credential verified; bootstrap credentials are retired from routine use",
 	)
+}
+
+// Log classifications rather than external response text, which can echo credentials.
+func logOperatorProvisioningError(ctx context.Context, err error) {
+	var haErr *haclient.Error
+	if errors.As(err, &haErr) {
+		err = &haclient.Error{
+			Type: haErr.Type, StatusCode: haErr.StatusCode,
+			Message: "credential provisioning request failed",
+		}
+	} else {
+		err = fmt.Errorf("credential provisioning failed (type %T, reason %s)", err, apierrors.ReasonForError(err))
+	}
+	logf.FromContext(ctx).Error(err, "Failed to provision dedicated operator credential")
 }
 
 func (r *HomeAssistantReconciler) operatorSecretWriteFailure(
@@ -438,6 +471,7 @@ func (r *HomeAssistantReconciler) issueOperatorCredential(
 	if err != nil {
 		return err
 	}
+	r.resetBanRecovery(ctx, ha)
 	issued, err := c.CreateLongLivedToken(
 		ctx,
 		session.AccessToken,
@@ -459,6 +493,7 @@ func (r *HomeAssistantReconciler) issueOperatorCredential(
 	if err != nil {
 		return err
 	}
+	r.resetBanRecovery(ctx, ha)
 	if principal.ID != user.ID || principal.IsOwner || !principal.IsAdmin {
 		return fmt.Errorf("unexpected runtime principal or role")
 	}

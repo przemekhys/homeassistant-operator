@@ -150,6 +150,10 @@ func (c *Client) CheckAPIReady(ctx context.Context) error {
 		return nil
 	}
 
+	if resp.StatusCode == http.StatusForbidden {
+		return ipBannedError()
+	}
+
 	// 404 = routes not yet registered (startup race)
 	if resp.StatusCode == http.StatusNotFound {
 		return &Error{
@@ -258,6 +262,9 @@ func (c *Client) CreateUser(ctx context.Context, req *CreateUserRequest) (*Creat
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, ipBannedError()
+	}
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		bodyStr := string(bodyBytes)
@@ -320,6 +327,21 @@ func (c *Client) ExchangeAuthCode(ctx context.Context, authCode, clientID string
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	if resp.StatusCode == http.StatusForbidden {
+		// Auth policy can reject a disabled or local-only user with a JSON
+		// access_denied response. That is not the IP-ban middleware's 403.
+		var denial struct {
+			Error string `json:"error"`
+		}
+		if json.NewDecoder(resp.Body).Decode(&denial) == nil && denial.Error == "access_denied" {
+			return nil, &Error{
+				Type:       ErrorTypeAuth,
+				Message:    "Home Assistant denied credential authentication",
+				StatusCode: resp.StatusCode,
+			}
+		}
+		return nil, ipBannedError()
+	}
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return nil, &Error{
@@ -372,6 +394,9 @@ func (c *Client) LoginWithCredentials(
 	}
 	defer func() { _ = flowResp.Body.Close() }()
 
+	if flowResp.StatusCode == http.StatusForbidden {
+		return nil, ipBannedError()
+	}
 	if flowResp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(flowResp.Body)
 		return nil, &Error{
@@ -411,6 +436,9 @@ func (c *Client) LoginWithCredentials(
 	}
 	defer func() { _ = credResp.Body.Close() }()
 
+	if credResp.StatusCode == http.StatusForbidden {
+		return nil, ipBannedError()
+	}
 	if credResp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(credResp.Body)
 		return nil, &Error{
@@ -456,8 +484,16 @@ func (c *Client) wsAuthConnect(ctx context.Context, token string) (*websocket.Co
 		HandshakeTimeout: 10 * time.Second,
 	}
 
-	conn, _, err := dialer.DialContext(ctx, wsURL, nil)
+	conn, resp, err := dialer.DialContext(ctx, wsURL, nil)
 	if err != nil {
+		if resp != nil {
+			if resp.Body != nil {
+				_ = resp.Body.Close()
+			}
+			if resp.StatusCode == http.StatusForbidden {
+				return nil, ipBannedError()
+			}
+		}
 		return nil, &Error{Type: ErrorTypeHTTP, Message: "failed to connect to websocket", Err: err}
 	}
 

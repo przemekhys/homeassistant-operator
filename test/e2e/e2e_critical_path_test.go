@@ -240,7 +240,7 @@ spec:
 		for _, args := range [][]string{
 			{"get", "ha", haName, "-n", namespace, "-o", "json"},
 			{"get", "events", "-n", namespace, "-o", "json"},
-			{"logs", "-n", "homeassistant-operator-system", "-l", "control-plane=controller-manager"},
+			{"logs", "-n", "homeassistant-operator-system", "-l", "control-plane=controller-manager", "--tail=-1"},
 		} {
 			out, readErr := exec.Command("kubectl", args...).Output()
 			Expect(readErr).NotTo(HaveOccurred())

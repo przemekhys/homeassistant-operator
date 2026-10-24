@@ -21,6 +21,73 @@ func TestHAClient(t *testing.T) {
 	RunSpecs(t, "HAClient Suite")
 }
 
+func TestAccountIPBanErrors(t *testing.T) {
+	for _, tc := range []struct{ name, path string }{
+		{"readiness", "/api/config"}, {"websocket", "/api/websocket"},
+		{"create user", "/api/onboarding/users"}, {"login flow", "/auth/login_flow"},
+		{"credentials", "/auth/login_flow/flow"}, {"token exchange", "/auth/token"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == tc.path {
+					w.WriteHeader(http.StatusForbidden)
+					_, _ = w.Write([]byte("sentinel-credential"))
+					return
+				}
+				if r.URL.Path == "/auth/login_flow" {
+					_, _ = w.Write([]byte(`{"flow_id":"flow","type":"form"}`))
+					return
+				}
+				_, _ = w.Write([]byte(`{"type":"create_entry","result":"code"}`))
+			}))
+			defer server.Close()
+			c := NewClient(server.URL)
+			ctx := context.Background()
+			var err error
+			switch tc.name {
+			case "readiness":
+				err = c.CheckAPIReady(ctx)
+			case "websocket":
+				_, err = c.CurrentUser(ctx, "token")
+			case "create user":
+				_, err = c.CreateUser(ctx, &CreateUserRequest{})
+			default:
+				_, err = c.LoginWithCredentials(ctx, "owner", "password")
+			}
+			if !IsBanned(err) {
+				t.Fatalf("expected ban classification, got %v", err)
+			}
+			if strings.Contains(err.Error(), "sentinel-credential") {
+				t.Fatal("ban error exposed response text")
+			}
+		})
+	}
+}
+
+func TestLoginAccessDeniedIsNotIPBan(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/auth/login_flow":
+			_, _ = w.Write([]byte(`{"flow_id":"flow","type":"form"}`))
+		case "/auth/login_flow/flow":
+			_, _ = w.Write([]byte(`{"type":"create_entry","result":"code"}`))
+		case "/auth/token":
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"error":"access_denied","error_description":"sentinel-credential"}`))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	_, err := NewClient(server.URL).LoginWithCredentials(context.Background(), "owner", "password")
+	if err == nil || IsBanned(err) {
+		t.Fatalf("access policy denial must not trigger IP-ban recovery: %v", err)
+	}
+	if strings.Contains(err.Error(), "sentinel-credential") {
+		t.Fatal("authentication denial exposed response text")
+	}
+}
+
 func TestAccountCommands(t *testing.T) {
 	ctx := context.Background()
 	commands := []string{

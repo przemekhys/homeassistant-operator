@@ -57,9 +57,9 @@ readiness. `OperatorCredentialReady=True` uses `Verified`;
 |--------|---------|
 | `CredentialMissing` | Managed token Secret is missing; restore it or explicitly request recovery |
 | `CredentialMalformed` | Token data, metadata, type, or owner reference is invalid; unrelated Secrets are never overwritten |
-| `CredentialRejected` | Home Assistant rejected the runtime token |
+| `CredentialRejected` | Home Assistant rejected the runtime token, or the token identifies a different user or the human owner |
 | `SecretAccessDenied` | Required managed-namespace Secret access is denied |
-| `RequiresElevatedRole` | The token does not identify the dedicated administrator user |
+| `RequiresElevatedRole` | The token identifies the dedicated user but that user lacks the required administrator role |
 | `RecoveryFailed` | Recovery failed or was interrupted; repair prerequisites and submit a new request ID |
 | `HomeAssistantUnavailable` | Availability wait with bounded retry, not credential degradation or authorization to recover |
 
