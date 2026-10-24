@@ -130,6 +130,11 @@ preserves the administrator-derived token behavior and conventional Secret
 name. Dedicated mode always issues its own token, independently of this legacy
 flag, and requires a distinct `tokenSecretName`.
 
+Legacy mode is deprecated since **v1.7.0** and scheduled for removal in
+**v2.0.0**. This includes omitting `operatorAccount`, which selects legacy
+behavior in v1.x. Use dedicated mode for new installations and migrate existing
+ones before upgrading to v2.0.0.
+
 ```yaml
 bootstrap:
   createApiToken: true
@@ -137,6 +142,18 @@ bootstrap:
 ```
 
 ## Migrate an existing installation
+
+!!! note "Available from v1.7.0"
+    Versions before v1.7.0 use the administrator-derived token model, now called
+    `legacy` mode. Dedicated operator accounts and this migration procedure are
+    available from v1.7.0. Existing installations retain legacy behavior after
+    upgrading until an administrator explicitly selects `dedicated` mode.
+
+!!! warning "Legacy mode removal in v2.0.0"
+    Legacy mode is deprecated since v1.7.0 and scheduled for removal in v2.0.0.
+    Complete this migration before upgrading to v2.0.0. Compatibility and
+    rollback to legacy mode remain available during v1.x while the old token
+    is valid.
 
 First upgrade the CRDs and operator. Keep the current token Secret and valid
 bootstrap owner credentials. Set an unused dedicated Secret name:
@@ -152,7 +169,7 @@ verified. Status then reports `migrationPhase: Completed` and
 `legacySecretName`. The old Secret is retained; manually revoke its token in
 Home Assistant and remove the Secret only after checking dedicated management.
 
-To abandon migration while the legacy credential is still valid, set mode back
+During v1.x, to abandon migration while the legacy credential is still valid, set mode back
 to `legacy` and set `apiTokenSecretName` to the retained legacy Secret. Do not
 delete the dedicated account or token until legacy access is restored. Changing
 mode never deletes either credential automatically. A name collision or failed

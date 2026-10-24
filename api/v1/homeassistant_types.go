@@ -509,6 +509,7 @@ type BootstrapSpec struct {
 	APITokenSecretName string `json:"apiTokenSecretName,omitempty"`
 
 	// OperatorAccount selects a separate Home Assistant identity. Omission preserves legacy behavior.
+	// Legacy behavior is deprecated since v1.7.0 and scheduled for removal in v2.0.0.
 	// +optional
 	OperatorAccount *OperatorAccountSpec `json:"operatorAccount,omitempty"`
 
@@ -538,6 +539,8 @@ type BootstrapSpec struct {
 // +kubebuilder:validation:XValidation:rule="self.mode != 'dedicated' || (has(self.tokenSecretName) && size(self.tokenSecretName) > 0)",message="dedicated mode requires tokenSecretName"
 type OperatorAccountSpec struct {
 	// Mode preserves legacy administrator tokens unless dedicated is explicitly selected.
+	// The legacy value is deprecated since v1.7.0 and scheduled for removal in v2.0.0.
+	// Migrate existing installations to dedicated before upgrading to v2.0.0.
 	// +kubebuilder:default=legacy
 	// +kubebuilder:validation:Enum=legacy;dedicated
 	// +optional

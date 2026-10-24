@@ -2382,13 +2382,16 @@ spec:
                         type: string
                     type: object
                   operatorAccount:
-                    description: OperatorAccount selects a separate Home Assistant
-                      identity. Omission preserves legacy behavior.
+                    description: |-
+                      OperatorAccount selects a separate Home Assistant identity. Omission preserves legacy behavior.
+                      Legacy behavior is deprecated since v1.7.0 and scheduled for removal in v2.0.0.
                     properties:
                       mode:
                         default: legacy
-                        description: Mode preserves legacy administrator tokens unless
-                          dedicated is explicitly selected.
+                        description: |-
+                          Mode preserves legacy administrator tokens unless dedicated is explicitly selected.
+                          The legacy value is deprecated since v1.7.0 and scheduled for removal in v2.0.0.
+                          Migrate existing installations to dedicated before upgrading to v2.0.0.
                         enum:
                         - legacy
                         - dedicated

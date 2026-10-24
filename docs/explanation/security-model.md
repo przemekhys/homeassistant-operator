@@ -110,6 +110,10 @@ the old Secret for administrator-directed cleanup; see
 [bootstrap and migration](../how-to/bootstrap-instance.md) and
 [credential recovery](../how-to/recover-operator-credential.md).
 
+Legacy credential mode, including omission of `operatorAccount`, is deprecated
+since v1.7.0 and scheduled for removal in v2.0.0. Existing installations must
+migrate to dedicated mode before upgrading to v2.0.0.
+
 That Secret is worth treating as what it is: full control of the Home Assistant
 instance. Anyone who can read Secrets in that namespace can read it, which is one
 more reason to narrow `watchNamespaces` and keep Home Assistant in a namespace of

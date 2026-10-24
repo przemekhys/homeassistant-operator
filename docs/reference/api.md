@@ -191,7 +191,7 @@ _Appears in:_
 | `credentials` _[BootstrapCredentials](#bootstrapcredentials)_ | Credentials references a Secret containing username and password for the admin user<br />The Secret must have "username" and "password" keys |  |  |
 | `createApiToken` _boolean_ | CreateAPIToken controls whether a long-lived access token is created after onboarding<br />The token is valid for 10 years and stored in a Secret | true | Optional: \{\} <br /> |
 | `apiTokenSecretName` _string_ | APITokenSecretName is the name of the Secret where the API token will be stored<br />The Secret will have a "token" key containing the long-lived access token<br />If not specified, defaults to "\{homeassistant-name\}-homeassistant-api-token" |  | Optional: \{\} <br /> |
-| `operatorAccount` _[OperatorAccountSpec](#operatoraccountspec)_ | OperatorAccount selects a separate Home Assistant identity. Omission preserves legacy behavior. |  | Optional: \{\} <br /> |
+| `operatorAccount` _[OperatorAccountSpec](#operatoraccountspec)_ | OperatorAccount selects a separate Home Assistant identity. Omission preserves legacy behavior.<br />Legacy behavior is deprecated since v1.7.0 and scheduled for removal in v2.0.0. |  | Optional: \{\} <br /> |
 | `ownerName` _string_ | OwnerName is the display name for the owner user created during onboarding | Admin | Optional: \{\} <br /> |
 | `language` _string_ | Language is the language code for Home Assistant (e.g., "en", "pl") | en | Optional: \{\} <br /> |
 | `location` _[LocationConfig](#locationconfig)_ | Location configures the location settings during onboarding<br />If not specified, location configuration step is skipped |  | Optional: \{\} <br /> |
@@ -1685,7 +1685,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `mode` _string_ | Mode preserves legacy administrator tokens unless dedicated is explicitly selected. | legacy | Enum: [legacy dedicated] <br />Optional: \{\} <br /> |
+| `mode` _string_ | Mode preserves legacy administrator tokens unless dedicated is explicitly selected.<br />The legacy value is deprecated since v1.7.0 and scheduled for removal in v2.0.0.<br />Migrate existing installations to dedicated before upgrading to v2.0.0. | legacy | Enum: [legacy dedicated] <br />Optional: \{\} <br /> |
 | `tokenSecretName` _string_ | TokenSecretName names the managed Opaque Secret in the HomeAssistant namespace. |  | MaxLength: 253 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$` <br />Optional: \{\} <br /> |
 | `recoveryRequestID` _string_ | RecoveryRequestID authorizes one recovery using the retained bootstrap owner credential.<br />Change it to a new non-empty value to request another attempt. |  | MaxLength: 128 <br />Optional: \{\} <br /> |
 
