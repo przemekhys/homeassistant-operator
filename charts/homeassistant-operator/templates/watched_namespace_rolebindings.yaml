@@ -1,4 +1,5 @@
 {{- if not (empty .Values.watchNamespaces) }}
+{{/* Dedicated operator token Secrets reuse this managed-namespace binding. */}}
 {{- range .Values.watchNamespaces }}
 {{- $ns := . | trim }}
 {{- if not $ns }}

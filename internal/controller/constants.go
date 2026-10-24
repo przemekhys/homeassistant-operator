@@ -18,6 +18,19 @@ package controller
 
 import "time"
 
+const (
+	conditionOperatorCredentialReady = "OperatorCredentialReady"
+	conditionDegraded                = "Degraded"
+	reasonCredentialMissing          = "CredentialMissing"
+	reasonCredentialMalformed        = "CredentialMalformed"
+	reasonCredentialRejected         = "CredentialRejected"
+	reasonSecretAccessDenied         = "SecretAccessDenied"
+	reasonHomeAssistantUnavailable   = "HomeAssistantUnavailable"
+	reasonRecoveryFailed             = "RecoveryFailed"
+	reasonRequiresElevatedRole       = "RequiresElevatedRole"
+	operatorPurposeLabel             = "homeassistant-operator.io/purpose"
+)
+
 // Shared constants used across multiple controllers
 
 const (

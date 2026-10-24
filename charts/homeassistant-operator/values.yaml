@@ -100,6 +100,8 @@ topologySpreadConstraints: []
 # least privilege. The operator's own namespace is NOT included automatically;
 # add it explicitly if you run Home Assistant resources alongside the operator.
 watchNamespaces: []
+# Dedicated Home Assistant operator tokens stay in these managed namespaces and
+# reuse their existing Secret RoleBindings; no cross-namespace token access is added.
 
 metricsNetworkPolicy:
   # -- Restrict ingress to the operator pod: its `/metrics` endpoint to namespaces

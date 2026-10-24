@@ -79,10 +79,40 @@ list. See
 
 ## Where the credentials live
 
-Bootstrap creates a long-lived Home Assistant access token and stores it in a
-Kubernetes Secret named `<ha-name>-homeassistant-api-token`. Everything the
-operator does against Home Assistant's API uses that token, and it never leaves
-the cluster.
+Dedicated bootstrap creates a Home Assistant identity separate from the human
+onboarding owner. It explicitly assigns the `system-admin` administrator group:
+configuration, integration, and automation management require administrative
+access, so a normal user role cannot support the enabled capabilities. This is
+identity isolation, not a narrower Home Assistant role.
+
+The dedicated token is stored only in `spec.bootstrap.operatorAccount.tokenSecretName`
+in the HomeAssistant resource namespace, under `data.token`, with an Opaque type,
+managed-by and purpose labels, and a HomeAssistant controller owner reference.
+Existing conflicting Secrets are rejected rather than overwritten. A temporary
+local password is used to log in as the dedicated identity and issue its token;
+it is never persisted in Kubernetes. Status and diagnostics contain identifiers
+and reasons, never credential values.
+
+Routine management uses only the dedicated token after verification. The
+administrator-provided bootstrap Secret is retained solely for explicit recovery
+and is not read during ordinary reconciliation. Manual deletion disables
+recovery until valid owner credentials are supplied again. Token loss reports
+degradation; it never authorizes an automatic account or password reset.
+
+The existing managed-namespace Secret RoleBinding is sufficient. Dedicated mode
+adds no operator-namespace token permissions, cross-namespace Secret reads,
+cache namespaces, or required ClusterRoleBinding. Namespace-scoped installations
+may still configure independent webhook certificate permissions.
+
+Omitting the new configuration preserves legacy administrator-derived tokens
+and their existing namespace-local Secret. Migration is explicit and retains
+the old Secret for administrator-directed cleanup; see
+[bootstrap and migration](../how-to/bootstrap-instance.md) and
+[credential recovery](../how-to/recover-operator-credential.md).
+
+Legacy credential mode, including omission of `operatorAccount`, is deprecated
+since v1.7.0 and scheduled for removal in v2.0.0. Existing installations must
+migrate to dedicated mode before upgrading to v2.0.0.
 
 That Secret is worth treating as what it is: full control of the Home Assistant
 instance. Anyone who can read Secrets in that namespace can read it, which is one

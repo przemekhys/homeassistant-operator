@@ -8,15 +8,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Dedicated Home Assistant operator accounts, available from v1.7.0.** Set
+  `spec.bootstrap.operatorAccount.mode: dedicated` and a namespace-local
+  `tokenSecretName` to separate routine management from the human onboarding
+  owner. The operator verifies the dedicated administrator identity and stores
+  its token in an owned Secret. After verification, bootstrap credentials are
+  used only for explicit recovery through a new `recoveryRequestID`. Missing or
+  rejected credentials report `OperatorCredentialReady=False` and `Degraded=True`
+  without automatic account, password, or token replacement. Existing
+  installations can explicitly migrate while retaining their legacy token
+  Secret for deliberate cleanup; see the
+  [migration procedure](docs/how-to/bootstrap-instance.md#migrate-an-existing-installation).
+
 ### Changed
 
 - **`HomeAssistantCommunityRepository` now serves only stable `v1`.** Migrate
   source manifests and any `v1alpha1`-stored objects before upgrading; the
   operator does not rewrite them automatically.
 
+### Deprecated
+
+- **Legacy Home Assistant credential mode is deprecated from v1.7.0 and scheduled
+  for removal in v2.0.0.** This includes both explicit `mode: legacy` and omitting
+  `spec.bootstrap.operatorAccount`. Existing installations retain legacy behavior
+  during v1.x until migration is explicitly selected. Migrate to dedicated mode
+  before upgrading to v2.0.0; see [deprecations](DEPRECATIONS.md#legacy-home-assistant-credential-mode).
+
 ### Fixed
 
-- **Post-bootstrap health checks now authenticate with the API token.** When
+- **Legacy-mode post-bootstrap health checks now authenticate with the API token.** When
   available, the operator sends its long-lived token with the periodic `GET
   /api/` probe, preventing Home Assistant from recording the probe as a failed
   login and potentially banning the operator IP. Unauthenticated fallback is

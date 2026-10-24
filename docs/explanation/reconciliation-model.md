@@ -48,9 +48,22 @@ a Home Assistant that is already down.
 ```
 pod not ready          → requeue 10 s
 HA API not loaded      → requeue 5 s  (avoids ambiguous 404 during cold start)
-onboarding pending     → perform onboarding → create token
-onboarding complete    → ensure token Secret exists → done
+onboarding pending     → onboard owner → provision dedicated user → verify token
+dedicated verified     → check operator token only; do not read bootstrap Secret
+token missing/rejected → Degraded; no automatic credential mutation
+new recovery request   → consume request → owner login → replace and verify token
 ```
+
+Dedicated account and recovery checkpoints live in managed Secret annotations;
+status projects those identifiers. Repeated reconciliation of a healthy account
+does not create users, reset passwords, issue tokens, or update the Secret.
+An interrupted issuance retries verification when a token is stored; an
+interrupted operation without a stored token requires a new explicit recovery
+request. Service outages requeue with `HomeAssistantUnavailable` rather than
+triggering recovery. See [recover the operator credential](../how-to/recover-operator-credential.md).
+
+Legacy mode remains opt-in compatible with existing administrator-derived token
+behavior until an administrator deliberately selects dedicated mode.
 
 ## IP ban self-recovery
 

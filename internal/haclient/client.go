@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -149,6 +150,10 @@ func (c *Client) CheckAPIReady(ctx context.Context) error {
 		return nil
 	}
 
+	if resp.StatusCode == http.StatusForbidden {
+		return ipBannedError()
+	}
+
 	// 404 = routes not yet registered (startup race)
 	if resp.StatusCode == http.StatusNotFound {
 		return &Error{
@@ -249,10 +254,17 @@ func (c *Client) CreateUser(ctx context.Context, req *CreateUserRequest) (*Creat
 	if err != nil {
 		// Connection errors (EOF, connection refused, etc.) indicate HA not ready yet
 		// This allows the controller to retry with appropriate backoff
-		return nil, &Error{Type: ErrorTypeNotReady, Message: "failed to create user: Home Assistant not ready", Err: err}
+		return nil, &Error{
+			Type:    ErrorTypeNotReady,
+			Message: "failed to create user: Home Assistant not ready",
+			Err:     err,
+		}
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, ipBannedError()
+	}
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		bodyStr := string(bodyBytes)
@@ -292,7 +304,12 @@ func (c *Client) ExchangeAuthCode(ctx context.Context, authCode, clientID string
 	formData.Set("code", authCode)
 	formData.Set("client_id", clientID)
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/auth/token", strings.NewReader(formData.Encode()))
+	httpReq, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		c.baseURL+"/auth/token",
+		strings.NewReader(formData.Encode()),
+	)
 	if err != nil {
 		return nil, &Error{Type: ErrorTypeHTTP, Message: "failed to create request", Err: err}
 	}
@@ -310,6 +327,21 @@ func (c *Client) ExchangeAuthCode(ctx context.Context, authCode, clientID string
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	if resp.StatusCode == http.StatusForbidden {
+		// Auth policy can reject a disabled or local-only user with a JSON
+		// access_denied response. That is not the IP-ban middleware's 403.
+		var denial struct {
+			Error string `json:"error"`
+		}
+		if json.NewDecoder(resp.Body).Decode(&denial) == nil && denial.Error == "access_denied" {
+			return nil, &Error{
+				Type:       ErrorTypeAuth,
+				Message:    "Home Assistant denied credential authentication",
+				StatusCode: resp.StatusCode,
+			}
+		}
+		return nil, ipBannedError()
+	}
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return nil, &Error{
@@ -362,6 +394,9 @@ func (c *Client) LoginWithCredentials(
 	}
 	defer func() { _ = flowResp.Body.Close() }()
 
+	if flowResp.StatusCode == http.StatusForbidden {
+		return nil, ipBannedError()
+	}
 	if flowResp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(flowResp.Body)
 		return nil, &Error{
@@ -401,6 +436,9 @@ func (c *Client) LoginWithCredentials(
 	}
 	defer func() { _ = credResp.Body.Close() }()
 
+	if credResp.StatusCode == http.StatusForbidden {
+		return nil, ipBannedError()
+	}
 	if credResp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(credResp.Body)
 		return nil, &Error{
@@ -446,8 +484,16 @@ func (c *Client) wsAuthConnect(ctx context.Context, token string) (*websocket.Co
 		HandshakeTimeout: 10 * time.Second,
 	}
 
-	conn, _, err := dialer.DialContext(ctx, wsURL, nil)
+	conn, resp, err := dialer.DialContext(ctx, wsURL, nil)
 	if err != nil {
+		if resp != nil {
+			if resp.Body != nil {
+				_ = resp.Body.Close()
+			}
+			if resp.StatusCode == http.StatusForbidden {
+				return nil, ipBannedError()
+			}
+		}
 		return nil, &Error{Type: ErrorTypeHTTP, Message: "failed to connect to websocket", Err: err}
 	}
 
@@ -487,7 +533,7 @@ func (c *Client) wsAuthConnect(ctx context.Context, token string) (*websocket.Co
 	var authResult map[string]interface{}
 	if err := conn.ReadJSON(&authResult); err != nil {
 		_ = conn.Close()
-		return nil, &Error{Type: ErrorTypeAuth, Message: "failed to read auth result", Err: err}
+		return nil, &Error{Type: ErrorTypeHTTP, Message: "failed to read auth result", Err: err}
 	}
 	if authResult["type"] != "auth_ok" {
 		_ = conn.Close()
@@ -519,7 +565,7 @@ func (c *Client) CreateLongLivedToken(
 	accessToken string,
 	req *LongLivedTokenRequest,
 ) (*LongLivedTokenResponse, error) {
-	result, err := c.SendWebSocketCommand(ctx, accessToken, "auth/long_lived_access_token", map[string]interface{}{
+	result, err := c.AuthCommand(ctx, accessToken, "auth/long_lived_access_token", map[string]interface{}{
 		"client_name": req.ClientName,
 		"lifespan":    req.Lifespan,
 	})
@@ -533,6 +579,107 @@ func (c *Client) CreateLongLivedToken(
 	}
 
 	return &LongLivedTokenResponse{Token: token}, nil
+}
+
+// AuthCommand executes a credential-sensitive command without surfacing response
+// text, which may echo a password or token supplied to Home Assistant.
+func (c *Client) AuthCommand(
+	ctx context.Context,
+	token, command string,
+	data map[string]interface{},
+) (json.RawMessage, error) {
+	result, code, err := c.sendWebSocketCommandWithCode(ctx, token, command, data)
+	if err != nil {
+		kind := ErrorTypeHTTP
+		var haErr *Error
+		if stderrors.As(err, &haErr) {
+			kind = haErr.Type
+		}
+		if code == "unauthorized" || code == "not_allowed" {
+			kind = ErrorTypeAuth
+		}
+		return nil, &Error{Type: kind, Message: "Home Assistant account operation failed"}
+	}
+	return result, nil
+}
+
+// ListUsers lists identities using an administrative session.
+func (c *Client) ListUsers(ctx context.Context, token string) ([]AuthUser, error) {
+	raw, err := c.AuthCommand(ctx, token, "config/auth/list", nil)
+	if err != nil {
+		return nil, err
+	}
+	var users []AuthUser
+	if json.Unmarshal(raw, &users) != nil {
+		return nil, &Error{Type: ErrorTypeInvalidResponse, Message: "invalid user list"}
+	}
+	return users, nil
+}
+
+// CreateAuthUser creates an identity with explicit group assignments.
+func (c *Client) CreateAuthUser(ctx context.Context, token, name string, groups []string) (*AuthUser, error) {
+	raw, err := c.AuthCommand(
+		ctx,
+		token,
+		"config/auth/create",
+		map[string]interface{}{"name": name, "group_ids": groups},
+	)
+	if err != nil {
+		return nil, err
+	}
+	var response struct {
+		User AuthUser `json:"user"`
+	}
+	if json.Unmarshal(raw, &response) != nil || response.User.ID == "" {
+		return nil, &Error{Type: ErrorTypeInvalidResponse, Message: "invalid created user"}
+	}
+	return &response.User, nil
+}
+
+// UpdateAuthUser assigns the supported role to the explicitly identified user.
+func (c *Client) UpdateAuthUser(ctx context.Context, token, userID string, groups []string) error {
+	_, err := c.AuthCommand(
+		ctx,
+		token,
+		"config/auth/update",
+		map[string]interface{}{"user_id": userID, "group_ids": groups},
+	)
+	return err
+}
+
+// AttachLocalCredentials attaches a temporary password used only to issue a token.
+func (c *Client) AttachLocalCredentials(ctx context.Context, token, userID, username, password string) error {
+	_, err := c.AuthCommand(
+		ctx,
+		token,
+		"config/auth_provider/homeassistant/create",
+		map[string]interface{}{"user_id": userID, "username": username, "password": password},
+	)
+	return err
+}
+
+// ResetLocalPassword requires an owner session and never targets the owner user.
+func (c *Client) ResetLocalPassword(ctx context.Context, token, userID, password string) error {
+	_, err := c.AuthCommand(
+		ctx,
+		token,
+		"config/auth_provider/homeassistant/admin_change_password",
+		map[string]interface{}{"user_id": userID, "password": password},
+	)
+	return err
+}
+
+// CurrentUser identifies the authenticated principal without exposing credentials.
+func (c *Client) CurrentUser(ctx context.Context, token string) (*AuthUser, error) {
+	raw, err := c.AuthCommand(ctx, token, "auth/current_user", nil)
+	if err != nil {
+		return nil, err
+	}
+	var user AuthUser
+	if json.Unmarshal(raw, &user) != nil || user.ID == "" {
+		return nil, &Error{Type: ErrorTypeInvalidResponse, Message: "invalid authenticated user"}
+	}
+	return &user, nil
 }
 
 // GetBackupConfig retrieves the current backup configuration from HA via WebSocket.
@@ -584,7 +731,12 @@ func (c *Client) SetCoreConfig(ctx context.Context, accessToken string, req *Cor
 		return &Error{Type: ErrorTypeHTTP, Message: "failed to marshal request", Err: err}
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/onboarding/core_config", bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		c.baseURL+"/api/onboarding/core_config",
+		bytes.NewReader(body),
+	)
 	if err != nil {
 		return &Error{Type: ErrorTypeHTTP, Message: "failed to create request", Err: err}
 	}
@@ -628,7 +780,12 @@ func (c *Client) SetAnalytics(ctx context.Context, accessToken string, enabled b
 		return &Error{Type: ErrorTypeHTTP, Message: "failed to marshal request", Err: err}
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/onboarding/analytics", bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		c.baseURL+"/api/onboarding/analytics",
+		bytes.NewReader(body),
+	)
 	if err != nil {
 		return &Error{Type: ErrorTypeHTTP, Message: "failed to create request", Err: err}
 	}
@@ -678,8 +835,12 @@ func (c *Client) CompleteIntegrationStep(ctx context.Context, accessToken string
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return &Error{
-			Type:       ErrorTypeHTTP,
-			Message:    fmt.Sprintf("failed to complete integration step (HTTP %d): %s", resp.StatusCode, string(bodyBytes)),
+			Type: ErrorTypeHTTP,
+			Message: fmt.Sprintf(
+				"failed to complete integration step (HTTP %d): %s",
+				resp.StatusCode,
+				string(bodyBytes),
+			),
 			StatusCode: resp.StatusCode,
 		}
 	}

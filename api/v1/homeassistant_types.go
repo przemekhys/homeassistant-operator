@@ -508,6 +508,11 @@ type BootstrapSpec struct {
 	// +optional
 	APITokenSecretName string `json:"apiTokenSecretName,omitempty"`
 
+	// OperatorAccount selects a separate Home Assistant identity. Omission preserves legacy behavior.
+	// Legacy behavior is deprecated since v1.7.0 and scheduled for removal in v2.0.0.
+	// +optional
+	OperatorAccount *OperatorAccountSpec `json:"operatorAccount,omitempty"`
+
 	// OwnerName is the display name for the owner user created during onboarding
 	// +kubebuilder:default="Admin"
 	// +optional
@@ -528,6 +533,28 @@ type BootstrapSpec struct {
 	// +kubebuilder:default=false
 	// +optional
 	Analytics bool `json:"analytics,omitempty"`
+}
+
+// OperatorAccountSpec configures the dedicated runtime identity and explicit recovery.
+// +kubebuilder:validation:XValidation:rule="self.mode != 'dedicated' || (has(self.tokenSecretName) && size(self.tokenSecretName) > 0)",message="dedicated mode requires tokenSecretName"
+type OperatorAccountSpec struct {
+	// Mode preserves legacy administrator tokens unless dedicated is explicitly selected.
+	// The legacy value is deprecated since v1.7.0 and scheduled for removal in v2.0.0.
+	// Migrate existing installations to dedicated before upgrading to v2.0.0.
+	// +kubebuilder:default=legacy
+	// +kubebuilder:validation:Enum=legacy;dedicated
+	// +optional
+	Mode string `json:"mode,omitempty"`
+	// TokenSecretName names the managed Opaque Secret in the HomeAssistant namespace.
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+	// +optional
+	TokenSecretName string `json:"tokenSecretName,omitempty"`
+	// RecoveryRequestID authorizes one recovery using the retained bootstrap owner credential.
+	// Change it to a new non-empty value to request another attempt.
+	// +kubebuilder:validation:MaxLength=128
+	// +optional
+	RecoveryRequestID string `json:"recoveryRequestID,omitempty"`
 }
 
 // LocationConfig defines location settings for Home Assistant onboarding
@@ -770,6 +797,9 @@ type HomeAssistantStatus struct {
 
 // BootstrapStatus contains the status of the automatic bootstrap process
 type BootstrapStatus struct {
+	// OperatorAccount contains identifiers and lifecycle observations, never credentials.
+	// +optional
+	OperatorAccount *OperatorAccountStatus `json:"operatorAccount,omitempty"`
 	// Completed indicates whether the bootstrap process has finished successfully
 	// +optional
 	Completed bool `json:"completed,omitempty"`
@@ -800,6 +830,37 @@ type BootstrapStatus struct {
 	// Reset to zero when onboarding is confirmed fresh or bootstrap succeeds.
 	// +optional
 	LoginRecoveryAttempts int `json:"loginRecoveryAttempts,omitempty"`
+}
+
+// OperatorAccountStatus describes the managed runtime identity.
+type OperatorAccountStatus struct {
+	// UserID identifies the dedicated Home Assistant user.
+	// +optional
+	UserID string `json:"userID,omitempty"`
+	// TokenSecretName identifies the verified token Secret.
+	// +optional
+	TokenSecretName string `json:"tokenSecretName,omitempty"`
+	// TokenSecretNamespace is always the HomeAssistant namespace.
+	// +optional
+	TokenSecretNamespace string `json:"tokenSecretNamespace,omitempty"`
+	// Phase is Provisioning, Verified, or Failed.
+	// +optional
+	Phase string `json:"phase,omitempty"`
+	// Capability describes the explicit Home Assistant role.
+	// +optional
+	Capability string `json:"capability,omitempty"`
+	// MigrationPhase is Provisioning or Completed during legacy adoption.
+	// +optional
+	MigrationPhase string `json:"migrationPhase,omitempty"`
+	// LegacySecretName identifies the retained administrator-derived token Secret.
+	// +optional
+	LegacySecretName string `json:"legacySecretName,omitempty"`
+	// LastRecoveryRequestID projects the durable managed-Secret annotation.
+	// +optional
+	LastRecoveryRequestID string `json:"lastRecoveryRequestID,omitempty"`
+	// RecoveryResult is Succeeded, Failed, or empty when no request was observed.
+	// +optional
+	RecoveryResult string `json:"recoveryResult,omitempty"`
 }
 
 // HomeAssistantPhase represents the current phase of the HomeAssistant instance.

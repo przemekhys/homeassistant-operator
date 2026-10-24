@@ -8,6 +8,15 @@ metadata:
 spec:
   version: "stable"
   timezone: "Europe/Warsaw"
+  # Create this namespace-local Secret separately with username/password keys.
+  bootstrap:
+    enabled: true
+    credentials:
+      secretRef:
+        name: homeassistant-bootstrap
+    operatorAccount:
+      mode: dedicated
+      tokenSecretName: homeassistant-operator-token
   storage:
     size: "5Gi"
   service:

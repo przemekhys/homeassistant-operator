@@ -66,6 +66,10 @@ func (r *HomeAssistantReconciler) reconcileBootstrap(
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
+	if dedicatedOperatorAccount(ha) {
+		return r.reconcileOperatorAccount(ctx, ha)
+	}
+
 	// Check if bootstrap is enabled
 	if ha.Spec.Bootstrap == nil || !ha.Spec.Bootstrap.Enabled {
 		return ctrl.Result{}, nil

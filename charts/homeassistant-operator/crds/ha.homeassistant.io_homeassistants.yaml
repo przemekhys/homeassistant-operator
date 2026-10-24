@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.22.0
+    controller-gen.kubebuilder.io/version: v0.23.0
   name: homeassistants.ha.homeassistant.io
 spec:
   group: ha.homeassistant.io
@@ -2381,6 +2381,38 @@ spec:
                         - us_customary
                         type: string
                     type: object
+                  operatorAccount:
+                    description: |-
+                      OperatorAccount selects a separate Home Assistant identity. Omission preserves legacy behavior.
+                      Legacy behavior is deprecated since v1.7.0 and scheduled for removal in v2.0.0.
+                    properties:
+                      mode:
+                        default: legacy
+                        description: |-
+                          Mode preserves legacy administrator tokens unless dedicated is explicitly selected.
+                          The legacy value is deprecated since v1.7.0 and scheduled for removal in v2.0.0.
+                          Migrate existing installations to dedicated before upgrading to v2.0.0.
+                        enum:
+                        - legacy
+                        - dedicated
+                        type: string
+                      recoveryRequestID:
+                        description: |-
+                          RecoveryRequestID authorizes one recovery using the retained bootstrap owner credential.
+                          Change it to a new non-empty value to request another attempt.
+                        maxLength: 128
+                        type: string
+                      tokenSecretName:
+                        description: TokenSecretName names the managed Opaque Secret
+                          in the HomeAssistant namespace.
+                        maxLength: 253
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                        type: string
+                    type: object
+                    x-kubernetes-validations:
+                    - message: dedicated mode requires tokenSecretName
+                      rule: self.mode != 'dedicated' || (has(self.tokenSecretName)
+                        && size(self.tokenSecretName) > 0)
                   ownerName:
                     default: Admin
                     description: OwnerName is the display name for the owner user
@@ -3974,6 +4006,46 @@ spec:
                       (which does not update when only the Reason changes).
                     format: date-time
                     type: string
+                  operatorAccount:
+                    description: OperatorAccount contains identifiers and lifecycle
+                      observations, never credentials.
+                    properties:
+                      capability:
+                        description: Capability describes the explicit Home Assistant
+                          role.
+                        type: string
+                      lastRecoveryRequestID:
+                        description: LastRecoveryRequestID projects the durable managed-Secret
+                          annotation.
+                        type: string
+                      legacySecretName:
+                        description: LegacySecretName identifies the retained administrator-derived
+                          token Secret.
+                        type: string
+                      migrationPhase:
+                        description: MigrationPhase is Provisioning or Completed during
+                          legacy adoption.
+                        type: string
+                      phase:
+                        description: Phase is Provisioning, Verified, or Failed.
+                        type: string
+                      recoveryResult:
+                        description: RecoveryResult is Succeeded, Failed, or empty
+                          when no request was observed.
+                        type: string
+                      tokenSecretName:
+                        description: TokenSecretName identifies the verified token
+                          Secret.
+                        type: string
+                      tokenSecretNamespace:
+                        description: TokenSecretNamespace is always the HomeAssistant
+                          namespace.
+                        type: string
+                      userID:
+                        description: UserID identifies the dedicated Home Assistant
+                          user.
+                        type: string
+                    type: object
                 type: object
               conditions:
                 description: Conditions represent the latest available observations

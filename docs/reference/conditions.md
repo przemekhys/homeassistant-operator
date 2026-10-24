@@ -47,6 +47,25 @@ Reasons that appear on more than one resource mean the same thing everywhere:
 | `LoginRecoveryFailed` | Onboarding was already done and the given credentials did not work |
 | `BootstrapFailed` | See `message` |
 
+### `OperatorCredentialReady` and `Degraded`
+
+Dedicated mode reports credential health separately from onboarding and pod
+readiness. `OperatorCredentialReady=True` uses `Verified`;
+`Degraded=False` uses `AsExpected`.
+
+| Reason | Meaning |
+|--------|---------|
+| `CredentialMissing` | Managed token Secret is missing; restore it or explicitly request recovery |
+| `CredentialMalformed` | Token data, metadata, type, or owner reference is invalid; unrelated Secrets are never overwritten |
+| `CredentialRejected` | Home Assistant rejected the runtime token, or the token identifies a different user or the human owner |
+| `SecretAccessDenied` | Required managed-namespace Secret access is denied |
+| `RequiresElevatedRole` | The token identifies the dedicated user but that user lacks the required administrator role |
+| `RecoveryFailed` | Recovery failed or was interrupted; repair prerequisites and submit a new request ID |
+| `HomeAssistantUnavailable` | Availability wait with bounded retry, not credential degradation or authorization to recover |
+
+Credential failures set `Degraded=True`. See
+[explicit recovery](../how-to/recover-operator-credential.md).
+
 ### `BanRecoveryFailed`
 
 Home Assistant can ban the operator's own IP after repeated failed logins. The

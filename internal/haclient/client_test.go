@@ -21,6 +21,164 @@ func TestHAClient(t *testing.T) {
 	RunSpecs(t, "HAClient Suite")
 }
 
+func TestAccountIPBanErrors(t *testing.T) {
+	for _, tc := range []struct{ name, path string }{
+		{"readiness", "/api/config"}, {"websocket", "/api/websocket"},
+		{"create user", "/api/onboarding/users"}, {"login flow", "/auth/login_flow"},
+		{"credentials", "/auth/login_flow/flow"}, {"token exchange", "/auth/token"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == tc.path {
+					w.WriteHeader(http.StatusForbidden)
+					_, _ = w.Write([]byte("sentinel-credential"))
+					return
+				}
+				if r.URL.Path == "/auth/login_flow" {
+					_, _ = w.Write([]byte(`{"flow_id":"flow","type":"form"}`))
+					return
+				}
+				_, _ = w.Write([]byte(`{"type":"create_entry","result":"code"}`))
+			}))
+			defer server.Close()
+			c := NewClient(server.URL)
+			ctx := context.Background()
+			var err error
+			switch tc.name {
+			case "readiness":
+				err = c.CheckAPIReady(ctx)
+			case "websocket":
+				_, err = c.CurrentUser(ctx, "token")
+			case "create user":
+				_, err = c.CreateUser(ctx, &CreateUserRequest{})
+			default:
+				_, err = c.LoginWithCredentials(ctx, "owner", "password")
+			}
+			if !IsBanned(err) {
+				t.Fatalf("expected ban classification, got %v", err)
+			}
+			if strings.Contains(err.Error(), "sentinel-credential") {
+				t.Fatal("ban error exposed response text")
+			}
+		})
+	}
+}
+
+func TestLoginAccessDeniedIsNotIPBan(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/auth/login_flow":
+			_, _ = w.Write([]byte(`{"flow_id":"flow","type":"form"}`))
+		case "/auth/login_flow/flow":
+			_, _ = w.Write([]byte(`{"type":"create_entry","result":"code"}`))
+		case "/auth/token":
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"error":"access_denied","error_description":"sentinel-credential"}`))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	_, err := NewClient(server.URL).LoginWithCredentials(context.Background(), "owner", "password")
+	if err == nil || IsBanned(err) {
+		t.Fatalf("access policy denial must not trigger IP-ban recovery: %v", err)
+	}
+	if strings.Contains(err.Error(), "sentinel-credential") {
+		t.Fatal("authentication denial exposed response text")
+	}
+}
+
+func TestAccountCommands(t *testing.T) {
+	ctx := context.Background()
+	commands := []string{
+		"config/auth/list",
+		"config/auth/create",
+		"config/auth/update",
+		"config/auth_provider/homeassistant/create",
+		"config/auth_provider/homeassistant/admin_change_password",
+		"auth/current_user",
+		"auth/long_lived_access_token",
+	}
+	for _, command := range commands {
+		t.Run(command, func(t *testing.T) {
+			for _, denied := range []bool{false, true} {
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					conn, err := (&websocket.Upgrader{}).Upgrade(w, r, nil)
+					if err != nil {
+						return
+					}
+					defer func() { _ = conn.Close() }()
+					_ = conn.WriteJSON(map[string]interface{}{"type": "auth_required"})
+					var auth map[string]interface{}
+					_ = conn.ReadJSON(&auth)
+					_ = conn.WriteJSON(map[string]interface{}{"type": "auth_ok"})
+					var msg map[string]interface{}
+					_ = conn.ReadJSON(&msg)
+					if msg["type"] != command {
+						t.Errorf("command = %v", msg["type"])
+					}
+					if command == "config/auth/create" || command == "config/auth/update" {
+						groups, _ := msg["group_ids"].([]interface{})
+						if len(groups) != 1 || groups[0] != "system-admin" {
+							t.Error("missing explicit admin group")
+						}
+					}
+					result := interface{}(nil)
+					switch command {
+					case "config/auth/list":
+						result = []AuthUser{{ID: "operator"}}
+					case "config/auth/create":
+						result = map[string]interface{}{"user": AuthUser{ID: "operator"}}
+					case "auth/current_user":
+						result = AuthUser{ID: "operator"}
+					case "auth/long_lived_access_token":
+						result = "issued-token"
+					}
+					_ = conn.WriteJSON(
+						map[string]interface{}{
+							"id":      1,
+							"type":    "result",
+							"success": !denied,
+							"result":  result,
+							"error":   map[string]string{"code": "unauthorized", "message": "sentinel-password"},
+						},
+					)
+				}))
+				c := NewClient(server.URL)
+				var err error
+				switch command {
+				case "config/auth/list":
+					_, err = c.ListUsers(ctx, "session")
+				case "config/auth/create":
+					_, err = c.CreateAuthUser(ctx, "session", "operator", []string{"system-admin"})
+				case "config/auth/update":
+					err = c.UpdateAuthUser(ctx, "session", "operator", []string{"system-admin"})
+				case "config/auth_provider/homeassistant/create":
+					err = c.AttachLocalCredentials(ctx, "session", "operator", "operator", "sentinel-password")
+				case "config/auth_provider/homeassistant/admin_change_password":
+					err = c.ResetLocalPassword(ctx, "session", "operator", "sentinel-password")
+				case "auth/current_user":
+					_, err = c.CurrentUser(ctx, "session")
+				case "auth/long_lived_access_token":
+					_, err = c.CreateLongLivedToken(
+						ctx,
+						"session",
+						&LongLivedTokenRequest{ClientName: "operator", Lifespan: 3650},
+					)
+				}
+				server.Close()
+				if (err != nil) != denied {
+					t.Fatalf("denied=%v error=%v", denied, err)
+				}
+				if command != "auth/long_lived_access_token" && err != nil &&
+					strings.Contains(err.Error(), "sentinel-password") {
+					t.Fatal("sensitive response exposed")
+				}
+			}
+		})
+	}
+}
+
 const (
 	testAPIPath         = "/api/"
 	testOnboardingPath  = "/api/onboarding"
@@ -525,10 +683,15 @@ var _ = Describe("HAClient", func() {
 			wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
 			client = NewClient(wsURL)
 
-			result, err := client.SendWebSocketCommand(ctx, "test-token", "config/floor_registry/create", map[string]interface{}{
-				"name":  "Ground Floor",
-				"level": 0,
-			})
+			result, err := client.SendWebSocketCommand(
+				ctx,
+				"test-token",
+				"config/floor_registry/create",
+				map[string]interface{}{
+					"name":  "Ground Floor",
+					"level": 0,
+				},
+			)
 			Expect(err).NotTo(HaveOccurred())
 
 			var floor map[string]interface{}
@@ -797,7 +960,9 @@ var _ = Describe("HAClient", func() {
 					_, _ = w.Write([]byte(`{"auth_code": "test-auth-code"}`))
 				case testAuthToken:
 					w.WriteHeader(http.StatusOK)
-					_, _ = w.Write([]byte(`{"access_token": "test-access-token", "token_type": "Bearer", "expires_in": 1800}`))
+					_, _ = w.Write(
+						[]byte(`{"access_token": "test-access-token", "token_type": "Bearer", "expires_in": 1800}`),
+					)
 				case testCoreConfig:
 					configCalled = true
 					w.WriteHeader(http.StatusOK)
@@ -867,7 +1032,9 @@ var _ = Describe("HAClient", func() {
 					_, _ = w.Write([]byte(`{"auth_code": "test-auth-code"}`))
 				case testAuthToken:
 					w.WriteHeader(http.StatusOK)
-					_, _ = w.Write([]byte(`{"access_token": "test-access-token", "token_type": "Bearer", "expires_in": 1800}`))
+					_, _ = w.Write(
+						[]byte(`{"access_token": "test-access-token", "token_type": "Bearer", "expires_in": 1800}`),
+					)
 				case testAnalytics:
 					w.WriteHeader(http.StatusOK)
 				case testIntegration:
@@ -1279,7 +1446,10 @@ var _ = Describe("HAClient", func() {
 				map[string]interface{}{"trigger": "sun", "event": "sunset"},
 			},
 			"action": []interface{}{
-				map[string]interface{}{"action": "light.turn_on", "target": map[string]interface{}{"area_id": "living_room"}},
+				map[string]interface{}{
+					"action": "light.turn_on",
+					"target": map[string]interface{}{"area_id": "living_room"},
+				},
 			},
 		}
 
@@ -1391,7 +1561,10 @@ var _ = Describe("HAClient", func() {
 		scriptData := map[string]interface{}{
 			"alias": "Morning routine",
 			"sequence": []interface{}{
-				map[string]interface{}{"action": "light.turn_on", "target": map[string]interface{}{"entity_id": "light.bedroom"}},
+				map[string]interface{}{
+					"action": "light.turn_on",
+					"target": map[string]interface{}{"entity_id": "light.bedroom"},
+				},
 			},
 		}
 
