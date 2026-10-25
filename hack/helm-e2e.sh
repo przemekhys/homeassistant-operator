@@ -9,7 +9,7 @@
 #   pre-existing CRs survive.
 #
 # The upgrade steps mirror the published upgrade guide exactly. Requires: k3d,
-# docker, helm, kubectl, gh (or an explicit HELM_N1_VERSION).
+# docker, helm, kubectl, gh + jq (or an explicit HELM_N1_VERSION).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

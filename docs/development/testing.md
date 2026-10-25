@@ -97,7 +97,7 @@ Coverage Gap Record below rather than the scenario silently going untested.
 
 ## Helm install and upgrade E2E
 
-Run `make helm-test-e2e` with Docker, k3d, Helm, kubectl and an authenticated
+Run `make helm-test-e2e` with Docker, k3d, Helm, kubectl, jq and an authenticated
 GitHub CLI (`gh auth login`, or `GH_TOKEN` in CI). The upgrade scenario installs
 the most recently published stable GitHub Release from the OCI chart registry
 (N-1), then upgrades it to the working-tree chart and an operator image built

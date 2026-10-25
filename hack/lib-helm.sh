@@ -118,9 +118,13 @@ hh_previous_version() {
     return 0
   fi
   hh_require gh
-  local tag
-  tag="$(gh release list --repo "${GITHUB_REPOSITORY:-przemekhys/homeassistant-operator}" \
-    --exclude-drafts --exclude-pre-releases --limit 1 \
-    --json tagName --jq '.[0].tagName // empty')" || return "$?"
+  hh_require jq
+  local tag releases
+  # Creation order can differ from publication order (e.g. an old draft is
+  # published later). Inspect every page rather than a fixed-size candidate set.
+  releases="$(gh api "repos/${GITHUB_REPOSITORY:-przemekhys/homeassistant-operator}/releases?per_page=100" \
+    --paginate --slurp)" || return "$?"
+  tag="$(printf '%s\n' "$releases" | jq -r \
+    '[.[][] | select(.draft == false and .prerelease == false)] | max_by(.published_at) | .tag_name // empty')" || return "$?"
   printf '%s\n' "${tag#v}"
 }
