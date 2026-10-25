@@ -105,6 +105,8 @@ spec:
       tokenSecretName: %s-homeassistant-api-token
     ownerName: "E2E Critical Path"
     language: "en"
+    location:
+      country: PL
   backup:
     enabled: true
     recurrence: daily
@@ -171,6 +173,17 @@ spec:
 		if err := utils.DeleteNamespace(namespace); err != nil {
 			_, _ = fmt.Fprintf(GinkgoWriter, "Warning: failed to delete namespace %s: %v\n", namespace, err)
 		}
+	})
+
+	It("bootstrap country is persisted in Home Assistant /api/config", func() {
+		apiClient, cleanup := criticalPathHAClient(namespace, haName)
+		defer cleanup()
+		token := criticalPathOperatorToken(namespace, haName+"-homeassistant-api-token")
+		Eventually(func(g Gomega) {
+			config, err := apiClient.GetConfig(context.Background(), token)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(config.Country).To(Equal("PL"))
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
 	})
 
 	It("dedicated bootstrap isolates the runtime principal and retires bootstrap access", func() {

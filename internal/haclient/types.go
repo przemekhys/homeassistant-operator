@@ -91,6 +91,7 @@ type ConfigResponse struct {
 	Version               string   `json:"version"`
 	LocationName          string   `json:"location_name"`
 	TimeZone              string   `json:"time_zone"`
+	Country               string   `json:"country"`
 	ConfigDir             string   `json:"config_dir"`
 	WhitelistExternalDirs []string `json:"whitelist_external_dirs"`
 }
