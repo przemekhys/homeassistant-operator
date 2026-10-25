@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Optional bootstrap country (`spec.bootstrap.location.country`).** Set a
+  country code such as `PL` during bootstrap. Admission validates it against
+  Home Assistant 2026.10.3's `COUNTRIES` list, rejecting unknown codes such as
+  `ZZ`. The operator writes the value into `homeassistant.country` in
+  `configuration.yaml`, preserving an explicit country configured through
+  `HomeAssistantConfiguration`. Admission tests cover accepted and rejected
+  codes, and an E2E test verifies `country: PL` through Home Assistant's
+  `/api/config` endpoint.
+
 - **Dedicated Home Assistant operator accounts, available from v1.7.0.** Set
   `spec.bootstrap.operatorAccount.mode: dedicated` and a namespace-local
   `tokenSecretName` to separate routine management from the human onboarding
