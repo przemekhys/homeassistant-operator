@@ -8,7 +8,6 @@ on:
       - "hack/*.sh"
       - "hack/rbac-allowlist.txt"
       - "Makefile"
-      - "docs/user-guide/upgrade.md"
       - ".github/workflows/test-helm.yml"
       - ".github/actions/helm-setup/**"
 
