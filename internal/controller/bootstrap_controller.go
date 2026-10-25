@@ -440,6 +440,9 @@ func (r *HomeAssistantReconciler) handleOnboardingAlreadyDone(
 	ha *hav1.HomeAssistant,
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
+	if ha.Status.Bootstrap != nil && ha.Status.Bootstrap.LoginRecoveryAttempts >= maxLoginRecoveryRetries {
+		return ctrl.Result{RequeueAfter: 5 * time.Minute}, nil
+	}
 
 	// A previous attempt may have created the owner before the settings write
 	// failed. Apply the requested configuration before any completion shortcut,
@@ -454,7 +457,7 @@ func (r *HomeAssistantReconciler) handleOnboardingAlreadyDone(
 			}
 			session, loginErr := haClient.LoginWithCredentials(ctx, username, password)
 			if loginErr != nil {
-				return r.handleBootstrapError(ctx, ha, loginErr)
+				return r.handleBootstrapLoginError(ctx, ha, loginErr)
 			}
 			token = session.AccessToken
 		}
@@ -548,61 +551,7 @@ func (r *HomeAssistantReconciler) handleOnboardingAlreadyDone(
 	log.Info("Onboarding already completed, logging in to create API token")
 	tokenResp, err := haClient.LoginWithCredentials(ctx, username, password)
 	if err != nil {
-		attempts := 1
-		if ha.Status.Bootstrap != nil {
-			attempts = ha.Status.Bootstrap.LoginRecoveryAttempts + 1
-		}
-		log.Error(err, "Failed to login with credentials",
-			"attempt", attempts, "maxAttempts", maxLoginRecoveryRetries)
-
-		// After exhausting retries, stop looping and require manual
-		// intervention (credential fix or HA reset).
-		if attempts >= maxLoginRecoveryRetries {
-			log.Error(err, "Login recovery exhausted — manual intervention required")
-			return r.updateBootstrapStatus(ctx, ha, reasonBootstrapLoginFailed,
-				fmt.Sprintf(
-					"Login recovery failed after %d attempts: %v — "+
-						"check credentials or reset HA onboarding",
-					attempts, err,
-				),
-				false, false,
-				func(s *hav1.BootstrapStatus) {
-					s.LoginRecoveryAttempts = attempts
-				},
-			)
-		}
-
-		// type=form means HA returned "no such user" — onboarding routes were
-		// not registered yet when we first saw the 404 (transient CI startup).
-		// Reset OnboardingDoneFirstSeen so the confirmation window restarts and
-		// PerformBootstrap is retried once onboarding becomes available.
-		// LoginRecoveryAttempts is NOT incremented here: LoginNoUser is a
-		// startup race condition, not a credential failure. Counting it would
-		// exhaust the retry limit before onboarding routes finish loading on
-		// slow CI runners (causing an infinite attempt=1 loop when combined
-		// with the OnboardingDone first-seen handler).
-		if haclient.IsLoginNoUser(err) {
-			log.Info("Login returned type=form — no user exists, " +
-				"resetting onboarding window to await registration")
-			return r.updateBootstrapStatus(ctx, ha, reasonBootstrapNotReady,
-				"No user in HA yet, resetting onboarding window",
-				false, false,
-				func(s *hav1.BootstrapStatus) {
-					s.OnboardingDoneFirstSeen = nil
-					// Keep LoginRecoveryAttempts unchanged — this is not a
-					// credential failure, only a transient startup condition.
-				},
-			)
-		}
-
-		return r.updateBootstrapStatus(ctx, ha, reasonBootstrapAlreadyDone,
-			fmt.Sprintf("Login failed (attempt %d/%d): %v",
-				attempts, maxLoginRecoveryRetries, err),
-			false, false,
-			func(s *hav1.BootstrapStatus) {
-				s.LoginRecoveryAttempts = attempts
-			},
-		)
+		return r.handleBootstrapLoginError(ctx, ha, err)
 	}
 
 	// Create long-lived token
@@ -637,6 +586,40 @@ func (r *HomeAssistantReconciler) handleOnboardingAlreadyDone(
 			s.OnboardingDoneFirstSeen = nil
 			s.LoginRecoveryAttempts = 0
 		},
+	)
+}
+
+// handleBootstrapLoginError keeps owner-login recovery bounded in both the
+// core-config fallback and token-creation paths.
+func (r *HomeAssistantReconciler) handleBootstrapLoginError(
+	ctx context.Context, ha *hav1.HomeAssistant, err error,
+) (ctrl.Result, error) {
+	if haclient.IsBanned(err) {
+		return r.handleSelfBan(ctx, ha, err)
+	}
+	// A missing user is a startup race, not a credential failure. Restart the
+	// onboarding confirmation window without consuming the login retry budget.
+	if haclient.IsLoginNoUser(err) {
+		return r.updateBootstrapStatus(ctx, ha, reasonBootstrapNotReady,
+			"No user in HA yet, resetting onboarding window", false, false,
+			func(s *hav1.BootstrapStatus) { s.OnboardingDoneFirstSeen = nil },
+		)
+	}
+	attempts := 1
+	if ha.Status.Bootstrap != nil {
+		attempts = ha.Status.Bootstrap.LoginRecoveryAttempts + 1
+	}
+	logf.FromContext(ctx).Error(err, "Failed to login with credentials",
+		"attempt", attempts, "maxAttempts", maxLoginRecoveryRetries)
+	reason := reasonBootstrapAlreadyDone
+	message := fmt.Sprintf("Login failed (attempt %d/%d): %v", attempts, maxLoginRecoveryRetries, err)
+	if attempts >= maxLoginRecoveryRetries {
+		reason = reasonBootstrapLoginFailed
+		message = fmt.Sprintf("Login recovery failed after %d attempts: %v — check credentials or reset HA onboarding",
+			attempts, err)
+	}
+	return r.updateBootstrapStatus(ctx, ha, reason, message, false, false,
+		func(s *hav1.BootstrapStatus) { s.LoginRecoveryAttempts = attempts },
 	)
 }
 
