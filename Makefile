@@ -153,7 +153,7 @@ cleanup-test-e2e: ## Tear down the k3d cluster used for e2e tests
 	@echo "Cleaning up k3d cluster $(K3D_CLUSTER_E2E)..."
 	@k3d cluster delete $(K3D_CLUSTER_E2E) 2>/dev/null || true
 
-# Local, single-job reproductions of the seven concurrent CI jobs defined in
+# Local, single-job reproductions of the six concurrent CI jobs defined in
 # .github/workflows/test-e2e-parallel.yml. See docs/development/testing.md
 # for what each label-filter subset covers.
 #
@@ -199,19 +199,12 @@ test-e2e-pod-security: manifests generate fmt vet ginkgo ## Run the pod-security
 	CERT_MANAGER_INSTALL_SKIP=true K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run \
 		-v --label-filter=pod-security --timeout=8m ./test/e2e/ | tee test-e2e.log
 
-.PHONY: test-e2e-community-repository-a
-test-e2e-community-repository-a: manifests generate fmt vet ginkgo ## Run the community-repository group-a e2e job locally
+.PHONY: test-e2e-community-repository
+test-e2e-community-repository: manifests generate fmt vet ginkgo ## Run all community-repository e2e scenarios with one HA bootstrap
 	trap '$(MAKE) cleanup-test-e2e' EXIT INT TERM; \
 	$(MAKE) setup-test-e2e; \
-	CERT_MANAGER_INSTALL_SKIP=true K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run \
-		-v --label-filter="community-repository && group-a" --timeout=15m ./test/e2e/ | tee test-e2e.log
-
-.PHONY: test-e2e-community-repository-b
-test-e2e-community-repository-b: manifests generate fmt vet ginkgo ## Run the community-repository group-b e2e job locally
-	trap '$(MAKE) cleanup-test-e2e' EXIT INT TERM; \
-	$(MAKE) setup-test-e2e; \
-	CERT_MANAGER_INSTALL_SKIP=true K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run \
-		-v --label-filter="community-repository && group-b" --timeout=10m ./test/e2e/ | tee test-e2e.log
+	CERT_MANAGER_INSTALL_SKIP=true HA_VERSION=$(HA_VERSION) K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run \
+		-v --label-filter=community-repository --timeout=15m ./test/e2e/ | tee test-e2e.log
 
 ##@ k3d Testing (recommended for k3s target environments)
 

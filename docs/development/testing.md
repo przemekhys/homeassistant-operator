@@ -172,12 +172,12 @@ Eventually(func(g Gomega) {
 
 ## E2E Tests
 
-**Location**: `test/e2e/*_test.go` (8 files, 26 specs total)
+**Location**: `test/e2e/*_test.go` (8 files, 27 specs total)
 **Framework**: Ginkgo v2 + real k3d cluster
-**Strategy**: Seven independently-labeled suites, run as seven concurrent
+**Strategy**: Six independently-labeled suites, run as six concurrent
 GitHub Actions jobs (`.github/workflows/test-e2e-parallel.yml`), so the whole
 workflow — not any single job — targets a **10-minute** budget (see the
-Known gap below: not currently met in practice, closer to 15-20 minutes).
+Known gap below for historical CI timings and the pending consolidated baseline).
 
 **This section is the sole source of truth in this repository for e2e
 suite/job duration** (per this project's testing policy). Any other file that
@@ -185,22 +185,21 @@ needs to reference how long the suite takes should point here rather than
 restating a number.
 
 **Goal**: the whole e2e workflow completes in about 10 minutes, split across
-the seven concurrent jobs below.
+the six concurrent jobs below.
 
 ### Running E2E locally
 
 ```bash
-make test-e2e-critical-a                 # HomeAssistant + sibling CRDs (11 specs)
+make test-e2e-critical-a                 # HomeAssistant + sibling CRDs (15 specs)
 make test-e2e-critical-b                 # spec.alpha.devices device passthrough (1 spec)
 make test-e2e-tls                        # TLS ingress/gateway/webhook (4 specs)
 make test-e2e-network-policy             # NetworkPolicy enforcement (1 spec)
 make test-e2e-pod-security                # Pod Security Standards (2 specs)
-make test-e2e-community-repository-a     # HACS-style installs, group A (3 specs)
-make test-e2e-community-repository-b     # HACS-style installs, group B (4 specs)
+make test-e2e-community-repository       # All HACS-style categories and lifecycle (4 specs)
 ```
 
-Each target creates its own fresh k3d cluster (`K3D_MEMORY_E2E=4g` by
-default), runs its `ginkgo run --label-filter=...` subset, and tears the
+Each target creates its own fresh k3d cluster (`K3D_MEMORY_E2E=12g` by
+default; CI uses 4g), runs its `ginkgo run --label-filter=...` subset, and tears the
 cluster down afterward — mirroring exactly what each CI job does.
 
 Local runs build and use `example.com/homeassistant-operator:v0.0.1` (the
@@ -210,41 +209,37 @@ and every e2e job downloads and loads that same artifact — set
 `E2E_SKIP_IMAGE_BUILD=true` and `E2E_IMG=<tag>` to reproduce that
 skip-the-rebuild behavior locally against a pre-built image.
 
-### The seven e2e jobs
+### The six e2e jobs
 
 | Job | Label filter | Specs | What is verified |
 |---|---|---|---|
-| `e2e-critical-a` | `critical-path && group-a` | 11 | All CRDs' core lifecycle (see table below) — shares one HA bootstrap |
+| `e2e-critical-a` | `critical-path && group-a` | 15 | All CRDs' core lifecycle (see table below) — shares one HA bootstrap |
 | `e2e-critical-b` | `critical-path && group-b` | 1 | `spec.alpha.devices` device passthrough — own cluster/instance, no shared bootstrap |
 | `e2e-tls` | `tls` | 4 | TLS via Ingress, Gateway API, and the validating webhook |
 | `e2e-network-policy` | `network-policy` | 1 | `spec.alpha.networkPolicy` actually restricts traffic, not just that the object exists |
 | `e2e-pod-security` | `pod-security` | 2 | Operator namespace enforces the `restricted` Pod Security Standard |
-| `e2e-community-repository-a` | `community-repository && group-a` | 3 | `HomeAssistantCommunityRepository`: integration + theme install, theme ref-update |
-| `e2e-community-repository-b` | `community-repository && group-b` | 4 | `HomeAssistantCommunityRepository`: python_script + template + plugin install, deletion |
+| `e2e-community-repository` | `community-repository` | 4 | `HomeAssistantCommunityRepository`: integration download retry and dependent config flow recovery, alpha rejection, all four hot-reload categories, theme ref-update and python_script deletion — one shared HA bootstrap |
 
-`critical-path` and `community-repository` both use the generic
-`group-a`/`group-b` (and, if a group ever fills up, `group-c`, ...) label
-convention instead of a one-off job name per new spec — a future spec joins
-whichever group has time-budget/setup-cost headroom rather than requiring a
-brand-new CI job. **The two features are NOT symmetric in how groups share
-state**, though: community-repository's group-a and group-b specs live in one
-file/one `Ordered` block and share a single `BeforeAll` (their setup cost is
-similar either way), while critical-path's group-a (`e2e_critical_path_test.go`)
-and group-b (`e2e_device_passthrough_test.go`) are deliberately two separate
-files/`Describe` blocks with independent setup — group-a's specs need a fully
-real-onboarded HA instance (expensive, worth sharing across many specs),
-group-b's don't need onboarding at all (worth keeping cheap and independent).
-Adding a new group-a spec means a new `It` in the existing file; adding a new
-group-b-shaped spec (no onboarding needed) means either a new `It` in
-`e2e_device_passthrough_test.go` or, if its setup is different again, a new
-file with the same `critical-path`+`group-b` (or a new group) labels.
+`critical-path` uses the generic `group-a`/`group-b` (and, if a group ever
+fills up, `group-c`, ...) label convention. Its group-a
+(`e2e_critical_path_test.go`) and group-b (`e2e_device_passthrough_test.go`)
+are separate files/`Describe` blocks with independent setup: group-a needs a
+fully onboarded HA instance, while group-b does not need onboarding. New
+specs should join whichever group has suitable setup and time-budget headroom.
 
-The community-repository split (not an arbitrary half-and-half) keeps two
-spec pairs together: "keeps installedVersion..." reuses the CR created by the
-theme-install spec, and "removes the ConfigMap entry..." reuses the CR
-created by the python_script-install spec — each pair must run in the same
-Ginkgo process since separate CI jobs use separate clusters and cannot see
-each other's resources.
+Community repositories run in one `Ordered` block and one job. The integration
+scenario first verifies init-container retry, the required pod replacement,
+and recovery of a dependent `HomeAssistantIntegration`. Then theme,
+python_script, template, and plugin CRs are all created before waiting for
+their activation and files, so the production activation settle delays and
+ConfigMap propagation overlap. Each category is checked, including Lovelace
+registration, and the pod must not be replaced or restarted by these installs.
+Finally, the theme ref update and python_script deletion are started before
+waiting for either, checking both the updated file and removal of the deleted
+entry and file. These four specs retain the scenarios previously spread over
+eight specs in two jobs, without duplicating the cluster and HA bootstrap.
+The local target passes `HA_VERSION` to Ginkgo so HA uses the same pinned image
+that setup imported into the cluster.
 
 `e2e-critical-b` exists because a first attempt folded its one spec into
 `e2e-critical-a` (then still named `e2e-critical-path`) as an 11th spec, to
@@ -257,24 +252,24 @@ than group-a's real-onboarding instance) both removed the time pressure from
 `e2e-critical-a` and made a future failure of this spec actually diagnosable
 instead of silently killed.
 
-**Known gap**: real CI runs showed every job's cold-start overhead — and the
-community-repository specs' own runtime — running noticeably longer than
-initial estimates (extrapolated from a single long-running, cache-warm job)
-suggested, so per-job timeouts have been progressively widened rather than
-left to fail: `e2e-community-repository-b` up to 16 min, `-a` up to 14 min,
-`e2e-tls` up to 11 min. **The whole workflow does not currently meet the
-10-minute goal** — with `build` (a few minutes) plus the slowest job
-(`e2e-community-repository-b`), real end-to-end time is closer to 15-20
-minutes. Tightening this back down needs either genuine optimization (e.g.
-the per-spec activation-confirmation polling in community-repository, or the
-"Load Home Assistant image" step's own variability) or accepting a revised,
-honest target — not just more timeout increases.
+**Known gap**: the whole workflow's 10-minute goal is not yet verified after
+consolidating community repositories. Before consolidation, successful CI run
+[40181823757](https://github.com/przemekhys/homeassistant-operator/actions/runs/40181823757)
+took about 17 min 40 s overall: community-repository A took 11 min 20 s and B
+12 min 39 s, including their separate setup/cleanup. The consolidated job
+overlaps activation and propagation waits and uses one bootstrap; its timeout
+retains headroom (18 min for the job, 15 min for Ginkgo) until cold-run CI
+measurements establish the new baseline. These limits are failure budgets,
+not measured durations. Image import and the shared `build` job also count
+toward the workflow's total duration.
 
-### `e2e-critical-a` tests (11 specs)
+### `e2e-critical-a` tests (15 specs)
 
 | # | CRD | What is verified |
 |---|-----|-----------------|
+| 0 | `HomeAssistant` bootstrap | Dedicated runtime principal isolated from bootstrap access; bootstrap access retired |
 | 1 | `HomeAssistant` | Pod running, Service created, bootstrap completed |
+| 1b | `HomeAssistantDashboard` | Inline dashboard created and updated |
 | 2 | `HomeAssistantConfiguration` | ConfigMap generated, hot-reload on config change |
 | 2b | `HomeAssistantConfiguration` (`http:`) | `http:` delivered via the HA http config API, omitted from `configuration.yaml`, no hash churn on repeated reconciles |
 | 3 | `HomeAssistantSecrets` | Secret aggregated, hash annotation set |
@@ -285,6 +280,8 @@ honest target — not just more timeout increases.
 | 8 | `HomeAssistantFloor` | Created via WebSocket registry API, deleted |
 | 9 | `HomeAssistantLabel` | Created via WebSocket registry API, deleted |
 | 10 | `HomeAssistantArea` | Created via WebSocket registry API, deleted |
+| 11 | Operator account recovery | Credential loss requires explicit recovery; observed requests are not replayed |
+| 12 | Legacy account adoption | Collisions reported; original token retained until deliberate cleanup |
 
 This job's specs share one Home Assistant bootstrap (real onboarding) and run
 sequentially (`Ordered`), continuing even if one fails (`ContinueOnFailure`)
@@ -315,8 +312,8 @@ diagnostics) without affecting any other spec.
 
 ## Coverage Gap Record
 
-Every remaining e2e scenario is still verified — the 26 specs above are
-split across the seven jobs above. This section exists as the place to
+Every remaining e2e scenario is still verified — the 27 specs above are
+split across the six jobs above. This section exists as the place to
 record it when a scenario is deliberately not e2e-gated, rather than fitting
 it into an existing (or new) job:
 

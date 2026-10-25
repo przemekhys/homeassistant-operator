@@ -274,7 +274,7 @@ spec:
 `, namespace, communityRepoFixtureImage)
 }
 
-var _ = Describe("HomeAssistantCommunityRepository E2E", Ordered, ContinueOnFailure, func() {
+var _ = Describe("HomeAssistantCommunityRepository E2E", Label("community-repository"), Ordered, ContinueOnFailure, func() {
 	var (
 		namespace       string
 		haName          string
@@ -434,7 +434,7 @@ spec:
 	})
 
 	It("retries a failed integration download before reporting the repository and config entry Ready",
-		Label("community-repository", "fast", "group-a"), func() {
+		Label("fast"), func() {
 			podStartBefore := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.startTime}")
 
 			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
@@ -535,7 +535,7 @@ spec:
 		})
 
 	It("rejects an alpha manifest without changing an installed stable repository",
-		Label("community-repository", "fast", "group-a"), func() {
+		Label("fast"), func() {
 			repositoryUID := utils.Kubectl("get", "hacr", "e2e-integration", "-n", namespace,
 				"-o", "jsonpath={.metadata.uid}")
 			podUID := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
@@ -565,117 +565,55 @@ spec:
 			}, utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
 		})
 
-	It("installs a theme-category repository without restarting the HA pod",
-		Label("community-repository", "fast", "group-a"), func() {
+	It("installs all four hot-reload categories without restarting HA and registers the Lovelace resource",
+		Label("slow"), func() {
+			podUIDBefore := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.metadata.uid}")
+			Expect(podUIDBefore).NotTo(BeEmpty())
 			podStartBefore := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.startTime}")
+			Expect(podStartBefore).NotTo(BeEmpty())
 
-			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
+			repositories := []struct {
+				name       string
+				category   string
+				repository string
+				file       string
+			}{
+				{"e2e-theme", "theme", crFixtureTheme, "/config/themes/example_theme.yaml"},
+				{"e2e-python-script", "python_script", crFixturePythonScript, "/config/python_scripts/example_script.py"},
+				{"e2e-template", "template", crFixtureTemplate, "/config/custom_templates/example_template.jinja"},
+				{"e2e-plugin", "plugin", crFixturePlugin, "/config/www/community/example-card.js"},
+			}
+
+			// Create every CR before waiting: their production activation settle delays
+			// and ConfigMap propagation can overlap without changing operator timing.
+			for _, repo := range repositories {
+				By("Creating the " + repo.category + " repository")
+				hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistantCommunityRepository
 metadata:
-  name: e2e-theme
+  name: %s
   namespace: %s
 spec:
   homeAssistantRef:
     name: %s
-  category: theme
+  category: %s
   repository: %s
   ref: v1.0.0
-`, namespace, haName, crFixtureTheme)
-			Expect(utils.ApplyYAML(hacrYAML, namespace)).To(Succeed())
+`, repo.name, namespace, haName, repo.category, repo.repository)
+				Expect(utils.ApplyYAML(hacrYAML, namespace)).To(Succeed())
+			}
 
-			Eventually(func(g Gomega) {
-				g.Expect(getPhase("e2e-theme")).To(Equal("Installed"))
-			}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
-
-			podStartAfter := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.startTime}")
-			Expect(podStartAfter).To(Equal(podStartBefore), "theme install must not restart the pod")
-
-			By("Waiting for the sidecar to materialize the theme file (~poll interval + propagation)")
-			Eventually(func(g Gomega) {
-				cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
-					"test", "-f", "/config/themes/example_theme.yaml")
-				_, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-			}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
-		})
-
-	It("installs a python_script-category repository",
-		Label("community-repository", "fast", "group-b"), func() {
-			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
-kind: HomeAssistantCommunityRepository
-metadata:
-  name: e2e-python-script
-  namespace: %s
-spec:
-  homeAssistantRef:
-    name: %s
-  category: python_script
-  repository: %s
-  ref: v1.0.0
-`, namespace, haName, crFixturePythonScript)
-			Expect(utils.ApplyYAML(hacrYAML, namespace)).To(Succeed())
-
-			Eventually(func(g Gomega) {
-				g.Expect(getPhase("e2e-python-script")).To(Equal("Installed"))
-			}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
-
-			By("Waiting for the sidecar to materialize the python_script file (~poll interval + propagation)")
-			Eventually(func(g Gomega) {
-				cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
-					"test", "-f", "/config/python_scripts/example_script.py")
-				_, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-			}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
-		})
-
-	It("installs a template-category repository",
-		Label("community-repository", "fast", "group-b"), func() {
-			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
-kind: HomeAssistantCommunityRepository
-metadata:
-  name: e2e-template
-  namespace: %s
-spec:
-  homeAssistantRef:
-    name: %s
-  category: template
-  repository: %s
-  ref: v1.0.0
-`, namespace, haName, crFixtureTemplate)
-			Expect(utils.ApplyYAML(hacrYAML, namespace)).To(Succeed())
-
-			Eventually(func(g Gomega) {
-				g.Expect(getPhase("e2e-template")).To(Equal("Installed"))
-			}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
-
-			By("Waiting for the sidecar to materialize the template file (~poll interval + propagation)")
-			Eventually(func(g Gomega) {
-				cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
-					"test", "-f", "/config/custom_templates/example_template.jinja")
-				_, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-			}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
-		})
-
-	It("installs a plugin-category repository and registers its Lovelace resource",
-		Label("community-repository", "slow", "group-b"), func() {
-			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
-kind: HomeAssistantCommunityRepository
-metadata:
-  name: e2e-plugin
-  namespace: %s
-spec:
-  homeAssistantRef:
-    name: %s
-  category: plugin
-  repository: %s
-  ref: v1.0.0
-`, namespace, haName, crFixturePlugin)
-			Expect(utils.ApplyYAML(hacrYAML, namespace)).To(Succeed())
-
-			Eventually(func(g Gomega) {
-				g.Expect(getPhase("e2e-plugin")).To(Equal("Installed"))
-			}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
+			for _, repo := range repositories {
+				By("Waiting for " + repo.category + " activation and its materialized file")
+				Eventually(func(g Gomega) {
+					g.Expect(getPhase(repo.name)).To(Equal("Installed"), repo.name)
+					g.Expect(getInstalledVersion(repo.name)).To(Equal("v1.0.0"), repo.name)
+					cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
+						"test", "-f", repo.file)
+					_, err := utils.Run(cmd)
+					g.Expect(err).NotTo(HaveOccurred(), repo.file)
+				}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
+			}
 
 			// The Ready message distinguishes a confirmed Lovelace resource registration
 			// ("reload confirmed") from the YAML-mode fallback path, which also reaches
@@ -683,21 +621,29 @@ spec:
 			Expect(getReadyMessage("e2e-plugin")).To(ContainSubstring("reload confirmed"),
 				"the Lovelace resource must have been actually registered via the API, not just the file placed")
 
-			By("Waiting for the sidecar to materialize the plugin file (~poll interval + propagation)")
-			Eventually(func(g Gomega) {
-				cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
-					"test", "-f", "/config/www/community/example-card.js")
-				_, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-			}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
+			Expect(utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+				"-o", "jsonpath={.metadata.uid}")).To(Equal(podUIDBefore), "hot-reload installs must not replace the pod")
+			Expect(utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+				"-o", "jsonpath={.status.startTime}")).To(Equal(podStartBefore), "hot-reload installs must not restart the pod")
 		})
 
-	It("keeps installedVersion at the old ref until a ref update is confirmed, then updates it",
-		Label("community-repository", "fast", "group-a"), func() {
+	It("updates the theme ref while removing the python_script ConfigMap entry and materialized file",
+		Label("fast"), func() {
 			Expect(getPhase("e2e-theme")).To(Equal("Installed"))
 			Expect(getInstalledVersion("e2e-theme")).To(Equal("v1.0.0"))
+			Expect(getPhase("e2e-python-script")).To(Equal("Installed"))
 
+			By("Starting the theme update and python_script deletion before waiting for either")
 			Expect(utils.PatchResource("hacr", "e2e-theme", namespace, "merge", `{"spec":{"ref":"v2.0.0"}}`)).To(Succeed())
+			cmd := exec.Command("kubectl", "delete", "hacr", "e2e-python-script", "-n", namespace, "--wait=false")
+			_, err := utils.Run(cmd)
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func(g Gomega) {
+				g.Expect(getPhase("e2e-theme")).To(Equal("Installing"))
+				g.Expect(getInstalledVersion("e2e-theme")).To(Equal("v1.0.0"),
+					"installedVersion must stay at the old ref until activation is confirmed")
+			}, utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
 				g.Expect(getPhase("e2e-theme")).To(Equal("Installed"))
@@ -712,18 +658,12 @@ spec:
 				g.Expect(err).NotTo(HaveOccurred())
 			}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed(),
 				"theme file content must reflect v2.0.0")
-		})
-
-	It("removes the ConfigMap entry and the materialized file on deletion",
-		Label("community-repository", "fast", "group-b"), func() {
-			Expect(getPhase("e2e-python-script")).To(Equal("Installed"))
-
-			cmd := exec.Command("kubectl", "delete", "hacr", "e2e-python-script", "-n", namespace)
-			_, err := utils.Run(cmd)
-			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func(g Gomega) {
-				output := utils.Kubectl("get", "hacr", "e2e-python-script", "-n", namespace)
+				cmd := exec.Command("kubectl", "get", "hacr", "e2e-python-script", "-n", namespace,
+					"--ignore-not-found", "-o", "name")
+				output, err := utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred(), "kubectl get must succeed")
 				g.Expect(output).To(BeEmpty())
 			}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
 
