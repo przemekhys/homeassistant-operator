@@ -199,6 +199,7 @@ func TestDedicatedProvisionAndRecovery(t *testing.T) {
 		Data:       map[string][]byte{"token": []byte("legacy-token")},
 	}
 	ha.Status.Bootstrap = &hav1.BootstrapStatus{Completed: true, APITokenSecretName: "legacy"}
+	ha.Status.BanRestartWindowCount = 1
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(ha).WithObjects(ha, bootstrap, legacy).Build()
 	var mu sync.Mutex
 	var users []haclient.AuthUser
@@ -318,6 +319,9 @@ func TestDedicatedProvisionAndRecovery(t *testing.T) {
 	}
 	reconcile()
 	secret := &corev1.Secret{}
+	if ha.Status.BanRestartWindowCount != 0 {
+		t.Fatal("successful full provisioning did not reset ban recovery")
+	}
 	if err := c.Get(ctx, types.NamespacedName{Name: "operator", Namespace: "home"}, secret); err != nil {
 		t.Fatal(err)
 	}
