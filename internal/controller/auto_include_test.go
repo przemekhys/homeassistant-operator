@@ -112,6 +112,7 @@ func TestInjectLocation(t *testing.T) {
 		TimeZone:   "Europe/Warsaw",
 		Name:       "Home",
 		Currency:   "PLN",
+		Country:    "PL",
 	}
 
 	t.Run("preserves !secret tags", func(t *testing.T) {
@@ -166,10 +167,13 @@ func TestInjectLocation(t *testing.T) {
 		if !strings.Contains(result, "elevation: 100") {
 			t.Errorf("elevation not injected, got:\n%s", result)
 		}
+		if !strings.Contains(result, "country: PL") {
+			t.Errorf("country not injected, got:\n%s", result)
+		}
 	})
 
 	t.Run("does not overwrite existing fields", func(t *testing.T) {
-		input := "homeassistant:\n  latitude: 50.0\n  name: Custom\n"
+		input := "homeassistant:\n  latitude: 50.0\n  name: Custom\n  country: DE\n"
 		result, err := injectLocation(input, loc)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -179,6 +183,9 @@ func TestInjectLocation(t *testing.T) {
 		}
 		if !strings.Contains(result, "name: Custom") {
 			t.Errorf("existing name was overwritten, got:\n%s", result)
+		}
+		if !strings.Contains(result, "country: DE") || strings.Contains(result, "country: PL") {
+			t.Errorf("explicit country was overwritten, got:\n%s", result)
 		}
 	})
 

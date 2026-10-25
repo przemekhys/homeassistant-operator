@@ -189,8 +189,16 @@ bootstrap:
     elevation: 100
     unitSystem: "metric"      # metric | us_customary
     currency: "PLN"
+    country: "PL"
     timeZone: "Europe/Warsaw"
 ```
+
+`country` is optional and must be a code from Home Assistant 2026.10.3's
+[`COUNTRIES` list](https://github.com/home-assistant/core/blob/2026.10.3/homeassistant/generated/countries.py).
+Kubernetes admission rejects unknown codes such as `ZZ`. The operator writes
+the country into the `homeassistant:` section of `configuration.yaml`; an
+explicit `homeassistant.country` in `HomeAssistantConfiguration` takes precedence
+over the bootstrap value.
 
 ## Every field
 

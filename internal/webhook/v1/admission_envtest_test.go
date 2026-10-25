@@ -29,6 +29,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,6 +43,48 @@ import (
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
 )
+
+func TestBootstrapCountryAdmission(t *testing.T) {
+	c, _, cleanup := setupWebhookTestEnv(t)
+	defer cleanup()
+	for i, tt := range []struct {
+		name, country string
+		accepted      bool
+	}{
+		{"Poland", "PL", true},
+		{"unknown code", "ZZ", false},
+		{"lowercase", "pl", false},
+		{"not in HA COUNTRIES", "XK", false},
+		{"omitted", "", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			location := map[string]interface{}{}
+			if tt.country != "" {
+				location["country"] = tt.country
+			}
+			obj := &unstructured.Unstructured{Object: map[string]interface{}{
+				"apiVersion": hav1.GroupVersion.String(), "kind": "HomeAssistant",
+				"metadata": map[string]interface{}{"name": fmt.Sprintf("bootstrap-country-%d", i), "namespace": "default"},
+				"spec":     map[string]interface{}{"bootstrap": map[string]interface{}{"location": location}},
+			}}
+			err := c.Create(context.Background(), obj)
+			if !tt.accepted {
+				g.Expect(apierrors.IsInvalid(err)).To(BeTrue(), "expected admission rejection, got %v", err)
+				g.Expect(err.Error()).To(ContainSubstring("spec.bootstrap.location.country"))
+				return
+			}
+			g.Expect(err).NotTo(HaveOccurred())
+			country, _, err := unstructured.NestedString(obj.Object, "spec", "bootstrap", "location", "country")
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(country).To(Equal(tt.country), "country must survive admission without pruning")
+
+			g.Expect(unstructured.SetNestedField(obj.Object, "ZZ", "spec", "bootstrap", "location", "country")).To(Succeed())
+			err = c.Update(context.Background(), obj)
+			g.Expect(apierrors.IsInvalid(err)).To(BeTrue(), "unknown country must also fail update admission")
+		})
+	}
+}
 
 func TestOperatorAccountAdmission(t *testing.T) {
 	c, _, cleanup := setupWebhookTestEnv(t)

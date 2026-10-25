@@ -39,7 +39,7 @@ var autoIncludeEntries = []struct {
 }
 
 // injectLocation injects location fields (latitude, longitude, elevation, time_zone,
-// unit_system, name, currency) from spec.bootstrap.location into the homeassistant:
+// unit_system, name, currency, country) from spec.bootstrap.location into the homeassistant:
 // section of configuration.yaml, but only for fields not already defined by the user.
 // Uses yaml.Node to preserve custom YAML tags (e.g. !secret, !include) through
 // the unmarshal/marshal round-trip.
@@ -119,6 +119,9 @@ func injectLocation(configYAML string, loc *hav1.LocationConfig) (string, error)
 	}
 	if loc.Currency != "" {
 		setNodeField(haSection, "currency", loc.Currency, "!!str")
+	}
+	if loc.Country != "" {
+		setNodeField(haSection, "country", loc.Country, "!!str")
 	}
 
 	out, err := yaml.Marshal(&doc)
