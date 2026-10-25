@@ -229,20 +229,21 @@ func (r *HomeAssistantReconciler) buildCoreConfigRequest(
 	req := &haclient.CoreConfigRequest{
 		LocationName: loc.Name,
 		UnitSystem:   getOrDefault(loc.UnitSystem, "metric"),
+		Country:      loc.Country,
 	}
 
 	if loc.Latitude != "" {
 		if lat, err := strconv.ParseFloat(loc.Latitude, 64); err == nil {
-			req.Latitude = lat
+			req.Latitude = &lat
 		}
 	}
 	if loc.Longitude != "" {
 		if lon, err := strconv.ParseFloat(loc.Longitude, 64); err == nil {
-			req.Longitude = lon
+			req.Longitude = &lon
 		}
 	}
 	if loc.Elevation != nil {
-		req.Elevation = *loc.Elevation
+		req.Elevation = loc.Elevation
 	}
 	if loc.Currency != "" {
 		req.Currency = loc.Currency
@@ -340,6 +341,9 @@ func (r *HomeAssistantReconciler) handleBootstrapError(
 	log := logf.FromContext(ctx)
 
 	// Check error type
+	if haclient.IsBanned(err) {
+		return r.handleSelfBan(ctx, ha, err)
+	}
 	if haclient.IsNotReady(err) {
 		log.Info("Home Assistant not ready yet", "error",
 			err.Error())
@@ -436,6 +440,28 @@ func (r *HomeAssistantReconciler) handleOnboardingAlreadyDone(
 	ha *hav1.HomeAssistant,
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
+
+	// A previous attempt may have created the owner before the settings write
+	// failed. Apply the requested configuration before any completion shortcut,
+	// including when token creation is disabled or a token Secret already exists.
+	if req := r.buildCoreConfigRequest(ha); req != nil {
+		haClient := newHAClientForHA(ha, r.NewHAClient).WithTimeout(30 * time.Second)
+		token, err := getAPIToken(ctx, r.Client, ha)
+		if err != nil {
+			username, password, credentialsErr := r.getBootstrapCredentials(ctx, ha)
+			if credentialsErr != nil {
+				return r.handleBootstrapError(ctx, ha, credentialsErr)
+			}
+			session, loginErr := haClient.LoginWithCredentials(ctx, username, password)
+			if loginErr != nil {
+				return r.handleBootstrapError(ctx, ha, loginErr)
+			}
+			token = session.AccessToken
+		}
+		if err := haClient.ResumeBootstrapCoreConfig(ctx, token, req, ha.Spec.Bootstrap.Analytics); err != nil {
+			return r.handleBootstrapError(ctx, ha, err)
+		}
+	}
 
 	// Check if API token creation was requested
 	if !ha.Spec.Bootstrap.CreateAPIToken {

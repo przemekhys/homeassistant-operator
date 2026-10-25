@@ -248,6 +248,7 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 			"Bootstrap owner credentials unavailable; restore the referenced Secret and submit a new recoveryRequestID",
 		)
 	}
+	onboardingAlreadyDone := false
 	if !recovery {
 		if err := haClient.CheckAPIReady(ctx); err != nil {
 			if haclient.IsBanned(err) {
@@ -273,6 +274,7 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 			getOrDefault(ha.Spec.Bootstrap.Language, defaultLanguage),
 			opts,
 		)
+		onboardingAlreadyDone = haclient.IsOnboardingDone(err)
 		if err != nil && !haclient.IsOnboardingDone(err) {
 			if haclient.IsBanned(err) {
 				return r.handleSelfBan(ctx, ha, err)
@@ -282,7 +284,7 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 				ha,
 				secret,
 				reasonHomeAssistantUnavailable,
-				"Waiting for Home Assistant onboarding",
+				fmt.Sprintf("Home Assistant bootstrap failed: %v", err),
 			)
 		}
 	}
@@ -298,6 +300,18 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 			reasonRecoveryFailed,
 			"Cannot authenticate bootstrap owner; correct credentials and submit a new recoveryRequestID",
 		)
+	}
+	if onboardingAlreadyDone {
+		if req := r.buildCoreConfigRequest(ha); req != nil {
+			err := haClient.ResumeBootstrapCoreConfig(ctx, session.AccessToken, req, ha.Spec.Bootstrap.Analytics)
+			if err != nil {
+				if haclient.IsBanned(err) {
+					return r.handleSelfBan(ctx, ha, err)
+				}
+				return r.operatorAccountStatus(ctx, ha, secret, reasonHomeAssistantUnavailable,
+					fmt.Sprintf("Requested core configuration (including country) was not applied: %v", err))
+			}
+		}
 	}
 	if err := r.provisionOperatorCredential(ctx, ha, secret, haClient, session.AccessToken, recovery); err != nil {
 		logOperatorProvisioningError(ctx, err)
@@ -530,6 +544,7 @@ func (r *HomeAssistantReconciler) operatorAccountStatus(
 		status.LegacySecretName = secret.Annotations[operatorLegacyAnnotation]
 	}
 	if reason == "Verified" {
+		bs.Message = message
 		meta.SetStatusCondition(
 			&ha.Status.Conditions,
 			metav1.Condition{
@@ -550,6 +565,15 @@ func (r *HomeAssistantReconciler) operatorAccountStatus(
 			status.MigrationPhase = "Completed"
 		}
 	} else {
+		if !bs.Completed {
+			now := metav1.Now()
+			bs.LastAttempt = &now
+			bs.Message = message
+			meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
+				Type: "BootstrapReady", Status: metav1.ConditionFalse,
+				Reason: reason, Message: message, ObservedGeneration: ha.Generation,
+			})
+		}
 		if status.Phase != "Verified" {
 			status.Phase = "Provisioning"
 		}
