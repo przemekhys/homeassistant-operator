@@ -36,6 +36,7 @@ on:
       - "PROJECT"
       - ".github/actions/**"
       - ".github/workflows/test-e2e-parallel.yml"
+      - ".dockerignore"
 
 permissions:
   contents: read
