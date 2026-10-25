@@ -95,6 +95,24 @@ Coverage Gap Record below rather than the scenario silently going untested.
 
 ---
 
+## Helm install and upgrade E2E
+
+Run `make helm-test-e2e` with Docker, k3d, Helm, kubectl and an authenticated
+GitHub CLI (`gh auth login`, or `GH_TOKEN` in CI). The upgrade scenario installs
+the most recently published stable GitHub Release from the OCI chart registry
+(N-1), then upgrades it to the working-tree chart and an operator image built
+from the current source (unreleased N). Drafts, prereleases and unpublished git
+tags are excluded. Release discovery errors fail the test.
+
+The version in the committed `Chart.yaml` is a development placeholder; the
+release workflow replaces it when publishing. It does not select the upgrade
+baseline or the source used to build the target operator.
+
+For an explicit baseline or an offline discovery override, run
+`HELM_N1_VERSION=1.6.1 make helm-test-e2e` (the published chart and images still
+need to be accessible). Run `bash hack/test-lib-helm.sh` for the network-free
+release-selection regression checks.
+
 ## Unit Tests (envtest)
 
 **Location**: `internal/controller/*_test.go`

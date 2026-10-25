@@ -109,27 +109,18 @@ hh_assert_crds() {
 # hh_previous_version — echo the N-1 released chart version (semver, no leading v).
 # Order of resolution:
 #   1) HELM_N1_VERSION env override (explicit)
-#   2) newest git tag v* strictly older than the current ref (release/PR context)
-# Emits empty string if none can be determined (callers decide how to handle).
+#   2) most recently published stable GitHub Release (not an unpublished git tag)
+# HEAD is the unreleased N, so do not subtract another release from this baseline.
+# Emits empty string only if there are no stable releases; API failures propagate.
 hh_previous_version() {
   if [ -n "${HELM_N1_VERSION:-}" ]; then
     echo "${HELM_N1_VERSION#v}"
     return 0
   fi
-  # "current" is only defined in release context (a tag push, GITHUB_REF_NAME).
-  # In PR/local (unreleased) context current is empty, so N-1 = newest release tag.
-  local current tags t
-  current="${GITHUB_REF_NAME:-}"
-  current="${current#v}"
-  tags="$(git -C "$ROOT" tag --list 'v*' --sort=-v:refname 2>/dev/null)"
-  for t in $tags; do
-    t="${t#v}"
-    # skip pre-releases and the current version; first remaining is N-1
-    case "$t" in *-*) continue;; esac
-    if [ -z "$current" ] || [ "$t" != "$current" ]; then
-      echo "$t"
-      return 0
-    fi
-  done
-  echo ""
+  hh_require gh
+  local tag
+  tag="$(gh release list --repo "${GITHUB_REPOSITORY:-przemekhys/homeassistant-operator}" \
+    --exclude-drafts --exclude-pre-releases --limit 1 \
+    --json tagName --jq '.[0].tagName // empty')" || return "$?"
+  printf '%s\n' "${tag#v}"
 }

@@ -9,7 +9,7 @@
 #   pre-existing CRs survive.
 #
 # The upgrade steps mirror the published upgrade guide exactly. Requires: k3d,
-# docker, helm, kubectl.
+# docker, helm, kubectl, gh (or an explicit HELM_N1_VERSION).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -32,6 +32,16 @@ CERT_MANAGER_VERSION="v1.21.3"
 for t in k3d docker helm kubectl; do hh_require "$t"; done
 [ -n "$HELM_CHART_DIR" ] || { echo "❌ HELM_CHART_DIR is empty" >&2; exit 2; }
 [ -n "${HELM_REGISTRY:-}" ] || { echo "❌ HELM_REGISTRY must be set (e.g. ghcr.io/<owner>)" >&2; exit 2; }
+
+# Resolve before building images or creating clusters. A discovery failure must
+# fail the test rather than silently turn it into a fresh-install-only check.
+N1="$(hh_previous_version)"
+if [ -z "$N1" ]; then
+  echo "❌ No published stable release available for the Helm upgrade test." >&2
+  exit 1
+fi
+echo "==> Upgrade baseline (N-1): published release $N1"
+echo "==> Upgrade target (N): working-tree chart + locally built operator ($(git rev-parse --short HEAD))"
 
 trap 'hh_k3d_cleanup "$CLUSTER"' EXIT
 
@@ -108,13 +118,6 @@ echo "==> Importing the HEAD operator image ($IMG) for the upgrade scenario"
 k3d image import "$IMG" -c "$CLUSTER"
 
 # ---- Part 2: upgrade from N-1 --------------------------------------------------
-N1="$(hh_previous_version)"
-if [ -z "$N1" ]; then
-  echo "⏭️  PART 2 skipped: no previous release (N-1) available."
-  echo "✅ helm-e2e (fresh install) passed."
-  exit 0
-fi
-
 echo ""
 echo "==> PART 2: upgrade from N-1 ($N1) to HEAD"
 OCI="oci://${HELM_REGISTRY}/charts/homeassistant-operator"
