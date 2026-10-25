@@ -55,6 +55,8 @@ jobs:
       - uses: ./.github/actions/helm-setup
       - name: helm unittest
         run: helm unittest charts/homeassistant-operator
+      - name: Release baseline regression checks
+        run: bash hack/test-lib-helm.sh
 
   docs:
     name: helm-docs drift
@@ -105,7 +107,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          fetch-depth: 0 # tags needed for N-1 discovery
+          fetch-depth: 0 # released tag needed for the RBAC comparison
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
@@ -114,6 +116,8 @@ jobs:
       - name: Install kustomize
         run: make kustomize
       - name: Verify RBAC is not silently expanded vs previous release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: make helm-verify-rbac-upgrade
 
   e2e-k3d:
@@ -123,10 +127,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          fetch-depth: 0 # tags needed for N-1 discovery
           persist-credentials: false
       - uses: ./.github/actions/helm-setup
         with:
           install-k3d: "true"
       - name: Fresh install + upgrade N-1 -> HEAD on k3d
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: make helm-test-e2e
