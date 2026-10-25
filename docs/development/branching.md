@@ -66,19 +66,16 @@ Never rebase `dev` onto `main` or force-push either branch — both are shared.
 Renovate (`renovate.json`) watches **both** long-lived branches
 (`baseBranches: ["main", "dev"]`) and opens separate PRs per branch:
 
-- **`main`** receives only non-breaking updates — `minor`, `patch`, `digest`,
-  `pin`. These merge like any other fix and ship as a patch release; the
-  `main` → `dev` sync above then carries them forward.
-- **`dev`** additionally receives `major` / breaking dependency bumps, so they
-  are integrated and tested during the feature cycle and only reach `main`
-  through an RC — never as a surprise on the released line.
-- Security fixes (`osvVulnerabilityAlerts`) are raised against whichever
-  branch carries the vulnerable version, without waiting for a release cycle.
+- **`main`** receives only Renovate security fixes (`vulnerabilityAlerts` and
+  `osvVulnerabilityAlerts`). Routine dependency updates are disabled.
+- **`dev`** receives all dependency updates, including major / breaking bumps,
+  so they are integrated and tested during the feature cycle and only reach
+  `main` through an RC — never as a surprise on the released line.
+- Security fixes are raised against whichever branch carries the vulnerable
+  version, without waiting for a release cycle.
 
-When `main` and `dev` hold the same dependency state you will get two
-near-identical PRs; merge the `main` one, and the routine `git merge --no-ff
-origin/main` into `dev` makes Renovate close the redundant `dev` PR on its next
-run.
+Routine dependency updates target only `dev`. Security fixes can target either
+branch when its dependency state is vulnerable.
 
 ## Release candidates
 
