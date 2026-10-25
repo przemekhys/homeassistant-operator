@@ -3,7 +3,39 @@ name: E2E Tests
 on:
   push:
     branches: [main, v*]
+    paths:
+      - "api/**"
+      - "cmd/**"
+      - "internal/**"
+      - "config/**"
+      - "charts/**"
+      - "test/**"
+      - "hack/**"
+      - "Dockerfile"
+      - "bundle.Dockerfile"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "PROJECT"
+      - ".github/actions/**"
+      - ".github/workflows/test-e2e-parallel.yml"
   pull_request:
+    paths:
+      - "api/**"
+      - "cmd/**"
+      - "internal/**"
+      - "config/**"
+      - "charts/**"
+      - "test/**"
+      - "hack/**"
+      - "Dockerfile"
+      - "bundle.Dockerfile"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "PROJECT"
+      - ".github/actions/**"
+      - ".github/workflows/test-e2e-parallel.yml"
 
 permissions:
   contents: read

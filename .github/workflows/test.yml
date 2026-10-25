@@ -3,7 +3,39 @@ name: Tests
 on:
   push:
     branches: [main]
+    paths:
+      - "api/**"
+      - "cmd/**"
+      - "internal/**"
+      - "config/**"
+      - "charts/**"
+      - "test/**"
+      - "hack/**"
+      - "Dockerfile"
+      - "bundle.Dockerfile"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "PROJECT"
+      - ".github/actions/**"
+      - ".github/workflows/test.yml"
   pull_request:
+    paths:
+      - "api/**"
+      - "cmd/**"
+      - "internal/**"
+      - "config/**"
+      - "charts/**"
+      - "test/**"
+      - "hack/**"
+      - "Dockerfile"
+      - "bundle.Dockerfile"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "PROJECT"
+      - ".github/actions/**"
+      - ".github/workflows/test.yml"
 
 permissions:
   contents: read
