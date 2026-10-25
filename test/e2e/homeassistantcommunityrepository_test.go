@@ -274,68 +274,69 @@ spec:
 `, namespace, communityRepoFixtureImage)
 }
 
-var _ = Describe("HomeAssistantCommunityRepository E2E", Label("community-repository"), Ordered, ContinueOnFailure, func() {
-	var (
-		namespace       string
-		haName          string
-		origCodeloadEnv string
-	)
+var _ = Describe("HomeAssistantCommunityRepository E2E",
+	Label("community-repository"), Ordered, ContinueOnFailure, func() {
+		var (
+			namespace       string
+			haName          string
+			origCodeloadEnv string
+		)
 
-	getPhase := func(name string) string {
-		return utils.Kubectl("get", "hacr", name, "-n", namespace, "-o", "jsonpath={.status.phase}")
-	}
-	getInstalledVersion := func(name string) string {
-		return utils.Kubectl("get", "hacr", name, "-n", namespace, "-o", "jsonpath={.status.installedVersion}")
-	}
-	getReadyMessage := func(name string) string {
-		return utils.Kubectl("get", "hacr", name, "-n", namespace,
-			"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].message}")
-	}
+		getPhase := func(name string) string {
+			return utils.Kubectl("get", "hacr", name, "-n", namespace, "-o", "jsonpath={.status.phase}")
+		}
+		getInstalledVersion := func(name string) string {
+			return utils.Kubectl("get", "hacr", name, "-n", namespace, "-o", "jsonpath={.status.installedVersion}")
+		}
+		getReadyMessage := func(name string) string {
+			return utils.Kubectl("get", "hacr", name, "-n", namespace,
+				"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].message}")
+		}
 
-	BeforeAll(func() {
-		namespace = "cr-e2e-" + utils.RandomString(8)
-		haName = "cr-e2e-ha"
+		BeforeAll(func() {
+			namespace = "cr-e2e-" + utils.RandomString(8)
+			haName = "cr-e2e-ha"
 
-		By("Creating test namespace: " + namespace)
-		Expect(utils.CreateNamespace(namespace)).To(Succeed())
+			By("Creating test namespace: " + namespace)
+			Expect(utils.CreateNamespace(namespace)).To(Succeed())
 
-		By("Deploying the community-repository fixture server (stand-in for codeload.github.com)")
-		fixtureCM, err := buildCommunityRepoFixtureTreeConfigMap(namespace)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(utils.ApplyYAML(fixtureCM, namespace)).To(Succeed())
-		Expect(utils.ApplyYAML(communityRepoFixtureServerYAML(namespace), namespace)).To(Succeed())
-		Eventually(func(g Gomega) {
-			available := utils.Kubectl("get", "deployment", "community-repo-fixture-server", "-n", namespace,
-				"-o", "jsonpath={.status.availableReplicas}")
-			g.Expect(available).To(Equal("1"))
-		}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
+			By("Deploying the community-repository fixture server (stand-in for codeload.github.com)")
+			fixtureCM, err := buildCommunityRepoFixtureTreeConfigMap(namespace)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(utils.ApplyYAML(fixtureCM, namespace)).To(Succeed())
+			Expect(utils.ApplyYAML(communityRepoFixtureServerYAML(namespace), namespace)).To(Succeed())
+			Eventually(func(g Gomega) {
+				available := utils.Kubectl("get", "deployment", "community-repo-fixture-server", "-n", namespace,
+					"-o", "jsonpath={.status.availableReplicas}")
+				g.Expect(available).To(Equal("1"))
+			}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
 
-		By("Pointing the operator at the fixture server (test-only env var)")
-		origCodeloadEnv = utils.Kubectl("get", "deployment", "homeassistant-operator-controller-manager",
-			"-n", "homeassistant-operator-system",
-			"-o", "jsonpath={.spec.template.spec.containers[?(@.name=='manager')].env[?"+
-				"(@.name=='COMMUNITY_REPOSITORY_CODELOAD_BASE_URL')].value}")
-		// A trailing dot marks the hostname fully-qualified, skipping resolver
-		// search-domain expansion — harmless everywhere and avoids environments
-		// (observed on at least one dev machine) where an inherited non-cluster
-		// search list makes plain "ndots<5" lookups fail or time out.
-		fixtureURL := fmt.Sprintf("http://community-repo-fixture-server.%s.svc.cluster.local.:8080", namespace)
-		cmd := exec.Command("kubectl", "set", "env",
-			"deployment/homeassistant-operator-controller-manager",
-			"-n", "homeassistant-operator-system", "-c", "manager",
-			"COMMUNITY_REPOSITORY_CODELOAD_BASE_URL="+fixtureURL)
-		_, err = utils.Run(cmd)
-		Expect(err).NotTo(HaveOccurred())
-		Eventually(func(g Gomega) {
-			cmd := exec.Command("kubectl", "rollout", "status",
+			By("Pointing the operator at the fixture server (test-only env var)")
+			origCodeloadEnv = utils.Kubectl("get", "deployment", "homeassistant-operator-controller-manager",
+				"-n", "homeassistant-operator-system",
+				"-o", "jsonpath={.spec.template.spec.containers[?(@.name=='manager')].env[?"+
+					"(@.name=='COMMUNITY_REPOSITORY_CODELOAD_BASE_URL')].value}")
+			// A trailing dot marks the hostname fully-qualified, skipping resolver
+			// search-domain expansion — harmless everywhere and avoids environments
+			// (observed on at least one dev machine) where an inherited non-cluster
+			// search list makes plain "ndots<5" lookups fail or time out.
+			fixtureURL := fmt.Sprintf("http://community-repo-fixture-server.%s.svc.cluster.local.:8080", namespace)
+			cmd := exec.Command("kubectl", "set", "env",
 				"deployment/homeassistant-operator-controller-manager",
-				"-n", "homeassistant-operator-system", "--timeout=60s")
-			_, err := utils.Run(cmd)
-			g.Expect(err).NotTo(HaveOccurred())
-		}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
+				"-n", "homeassistant-operator-system", "-c", "manager",
+				"COMMUNITY_REPOSITORY_CODELOAD_BASE_URL="+fixtureURL)
+			_, err = utils.Run(cmd)
+			Expect(err).NotTo(HaveOccurred())
+			Eventually(func(g Gomega) {
+				cmd := exec.Command("kubectl", "rollout", "status",
+					"deployment/homeassistant-operator-controller-manager",
+					"-n", "homeassistant-operator-system", "--timeout=60s")
+				_, err := utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred())
+			}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
 
-		By("Creating bootstrap credentials Secret")
-		credsYAML := fmt.Sprintf(`apiVersion: v1
+			By("Creating bootstrap credentials Secret")
+			credsYAML := fmt.Sprintf(`apiVersion: v1
 kind: Secret
 metadata:
   name: cr-e2e-bootstrap-creds
@@ -345,10 +346,10 @@ stringData:
   username: admin
   password: e2e-community-repo-pwd-123456
 `, namespace)
-		Expect(utils.ApplyYAML(credsYAML, namespace)).To(Succeed())
+			Expect(utils.ApplyYAML(credsYAML, namespace)).To(Succeed())
 
-		By("Creating HomeAssistant CR with bootstrap enabled")
-		haYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
+			By("Creating HomeAssistant CR with bootstrap enabled")
+			haYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistant
 metadata:
   name: %s
@@ -368,10 +369,10 @@ spec:
     language: "en"
   %s
 `, haName, namespace, haVersion(), haName, utils.GetEnhancedHAResourceRequests())
-		Expect(utils.ApplyYAML(haYAML, namespace)).To(Succeed())
+			Expect(utils.ApplyYAML(haYAML, namespace)).To(Succeed())
 
-		By("Creating HomeAssistantConfiguration CR (python_script enabled for the python_script scenario)")
-		configYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
+			By("Creating HomeAssistantConfiguration CR (python_script enabled for the python_script scenario)")
+			configYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistantConfiguration
 metadata:
   name: %s
@@ -384,60 +385,60 @@ spec:
     default_config:
     python_script:
 `, haName, namespace, haName)
-		Expect(utils.ApplyYAML(configYAML, namespace)).To(Succeed())
+			Expect(utils.ApplyYAML(configYAML, namespace)).To(Succeed())
 
-		By("Waiting for bootstrap to complete")
-		Eventually(func(g Gomega) {
-			output := utils.Kubectl("get", "ha", haName, "-n", namespace,
-				"-o", "jsonpath={.status.bootstrap.completed}")
-			g.Expect(output).To(Equal("true"))
-		}, utils.BootstrapTimeout, bootstrapInterval).Should(Succeed())
+			By("Waiting for bootstrap to complete")
+			Eventually(func(g Gomega) {
+				output := utils.Kubectl("get", "ha", haName, "-n", namespace,
+					"-o", "jsonpath={.status.bootstrap.completed}")
+				g.Expect(output).To(Equal("true"))
+			}, utils.BootstrapTimeout, bootstrapInterval).Should(Succeed())
 
-		By("Waiting for the HA pod to be fully Ready")
-		Eventually(func(g Gomega) {
-			phase := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.phase}")
-			g.Expect(phase).To(Equal("Running"))
-			ready := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
-				"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}")
-			g.Expect(ready).To(Equal("True"))
-		}, utils.HAPodReadyTimeout, haPodReadyInterval).Should(Succeed())
-	})
+			By("Waiting for the HA pod to be fully Ready")
+			Eventually(func(g Gomega) {
+				phase := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.phase}")
+				g.Expect(phase).To(Equal("Running"))
+				ready := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+					"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}")
+				g.Expect(ready).To(Equal("True"))
+			}, utils.HAPodReadyTimeout, haPodReadyInterval).Should(Succeed())
+		})
 
-	AfterAll(func() {
-		By("Restoring the operator's codeload base URL env var")
-		var cmd *exec.Cmd
-		if origCodeloadEnv == "" {
-			cmd = exec.Command("kubectl", "set", "env",
+		AfterAll(func() {
+			By("Restoring the operator's codeload base URL env var")
+			var cmd *exec.Cmd
+			if origCodeloadEnv == "" {
+				cmd = exec.Command("kubectl", "set", "env",
+					"deployment/homeassistant-operator-controller-manager",
+					"-n", "homeassistant-operator-system", "-c", "manager",
+					"COMMUNITY_REPOSITORY_CODELOAD_BASE_URL-")
+			} else {
+				cmd = exec.Command("kubectl", "set", "env",
+					"deployment/homeassistant-operator-controller-manager",
+					"-n", "homeassistant-operator-system", "-c", "manager",
+					"COMMUNITY_REPOSITORY_CODELOAD_BASE_URL="+origCodeloadEnv)
+			}
+			_, envErr := utils.Run(cmd)
+
+			By("Waiting for the operator to finish rolling out with the restored env var")
+			rolloutCmd := exec.Command("kubectl", "rollout", "status",
 				"deployment/homeassistant-operator-controller-manager",
-				"-n", "homeassistant-operator-system", "-c", "manager",
-				"COMMUNITY_REPOSITORY_CODELOAD_BASE_URL-")
-		} else {
-			cmd = exec.Command("kubectl", "set", "env",
-				"deployment/homeassistant-operator-controller-manager",
-				"-n", "homeassistant-operator-system", "-c", "manager",
-				"COMMUNITY_REPOSITORY_CODELOAD_BASE_URL="+origCodeloadEnv)
-		}
-		_, envErr := utils.Run(cmd)
+				"-n", "homeassistant-operator-system", "--timeout=60s")
+			_, rolloutErr := utils.Run(rolloutCmd)
 
-		By("Waiting for the operator to finish rolling out with the restored env var")
-		rolloutCmd := exec.Command("kubectl", "rollout", "status",
-			"deployment/homeassistant-operator-controller-manager",
-			"-n", "homeassistant-operator-system", "--timeout=60s")
-		_, rolloutErr := utils.Run(rolloutCmd)
+			By("Deleting test namespace: " + namespace)
+			_ = utils.DeleteNamespace(namespace)
 
-		By("Deleting test namespace: " + namespace)
-		_ = utils.DeleteNamespace(namespace)
+			Expect(envErr).NotTo(HaveOccurred(), "failed to restore the operator's codeload base URL env var")
+			Expect(rolloutErr).NotTo(HaveOccurred(),
+				"operator did not finish rolling out after the env var was restored")
+		})
 
-		Expect(envErr).NotTo(HaveOccurred(), "failed to restore the operator's codeload base URL env var")
-		Expect(rolloutErr).NotTo(HaveOccurred(),
-			"operator did not finish rolling out after the env var was restored")
-	})
+		It("retries a failed integration download before reporting the repository and config entry Ready",
+			Label("fast"), func() {
+				podStartBefore := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.startTime}")
 
-	It("retries a failed integration download before reporting the repository and config entry Ready",
-		Label("fast"), func() {
-			podStartBefore := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.startTime}")
-
-			hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
+				hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistantCommunityRepository
 metadata:
   name: e2e-integration
@@ -449,10 +450,10 @@ spec:
   repository: %s
   ref: v1.0.0
 `, namespace, haName, crFixtureIntegration)
-			Expect(utils.ApplyYAML(hacrYAML, namespace)).To(Succeed())
+				Expect(utils.ApplyYAML(hacrYAML, namespace)).To(Succeed())
 
-			By("Creating a dependent HomeAssistantIntegration while the custom integration is not materialized")
-			integrationYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
+				By("Creating a dependent HomeAssistantIntegration while the custom integration is not materialized")
+				integrationYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistantIntegration
 metadata:
   name: e2e-custom-integration
@@ -462,86 +463,86 @@ spec:
     name: %s
   domain: example_integration
 `, namespace, haName)
-			Expect(utils.ApplyYAML(integrationYAML, namespace)).To(Succeed())
+				Expect(utils.ApplyYAML(integrationYAML, namespace)).To(Succeed())
 
-			By("Waiting for the fixture server to reject an init-container download")
-			Eventually(func(g Gomega) {
-				cmd := exec.Command("kubectl", "exec", "deployment/community-repo-fixture-server",
-					"-n", namespace, "--", "test", "-f", "/tmp/integration-download-failed")
-				_, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-			}, utils.RestartTimeout, reconcileInterval).Should(Succeed())
+				By("Waiting for the fixture server to reject an init-container download")
+				Eventually(func(g Gomega) {
+					cmd := exec.Command("kubectl", "exec", "deployment/community-repo-fixture-server",
+						"-n", namespace, "--", "test", "-f", "/tmp/integration-download-failed")
+					_, err := utils.Run(cmd)
+					g.Expect(err).NotTo(HaveOccurred())
+				}, utils.RestartTimeout, reconcileInterval).Should(Succeed())
 
-			By("Confirming the failed materialization is not reported as Installed")
-			Eventually(func(g Gomega) {
-				g.Expect(getPhase("e2e-integration")).To(Equal("Installing"))
-				reason := utils.Kubectl("get", "hacr", "e2e-integration", "-n", namespace,
-					"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].reason}")
-				g.Expect(reason).To(Equal("MaterializationFailed"))
-				ready := utils.Kubectl("get", "hacr", "e2e-integration", "-n", namespace,
-					"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}")
-				g.Expect(ready).To(Equal("False"))
-				g.Expect(getInstalledVersion("e2e-integration")).To(BeEmpty())
-			}, utils.RestartTimeout, reconcileInterval).Should(Succeed())
+				By("Confirming the failed materialization is not reported as Installed")
+				Eventually(func(g Gomega) {
+					g.Expect(getPhase("e2e-integration")).To(Equal("Installing"))
+					reason := utils.Kubectl("get", "hacr", "e2e-integration", "-n", namespace,
+						"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].reason}")
+					g.Expect(reason).To(Equal("MaterializationFailed"))
+					ready := utils.Kubectl("get", "hacr", "e2e-integration", "-n", namespace,
+						"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}")
+					g.Expect(ready).To(Equal("False"))
+					g.Expect(getInstalledVersion("e2e-integration")).To(BeEmpty())
+				}, utils.RestartTimeout, reconcileInterval).Should(Succeed())
 
-			failedPodUID := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
-				"-o", "jsonpath={.metadata.uid}")
-			Eventually(func(g Gomega) {
-				restarts := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
-					"-o", "jsonpath={.status.initContainerStatuses[?(@.name=='community-repository-init')].restartCount}")
-				g.Expect(restarts).To(MatchRegexp(`^[1-9][0-9]*$`))
-			}, utils.RestartTimeout, reconcileInterval).Should(Succeed())
+				failedPodUID := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+					"-o", "jsonpath={.metadata.uid}")
+				Eventually(func(g Gomega) {
+					restarts := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+						"-o", "jsonpath={.status.initContainerStatuses[?(@.name=='community-repository-init')].restartCount}")
+					g.Expect(restarts).To(MatchRegexp(`^[1-9][0-9]*$`))
+				}, utils.RestartTimeout, reconcileInterval).Should(Succeed())
 
-			By("Restoring fixture connectivity without restarting the Home Assistant pod")
-			recoverCmd := exec.Command("kubectl", "exec", "deployment/community-repo-fixture-server",
-				"-n", namespace, "--", "touch", "/tmp/allow-integration-download")
-			_, err := utils.Run(recoverCmd)
-			Expect(err).NotTo(HaveOccurred())
+				By("Restoring fixture connectivity without restarting the Home Assistant pod")
+				recoverCmd := exec.Command("kubectl", "exec", "deployment/community-repo-fixture-server",
+					"-n", namespace, "--", "touch", "/tmp/allow-integration-download")
+				_, err := utils.Run(recoverCmd)
+				Expect(err).NotTo(HaveOccurred())
 
-			Eventually(func(g Gomega) {
-				g.Expect(getPhase("e2e-integration")).To(Equal("Installed"))
-			}, utils.HAPodReadyTimeout, reconcileInterval).Should(Succeed())
-			Expect(getInstalledVersion("e2e-integration")).To(Equal("v1.0.0"))
-			Expect(utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
-				"-o", "jsonpath={.metadata.uid}")).To(Equal(failedPodUID),
-				"kubelet must retry the init container in the same pod")
+				Eventually(func(g Gomega) {
+					g.Expect(getPhase("e2e-integration")).To(Equal("Installed"))
+				}, utils.HAPodReadyTimeout, reconcileInterval).Should(Succeed())
+				Expect(getInstalledVersion("e2e-integration")).To(Equal("v1.0.0"))
+				Expect(utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+					"-o", "jsonpath={.metadata.uid}")).To(Equal(failedPodUID),
+					"kubelet must retry the init container in the same pod")
 
-			By("Waiting for the pod restart the integration category requires")
-			Eventually(func(g Gomega) {
-				podStartAfter := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.startTime}")
-				g.Expect(podStartAfter).NotTo(Equal(podStartBefore))
-			}, utils.RestartTimeout, haPodReadyInterval).Should(Succeed())
+				By("Waiting for the pod restart the integration category requires")
+				Eventually(func(g Gomega) {
+					podStartAfter := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.startTime}")
+					g.Expect(podStartAfter).NotTo(Equal(podStartBefore))
+				}, utils.RestartTimeout, haPodReadyInterval).Should(Succeed())
 
-			Eventually(func(g Gomega) {
-				phase := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.phase}")
-				g.Expect(phase).To(Equal("Running"))
-				ready := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
-					"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}")
-				g.Expect(ready).To(Equal("True"))
-			}, utils.HAPodReadyTimeout, haPodReadyInterval).Should(Succeed())
+				Eventually(func(g Gomega) {
+					phase := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.phase}")
+					g.Expect(phase).To(Equal("Running"))
+					ready := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+						"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}")
+					g.Expect(ready).To(Equal("True"))
+				}, utils.HAPodReadyTimeout, haPodReadyInterval).Should(Succeed())
 
-			By("Verifying the integration's files are present on the pod")
-			cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
-				"test", "-f", "/config/custom_components/example_integration/manifest.json")
-			_, err = utils.Run(cmd)
-			Expect(err).NotTo(HaveOccurred())
+				By("Verifying the integration's files are present on the pod")
+				cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
+					"test", "-f", "/config/custom_components/example_integration/manifest.json")
+				_, err = utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
 
-			By("Waiting for the dependent HomeAssistantIntegration config flow to recover")
-			Eventually(func(g Gomega) {
-				ready := utils.Kubectl("get", "haint", "e2e-custom-integration", "-n", namespace,
-					"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}")
-				g.Expect(ready).To(Equal("True"))
-			}, utils.HotReloadTimeout, reconcileInterval).Should(Succeed())
-		})
+				By("Waiting for the dependent HomeAssistantIntegration config flow to recover")
+				Eventually(func(g Gomega) {
+					ready := utils.Kubectl("get", "haint", "e2e-custom-integration", "-n", namespace,
+						"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}")
+					g.Expect(ready).To(Equal("True"))
+				}, utils.HotReloadTimeout, reconcileInterval).Should(Succeed())
+			})
 
-	It("rejects an alpha manifest without changing an installed stable repository",
-		Label("fast"), func() {
-			repositoryUID := utils.Kubectl("get", "hacr", "e2e-integration", "-n", namespace,
-				"-o", "jsonpath={.metadata.uid}")
-			podUID := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
-				"-o", "jsonpath={.metadata.uid}")
+		It("rejects an alpha manifest without changing an installed stable repository",
+			Label("fast"), func() {
+				repositoryUID := utils.Kubectl("get", "hacr", "e2e-integration", "-n", namespace,
+					"-o", "jsonpath={.metadata.uid}")
+				podUID := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+					"-o", "jsonpath={.metadata.uid}")
 
-			alphaYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1alpha1
+				alphaYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1alpha1
 kind: HomeAssistantCommunityRepository
 metadata:
   name: e2e-integration
@@ -553,42 +554,42 @@ spec:
   repository: %s
   ref: v1.0.0
 `, namespace, haName, crFixtureIntegration)
-			Expect(utils.ApplyYAML(alphaYAML, namespace)).NotTo(Succeed())
+				Expect(utils.ApplyYAML(alphaYAML, namespace)).NotTo(Succeed())
 
-			Eventually(func(g Gomega) {
-				g.Expect(getPhase("e2e-integration")).To(Equal("Installed"))
-				g.Expect(getInstalledVersion("e2e-integration")).To(Equal("v1.0.0"))
-				g.Expect(utils.Kubectl("get", "hacr", "e2e-integration", "-n", namespace,
-					"-o", "jsonpath={.metadata.uid}")).To(Equal(repositoryUID))
-				g.Expect(utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
-					"-o", "jsonpath={.metadata.uid}")).To(Equal(podUID))
-			}, utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
-		})
+				Eventually(func(g Gomega) {
+					g.Expect(getPhase("e2e-integration")).To(Equal("Installed"))
+					g.Expect(getInstalledVersion("e2e-integration")).To(Equal("v1.0.0"))
+					g.Expect(utils.Kubectl("get", "hacr", "e2e-integration", "-n", namespace,
+						"-o", "jsonpath={.metadata.uid}")).To(Equal(repositoryUID))
+					g.Expect(utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+						"-o", "jsonpath={.metadata.uid}")).To(Equal(podUID))
+				}, utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
+			})
 
-	It("installs all four hot-reload categories without restarting HA and registers the Lovelace resource",
-		Label("slow"), func() {
-			podUIDBefore := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.metadata.uid}")
-			Expect(podUIDBefore).NotTo(BeEmpty())
-			podStartBefore := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.startTime}")
-			Expect(podStartBefore).NotTo(BeEmpty())
+		It("installs all four hot-reload categories without restarting HA and registers the Lovelace resource",
+			Label("slow"), func() {
+				podUIDBefore := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.metadata.uid}")
+				Expect(podUIDBefore).NotTo(BeEmpty())
+				podStartBefore := utils.Kubectl("get", "pod", haName+"-0", "-n", namespace, "-o", "jsonpath={.status.startTime}")
+				Expect(podStartBefore).NotTo(BeEmpty())
 
-			repositories := []struct {
-				name       string
-				category   string
-				repository string
-				file       string
-			}{
-				{"e2e-theme", "theme", crFixtureTheme, "/config/themes/example_theme.yaml"},
-				{"e2e-python-script", "python_script", crFixturePythonScript, "/config/python_scripts/example_script.py"},
-				{"e2e-template", "template", crFixtureTemplate, "/config/custom_templates/example_template.jinja"},
-				{"e2e-plugin", "plugin", crFixturePlugin, "/config/www/community/example-card.js"},
-			}
+				repositories := []struct {
+					name       string
+					category   string
+					repository string
+					file       string
+				}{
+					{"e2e-theme", "theme", crFixtureTheme, "/config/themes/example_theme.yaml"},
+					{"e2e-python-script", "python_script", crFixturePythonScript, "/config/python_scripts/example_script.py"},
+					{"e2e-template", "template", crFixtureTemplate, "/config/custom_templates/example_template.jinja"},
+					{"e2e-plugin", "plugin", crFixturePlugin, "/config/www/community/example-card.js"},
+				}
 
-			// Create every CR before waiting: their production activation settle delays
-			// and ConfigMap propagation can overlap without changing operator timing.
-			for _, repo := range repositories {
-				By("Creating the " + repo.category + " repository")
-				hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
+				// Create every CR before waiting: their production activation settle delays
+				// and ConfigMap propagation can overlap without changing operator timing.
+				for _, repo := range repositories {
+					By("Creating the " + repo.category + " repository")
+					hacrYAML := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistantCommunityRepository
 metadata:
   name: %s
@@ -600,91 +601,91 @@ spec:
   repository: %s
   ref: v1.0.0
 `, repo.name, namespace, haName, repo.category, repo.repository)
-				Expect(utils.ApplyYAML(hacrYAML, namespace)).To(Succeed())
-			}
+					Expect(utils.ApplyYAML(hacrYAML, namespace)).To(Succeed())
+				}
 
-			for _, repo := range repositories {
-				By("Waiting for " + repo.category + " activation and its materialized file")
-				Eventually(func(g Gomega) {
-					g.Expect(getPhase(repo.name)).To(Equal("Installed"), repo.name)
-					g.Expect(getInstalledVersion(repo.name)).To(Equal("v1.0.0"), repo.name)
-					cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
-						"test", "-f", repo.file)
-					_, err := utils.Run(cmd)
-					g.Expect(err).NotTo(HaveOccurred(), repo.file)
-				}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
-			}
+				for _, repo := range repositories {
+					By("Waiting for " + repo.category + " activation and its materialized file")
+					Eventually(func(g Gomega) {
+						g.Expect(getPhase(repo.name)).To(Equal("Installed"), repo.name)
+						g.Expect(getInstalledVersion(repo.name)).To(Equal("v1.0.0"), repo.name)
+						cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
+							"test", "-f", repo.file)
+						_, err := utils.Run(cmd)
+						g.Expect(err).NotTo(HaveOccurred(), repo.file)
+					}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
+				}
 
-			// The Ready message distinguishes a confirmed Lovelace resource registration
-			// ("reload confirmed") from the YAML-mode fallback path, which also reaches
-			// Installed but never actually registers the resource via the API.
-			Expect(getReadyMessage("e2e-plugin")).To(ContainSubstring("reload confirmed"),
-				"the Lovelace resource must have been actually registered via the API, not just the file placed")
+				// The Ready message distinguishes a confirmed Lovelace resource registration
+				// ("reload confirmed") from the YAML-mode fallback path, which also reaches
+				// Installed but never actually registers the resource via the API.
+				Expect(getReadyMessage("e2e-plugin")).To(ContainSubstring("reload confirmed"),
+					"the Lovelace resource must have been actually registered via the API, not just the file placed")
 
-			Expect(utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
-				"-o", "jsonpath={.metadata.uid}")).To(Equal(podUIDBefore), "hot-reload installs must not replace the pod")
-			Expect(utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
-				"-o", "jsonpath={.status.startTime}")).To(Equal(podStartBefore), "hot-reload installs must not restart the pod")
-		})
+				Expect(utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+					"-o", "jsonpath={.metadata.uid}")).To(Equal(podUIDBefore), "hot-reload installs must not replace the pod")
+				Expect(utils.Kubectl("get", "pod", haName+"-0", "-n", namespace,
+					"-o", "jsonpath={.status.startTime}")).To(Equal(podStartBefore), "hot-reload installs must not restart the pod")
+			})
 
-	It("updates the theme ref while removing the python_script ConfigMap entry and materialized file",
-		Label("fast"), func() {
-			Expect(getPhase("e2e-theme")).To(Equal("Installed"))
-			Expect(getInstalledVersion("e2e-theme")).To(Equal("v1.0.0"))
-			Expect(getPhase("e2e-python-script")).To(Equal("Installed"))
+		It("updates the theme ref while removing the python_script ConfigMap entry and materialized file",
+			Label("fast"), func() {
+				Expect(getPhase("e2e-theme")).To(Equal("Installed"))
+				Expect(getInstalledVersion("e2e-theme")).To(Equal("v1.0.0"))
+				Expect(getPhase("e2e-python-script")).To(Equal("Installed"))
 
-			By("Starting the theme update and python_script deletion before waiting for either")
-			Expect(utils.PatchResource("hacr", "e2e-theme", namespace, "merge", `{"spec":{"ref":"v2.0.0"}}`)).To(Succeed())
-			cmd := exec.Command("kubectl", "delete", "hacr", "e2e-python-script", "-n", namespace, "--wait=false")
-			_, err := utils.Run(cmd)
-			Expect(err).NotTo(HaveOccurred())
-
-			Eventually(func(g Gomega) {
-				g.Expect(getPhase("e2e-theme")).To(Equal("Installing"))
-				g.Expect(getInstalledVersion("e2e-theme")).To(Equal("v1.0.0"),
-					"installedVersion must stay at the old ref until activation is confirmed")
-			}, utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
-
-			Eventually(func(g Gomega) {
-				g.Expect(getPhase("e2e-theme")).To(Equal("Installed"))
-				g.Expect(getInstalledVersion("e2e-theme")).To(Equal("v2.0.0"))
-			}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
-
-			By("Waiting for the sidecar to materialize the updated theme file (~poll interval + propagation)")
-			Eventually(func(g Gomega) {
-				cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
-					"grep", "-q", "version: 2", "/config/themes/example_theme.yaml")
+				By("Starting the theme update and python_script deletion before waiting for either")
+				Expect(utils.PatchResource("hacr", "e2e-theme", namespace, "merge", `{"spec":{"ref":"v2.0.0"}}`)).To(Succeed())
+				cmd := exec.Command("kubectl", "delete", "hacr", "e2e-python-script", "-n", namespace, "--wait=false")
 				_, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-			}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed(),
-				"theme file content must reflect v2.0.0")
+				Expect(err).NotTo(HaveOccurred())
 
-			Eventually(func(g Gomega) {
-				cmd := exec.Command("kubectl", "get", "hacr", "e2e-python-script", "-n", namespace,
-					"--ignore-not-found", "-o", "name")
-				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred(), "kubectl get must succeed")
-				g.Expect(output).To(BeEmpty())
-			}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
+				Eventually(func(g Gomega) {
+					g.Expect(getPhase("e2e-theme")).To(Equal("Installing"))
+					g.Expect(getInstalledVersion("e2e-theme")).To(Equal("v1.0.0"),
+						"installedVersion must stay at the old ref until activation is confirmed")
+				}, utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
 
-			Eventually(func(g Gomega) {
-				cmData := utils.Kubectl("get", "configmap", haName+"-community-repositories", "-n", namespace,
-					"-o", "jsonpath={.data.repositories\\.json}")
-				g.Expect(cmData).NotTo(BeEmpty(), "kubectl get configmap must succeed")
-				g.Expect(cmData).NotTo(ContainSubstring("example_script"))
-			}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
+				Eventually(func(g Gomega) {
+					g.Expect(getPhase("e2e-theme")).To(Equal("Installed"))
+					g.Expect(getInstalledVersion("e2e-theme")).To(Equal("v2.0.0"))
+				}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
 
-			By("Waiting for the sidecar to remove the file from the pod (~poll interval + propagation)")
-			Eventually(func(g Gomega) {
-				// "test -f" alone would exit non-zero both when the file is genuinely
-				// absent and when kubectl exec itself fails to reach the container —
-				// echoing an explicit marker lets the assertion tell those apart instead
-				// of treating a transient connectivity failure as a false-positive pass.
-				cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
-					"sh", "-c", "test -f /config/python_scripts/example_script.py && echo PRESENT || echo ABSENT")
-				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred(), "kubectl exec must reach the home-assistant container")
-				g.Expect(output).To(ContainSubstring("ABSENT"), "file must be removed once the sidecar picks up the deletion")
-			}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
-		})
-})
+				By("Waiting for the sidecar to materialize the updated theme file (~poll interval + propagation)")
+				Eventually(func(g Gomega) {
+					cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
+						"grep", "-q", "version: 2", "/config/themes/example_theme.yaml")
+					_, err := utils.Run(cmd)
+					g.Expect(err).NotTo(HaveOccurred())
+				}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed(),
+					"theme file content must reflect v2.0.0")
+
+				Eventually(func(g Gomega) {
+					cmd := exec.Command("kubectl", "get", "hacr", "e2e-python-script", "-n", namespace,
+						"--ignore-not-found", "-o", "name")
+					output, err := utils.Run(cmd)
+					g.Expect(err).NotTo(HaveOccurred(), "kubectl get must succeed")
+					g.Expect(output).To(BeEmpty())
+				}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+					cmData := utils.Kubectl("get", "configmap", haName+"-community-repositories", "-n", namespace,
+						"-o", "jsonpath={.data.repositories\\.json}")
+					g.Expect(cmData).NotTo(BeEmpty(), "kubectl get configmap must succeed")
+					g.Expect(cmData).NotTo(ContainSubstring("example_script"))
+				}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
+
+				By("Waiting for the sidecar to remove the file from the pod (~poll interval + propagation)")
+				Eventually(func(g Gomega) {
+					// "test -f" alone would exit non-zero both when the file is genuinely
+					// absent and when kubectl exec itself fails to reach the container —
+					// echoing an explicit marker lets the assertion tell those apart instead
+					// of treating a transient connectivity failure as a false-positive pass.
+					cmd := exec.Command("kubectl", "exec", haName+"-0", "-n", namespace, "-c", "home-assistant", "--",
+						"sh", "-c", "test -f /config/python_scripts/example_script.py && echo PRESENT || echo ABSENT")
+					output, err := utils.Run(cmd)
+					g.Expect(err).NotTo(HaveOccurred(), "kubectl exec must reach the home-assistant container")
+					g.Expect(output).To(ContainSubstring("ABSENT"), "file must be removed once the sidecar picks up the deletion")
+				}, crActivationSettleDelay+utils.ReconciliationTimeout, reconcileInterval).Should(Succeed())
+			})
+	})
