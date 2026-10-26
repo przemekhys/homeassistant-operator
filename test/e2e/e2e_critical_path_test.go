@@ -1176,7 +1176,7 @@ spec:
 		).Should(BeTrue(), "observed recovery request replayed")
 	})
 
-	It("legacy adoption reports collisions and retains its original token until deliberate cleanup", func() {
+	It("legacy-token migration needs no bootstrap credentials and retains its original token", func() {
 		migrationName := "ha-migration"
 		manifest := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
 kind: HomeAssistant
@@ -1219,7 +1219,12 @@ spec:
 		}, utils.BootstrapTimeout, bootstrapInterval).Should(Equal("true"))
 		legacyName := migrationName + "-homeassistant-api-token"
 		legacyToken := criticalPathOperatorToken(namespace, legacyName)
-		_, err := utils.Run(
+		By("Removing bootstrap credentials before migration; only the legacy API token remains")
+		_, err := utils.Run(exec.Command("kubectl", "delete", "secret", "ha-bootstrap-creds", "-n", namespace))
+		Expect(err).NotTo(HaveOccurred())
+		migrationPatch := fmt.Sprintf(
+			`{"spec":{"bootstrap":{"operatorAccount":{"mode":"dedicated","tokenSecretName":%q}}}}`, legacyName)
+		_, err = utils.Run(
 			exec.Command(
 				"kubectl",
 				"patch",
@@ -1229,7 +1234,7 @@ spec:
 				namespace,
 				"--type=merge",
 				"-p",
-				`{"spec":{"bootstrap":{"operatorAccount":{"mode":"dedicated","tokenSecretName":"ha-bootstrap-creds"}}}}`,
+				migrationPatch,
 			),
 		)
 		Expect(err).NotTo(HaveOccurred())

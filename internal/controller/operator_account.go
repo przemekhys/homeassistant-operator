@@ -29,6 +29,7 @@ const (
 	operatorRecoveryAnnotation       = "homeassistant-operator.io/last-recovery-request-id"
 	operatorRecoveryResultAnnotation = "homeassistant-operator.io/recovery-result"
 	operatorLegacyAnnotation         = "homeassistant-operator.io/legacy-secret-name"
+	operatorOnboardingAnnotation     = "homeassistant-operator.io/onboarding-started"
 	operatorAdminGroup               = "system-admin"
 )
 
@@ -228,6 +229,36 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 		if err := r.Update(ctx, secret); err != nil {
 			return r.operatorSecretWriteFailure(ctx, ha, err)
 		}
+	} else {
+		if legacy := r.legacyMigrationSecretName(ha, secret); legacy != "" {
+			return r.migrateOperatorAccount(ctx, ha, secret, haClient, legacy)
+		}
+		if err := haClient.CheckAPIReady(ctx); err != nil {
+			if haclient.IsBanned(err) {
+				return r.handleSelfBan(ctx, ha, err)
+			}
+			return r.operatorAccountStatus(ctx, ha, secret, reasonHomeAssistantUnavailable,
+				"Waiting for Home Assistant API readiness")
+		}
+		err := haClient.CheckOnboardingStatus(ctx)
+		if haclient.IsOnboardingDone(err) && secret.Annotations[operatorOnboardingAnnotation] != "true" {
+			return r.migrateOperatorAccount(ctx, ha, secret, haClient, r.getAPITokenSecretName(ha))
+		}
+		if err != nil && !haclient.IsOnboardingDone(err) {
+			if haclient.IsBanned(err) {
+				return r.handleSelfBan(ctx, ha, err)
+			}
+			return r.operatorAccountStatus(ctx, ha, secret, reasonHomeAssistantUnavailable,
+				"Waiting to determine Home Assistant onboarding state")
+		}
+		if err == nil && secret.Annotations[operatorOnboardingAnnotation] != "true" {
+			// Remember that this resource observed a fresh instance before creating
+			// its owner, so a restart can finish onboarding without a legacy token.
+			secret.Annotations[operatorOnboardingAnnotation] = "true"
+			if err := r.Update(ctx, secret); err != nil {
+				return r.operatorSecretWriteFailure(ctx, ha, err)
+			}
+		}
 	}
 	if err := r.validateBootstrapConfig(ha); err != nil {
 		return r.operatorAccountStatus(
@@ -250,18 +281,6 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 	}
 	onboardingAlreadyDone := false
 	if !recovery {
-		if err := haClient.CheckAPIReady(ctx); err != nil {
-			if haclient.IsBanned(err) {
-				return r.handleSelfBan(ctx, ha, err)
-			}
-			return r.operatorAccountStatus(
-				ctx,
-				ha,
-				secret,
-				reasonHomeAssistantUnavailable,
-				"Waiting for Home Assistant API readiness",
-			)
-		}
 		opts := &haclient.BootstrapOptions{
 			EnableAnalytics: ha.Spec.Bootstrap.Analytics,
 			CoreConfig:      r.buildCoreConfigRequest(ha),
@@ -301,19 +320,23 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 			"Cannot authenticate bootstrap owner; correct credentials and submit a new recoveryRequestID",
 		)
 	}
-	if onboardingAlreadyDone {
-		if req := r.buildCoreConfigRequest(ha); req != nil {
-			err := haClient.ResumeBootstrapCoreConfig(ctx, session.AccessToken, req, ha.Spec.Bootstrap.Analytics)
-			if err != nil {
-				if haclient.IsBanned(err) {
-					return r.handleSelfBan(ctx, ha, err)
-				}
-				return r.operatorAccountStatus(ctx, ha, secret, reasonHomeAssistantUnavailable,
-					fmt.Sprintf("Requested core configuration (including country) was not applied: %v", err))
-			}
-		}
+	if err := r.applyOperatorBootstrapCoreConfig(
+		ctx,
+		ha,
+		haClient,
+		session.AccessToken,
+		onboardingAlreadyDone,
+	); err != nil {
+		return r.operatorCoreConfigFailure(ctx, ha, secret, err)
 	}
-	if err := r.provisionOperatorCredential(ctx, ha, secret, haClient, session.AccessToken, recovery); err != nil {
+	return r.completeOperatorProvisioning(ctx, ha, secret, haClient, session.AccessToken, recovery)
+}
+
+func (r *HomeAssistantReconciler) completeOperatorProvisioning(
+	ctx context.Context, ha *hav1.HomeAssistant, secret *corev1.Secret,
+	haClient *haclient.Client, adminToken string, recovery bool,
+) (ctrl.Result, error) {
+	if err := r.provisionOperatorCredential(ctx, ha, secret, haClient, adminToken, recovery); err != nil {
 		logOperatorProvisioningError(ctx, err)
 		if haclient.IsBanned(err) {
 			return r.handleSelfBan(ctx, ha, err)
@@ -321,6 +344,10 @@ func (r *HomeAssistantReconciler) runOperatorProvisioning(
 		if apierrors.IsForbidden(err) || apierrors.IsUnauthorized(err) {
 			return r.operatorAccountStatus(ctx, ha, secret, reasonSecretAccessDenied,
 				"Cannot write managed token Secret; check managed-namespace permissions")
+		}
+		if !recovery && secret.Annotations[operatorLegacyAnnotation] != "" {
+			return r.operatorAccountStatus(ctx, ha, secret, reasonMigrationFailed,
+				"Legacy-token migration failed; check administrator permissions and provisioning checkpoints")
 		}
 		return r.operatorAccountStatus(
 			ctx,

@@ -52,6 +52,7 @@ onboarding pending     → onboard owner → provision dedicated user → verify
 dedicated verified     → check operator token only; do not read bootstrap Secret
 token missing/rejected → Degraded; no automatic credential mutation
 new recovery request   → consume request → owner login → replace and verify token
+legacy migration       → verify legacy administrator token → provision dedicated identity
 ```
 
 Dedicated account and recovery checkpoints live in managed Secret annotations;
@@ -64,6 +65,12 @@ triggering recovery. See [recover the operator credential](../how-to/recover-ope
 
 Legacy mode remains opt-in compatible with existing administrator-derived token
 behavior until an administrator deliberately selects dedicated mode.
+
+Migration uses the existing legacy API token and never starts an owner password
+login, allowing owner MFA to stay enabled. A fresh-instance onboarding marker
+in the managed Secret distinguishes interrupted initial onboarding from an
+existing installation that must supply a legacy token. Recovery keeps its
+existing explicit owner-credential flow.
 
 ## IP ban self-recovery
 

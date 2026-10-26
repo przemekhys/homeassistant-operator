@@ -131,7 +131,12 @@ func TestBootstrapCoreConfigFailureStatusAndRetry(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !ha.Status.Bootstrap.Completed || result.RequeueAfter != 0 || updates.Load() != 2 {
-				t.Fatalf("retry did not complete: status=%+v result=%+v writes=%d", ha.Status.Bootstrap, result, updates.Load())
+				t.Fatalf(
+					"retry did not complete: status=%+v result=%+v writes=%d",
+					ha.Status.Bootstrap,
+					result,
+					updates.Load(),
+				)
 			}
 		})
 	}
@@ -158,6 +163,10 @@ func TestDedicatedBootstrapCoreConfigFailure(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ha, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "owner", Namespace: ha.Namespace},
 		Data:       map[string][]byte{"username": []byte("owner"), "password": []byte("password")},
+	}, &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "home-homeassistant-api-token", Namespace: ha.Namespace},
+		Type:       corev1.SecretTypeOpaque,
+		Data:       map[string][]byte{"token": []byte("owner-token")},
 	}).WithStatusSubresource(&hav1.HomeAssistant{}).Build()
 	var writes atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -167,6 +176,7 @@ func TestDedicatedBootstrapCoreConfigFailure(t *testing.T) {
 		case "/api/onboarding":
 			w.WriteHeader(http.StatusNotFound)
 		case "/auth/login_flow":
+			t.Error("migration must use the legacy token instead of owner password login")
 			_ = json.NewEncoder(w).Encode(map[string]string{"flow_id": "flow", "type": "form"})
 		case "/auth/login_flow/flow":
 			_ = json.NewEncoder(w).Encode(map[string]string{"type": "create_entry", "result": "code"})
@@ -184,6 +194,14 @@ func TestDedicatedBootstrapCoreConfigFailure(t *testing.T) {
 			_ = conn.ReadJSON(&auth)
 			_ = conn.WriteJSON(map[string]any{"type": "auth_ok"})
 			_ = conn.ReadJSON(&cmd)
+			if auth["access_token"] != "owner-token" {
+				t.Error("wrong migration credential")
+			}
+			if cmd["type"] == "auth/current_user" {
+				_ = conn.WriteJSON(map[string]any{"id": cmd["id"], "type": "result", "success": true,
+					"result": haclient.AuthUser{ID: "owner-id", IsOwner: true, IsAdmin: true}})
+				return
+			}
 			if cmd["type"] != "config/core/update" || cmd["country"] != "PL" {
 				t.Errorf("unexpected command before settings were applied: %v", cmd)
 			}

@@ -61,6 +61,11 @@ readiness. `OperatorCredentialReady=True` uses `Verified`;
 | `SecretAccessDenied` | Required managed-namespace Secret access is denied |
 | `RequiresElevatedRole` | The token identifies the dedicated user but that user lacks the required administrator role |
 | `RecoveryFailed` | Recovery failed or was interrupted; repair prerequisites and submit a new request ID |
+| `LegacyCredentialMissing` | Migration source token Secret is missing; restore it in the HomeAssistant namespace |
+| `LegacyCredentialMalformed` | Migration source Secret is not Opaque, lacks a usable token, or collides with the target |
+| `LegacyCredentialRejected` | Migration source token is rejected or identifies the dedicated identity instead of the existing administrator |
+| `LegacyCredentialRequiresAdmin` | Migration source token lacks Home Assistant administrator permissions |
+| `MigrationFailed` | Dedicated account provisioning with the verified legacy token failed; check permissions and provisioning checkpoints |
 | `HomeAssistantUnavailable` | Availability wait with bounded retry, not credential degradation or authorization to recover |
 
 Credential failures set `Degraded=True`. See

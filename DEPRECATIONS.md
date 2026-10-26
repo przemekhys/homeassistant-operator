@@ -61,9 +61,14 @@ does not migrate accounts or delete existing token Secrets automatically.
 Before upgrading to v2.0.0, follow the
 [dedicated account migration procedure](docs/how-to/bootstrap-instance.md#migrate-an-existing-installation).
 Select `dedicated` mode with an unused namespace-local `tokenSecretName`, retain
-valid bootstrap owner credentials during migration, and wait for
+the valid legacy API token with Home Assistant administrator permissions during
+migration, and wait for
 `OperatorCredentialReady=True` and `migrationPhase: Completed`. Only then revoke
 the legacy token and remove its Secret deliberately.
+
+Migration uses the existing token rather than owner password login, so owner MFA
+can remain enabled. Missing or invalid legacy tokens block migration with an
+actionable condition; bootstrap credentials are not used as a fallback.
 
 Rollback to `legacy` remains available in v1.x while the old token is valid;
 complete migration before upgrading to v2.0.0.

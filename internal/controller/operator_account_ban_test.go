@@ -39,6 +39,7 @@ func TestDedicatedAccountBanRecovery(t *testing.T) {
 		{"runtime rate limited", "/api/websocket", true, 429},
 		{"readiness ban", "/api/config", false, 403},
 		{"onboarding ban", "/api/", false, 403},
+		{"onboarding state ban", "/api/onboarding", false, 403},
 		{"login flow ban", "/auth/login_flow", false, 403},
 		{"credential login ban", "/auth/login_flow/flow", false, 403},
 		{"token exchange ban", "/auth/token", false, 403},
@@ -63,6 +64,11 @@ func TestDedicatedAccountBanRecovery(t *testing.T) {
 						OperatorAccount: &hav1.OperatorAccountSpec{Mode: "dedicated", TokenSecretName: "operator"},
 					},
 				},
+			}
+			// Owner password authentication belongs to initial onboarding or an
+			// explicit recovery request; migration authenticates with its legacy token.
+			if !tc.runtime && (strings.HasPrefix(tc.path, "/auth/") || tc.path == "/api/websocket") {
+				ha.Spec.Bootstrap.OperatorAccount.RecoveryRequestID = "ban-check"
 			}
 			{
 				ha.Status.BanRestartWindowCount = 1
@@ -127,7 +133,7 @@ func TestDedicatedAccountBanRecovery(t *testing.T) {
 				case "/api/":
 					w.WriteHeader(http.StatusOK)
 				case "/api/onboarding":
-					w.WriteHeader(http.StatusNotFound)
+					_ = json.NewEncoder(w).Encode([]haclient.OnboardingStep{{Step: "user"}})
 				case "/auth/login_flow":
 					_ = json.NewEncoder(w).Encode(map[string]string{"flow_id": "flow", "type": "form"})
 				case "/auth/login_flow/flow":
