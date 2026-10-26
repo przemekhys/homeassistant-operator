@@ -724,7 +724,8 @@ func (c *Client) ConfigureBackup(
 	return err
 }
 
-// SetCoreConfig configures location and core settings during onboarding
+// SetCoreConfig completes the core_config onboarding step. Home Assistant does
+// not apply the request's settings here; UpdateCoreConfig performs that write.
 func (c *Client) SetCoreConfig(ctx context.Context, accessToken string, req *CoreConfigRequest) error {
 	body, err := json.Marshal(req)
 	if err != nil {
@@ -760,6 +761,83 @@ func (c *Client) SetCoreConfig(ctx context.Context, accessToken string, req *Cor
 	}
 
 	return nil
+}
+
+// UpdateCoreConfig applies the requested settings, including country, rather than
+// treating completion of the onboarding step as a successful settings write.
+func (c *Client) UpdateCoreConfig(ctx context.Context, token string, req *CoreConfigRequest) error {
+	data := make(map[string]interface{})
+	if req.Latitude != nil {
+		data["latitude"] = *req.Latitude
+	}
+	if req.Longitude != nil {
+		data["longitude"] = *req.Longitude
+	}
+	if req.Elevation != nil {
+		data["elevation"] = *req.Elevation
+	}
+	for key, value := range map[string]string{
+		"location_name": req.LocationName, "unit_system": req.UnitSystem,
+		"currency": req.Currency, "time_zone": req.TimeZone, "country": req.Country,
+	} {
+		if value != "" {
+			data[key] = value
+		}
+	}
+	if _, err := c.SendWebSocketCommand(ctx, token, "config/core/update", data); err != nil {
+		if IsBanned(err) {
+			return err
+		}
+		return fmt.Errorf("requested core configuration (including country) was not applied: %w", err)
+	}
+	return nil
+}
+
+// ResumeBootstrapCoreConfig finishes any remaining onboarding steps before
+// retrying the settings write. It never creates another owner account.
+func (c *Client) ResumeBootstrapCoreConfig(
+	ctx context.Context, token string, req *CoreConfigRequest, analytics bool,
+) error {
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/onboarding", nil)
+	if err != nil {
+		return err
+	}
+	httpReq.Header.Set("User-Agent", userAgent)
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("failed to check remaining onboarding steps: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode == http.StatusForbidden {
+		return ipBannedError()
+	}
+	if resp.StatusCode != http.StatusNotFound {
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("failed to check remaining onboarding steps (HTTP %d)", resp.StatusCode)
+		}
+		var steps []OnboardingStep
+		if err := json.NewDecoder(resp.Body).Decode(&steps); err != nil {
+			return fmt.Errorf("failed to decode remaining onboarding steps: %w", err)
+		}
+		for _, step := range steps {
+			if step.Done {
+				continue
+			}
+			switch step.Step {
+			case "core_config":
+				if err := c.SetCoreConfig(ctx, token, req); err != nil {
+					return fmt.Errorf("requested core configuration (including country) was not applied: %w", err)
+				}
+			case "analytics":
+				_ = c.SetAnalytics(ctx, token, analytics)
+			case "integration":
+				if err := c.CompleteIntegrationStep(ctx, token); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return c.UpdateCoreConfig(ctx, token, req)
 }
 
 // SetAnalytics configures analytics preferences during onboarding
@@ -815,9 +893,16 @@ func (c *Client) SetAnalytics(ctx context.Context, accessToken string, enabled b
 // This is the 4th and final onboarding step required by Home Assistant.
 // Without it, non-admin users are blocked from accessing the websocket API.
 func (c *Client) CompleteIntegrationStep(ctx context.Context, accessToken string) error {
+	// HA requires the same client identity used for the authentication flow,
+	// even though the operator does not follow the resulting redirect.
+	clientID := c.baseURL + "/"
+	body, err := json.Marshal(map[string]string{"client_id": clientID, "redirect_uri": clientID})
+	if err != nil {
+		return &Error{Type: ErrorTypeHTTP, Message: "failed to marshal integration request", Err: err}
+	}
 	httpReq, err := http.NewRequestWithContext(
 		ctx, "POST", c.baseURL+"/api/onboarding/integration",
-		bytes.NewReader([]byte("{}")),
+		bytes.NewReader(body),
 	)
 	if err != nil {
 		return &Error{Type: ErrorTypeHTTP, Message: "failed to create request", Err: err}
@@ -860,10 +945,11 @@ type BootstrapOptions struct {
 // 2. Check onboarding status
 // 3. Create user
 // 4. Exchange auth code for token
-// 5. Set core config (location) if provided
+// 5. Complete core config onboarding step if location was provided
 // 6. Set analytics preferences
 // 7. Complete integration step (marks onboarding as fully done)
-// 8. Create long-lived token (if requested)
+// 8. Apply requested core settings via WebSocket
+// 9. Create long-lived token (if requested)
 // Returns the long-lived token or empty string if not created
 func (c *Client) PerformBootstrap(
 	ctx context.Context,
@@ -907,10 +993,11 @@ func (c *Client) PerformBootstrap(
 		return "", err
 	}
 
-	// 5. Set core config (location) if provided - requires auth token
+	// 5. Complete core_config onboarding if location was requested.
 	if opts.CoreConfig != nil {
-		// Ignore errors - core config is optional and failure doesn't block bootstrap
-		_ = c.SetCoreConfig(ctx, tokenResp.AccessToken, opts.CoreConfig)
+		if err := c.SetCoreConfig(ctx, tokenResp.AccessToken, opts.CoreConfig); err != nil {
+			return "", fmt.Errorf("requested core configuration (including country) was not applied: %w", err)
+		}
 	}
 
 	// 6. Set analytics preferences - requires auth token
@@ -918,13 +1005,19 @@ func (c *Client) PerformBootstrap(
 	_ = c.SetAnalytics(ctx, tokenResp.AccessToken, opts.EnableAnalytics)
 
 	// 7. Complete integration step - marks onboarding as fully done
-	// Unlike core_config/analytics, this is NOT optional: without it
+	// This is required even when no core settings were requested: without it
 	// non-admin users are blocked from accessing the websocket API.
 	if err := c.CompleteIntegrationStep(ctx, tokenResp.AccessToken); err != nil {
 		return "", err
 	}
+	if opts.CoreConfig != nil {
+		// 8. Persist the requested settings, not just onboarding progress.
+		if err := c.UpdateCoreConfig(ctx, tokenResp.AccessToken, opts.CoreConfig); err != nil {
+			return "", err
+		}
+	}
 
-	// 8. Create long-lived token if requested
+	// 9. Create long-lived token if requested
 	if !opts.CreateLongLivedToken {
 		return "", nil
 	}

@@ -47,6 +47,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Bootstrap core settings failures are reported and retried.** Requested
+  location settings, including country, are applied through WebSocket
+  `config/core/update`; completing the HTTP onboarding step alone does not
+  apply them. Both credential modes keep bootstrap unready when the write fails
+  and resume without recreating the owner, including when API token creation is
+  disabled. Unspecified coordinates and elevation are preserved, while explicit
+  zero values are supported.
+
 - **Legacy-mode post-bootstrap health checks now authenticate with the API token.** When
   available, the operator sends its long-lived token with the periodic `GET
   /api/` probe, preventing Home Assistant from recording the probe as a failed

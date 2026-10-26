@@ -59,15 +59,16 @@ type LongLivedTokenResponse struct {
 	Token string
 }
 
-// CoreConfigRequest represents POST /api/onboarding/core_config request
+// CoreConfigRequest contains the requested settings for config/core/update.
 type CoreConfigRequest struct {
-	LocationName string  `json:"location_name,omitempty"`
-	Latitude     float64 `json:"latitude,omitempty"`
-	Longitude    float64 `json:"longitude,omitempty"`
-	Elevation    int     `json:"elevation,omitempty"`
-	UnitSystem   string  `json:"unit_system,omitempty"` // "metric" or "us_customary"
-	Currency     string  `json:"currency,omitempty"`
-	TimeZone     string  `json:"time_zone,omitempty"`
+	LocationName string   `json:"location_name,omitempty"`
+	Latitude     *float64 `json:"latitude,omitempty"`
+	Longitude    *float64 `json:"longitude,omitempty"`
+	Elevation    *int     `json:"elevation,omitempty"`
+	UnitSystem   string   `json:"unit_system,omitempty"` // "metric" or "us_customary"
+	Currency     string   `json:"currency,omitempty"`
+	TimeZone     string   `json:"time_zone,omitempty"`
+	Country      string   `json:"country,omitempty"`
 }
 
 // AnalyticsRequest represents POST /api/onboarding/analytics request

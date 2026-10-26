@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/utils/ptr"
 )
 
 func TestHAClient(t *testing.T) {
@@ -519,8 +520,8 @@ var _ = Describe("HAClient", func() {
 				err := json.NewDecoder(r.Body).Decode(&req)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(req.LocationName).To(Equal("Home"))
-				Expect(req.Latitude).To(Equal(52.2297))
-				Expect(req.Longitude).To(Equal(21.0122))
+				Expect(req.Latitude).To(HaveValue(Equal(52.2297)))
+				Expect(req.Longitude).To(HaveValue(Equal(21.0122)))
 				Expect(req.UnitSystem).To(Equal("metric"))
 
 				w.WriteHeader(http.StatusOK)
@@ -529,8 +530,8 @@ var _ = Describe("HAClient", func() {
 			client = NewClient(server.URL)
 			err := client.SetCoreConfig(ctx, "test-token", &CoreConfigRequest{
 				LocationName: "Home",
-				Latitude:     52.2297,
-				Longitude:    21.0122,
+				Latitude:     ptr.To(52.2297),
+				Longitude:    ptr.To(21.0122),
 				UnitSystem:   "metric",
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -1002,8 +1003,8 @@ var _ = Describe("HAClient", func() {
 				CreateLongLivedToken: true,
 				CoreConfig: &CoreConfigRequest{
 					LocationName: "Home",
-					Latitude:     52.2297,
-					Longitude:    21.0122,
+					Latitude:     ptr.To(52.2297),
+					Longitude:    ptr.To(21.0122),
 					UnitSystem:   "metric",
 				},
 				EnableAnalytics: true,
