@@ -171,11 +171,19 @@ func TestDedicatedCredentialHealth(t *testing.T) {
 	}
 }
 
-// exercise the full external identity boundary, including restart reconstruction,
-// without requiring a live Home Assistant or Kubernetes API server.
-//
-//nolint:gocyclo // This sequential lifecycle scenario keeps its external API fixture and restart assertions together.
 func TestDedicatedProvisionAndRecovery(t *testing.T) {
+	for _, migration := range []bool{true, false} {
+		t.Run(
+			fmt.Sprintf("migration=%v", migration),
+			func(t *testing.T) { testDedicatedProvisionAndRecovery(t, migration) },
+		)
+	}
+}
+
+// Exercise the full identity boundary, including restart reconstruction.
+//
+//nolint:gocyclo // Keep the sequential lifecycle and its external API fixture together.
+func testDedicatedProvisionAndRecovery(t *testing.T, migration bool) {
 	ctx := context.Background()
 	scheme := runtime.NewScheme()
 	_ = hav1.AddToScheme(scheme)
@@ -196,15 +204,21 @@ func TestDedicatedProvisionAndRecovery(t *testing.T) {
 	}
 	legacy := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "legacy", Namespace: "home"},
+		Type:       corev1.SecretTypeOpaque,
 		Data:       map[string][]byte{"token": []byte("legacy-token")},
 	}
-	ha.Status.Bootstrap = &hav1.BootstrapStatus{Completed: true, APITokenSecretName: "legacy"}
+	if migration {
+		ha.Status.Bootstrap = &hav1.BootstrapStatus{Completed: true, APITokenSecretName: "legacy"}
+	}
 	ha.Status.BanRestartWindowCount = 1
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(ha).WithObjects(ha, bootstrap, legacy).Build()
 	var mu sync.Mutex
 	var users []haclient.AuthUser
 	created, issued, resets, ownerLogins := 0, 0, 0, 0
 	loginUser := ""
+	ownerMFAEnabled := migration
+	onboardingComplete := migration
+	freshLoginRetryPending := !migration
 	passwords := []string{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		mu.Lock()
@@ -220,8 +234,25 @@ func TestDedicatedProvisionAndRecovery(t *testing.T) {
 		case "/api/config":
 			w.WriteHeader(http.StatusUnauthorized)
 		case "/api/onboarding":
-			w.WriteHeader(http.StatusNotFound)
+			if onboardingComplete {
+				w.WriteHeader(http.StatusNotFound)
+			} else {
+				write([]haclient.OnboardingStep{{Step: "user"}})
+			}
+		case "/api/onboarding/users":
+			loginUser = "owner"
+			write(map[string]string{"auth_code": "onboarding-code"})
+		case "/api/onboarding/analytics":
+			write(map[string]interface{}{})
+		case "/api/onboarding/integration":
+			onboardingComplete = true
+			write(map[string]interface{}{})
 		case "/auth/login_flow":
+			if freshLoginRetryPending {
+				freshLoginRetryPending = false
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
 			write(map[string]string{"flow_id": "flow", "type": "form"})
 		case "/auth/login_flow/flow":
 			var credentials map[string]string
@@ -229,6 +260,10 @@ func TestDedicatedProvisionAndRecovery(t *testing.T) {
 			loginUser = credentials["username"]
 			if loginUser == "owner" {
 				ownerLogins++
+				if ownerMFAEnabled {
+					write(map[string]interface{}{"type": "form", "step_id": "mfa", "errors": map[string]string{}})
+					return
+				}
 			} else if credentials["password"] == "owner-password" {
 				t.Error("operator reused owner password")
 			}
@@ -287,6 +322,10 @@ func TestDedicatedProvisionAndRecovery(t *testing.T) {
 				issued++
 				result = fmt.Sprintf("operator-token-%d", issued)
 			case "auth/current_user":
+				if auth["access_token"] == "legacy-token" {
+					result = haclient.AuthUser{ID: "owner-id", IsOwner: true, IsAdmin: true}
+					break
+				}
 				principal := users[0]
 				principal.IsAdmin = true
 				result = principal
@@ -305,6 +344,8 @@ func TestDedicatedProvisionAndRecovery(t *testing.T) {
 		Scheme:      scheme,
 		NewHAClient: func(string) *haclient.Client { return haclient.NewClient(server.URL) },
 	}
+	ownerReads := &bootstrapCredentialReadTracker{Client: c}
+	r.Client = ownerReads
 	reconcile := func() {
 		t.Helper()
 		if err := c.Get(ctx, client.ObjectKeyFromObject(ha), ha); err != nil {
@@ -314,10 +355,23 @@ func TestDedicatedProvisionAndRecovery(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if token, err := getAPIToken(ctx, c, ha); err != nil || token != "legacy-token" {
-		t.Fatal("migration prematurely removed legacy access")
+	if migration {
+		if token, err := getAPIToken(ctx, c, ha); err != nil || token != "legacy-token" {
+			t.Fatal("migration prematurely removed legacy access")
+		}
 	}
 	reconcile()
+	if !migration {
+		if condition := meta.FindStatusCondition(
+			ha.Status.Conditions,
+			conditionOperatorCredentialReady,
+		); condition == nil ||
+			condition.Reason != reasonRecoveryFailed {
+			t.Fatal("fresh bootstrap did not observe the simulated login outage")
+		}
+		// Restart after owner onboarding but before dedicated user provisioning.
+		reconcile()
+	}
 	secret := &corev1.Secret{}
 	if ha.Status.BanRestartWindowCount != 0 {
 		t.Fatal("successful full provisioning did not reset ban recovery")
@@ -331,8 +385,17 @@ func TestDedicatedProvisionAndRecovery(t *testing.T) {
 	if len(secret.Data) != 1 || len(secret.Data["token"]) == 0 {
 		t.Fatal("unexpected credential payload")
 	}
+	expectedLegacy := ""
+	expectedOwnerLogins := 1
+	if migration {
+		expectedLegacy = "legacy"
+		expectedOwnerLogins = 0
+		if ownerReads.reads != 0 {
+			t.Fatal("migration read bootstrap owner credentials")
+		}
+	}
 	if ha.Status.Bootstrap.OperatorAccount.UserID != "operator-id" ||
-		ha.Status.Bootstrap.OperatorAccount.LegacySecretName != "legacy" {
+		ha.Status.Bootstrap.OperatorAccount.LegacySecretName != expectedLegacy {
 		t.Fatal("missing identity or migration status")
 	}
 	// Verified identity, migration, and retirement reconstruct entirely from the
@@ -356,7 +419,7 @@ func TestDedicatedProvisionAndRecovery(t *testing.T) {
 	}
 	reconcile()
 	reconcile()
-	if ownerLogins != 1 || created != 1 || issued != 1 {
+	if ownerLogins != expectedOwnerLogins || created != 1 || issued != 1 {
 		t.Fatal("routine reconcile reused bootstrap or issued credentials")
 	}
 	serialized, _ := json.Marshal(ha.Status)
@@ -401,13 +464,16 @@ func TestDedicatedProvisionAndRecovery(t *testing.T) {
 	if issued != 1 {
 		t.Fatal("failed request replayed after status loss")
 	}
+	mu.Lock()
+	ownerMFAEnabled = false
+	mu.Unlock()
 	ha.Spec.Bootstrap.OperatorAccount.RecoveryRequestID = "request-2"
 	if err := c.Update(ctx, ha); err != nil {
 		t.Fatal(err)
 	}
 	reconcile()
 	reconcile()
-	if created != 1 || issued != 2 || resets != 1 {
+	if created != 1 || issued != 2 || resets != 1 || ownerLogins != expectedOwnerLogins+1 {
 		t.Fatalf("created=%d issued=%d resets=%d", created, issued, resets)
 	}
 	if ha.Status.Bootstrap.OperatorAccount.RecoveryResult != "Succeeded" {
@@ -416,6 +482,23 @@ func TestDedicatedProvisionAndRecovery(t *testing.T) {
 	if err := c.Get(ctx, types.NamespacedName{Name: "legacy", Namespace: "home"}, legacy); err != nil {
 		t.Fatal("legacy Secret deleted")
 	}
+}
+
+type bootstrapCredentialReadTracker struct {
+	client.Client
+	reads int
+}
+
+func (c *bootstrapCredentialReadTracker) Get(
+	ctx context.Context,
+	key client.ObjectKey,
+	obj client.Object,
+	opts ...client.GetOption,
+) error {
+	if _, ok := obj.(*corev1.Secret); ok && key.Name == "bootstrap" {
+		c.reads++
+	}
+	return c.Client.Get(ctx, key, obj, opts...)
 }
 
 type deniedOperatorSecretClient struct{ client.Client }

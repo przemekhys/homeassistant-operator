@@ -55,6 +55,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   disabled. Unspecified coordinates and elevation are preserved, while explicit
   zero values are supported.
 
+- **Dedicated-account migration works while the owner has MFA enabled.**
+  Migration now verifies and uses the existing legacy administrator API token
+  instead of logging in with the bootstrap owner password. Missing, malformed,
+  rejected, or insufficiently privileged source tokens produce actionable
+  conditions without falling back to password login. The legacy Secret is
+  retained until the dedicated credential verifies and remains available for
+  deliberate cleanup. Initial onboarding and explicit recovery retain their
+  credential-based flows; MFA support for recovery is unchanged.
+
 - **Legacy-mode post-bootstrap health checks now authenticate with the API token.** When
   available, the operator sends its long-lived token with the periodic `GET
   /api/` probe, preventing Home Assistant from recording the probe as a failed

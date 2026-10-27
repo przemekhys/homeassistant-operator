@@ -25,6 +25,7 @@ func TestHAClient(t *testing.T) {
 func TestAccountIPBanErrors(t *testing.T) {
 	for _, tc := range []struct{ name, path string }{
 		{"readiness", "/api/config"}, {"websocket", "/api/websocket"},
+		{"onboarding state", "/api/onboarding"},
 		{"create user", "/api/onboarding/users"}, {"login flow", "/auth/login_flow"},
 		{"credentials", "/auth/login_flow/flow"}, {"token exchange", "/auth/token"},
 	} {
@@ -48,6 +49,8 @@ func TestAccountIPBanErrors(t *testing.T) {
 			switch tc.name {
 			case "readiness":
 				err = c.CheckAPIReady(ctx)
+			case "onboarding state":
+				err = c.CheckOnboardingStatus(ctx)
 			case "websocket":
 				_, err = c.CurrentUser(ctx, "token")
 			case "create user":

@@ -190,6 +190,9 @@ func (c *Client) CheckOnboardingStatus(ctx context.Context) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	if resp.StatusCode == http.StatusForbidden {
+		return ipBannedError()
+	}
 	// 404 = onboarding fully complete (HA does not register the endpoint).
 	// Include a snippet of the body so callers can distinguish a proper
 	// backend 404 from an unexpected proxy/HTML 404.

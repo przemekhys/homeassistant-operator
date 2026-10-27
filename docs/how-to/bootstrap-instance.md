@@ -155,14 +155,35 @@ bootstrap:
     rollback to legacy mode remain available during v1.x while the old token
     is valid.
 
-First upgrade the CRDs and operator. Keep the current token Secret and valid
-bootstrap owner credentials. Set an unused dedicated Secret name:
+First upgrade the CRDs and operator. Keep the current legacy token Secret: its
+token must still authenticate as a Home Assistant administrator. Migration
+verifies that principal and uses the token to provision the dedicated identity.
+It does not read the bootstrap owner password or start an owner login flow, so
+the owner can keep MFA enabled. Set an unused dedicated Secret name:
 
 ```sh
 kubectl patch ha home --type=merge -p '{"spec":{"bootstrap":{"operatorAccount":{"mode":"dedicated","tokenSecretName":"home-operator-token"}}}}'
 kubectl wait ha home --for=condition=OperatorCredentialReady --timeout=5m
 kubectl get ha home -o jsonpath='{.status.bootstrap.operatorAccount}'
 ```
+
+Leave `recoveryRequestID` unchanged during migration. Recovery is a separate,
+explicit operation and retains its existing owner username/password flow; this
+migration change does not add MFA support to recovery.
+
+The source Secret name comes from bootstrap status and is recorded in the
+managed dedicated Secret's metadata so migration can resume after status loss.
+For an already-onboarded instance without that status, the operator uses
+`bootstrap.apiTokenSecretName`, or `<ha-name>-homeassistant-api-token` when it is
+omitted. Both source and target Secrets stay in the HomeAssistant namespace.
+
+If the legacy credential is missing, malformed, rejected, or lacks administrator
+permissions, migration reports `LegacyCredentialMissing`,
+`LegacyCredentialMalformed`, `LegacyCredentialRejected`, or
+`LegacyCredentialRequiresAdmin`. Restore the source credential or its permissions
+and reconciliation retries token verification. There is no fallback to owner
+password login and no need to disable MFA. Account-provisioning failures report
+`MigrationFailed`; no credential value appears in status.
 
 Runtime consumers retain the legacy token until the dedicated replacement is
 verified. Status then reports `migrationPhase: Completed` and

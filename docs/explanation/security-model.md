@@ -106,7 +106,10 @@ may still configure independent webhook certificate permissions.
 
 Omitting the new configuration preserves legacy administrator-derived tokens
 and their existing namespace-local Secret. Migration is explicit and retains
-the old Secret for administrator-directed cleanup; see
+the old Secret for administrator-directed cleanup. Migration authenticates with
+that legacy API token after checking its identity and administrator role; it
+does not read bootstrap owner credentials or require disabling owner MFA. It
+does not fall back to password login if the legacy token is unavailable. See
 [bootstrap and migration](../how-to/bootstrap-instance.md) and
 [credential recovery](../how-to/recover-operator-credential.md).
 
