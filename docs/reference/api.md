@@ -952,7 +952,8 @@ _Appears in:_
 
 HomeAssistantIntegration manages a Home Assistant integration (config entry) via the Config Flow API.
 It supports create, adopt, reconfigure (delete+re-create on spec change), and cleanup via finalizer.
-Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).
+It also supports the explicit Generic Camera user_confirm step; other multi-step
+Config Flows are not supported (e.g. ZHA, Zigbee2MQTT).
 
 
 
@@ -1001,7 +1002,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `homeAssistantRef` _[HomeAssistantReference](#homeassistantreference)_ | HomeAssistantRef references the HomeAssistant instance to configure |  | Required: \{\} <br /> |
 | `domain` _string_ | Domain is the integration name in Home Assistant (e.g. "mqtt", "esphome", "recorder") |  | MinLength: 1 <br />Required: \{\} <br /> |
-| `configuration` _object (keys:string, values:[IntegrationValue](#integrationvalue))_ | Configuration contains fields submitted to the Config Flow (single-step flows only).<br />Keys are field names from the data_schema; values are plain text or Secret references. |  | Optional: \{\} <br /> |
+| `configuration` _object (keys:string, values:[IntegrationValue](#integrationvalue))_ | Configuration contains fields submitted to the initial Config Flow form.<br />Keys are field names from the data_schema; values are plain text or Secret references. |  | Optional: \{\} <br /> |
 
 
 #### HomeAssistantIntegrationStatus

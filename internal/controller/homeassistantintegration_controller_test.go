@@ -530,6 +530,119 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 			)))
 		})
 
+		It("should confirm the Generic Camera user_confirm step with the schema payload", func() {
+			integration := &hav1.HomeAssistantIntegration{
+				ObjectMeta: metav1.ObjectMeta{Name: "int-generic-camera", Namespace: namespace},
+				Spec: hav1.HomeAssistantIntegrationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{Name: haName},
+					Domain:           "generic",
+					Configuration: map[string]hav1.IntegrationValue{
+						"stream_source": {Value: ptr.To("rtsp://camera.default.svc/live")},
+						"advanced":      {JSONValue: ptr.To(`{"framerate":2.5,"verify_ssl":false}`)},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, integration)).To(Succeed())
+
+			mockServer.Close()
+			submissions := make(chan map[string]interface{}, 2)
+			mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch {
+				case r.Method == http.MethodGet && r.URL.Path == "/api/config/config_entries/entry":
+					_ = json.NewEncoder(w).Encode([]haclient.ConfigEntry{})
+				case r.Method == http.MethodPost && r.URL.Path == "/api/config/config_entries/flow":
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{
+						"flow_id": "generic-flow-001", "type": "form", "step_id": "user",
+					})
+				case r.Method == http.MethodPost && r.URL.Path == "/api/config/config_entries/flow/generic-flow-001":
+					body := map[string]interface{}{}
+					Expect(json.NewDecoder(r.Body).Decode(&body)).To(Succeed())
+					submissions <- body
+					if body["confirmed_ok"] == true {
+						result, _ := json.Marshal(map[string]string{
+							"entry_id": "generic-entry-001", "domain": "generic", "title": "Generic Camera",
+						})
+						_ = json.NewEncoder(w).Encode(map[string]interface{}{
+							"flow_id": "generic-flow-001", "type": "create_entry", "result": json.RawMessage(result),
+						})
+						return
+					}
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{
+						"flow_id": "generic-flow-001", "type": "form", "step_id": "user_confirm",
+						"data_schema": []interface{}{map[string]interface{}{
+							"name": "confirmed_ok", "required": true, "type": "boolean",
+						}},
+					})
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			reconciler.NewHAClient = func(_ string) *haclient.Client { return haclient.NewClient(mockServer.URL) }
+
+			Expect(reconcileIntegrationTwice(integration.Name)).To(Succeed())
+			Eventually(submissions, timeout, interval).Should(Receive(And(
+				HaveKeyWithValue("stream_source", "rtsp://camera.default.svc/live"),
+				HaveKeyWithValue("advanced", And(
+					HaveKeyWithValue("framerate", BeNumerically("==", 2.5)),
+					HaveKeyWithValue("verify_ssl", false),
+				)),
+			)))
+			Eventually(submissions, timeout, interval).Should(Receive(Equal(map[string]interface{}{"confirmed_ok": true})))
+			Eventually(func(g Gomega) {
+				updated := &hav1.HomeAssistantIntegration{}
+				key := types.NamespacedName{Name: integration.Name, Namespace: namespace}
+				g.Expect(k8sClient.Get(ctx, key, updated)).To(Succeed())
+				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
+				g.Expect(condition).NotTo(BeNil())
+				g.Expect(condition.Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(updated.Status.EntryID).To(Equal("generic-entry-001"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should reject an unrecognized Generic Camera follow-up form", func() {
+			integration := &hav1.HomeAssistantIntegration{
+				ObjectMeta: metav1.ObjectMeta{Name: "int-generic-unknown-step", Namespace: namespace},
+				Spec: hav1.HomeAssistantIntegrationSpec{
+					HomeAssistantRef: hav1.HomeAssistantReference{Name: haName},
+					Domain:           "generic",
+					Configuration:    map[string]hav1.IntegrationValue{"stream_source": {Value: ptr.To("rtsp://camera/live")}},
+				},
+			}
+			Expect(k8sClient.Create(ctx, integration)).To(Succeed())
+
+			mockServer.Close()
+			followUpPosts := make(chan struct{}, 1)
+			mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch {
+				case r.Method == http.MethodGet && r.URL.Path == "/api/config/config_entries/entry":
+					_ = json.NewEncoder(w).Encode([]haclient.ConfigEntry{})
+				case r.Method == http.MethodPost && r.URL.Path == "/api/config/config_entries/flow":
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{"flow_id": "generic-flow-unknown", "type": "form"})
+				case r.Method == http.MethodPost:
+					followUpPosts <- struct{}{}
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{
+						"flow_id": "generic-flow-unknown", "type": "form", "step_id": "unexpected",
+						"data_schema": []interface{}{map[string]interface{}{"name": "code", "required": true, "type": "string"}},
+					})
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			reconciler.NewHAClient = func(_ string) *haclient.Client { return haclient.NewClient(mockServer.URL) }
+
+			Expect(reconcileIntegrationTwice(integration.Name)).To(Succeed())
+			Eventually(followUpPosts, timeout, interval).Should(Receive())
+			Consistently(followUpPosts, time.Second, interval).ShouldNot(Receive())
+			updated := &hav1.HomeAssistantIntegration{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: integration.Name, Namespace: namespace}, updated)).To(Succeed())
+			condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
+			Expect(condition).NotTo(BeNil())
+			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
+			Expect(condition.Reason).To(Equal(reasonConfigFlowFailed))
+		})
+
 		It("should fail resolution when jsonValue is invalid JSON", func() {
 			integration := &hav1.HomeAssistantIntegration{
 				ObjectMeta: metav1.ObjectMeta{
