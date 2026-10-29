@@ -39,7 +39,8 @@ spec:
         description: |-
           HomeAssistantIntegration manages a Home Assistant integration (config entry) via the Config Flow API.
           It supports create, adopt, reconfigure (delete+re-create on spec change), and cleanup via finalizer.
-          Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).
+          It also supports the explicit Generic Camera user_confirm step; other multi-step
+          Config Flows are not supported (e.g. ZHA, Zigbee2MQTT).
         properties:
           apiVersion:
             description: |-
@@ -126,7 +127,7 @@ spec:
                       0) + (has(self.secretKeyRef) ? 1 : 0) + (has(self.fileSecretKeyRef)
                       ? 1 : 0) == 1'
                 description: |-
-                  Configuration contains fields submitted to the Config Flow (single-step flows only).
+                  Configuration contains fields submitted to the initial Config Flow form.
                   Keys are field names from the data_schema; values are plain text or Secret references.
                 type: object
               domain:
