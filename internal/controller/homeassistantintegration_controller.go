@@ -322,7 +322,8 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 // Home Assistant's Generic Camera Config Flow. Do not generalize this to other
 // forms: both their step IDs and required payloads are integration-specific.
 func isGenericCameraUserConfirm(domain string, response *haclient.FlowResponse) bool {
-	if domain != "generic" || response.Type != "form" || response.StepID != "user_confirm" || len(response.DataSchema) != 1 {
+	if domain != "generic" || response.Type != "form" ||
+		response.StepID != "user_confirm" || len(response.DataSchema) != 1 {
 		return false
 	}
 	field := response.DataSchema[0]

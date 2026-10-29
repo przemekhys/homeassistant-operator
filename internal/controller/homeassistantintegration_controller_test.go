@@ -591,7 +591,8 @@ var _ = Describe("HomeAssistantIntegration Controller", func() {
 			Eventually(submissions, timeout, interval).Should(Receive(Equal(map[string]interface{}{"confirmed_ok": true})))
 			Eventually(func(g Gomega) {
 				updated := &hav1.HomeAssistantIntegration{}
-				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: integration.Name, Namespace: namespace}, updated)).To(Succeed())
+				key := types.NamespacedName{Name: integration.Name, Namespace: namespace}
+				g.Expect(k8sClient.Get(ctx, key, updated)).To(Succeed())
 				condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeReady)
 				g.Expect(condition).NotTo(BeNil())
 				g.Expect(condition.Status).To(Equal(metav1.ConditionTrue))
