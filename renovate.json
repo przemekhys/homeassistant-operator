@@ -28,9 +28,8 @@
       "enabled": false
     },
     {
-      "description": "Keep main on non-breaking updates only; majors/breaking changes are integrated and tested on dev first (see docs/development/branching.md)",
+      "description": "Only vulnerability alerts update main; routine dependency updates are integrated and tested on dev first (see docs/development/branching.md)",
       "matchBaseBranches": ["main"],
-      "matchUpdateTypes": ["major"],
       "enabled": false
     }
   ],
