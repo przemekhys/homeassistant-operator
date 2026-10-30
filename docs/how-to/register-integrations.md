@@ -11,7 +11,7 @@
 ## Use cases
 
 - Register MQTT broker after deploying Mosquitto via Helm
-- Configure ESPHome, recorder, or other single-step integrations
+- Configure ESPHome, recorder, Generic Camera, or other supported integrations
 - Adopt an integration that was configured manually in the HA UI
 
 ## MQTT example
@@ -73,7 +73,9 @@ kubectl patch haint mqtt --type=merge \
 
 ## Limitations
 
-- Only **single-step** Config Flows are supported (MQTT, ESPHome, recorder, etc.)
+- **Single-step** Config Flows are supported (MQTT, ESPHome, recorder, etc.).
+  Generic Camera is also supported through its explicit `user_confirm` preview step;
+  other multi-step flows are not supported.
 - Multi-step flows (ZHA, Zigbee2MQTT) require physical device interaction — not automatable
 - The operator passes `spec.configuration` values as-is; field names must match what HA expects for that domain
 

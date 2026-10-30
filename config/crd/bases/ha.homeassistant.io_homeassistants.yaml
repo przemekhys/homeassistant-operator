@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.22.0
+    controller-gen.kubebuilder.io/version: v0.23.0
   name: homeassistants.ha.homeassistant.io
 spec:
   group: ha.homeassistant.io
@@ -2206,7 +2206,16 @@ spec:
                           silently re-defaulted to true by the API server once that happens.
                         type: boolean
                     type: object
+                  tls:
+                    description: |-
+                      TLS is retained only so removed native TLS declarations produce an
+                      actionable validation error instead of being silently pruned.
+                    type: object
                 type: object
+                x-kubernetes-validations:
+                - message: spec.alpha.tls has been removed; use spec.ingress.tls or
+                    spec.gateway for HTTPS
+                  rule: '!has(self.tls)'
               annotations:
                 additionalProperties:
                   type: string
@@ -2339,6 +2348,263 @@ spec:
                       Location configures the location settings during onboarding
                       If not specified, location configuration step is skipped
                     properties:
+                      country:
+                        description: |-
+                          Country is an ISO 3166-1 alpha-2 code from Home Assistant 2026.10.3 COUNTRIES.
+                          Source: https://github.com/home-assistant/core/blob/2026.10.3/homeassistant/generated/countries.py
+                          Keep this enum aligned with COUNTRIES when updating the supported HA version.
+                          An explicit homeassistant.country in HomeAssistantConfiguration takes precedence.
+                        enum:
+                        - AD
+                        - AE
+                        - AF
+                        - AG
+                        - AI
+                        - AL
+                        - AM
+                        - AO
+                        - AQ
+                        - AR
+                        - AS
+                        - AT
+                        - AU
+                        - AW
+                        - AX
+                        - AZ
+                        - BA
+                        - BB
+                        - BD
+                        - BE
+                        - BF
+                        - BG
+                        - BH
+                        - BI
+                        - BJ
+                        - BL
+                        - BM
+                        - BN
+                        - BO
+                        - BQ
+                        - BR
+                        - BS
+                        - BT
+                        - BV
+                        - BW
+                        - BY
+                        - BZ
+                        - CA
+                        - CC
+                        - CD
+                        - CF
+                        - CG
+                        - CH
+                        - CI
+                        - CK
+                        - CL
+                        - CM
+                        - CN
+                        - CO
+                        - CR
+                        - CU
+                        - CV
+                        - CW
+                        - CX
+                        - CY
+                        - CZ
+                        - DE
+                        - DJ
+                        - DK
+                        - DM
+                        - DO
+                        - DZ
+                        - EC
+                        - EE
+                        - EG
+                        - EH
+                        - ER
+                        - ES
+                        - ET
+                        - FI
+                        - FJ
+                        - FK
+                        - FM
+                        - FO
+                        - FR
+                        - GA
+                        - GB
+                        - GD
+                        - GE
+                        - GF
+                        - GG
+                        - GH
+                        - GI
+                        - GL
+                        - GM
+                        - GN
+                        - GP
+                        - GQ
+                        - GR
+                        - GS
+                        - GT
+                        - GU
+                        - GW
+                        - GY
+                        - HK
+                        - HM
+                        - HN
+                        - HR
+                        - HT
+                        - HU
+                        - ID
+                        - IE
+                        - IL
+                        - IM
+                        - IN
+                        - IO
+                        - IQ
+                        - IR
+                        - IS
+                        - IT
+                        - JE
+                        - JM
+                        - JO
+                        - JP
+                        - KE
+                        - KG
+                        - KH
+                        - KI
+                        - KM
+                        - KN
+                        - KP
+                        - KR
+                        - KW
+                        - KY
+                        - KZ
+                        - LA
+                        - LB
+                        - LC
+                        - LI
+                        - LK
+                        - LR
+                        - LS
+                        - LT
+                        - LU
+                        - LV
+                        - LY
+                        - MA
+                        - MC
+                        - MD
+                        - ME
+                        - MF
+                        - MG
+                        - MH
+                        - MK
+                        - ML
+                        - MM
+                        - MN
+                        - MO
+                        - MP
+                        - MQ
+                        - MR
+                        - MS
+                        - MT
+                        - MU
+                        - MV
+                        - MW
+                        - MX
+                        - MY
+                        - MZ
+                        - NA
+                        - NC
+                        - NE
+                        - NF
+                        - NG
+                        - NI
+                        - NL
+                        - "NO"
+                        - NP
+                        - NR
+                        - NU
+                        - NZ
+                        - OM
+                        - PA
+                        - PE
+                        - PF
+                        - PG
+                        - PH
+                        - PK
+                        - PL
+                        - PM
+                        - PN
+                        - PR
+                        - PS
+                        - PT
+                        - PW
+                        - PY
+                        - QA
+                        - RE
+                        - RO
+                        - RS
+                        - RU
+                        - RW
+                        - SA
+                        - SB
+                        - SC
+                        - SD
+                        - SE
+                        - SG
+                        - SH
+                        - SI
+                        - SJ
+                        - SK
+                        - SL
+                        - SM
+                        - SN
+                        - SO
+                        - SR
+                        - SS
+                        - ST
+                        - SV
+                        - SX
+                        - SY
+                        - SZ
+                        - TC
+                        - TD
+                        - TF
+                        - TG
+                        - TH
+                        - TJ
+                        - TK
+                        - TL
+                        - TM
+                        - TN
+                        - TO
+                        - TR
+                        - TT
+                        - TV
+                        - TW
+                        - TZ
+                        - UA
+                        - UG
+                        - UM
+                        - US
+                        - UY
+                        - UZ
+                        - VA
+                        - VC
+                        - VE
+                        - VG
+                        - VI
+                        - VN
+                        - VU
+                        - WF
+                        - WS
+                        - YE
+                        - YT
+                        - ZA
+                        - ZM
+                        - ZW
+                        type: string
                       currency:
                         description: Currency is the ISO 4217 currency code (e.g.,
                           "USD", "EUR", "PLN")
@@ -2371,6 +2637,38 @@ spec:
                         - us_customary
                         type: string
                     type: object
+                  operatorAccount:
+                    description: |-
+                      OperatorAccount selects a separate Home Assistant identity. Omission preserves legacy behavior.
+                      Legacy behavior is deprecated since v1.7.0 and scheduled for removal in v2.0.0.
+                    properties:
+                      mode:
+                        default: legacy
+                        description: |-
+                          Mode preserves legacy administrator tokens unless dedicated is explicitly selected.
+                          The legacy value is deprecated since v1.7.0 and scheduled for removal in v2.0.0.
+                          Migrate existing installations to dedicated before upgrading to v2.0.0.
+                        enum:
+                        - legacy
+                        - dedicated
+                        type: string
+                      recoveryRequestID:
+                        description: |-
+                          RecoveryRequestID authorizes one recovery using the retained bootstrap owner credential.
+                          Change it to a new non-empty value to request another attempt.
+                        maxLength: 128
+                        type: string
+                      tokenSecretName:
+                        description: TokenSecretName names the managed Opaque Secret
+                          in the HomeAssistant namespace.
+                        maxLength: 253
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                        type: string
+                    type: object
+                    x-kubernetes-validations:
+                    - message: dedicated mode requires tokenSecretName
+                      rule: self.mode != 'dedicated' || (has(self.tokenSecretName)
+                        && size(self.tokenSecretName) > 0)
                   ownerName:
                     default: Admin
                     description: OwnerName is the display name for the owner user
@@ -3964,6 +4262,46 @@ spec:
                       (which does not update when only the Reason changes).
                     format: date-time
                     type: string
+                  operatorAccount:
+                    description: OperatorAccount contains identifiers and lifecycle
+                      observations, never credentials.
+                    properties:
+                      capability:
+                        description: Capability describes the explicit Home Assistant
+                          role.
+                        type: string
+                      lastRecoveryRequestID:
+                        description: LastRecoveryRequestID projects the durable managed-Secret
+                          annotation.
+                        type: string
+                      legacySecretName:
+                        description: LegacySecretName identifies the retained administrator-derived
+                          token Secret.
+                        type: string
+                      migrationPhase:
+                        description: MigrationPhase is Provisioning or Completed during
+                          legacy adoption.
+                        type: string
+                      phase:
+                        description: Phase is Provisioning, Verified, or Failed.
+                        type: string
+                      recoveryResult:
+                        description: RecoveryResult is Succeeded, Failed, or empty
+                          when no request was observed.
+                        type: string
+                      tokenSecretName:
+                        description: TokenSecretName identifies the verified token
+                          Secret.
+                        type: string
+                      tokenSecretNamespace:
+                        description: TokenSecretNamespace is always the HomeAssistant
+                          namespace.
+                        type: string
+                      userID:
+                        description: UserID identifies the dedicated Home Assistant
+                          user.
+                        type: string
+                    type: object
                 type: object
               conditions:
                 description: Conditions represent the latest available observations

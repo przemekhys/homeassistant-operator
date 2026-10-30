@@ -20,6 +20,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// HomeAssistantReference references the HomeAssistant instance a dashboard targets.
+type HomeAssistantReference struct {
+	// Name of the HomeAssistant resource.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+}
+
 // ConfigMapKeyReference identifies one dashboard definition in a ConfigMap in
 // the same namespace as the HomeAssistantDashboard.
 type ConfigMapKeyReference struct {

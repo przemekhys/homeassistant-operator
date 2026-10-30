@@ -7,8 +7,8 @@
 # and FAILS if HEAD grants any triple that N-1 did not, unless that triple is
 # explicitly justified in hack/rbac-allowlist.txt.
 #
-# N-1 is resolved via hack/lib-helm.sh (HELM_N1_VERSION override or newest git
-# tag). If N-1 cannot be determined (e.g. first release), the gate passes.
+# N-1 is resolved via hack/lib-helm.sh (HELM_N1_VERSION override or latest stable
+# GitHub Release). If no stable release exists, the gate passes.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

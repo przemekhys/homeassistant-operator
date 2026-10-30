@@ -18,6 +18,12 @@ successful automation, scene or script reload is reported only as the
 
 ## HomeAssistant
 
+Dedicated credential lifecycle results are durable status conditions
+(`OperatorCredentialReady`, `Degraded`) and recovery request observations, not
+credential-bearing Events. No event includes the operator token or temporary
+password. See [conditions](conditions.md) and
+[explicit recovery](../how-to/recover-operator-credential.md).
+
 | Event | Type | Meaning |
 |-------|------|---------|
 | `BanRecoveryRestart` | Normal | Home Assistant had banned the operator's IP; the pod was restarted to clear the ban |
@@ -27,7 +33,6 @@ successful automation, scene or script reload is reported only as the
 | `CertificateRequested` | Normal | A cert-manager `Certificate` was created for the instance |
 | `CertManagerUnavailable` | Warning | A cert-manager-backed mode is enabled but cert-manager is not installed. Exposure keeps working over HTTP. |
 | `ExposureConfigured` | Normal | Ingress or Gateway resources were reconciled |
-| `NativeTLSRemoved` | Warning | Emitted once on an instance that still had the removed native-TLS mode enabled, while cleaning up after it |
 
 ## HomeAssistantConfiguration
 

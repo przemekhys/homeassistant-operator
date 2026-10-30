@@ -47,6 +47,30 @@ Reasons that appear on more than one resource mean the same thing everywhere:
 | `LoginRecoveryFailed` | Onboarding was already done and the given credentials did not work |
 | `BootstrapFailed` | See `message` |
 
+### `OperatorCredentialReady` and `Degraded`
+
+Dedicated mode reports credential health separately from onboarding and pod
+readiness. `OperatorCredentialReady=True` uses `Verified`;
+`Degraded=False` uses `AsExpected`.
+
+| Reason | Meaning |
+|--------|---------|
+| `CredentialMissing` | Managed token Secret is missing; restore it or explicitly request recovery |
+| `CredentialMalformed` | Token data, metadata, type, or owner reference is invalid; unrelated Secrets are never overwritten |
+| `CredentialRejected` | Home Assistant rejected the runtime token, or the token identifies a different user or the human owner |
+| `SecretAccessDenied` | Required managed-namespace Secret access is denied |
+| `RequiresElevatedRole` | The token identifies the dedicated user but that user lacks the required administrator role |
+| `RecoveryFailed` | Recovery failed or was interrupted; repair prerequisites and submit a new request ID |
+| `LegacyCredentialMissing` | Migration source token Secret is missing; restore it in the HomeAssistant namespace |
+| `LegacyCredentialMalformed` | Migration source Secret is not Opaque, lacks a usable token, or collides with the target |
+| `LegacyCredentialRejected` | Migration source token is rejected or identifies the dedicated identity instead of the existing administrator |
+| `LegacyCredentialRequiresAdmin` | Migration source token lacks Home Assistant administrator permissions |
+| `MigrationFailed` | Dedicated account provisioning with the verified legacy token failed; check permissions and provisioning checkpoints |
+| `HomeAssistantUnavailable` | Availability wait with bounded retry, not credential degradation or authorization to recover |
+
+Credential failures set `Degraded=True`. See
+[explicit recovery](../how-to/recover-operator-credential.md).
+
 ### `BanRecoveryFailed`
 
 Home Assistant can ban the operator's own IP after repeated failed logins. The
@@ -94,10 +118,6 @@ operator recovers by restarting the pod — see
 | Reason | Meaning |
 |--------|---------|
 | `ExposureReady` | Ingress or Gateway resources are reconciled |
-
-!!! note "`TLSReady` is gone"
-    Older releases set a `TLSReady` condition for the removed native-TLS mode.
-    The operator now strips it from any resource that still carries it.
 
 ## HomeAssistantConfiguration
 
@@ -190,9 +210,7 @@ starts.
 ## HomeAssistantCommunityRepository
 
 Stable (`v1`). `status.phase` carries the same information in a single field:
-`Pending → Validating → Installing → Installed`, or `Failed`. The prior
-`v1alpha1` version is deprecated but remains temporarily supported for existing
-manifests.
+`Pending → Validating → Installing → Installed`, or `Failed`.
 
 ### `Ready`
 

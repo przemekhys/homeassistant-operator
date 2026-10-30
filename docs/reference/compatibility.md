@@ -46,7 +46,7 @@ and its absence is reported as a status condition rather than an error — see
 
 | | |
 |---|---|
-| Go | **1.26** or newer (`go.mod`) |
+| Go | **1.27** or newer (`go.mod`) |
 | Container runtime | Docker or Podman |
 
 See [contributing](../development/contributing.md).

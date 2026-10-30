@@ -257,7 +257,7 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 			fmt.Sprintf("Adopted existing %s integration", integration.Spec.Domain), configHash)
 	}
 
-	// --- SUBMIT CONFIG FLOW (single-step) ---
+	// --- SUBMIT CONFIG FLOW ---
 	uploadedIDs, uploadErr := uploadFiles(ctx, haClient, token, flowResp.DataSchema, pendingFiles, resolvedConfig)
 	if uploadErr != nil {
 		cleanupUploadedFiles(ctx, haClient, token, uploadedIDs)
@@ -278,14 +278,37 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 			return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
 				fmt.Sprintf("Failed to submit config flow: %v", submitErr), 30*time.Second)
 		}
-		if submitResp.Type != "create_entry" {
+		if submitResp.Type == "create_entry" {
+			return r.handleCreateEntry(ctx, integration, configHash, submitResp, log)
+		}
+
+		// Generic Camera validates the stream and then requires an explicit
+		// confirmation of its preview. This is intentionally the only supported
+		// second step: Config Flow step IDs and payloads are integration-specific.
+		if isGenericCameraUserConfirm(integration.Spec.Domain, submitResp) {
+			confirmResp, confirmErr := haClient.SubmitConfigFlow(ctx, token, submitResp.FlowID,
+				map[string]interface{}{"confirmed_ok": true})
+			if confirmErr != nil {
+				cleanupUploadedFiles(ctx, haClient, token, uploadedIDs)
+				log.Error(confirmErr, "Failed to confirm Generic Camera config flow")
+				return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
+					fmt.Sprintf("Failed to confirm Generic Camera config flow: %v", confirmErr), 30*time.Second)
+			}
+			if confirmResp.Type == "create_entry" {
+				return r.handleCreateEntry(ctx, integration, configHash, confirmResp, log)
+			}
 			cleanupUploadedFiles(ctx, haClient, token, uploadedIDs)
 			r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
-				fmt.Sprintf("Config flow for %s did not reach create_entry (got: %s)", integration.Spec.Domain, submitResp.Type))
+				fmt.Sprintf("Generic Camera confirmation did not reach create_entry (got: %s)", confirmResp.Type))
 			return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
-				fmt.Sprintf("Config flow did not complete: type=%s", submitResp.Type), 30*time.Second)
+				fmt.Sprintf("Generic Camera confirmation did not complete: type=%s", confirmResp.Type), 30*time.Second)
 		}
-		return r.handleCreateEntry(ctx, integration, configHash, submitResp, log)
+
+		cleanupUploadedFiles(ctx, haClient, token, uploadedIDs)
+		r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
+			fmt.Sprintf("Config flow for %s did not reach create_entry (got: %s)", integration.Spec.Domain, submitResp.Type))
+		return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
+			fmt.Sprintf("Config flow did not complete: type=%s", submitResp.Type), 30*time.Second)
 	}
 
 	// No configuration and flow returned a form — we can't proceed without data_schema fields
@@ -293,6 +316,18 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 		fmt.Sprintf("Config flow for %s requires configuration fields but none provided", integration.Spec.Domain))
 	return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
 		"Config flow requires configuration fields but spec.configuration is empty", 0)
+}
+
+// isGenericCameraUserConfirm recognizes the exact confirmation form exposed by
+// Home Assistant's Generic Camera Config Flow. Do not generalize this to other
+// forms: both their step IDs and required payloads are integration-specific.
+func isGenericCameraUserConfirm(domain string, response *haclient.FlowResponse) bool {
+	if domain != "generic" || response.Type != "form" ||
+		response.StepID != "user_confirm" || len(response.DataSchema) != 1 {
+		return false
+	}
+	field := response.DataSchema[0]
+	return field.Name == "confirmed_ok" && field.Required && field.Type == "boolean"
 }
 
 // handleDeletion removes the config entry from HA (best-effort)

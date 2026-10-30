@@ -266,13 +266,6 @@ func (r *HomeAssistantReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return r.updateStatusFailed(ctx, ha, err)
 	}
 
-	// Transitional: clean up after the removed native TLS feature (spec.alpha.tls)
-	// before reconcileTLS, so a stale CertManagerAvailable is dropped before the
-	// edge-TLS gate below may legitimately re-add it. Best-effort; never blocks.
-	if err := r.reconcileNativeTLSRemoval(ctx, ha); err != nil {
-		log.Error(err, "Failed to clean up removed native TLS state")
-	}
-
 	// Reconcile TLS / cert-manager integration (opt-in). Missing cert-manager is
 	// never an error: it degrades to a status condition + requeue so the rest of
 	// the reconcile (and other resources) keep working. The requeue itself is
@@ -339,6 +332,29 @@ func (r *HomeAssistantReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{RequeueAfter: banDetectionInterval}, nil
 	}
 	return statusResult, nil
+}
+
+// setOperatorCredentialConditions keeps availability separate from credential loss.
+func setOperatorCredentialConditions(ha *hav1.HomeAssistant, reason, message string) {
+	ready, degraded := metav1.ConditionFalse, metav1.ConditionTrue
+	if reason == "Verified" {
+		ready, degraded = metav1.ConditionTrue, metav1.ConditionFalse
+	}
+	if reason == reasonHomeAssistantUnavailable || reason == "Provisioning" {
+		degraded = metav1.ConditionFalse
+	}
+	meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
+		Type: conditionOperatorCredentialReady, Status: ready, Reason: reason,
+		Message: message, ObservedGeneration: ha.Generation,
+	})
+	degradedReason := reason
+	if degraded == metav1.ConditionFalse {
+		degradedReason = "AsExpected"
+	}
+	meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
+		Type: conditionDegraded, Status: degraded, Reason: degradedReason,
+		Message: message, ObservedGeneration: ha.Generation,
+	})
 }
 
 // reconcileOperatorIPConfigMap keeps a ConfigMap <ha-name>-operator-ip up to date
@@ -2143,6 +2159,7 @@ func (r *HomeAssistantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&hav1.HomeAssistant{}).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.Service{}).
+		Owns(&corev1.Secret{}).
 		Owns(&corev1.PersistentVolumeClaim{}).
 		Owns(&networkingv1.NetworkPolicy{}).
 		Watches(

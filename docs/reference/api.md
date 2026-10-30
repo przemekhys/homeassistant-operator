@@ -71,6 +71,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `networkPolicy` _[NetworkPolicyAlphaSpec](#networkpolicyalphaspec)_ | NetworkPolicy controls whether the operator creates a NetworkPolicy<br />restricting ingress to the Home Assistant pod. |  | Optional: \{\} <br /> |
 | `devices` _[DevicePassthroughEntry](#devicepassthroughentry) array_ | Devices declares host device nodes (e.g. /dev/ttyACM0 for a Zigbee/<br />Z-Wave USB coordinator) to mount into the Home Assistant container.<br />Each entry is mounted via a hostPath volume typed as a character<br />device; the container is never granted `privileged: true` for this.<br />Declaring at least one entry changes the pod's security context, so<br />this starts in spec.alpha until it stabilizes. This does not affect<br />where the pod is scheduled — the declared device(s) must already<br />exist on whichever node the pod lands on (see node pinning, a<br />separate capability) for this to be useful. |  | Optional: \{\} <br /> |
+| `tls` _[RemovedNativeTLSSpec](#removednativetlsspec)_ | TLS is retained only so removed native TLS declarations produce an<br />actionable validation error instead of being silently pruned. |  | Optional: \{\} <br /> |
 
 
 #### AutomationAction
@@ -190,6 +191,7 @@ _Appears in:_
 | `credentials` _[BootstrapCredentials](#bootstrapcredentials)_ | Credentials references a Secret containing username and password for the admin user<br />The Secret must have "username" and "password" keys |  |  |
 | `createApiToken` _boolean_ | CreateAPIToken controls whether a long-lived access token is created after onboarding<br />The token is valid for 10 years and stored in a Secret | true | Optional: \{\} <br /> |
 | `apiTokenSecretName` _string_ | APITokenSecretName is the name of the Secret where the API token will be stored<br />The Secret will have a "token" key containing the long-lived access token<br />If not specified, defaults to "\{homeassistant-name\}-homeassistant-api-token" |  | Optional: \{\} <br /> |
+| `operatorAccount` _[OperatorAccountSpec](#operatoraccountspec)_ | OperatorAccount selects a separate Home Assistant identity. Omission preserves legacy behavior.<br />Legacy behavior is deprecated since v1.7.0 and scheduled for removal in v2.0.0. |  | Optional: \{\} <br /> |
 | `ownerName` _string_ | OwnerName is the display name for the owner user created during onboarding | Admin | Optional: \{\} <br /> |
 | `language` _string_ | Language is the language code for Home Assistant (e.g., "en", "pl") | en | Optional: \{\} <br /> |
 | `location` _[LocationConfig](#locationconfig)_ | Location configures the location settings during onboarding<br />If not specified, location configuration step is skipped |  | Optional: \{\} <br /> |
@@ -209,6 +211,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
+| `operatorAccount` _[OperatorAccountStatus](#operatoraccountstatus)_ | OperatorAccount contains identifiers and lifecycle observations, never credentials. |  | Optional: \{\} <br /> |
 | `completed` _boolean_ | Completed indicates whether the bootstrap process has finished successfully |  | Optional: \{\} <br /> |
 | `apiTokenReady` _boolean_ | APITokenReady indicates whether the API token has been created and stored |  | Optional: \{\} <br /> |
 | `apiTokenSecretName` _string_ | APITokenSecretName is the name of the Secret containing the API token |  | Optional: \{\} <br /> |
@@ -949,7 +952,8 @@ _Appears in:_
 
 HomeAssistantIntegration manages a Home Assistant integration (config entry) via the Config Flow API.
 It supports create, adopt, reconfigure (delete+re-create on spec change), and cleanup via finalizer.
-Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).
+It also supports the explicit Generic Camera user_confirm step; other multi-step
+Config Flows are not supported (e.g. ZHA, Zigbee2MQTT).
 
 
 
@@ -998,7 +1002,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `homeAssistantRef` _[HomeAssistantReference](#homeassistantreference)_ | HomeAssistantRef references the HomeAssistant instance to configure |  | Required: \{\} <br /> |
 | `domain` _string_ | Domain is the integration name in Home Assistant (e.g. "mqtt", "esphome", "recorder") |  | MinLength: 1 <br />Required: \{\} <br /> |
-| `configuration` _object (keys:string, values:[IntegrationValue](#integrationvalue))_ | Configuration contains fields submitted to the Config Flow (single-step flows only).<br />Keys are field names from the data_schema; values are plain text or Secret references. |  | Optional: \{\} <br /> |
+| `configuration` _object (keys:string, values:[IntegrationValue](#integrationvalue))_ | Configuration contains fields submitted to the initial Config Flow form.<br />Keys are field names from the data_schema; values are plain text or Secret references. |  | Optional: \{\} <br /> |
 
 
 #### HomeAssistantIntegrationStatus
@@ -1612,6 +1616,7 @@ _Appears in:_
 | `elevation` _integer_ | Elevation in meters |  | Optional: \{\} <br /> |
 | `unitSystem` _string_ | UnitSystem defines the unit system ("metric" or "us_customary") | metric | Enum: [metric us_customary] <br />Optional: \{\} <br /> |
 | `currency` _string_ | Currency is the ISO 4217 currency code (e.g., "USD", "EUR", "PLN") |  | Optional: \{\} <br /> |
+| `country` _string_ | Country is an ISO 3166-1 alpha-2 code from Home Assistant 2026.10.3 COUNTRIES.<br />Source: https://github.com/home-assistant/core/blob/2026.10.3/homeassistant/generated/countries.py<br />Keep this enum aligned with COUNTRIES when updating the supported HA version.<br />An explicit homeassistant.country in HomeAssistantConfiguration takes precedence. |  | Enum: [AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW] <br />Optional: \{\} <br /> |
 | `timeZone` _string_ | TimeZone is the IANA timezone (e.g., "Europe/Warsaw", "America/New_York")<br />If not specified, uses spec.timezone |  | Optional: \{\} <br /> |
 
 
@@ -1669,6 +1674,48 @@ _Appears in:_
 | `enabled` _boolean_ | Enabled controls whether the operator creates a NetworkPolicy for the<br />Home Assistant pod, restricting ingress to the operator's namespace and<br />the Home Assistant namespace on the Service port. Egress is left<br />unrestricted (Home Assistant needs broad, unpredictable egress to IoT<br />devices, cloud APIs, and MQTT brokers).<br />NetworkPolicy operates on pod IPs — it does not restrict traffic<br />arriving via the host network interface. Combining this with<br />spec.hostNetwork: true gives only partial isolation.<br />Deliberately without omitempty: this field represents explicit user<br />intent, and the spec.alpha lifecycle plans to flip its default to true<br />in a later phase — omitempty would let an explicit false be dropped and<br />silently re-defaulted to true by the API server once that happens. | false | Optional: \{\} <br /> |
 
 
+#### OperatorAccountSpec
+
+
+
+OperatorAccountSpec configures the dedicated runtime identity and explicit recovery.
+
+
+
+_Appears in:_
+- [BootstrapSpec](#bootstrapspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `mode` _string_ | Mode preserves legacy administrator tokens unless dedicated is explicitly selected.<br />The legacy value is deprecated since v1.7.0 and scheduled for removal in v2.0.0.<br />Migrate existing installations to dedicated before upgrading to v2.0.0. | legacy | Enum: [legacy dedicated] <br />Optional: \{\} <br /> |
+| `tokenSecretName` _string_ | TokenSecretName names the managed Opaque Secret in the HomeAssistant namespace. |  | MaxLength: 253 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$` <br />Optional: \{\} <br /> |
+| `recoveryRequestID` _string_ | RecoveryRequestID authorizes one recovery using the retained bootstrap owner credential.<br />Change it to a new non-empty value to request another attempt. |  | MaxLength: 128 <br />Optional: \{\} <br /> |
+
+
+#### OperatorAccountStatus
+
+
+
+OperatorAccountStatus describes the managed runtime identity.
+
+
+
+_Appears in:_
+- [BootstrapStatus](#bootstrapstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `userID` _string_ | UserID identifies the dedicated Home Assistant user. |  | Optional: \{\} <br /> |
+| `tokenSecretName` _string_ | TokenSecretName identifies the verified token Secret. |  | Optional: \{\} <br /> |
+| `tokenSecretNamespace` _string_ | TokenSecretNamespace is always the HomeAssistant namespace. |  | Optional: \{\} <br /> |
+| `phase` _string_ | Phase is Provisioning, Verified, or Failed. |  | Optional: \{\} <br /> |
+| `capability` _string_ | Capability describes the explicit Home Assistant role. |  | Optional: \{\} <br /> |
+| `migrationPhase` _string_ | MigrationPhase is Provisioning or Completed during legacy adoption. |  | Optional: \{\} <br /> |
+| `legacySecretName` _string_ | LegacySecretName identifies the retained administrator-derived token Secret. |  | Optional: \{\} <br /> |
+| `lastRecoveryRequestID` _string_ | LastRecoveryRequestID projects the durable managed-Secret annotation. |  | Optional: \{\} <br /> |
+| `recoveryResult` _string_ | RecoveryResult is Succeeded, Failed, or empty when no request was observed. |  | Optional: \{\} <br /> |
+
+
 #### RecorderConfig
 
 
@@ -1686,6 +1733,20 @@ _Appears in:_
 | `database` _string_ | Database URL for the recorder (e.g., "postgresql://user:pass@host/db")<br />If not specified, uses SQLite with default path.<br />Mutually exclusive with DatabaseSecretRef; DatabaseSecretRef takes precedence. |  | Optional: \{\} <br /> |
 | `databaseSecretRef` _[SecretKeySelector](#secretkeyselector)_ | DatabaseSecretRef references a Secret containing the database URL.<br />The resolved value is written as plain text into configuration.yaml,<br />avoiding the !secret tag which is stripped by the YAML round-trip.<br />Takes precedence over Database if both are set.<br />The Secret must be in the same namespace as the HomeAssistant CR. |  | Optional: \{\} <br /> |
 | `purgeKeepDays` _integer_ | PurgeKeepDays specifies how many days of history to keep | 30 | Minimum: 1 <br />Optional: \{\} <br /> |
+
+
+#### RemovedNativeTLSSpec
+
+
+
+RemovedNativeTLSSpec intentionally has no supported fields. Its presence is
+rejected by AlphaSpec validation; supported HTTPS is configured at the edge.
+
+
+
+_Appears in:_
+- [AlphaSpec](#alphaspec)
+
 
 
 #### SceneEntity
@@ -1876,55 +1937,9 @@ tests alone; it graduates to a stable group once it has been exercised on
 hardware the maintainers do not have.
 
 ### Resource Types
-- [HomeAssistantCommunityRepository](#homeassistantcommunityrepository)
-- [HomeAssistantCommunityRepositoryList](#homeassistantcommunityrepositorylist)
 - [HomeAssistantDashboard](#homeassistantdashboard)
 - [HomeAssistantDashboardList](#homeassistantdashboardlist)
 
-
-
-#### CommunityRepositoryCategory
-
-_Underlying type:_ _string_
-
-CommunityRepositoryCategory is a HACS repository category. Values match HACS's own
-hacs.json "category" field exactly.
-
-_Validation:_
-- Enum: [integration plugin theme python_script template]
-
-_Appears in:_
-- [HomeAssistantCommunityRepositorySpec](#homeassistantcommunityrepositoryspec)
-
-| Field | Description |
-| --- | --- |
-| `integration` |  |
-| `plugin` |  |
-| `theme` |  |
-| `python_script` |  |
-| `template` |  |
-
-
-#### CommunityRepositoryPhase
-
-_Underlying type:_ _string_
-
-CommunityRepositoryPhase is the reconciliation lifecycle phase of a
-HomeAssistantCommunityRepository.
-
-
-
-_Appears in:_
-- [HomeAssistantCommunityRepositoryStatus](#homeassistantcommunityrepositorystatus)
-
-| Field | Description |
-| --- | --- |
-| `Pending` |  |
-| `Validating` |  |
-| `Installing` |  |
-| `Installed` |  |
-| `Failed` |  |
-| `Removing` |  |
 
 
 #### ConfigMapKeyReference
@@ -1943,89 +1958,6 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `name` _string_ | Name is the name of the ConfigMap. |  | MinLength: 1 <br />Required: \{\} <br /> |
 | `key` _string_ | Key is the ConfigMap data key containing the complete dashboard YAML document. |  | MinLength: 1 <br />Required: \{\} <br /> |
-
-
-#### HomeAssistantCommunityRepository
-
-
-
-HomeAssistantCommunityRepository installs a HACS-compatible community extension
-(integration, plugin, theme, python_script, or template) into an existing
-HomeAssistant instance, without requiring HACS or its UI to be present. This is an
-DEPRECATED: use the stable ha.homeassistant.io/v1 API. This version remains
-served during the documented compatibility window for existing manifests.
-
-
-
-_Appears in:_
-- [HomeAssistantCommunityRepositoryList](#homeassistantcommunityrepositorylist)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `apiVersion` _string_ | `ha.homeassistant.io/v1alpha1` | | |
-| `kind` _string_ | `HomeAssistantCommunityRepository` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[HomeAssistantCommunityRepositorySpec](#homeassistantcommunityrepositoryspec)_ |  |  |  |
-| `status` _[HomeAssistantCommunityRepositoryStatus](#homeassistantcommunityrepositorystatus)_ |  |  |  |
-
-
-#### HomeAssistantCommunityRepositoryList
-
-
-
-HomeAssistantCommunityRepositoryList contains a list of HomeAssistantCommunityRepository
-
-
-
-
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `apiVersion` _string_ | `ha.homeassistant.io/v1alpha1` | | |
-| `kind` _string_ | `HomeAssistantCommunityRepositoryList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `items` _[HomeAssistantCommunityRepository](#homeassistantcommunityrepository) array_ |  |  |  |
-
-
-#### HomeAssistantCommunityRepositorySpec
-
-
-
-HomeAssistantCommunityRepositorySpec defines the desired state of HomeAssistantCommunityRepository
-
-
-
-_Appears in:_
-- [HomeAssistantCommunityRepository](#homeassistantcommunityrepository)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `homeAssistantRef` _[HomeAssistantReference](#homeassistantreference)_ | HomeAssistantRef references the HomeAssistant instance to install this repository into |  | Required: \{\} <br /> |
-| `category` _[CommunityRepositoryCategory](#communityrepositorycategory)_ | Category is the HACS repository category. appdaemon and netdaemon are intentionally<br />not accepted here: they require a separate runtime this operator does not deploy. |  | Enum: [integration plugin theme python_script template] <br />Required: \{\} <br /> |
-| `repository` _string_ | Repository is the GitHub "owner/repo" shorthand (not a full URL). |  | Pattern: `^[\w.-]+/[\w.-]+$` <br />Required: \{\} <br /> |
-| `ref` _string_ | Ref is the tag, branch, or commit SHA to install. Pinned and explicit — this<br />operator never tracks a "latest" release automatically. Restricted to<br />characters valid in a git ref: word characters, dot, dash and slash, so<br />branch names such as release/v1 are accepted. URL-reserved characters that<br />could alter the codeload request path are not. |  | MinLength: 1 <br />Pattern: `^[\w][\w.\-/]*$` <br />Required: \{\} <br /> |
-
-
-#### HomeAssistantCommunityRepositoryStatus
-
-
-
-HomeAssistantCommunityRepositoryStatus defines the observed state of HomeAssistantCommunityRepository
-
-
-
-_Appears in:_
-- [HomeAssistantCommunityRepository](#homeassistantcommunityrepository)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `phase` _[CommunityRepositoryPhase](#communityrepositoryphase)_ | Phase is the current lifecycle phase. |  | Optional: \{\} <br /> |
-| `installedVersion` _string_ | InstalledVersion is the last ref that was successfully validated and activated.<br />It does NOT change until a newly requested ref is fully confirmed, so a failed<br />update never reports a broken version as installed. |  | Optional: \{\} <br /> |
-| `resolvedTarget` _string_ | ResolvedTarget is the install target computed from the source repository's own<br />manifest (the integration domain, or the theme/script/template/plugin file name).<br />Together with the referenced HomeAssistant name and Category it forms the<br />conflict-detection key, so the same target may be installed into two<br />different instances. |  | Optional: \{\} <br /> |
-| `lastError` _string_ | LastError contains a human-readable error message from the last failed operation.<br />Cleared when the operation succeeds. |  | Optional: \{\} <br /> |
-| `installingSince` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | InstallingSince records when the resource most recently entered the<br />Installing phase. Used to bound the activation retry window; cleared when<br />the resource leaves Installing (Installed or Failed). |  | Optional: \{\} <br /> |
-| `observedGeneration` _integer_ | ObservedGeneration reflects the generation of the most recently observed CR |  | Optional: \{\} <br /> |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the repository state |  | Optional: \{\} <br /> |
 
 
 #### HomeAssistantDashboard
@@ -2116,16 +2048,13 @@ _Appears in:_
 
 
 
-HomeAssistantReference references the HomeAssistant instance a community repository
-targets. Declared locally in v1alpha1 (rather than reusing api/v1's type) so this
-experimental API group-version has no coupling to the stable v1 types.
+HomeAssistantReference references the HomeAssistant instance a dashboard targets.
 
 
 
 _Appears in:_
-- [HomeAssistantCommunityRepositorySpec](#homeassistantcommunityrepositoryspec)
 - [HomeAssistantDashboardSpec](#homeassistantdashboardspec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name of the HomeAssistant resource |  | MinLength: 1 <br />Required: \{\} <br /> |
+| `name` _string_ | Name of the HomeAssistant resource. |  | MinLength: 1 <br />Required: \{\} <br /> |

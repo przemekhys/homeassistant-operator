@@ -6,6 +6,72 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+## [v1.7.0] - 2026-10-30
+
+### Added
+
+- **Optional bootstrap country (`spec.bootstrap.location.country`).** Set a
+  country code such as `PL` during bootstrap. Admission validates it against
+  Home Assistant 2026.10.3's `COUNTRIES` list, rejecting unknown codes such as
+  `ZZ`. The operator writes the value into `homeassistant.country` in
+  `configuration.yaml`, preserving an explicit country configured through
+  `HomeAssistantConfiguration`. Admission tests cover accepted and rejected
+  codes, and an E2E test verifies `country: PL` through Home Assistant's
+  `/api/config` endpoint.
+
+- **Dedicated Home Assistant operator accounts, available from v1.7.0.** Set
+  `spec.bootstrap.operatorAccount.mode: dedicated` and a namespace-local
+  `tokenSecretName` to separate routine management from the human onboarding
+  owner. The operator verifies the dedicated administrator identity and stores
+  its token in an owned Secret. After verification, bootstrap credentials are
+  used only for explicit recovery through a new `recoveryRequestID`. Missing or
+  rejected credentials report `OperatorCredentialReady=False` and `Degraded=True`
+  without automatic account, password, or token replacement. Existing
+  installations can explicitly migrate while retaining their legacy token
+  Secret for deliberate cleanup; see the
+  [migration procedure](docs/how-to/bootstrap-instance.md#migrate-an-existing-installation).
+
+### Changed
+
+- **`HomeAssistantCommunityRepository` now serves only stable `v1`.** Migrate
+  source manifests and any `v1alpha1`-stored objects before upgrading; the
+  operator does not rewrite them automatically.
+
+### Deprecated
+
+- **Legacy Home Assistant credential mode is deprecated from v1.7.0 and scheduled
+  for removal in v2.0.0.** This includes both explicit `mode: legacy` and omitting
+  `spec.bootstrap.operatorAccount`. Existing installations retain legacy behavior
+  during v1.x until migration is explicitly selected. Migrate to dedicated mode
+  before upgrading to v2.0.0; see [deprecations](DEPRECATIONS.md#legacy-home-assistant-credential-mode).
+
+### Fixed
+
+- **Bootstrap core settings failures are reported and retried.** Requested
+  location settings, including country, are applied through WebSocket
+  `config/core/update`; completing the HTTP onboarding step alone does not
+  apply them. Both credential modes keep bootstrap unready when the write fails
+  and resume without recreating the owner, including when API token creation is
+  disabled. Unspecified coordinates and elevation are preserved, while explicit
+  zero values are supported.
+
+- **Dedicated-account migration works while the owner has MFA enabled.**
+  Migration now verifies and uses the existing legacy administrator API token
+  instead of logging in with the bootstrap owner password. Missing, malformed,
+  rejected, or insufficiently privileged source tokens produce actionable
+  conditions without falling back to password login. The legacy Secret is
+  retained until the dedicated credential verifies and remains available for
+  deliberate cleanup. Initial onboarding and explicit recovery retain their
+  credential-based flows; MFA support for recovery is unchanged.
+
+- **Legacy-mode post-bootstrap health checks now authenticate with the API token.** When
+  available, the operator sends its long-lived token with the periodic `GET
+  /api/` probe, preventing Home Assistant from recording the probe as a failed
+  login and potentially banning the operator IP. Unauthenticated fallback is
+  retained while the token Secret is unavailable.
+
 ## [v1.6.1] - 2026-10-21
 
 ### Security
@@ -31,8 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `fileSecretKeyRef`, which reads binary content from a Kubernetes Secret and
   uploads it only to a Config Flow field that accepts files. This supports
   certificate, private-key, and CA-file fields such as MQTT mutual TLS without
-  placing their contents in the custom resource; `fileName` optionally controls
-  the filename presented to Home Assistant.
+   placing their contents in the custom resource; `fileName` optionally controls
+   the filename presented to Home Assistant.
 
 ### Changed
 
@@ -553,7 +619,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Primary: k3s on Raspberry Pi 4/5 (ARM64)
 - Also supported: Any Kubernetes cluster (AMD64/ARM64)
 
-[Unreleased]: https://github.com/przemekhys/homeassistant-operator/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/przemekhys/homeassistant-operator/compare/v1.7.0...HEAD
+[v1.7.0]: https://github.com/przemekhys/homeassistant-operator/compare/v1.6.1...v1.7.0
 [v1.5.1]: https://github.com/przemekhys/homeassistant-operator/compare/v1.5.0...v1.5.1
 [v1.5.0]: https://github.com/przemekhys/homeassistant-operator/compare/v1.4.2...v1.5.0
 [v1.4.2]: https://github.com/przemekhys/homeassistant-operator/compare/v1.4.1...v1.4.2

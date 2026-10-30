@@ -2,6 +2,17 @@ package haclient
 
 import "encoding/json"
 
+// AuthUser is an identity returned by Home Assistant's authenticated user API.
+type AuthUser struct {
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Username string   `json:"username"`
+	IsOwner  bool     `json:"is_owner"`
+	IsAdmin  bool     `json:"is_admin"`
+	IsActive bool     `json:"is_active"`
+	GroupIDs []string `json:"group_ids"`
+}
+
 // OnboardingStep represents a step in the onboarding array returned by GET /api/onboarding.
 type OnboardingStep struct {
 	Step string `json:"step"`
@@ -48,15 +59,16 @@ type LongLivedTokenResponse struct {
 	Token string
 }
 
-// CoreConfigRequest represents POST /api/onboarding/core_config request
+// CoreConfigRequest contains the requested settings for config/core/update.
 type CoreConfigRequest struct {
-	LocationName string  `json:"location_name,omitempty"`
-	Latitude     float64 `json:"latitude,omitempty"`
-	Longitude    float64 `json:"longitude,omitempty"`
-	Elevation    int     `json:"elevation,omitempty"`
-	UnitSystem   string  `json:"unit_system,omitempty"` // "metric" or "us_customary"
-	Currency     string  `json:"currency,omitempty"`
-	TimeZone     string  `json:"time_zone,omitempty"`
+	LocationName string   `json:"location_name,omitempty"`
+	Latitude     *float64 `json:"latitude,omitempty"`
+	Longitude    *float64 `json:"longitude,omitempty"`
+	Elevation    *int     `json:"elevation,omitempty"`
+	UnitSystem   string   `json:"unit_system,omitempty"` // "metric" or "us_customary"
+	Currency     string   `json:"currency,omitempty"`
+	TimeZone     string   `json:"time_zone,omitempty"`
+	Country      string   `json:"country,omitempty"`
 }
 
 // AnalyticsRequest represents POST /api/onboarding/analytics request
@@ -80,6 +92,7 @@ type ConfigResponse struct {
 	Version               string   `json:"version"`
 	LocationName          string   `json:"location_name"`
 	TimeZone              string   `json:"time_zone"`
+	Country               string   `json:"country"`
 	ConfigDir             string   `json:"config_dir"`
 	WhitelistExternalDirs []string `json:"whitelist_external_dirs"`
 }
@@ -97,6 +110,7 @@ type ConfigEntry struct {
 type FlowResponse struct {
 	FlowID     string          `json:"flow_id"`
 	Type       string          `json:"type"`
+	StepID     string          `json:"step_id,omitempty"`
 	Reason     string          `json:"reason,omitempty"`
 	Title      string          `json:"title"`
 	Result     json.RawMessage `json:"result"`

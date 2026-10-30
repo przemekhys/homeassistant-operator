@@ -3,7 +3,7 @@ name: homeassistant-operator
 description: A Kubernetes operator for deploying and managing Home Assistant instances with declarative configuration, zero-touch bootstrap, and GitOps-ready automations.
 type: application
 # version and appVersion are updated automatically by the release pipeline (sed in release.yml).
-# The values committed here reflect the latest released version; do not edit manually.
+# Committed values are development placeholders, not the latest release; do not edit manually.
 version: 1.1.0
 appVersion: "1.1.0"
 kubeVersion: ">=1.24-0"

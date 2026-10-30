@@ -60,6 +60,9 @@ The operator supports and tests upgrades from the **directly previous released
 version (N-1)** to the latest. Perform the steps **in this order** — CRDs first,
 then the Helm release:
 
+Before applying the general procedure, check whether your source and target
+versions have [release-specific upgrade notes](#release-specific-upgrade-notes).
+
 ```bash
 # 1. Update the CRDs explicitly (Helm does NOT do this on upgrade).
 #    Pull the exact CRDs for the target version and apply them:
@@ -83,30 +86,13 @@ Your existing Custom Resources (`HomeAssistant`, `HomeAssistantConfiguration`,
 automations, scenes, scripts, integrations, …) are preserved across the upgrade;
 the CRD apply is additive and does not delete resources.
 
-### HomeAssistantCommunityRepository v1 migration
+### Release-specific upgrade notes
 
-`HomeAssistantCommunityRepository` is now stable at
-`ha.homeassistant.io/v1`. The upgraded CRD continues to serve existing
-`v1alpha1` resources for at least one full minor release. After the CRD and
-operator upgrade, change only `apiVersion` in source-controlled manifests and
-apply them normally. Do not create a second resource for the same extension:
-the existing object, installed files, active revision, status, and finalizer are
-preserved. Before rolling back to an operator release that predates `v1` support,
-keep the dual-version CRD installed: the older operator can continue to reconcile
-the alpha representation while Kubernetes retains `v1` as storage. Do not restore
-an alpha-only CRD until you have completed [storage migration before restoring an
-alpha-only CRD](#storage-migration-before-restoring-an-alpha-only-crd).
+Complete any applicable guide before step 1 above.
 
-### Storage migration before restoring an alpha-only CRD
-
-Rolling back the operator does not require changing this CRD. Keep its `v1` and
-`v1alpha1` versions served while the older operator is running. Restoring an
-alpha-only CRD is a separate storage migration and is not part of a normal
-operator rollback: first use a Kubernetes storage-version migration procedure
-supported by your cluster to rewrite every stored community repository as
-`v1alpha1`, then verify no stored objects remain at `v1`, and only then apply the
-alpha-only CRD. Do not remove `v1` from the CRD before that migration is complete;
-doing so can make existing resources unreadable.
+| From | To | Required guide |
+|------|----|----------------|
+| 1.6 | 1.7 | [Migrate the community repository API](upgrade-1.6-to-1.7.md) |
 
 !!! warning "Do not skip intermediate versions"
     Only the **N-1 → latest** path is tested. If you are several versions behind
@@ -114,6 +100,18 @@ doing so can make existing resources unreadable.
     intermediate versions one at a time rather than jumping straight to latest.
 
 ## RBAC on upgrade
+
+Existing resources keep legacy administrator-derived tokens unless dedicated
+mode is explicitly enabled. After updating CRDs, follow
+[dedicated account migration](bootstrap-instance.md#migrate-an-existing-installation).
+The legacy Secret is retained until you revoke and remove it deliberately;
+you can return to legacy mode while that credential is still valid. Dedicated
+tokens reuse existing managed-namespace Secret permissions.
+
+Legacy credential mode is deprecated since **v1.7.0** and scheduled for removal
+in **v2.0.0**, including the implicit legacy behavior when `operatorAccount` is
+omitted. Complete dedicated-account migration before upgrading to v2.0.0;
+legacy rollback remains available only during v1.x.
 
 `helm upgrade` reconciles the operator's RBAC (ClusterRole / Role / bindings) to
 exactly what the target chart version declares. The project's CI enforces that a

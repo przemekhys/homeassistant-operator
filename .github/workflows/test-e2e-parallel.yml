@@ -3,7 +3,40 @@ name: E2E Tests
 on:
   push:
     branches: [main, v*]
+    paths:
+      - "api/**"
+      - "cmd/**"
+      - "internal/**"
+      - "config/**"
+      - "charts/**"
+      - "test/**"
+      - "hack/**"
+      - "Dockerfile"
+      - "bundle.Dockerfile"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "PROJECT"
+      - ".github/actions/**"
+      - ".github/workflows/test-e2e-parallel.yml"
   pull_request:
+    paths:
+      - "api/**"
+      - "cmd/**"
+      - "internal/**"
+      - "config/**"
+      - "charts/**"
+      - "test/**"
+      - "hack/**"
+      - "Dockerfile"
+      - "bundle.Dockerfile"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "PROJECT"
+      - ".github/actions/**"
+      - ".github/workflows/test-e2e-parallel.yml"
+      - ".dockerignore"
 
 permissions:
   contents: read
@@ -14,9 +47,9 @@ env:
   # renovate: datasource=docker depName=rancher/k3s
   K3S_VERSION: v1.37.1-k3s1
   # renovate: datasource=docker depName=ghcr.io/home-assistant/home-assistant
-  HA_VERSION: "2026.10.1"
+  HA_VERSION: "2026.10.4"
   # renovate: datasource=github-releases depName=cert-manager/cert-manager
-  CERT_MANAGER_VERSION: v1.21.2
+  CERT_MANAGER_VERSION: v1.21.3
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -82,22 +115,18 @@ jobs:
           path: ~/go/bin/k3d
           retention-days: 1
 
-  # Jobs 2-8: the e2e suite split across seven jobs that run concurrently,
+  # Jobs 2-7: the e2e suite split across six jobs that run concurrently,
   # each selecting a scoped subset of ./test/e2e/ via Ginkgo's --label-filter.
-  # Because all seven `needs: build`, the workflow's real end-to-end time is
-  # build's own duration PLUS the slowest of the seven e2e jobs — not just
+  # Because all six `needs: build`, the workflow's real end-to-end time is
+  # build's own duration PLUS the slowest of the six e2e jobs — not just
   # the slowest job in isolation. See docs/development/testing.md (the sole
   # source of truth for e2e suite/job duration) for the current target and
   # the rationale behind this split (previously one long sequential job).
   #
   # timeout-minutes below were tuned from real CI runs of this workflow.
-  # e2e-community-repository-a/-b currently run above the per-job target
-  # every other job keeps to, because their specs took longer against a
-  # genuinely cold cluster/runner than initial estimates (extrapolated from
-  # a single long-running, cache-warm job) suggested — see
-  # docs/development/testing.md for the current known-gap note. These two
-  # are the ones to re-tighten first once more real completion-time data is
-  # available; every other job's timeout is close to its measured cost.
+  # Community repositories share one bootstrap and overlap hot-reload install,
+  # update, and deletion waits. Keep timeout headroom until cold-run CI timings
+  # for the consolidated job are available; see docs/development/testing.md.
 
   e2e-critical-a:
     needs: build
@@ -723,7 +752,7 @@ jobs:
         if: always()
         run: k3d cluster delete e2e-pod-security
 
-  e2e-community-repository-a:
+  e2e-community-repository:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 18
@@ -773,7 +802,7 @@ jobs:
 
       - name: Create k3d cluster
         run: |
-          k3d cluster create e2e-community-repository-a \
+          k3d cluster create e2e-community-repository \
             --image rancher/k3s:${{ env.K3S_VERSION }} \
             --agents 0 \
             --servers-memory 4g \
@@ -783,21 +812,21 @@ jobs:
       - name: Load operator image into k3d
         run: |
           docker load -i operator-e2e.tar
-          k3d image import operator:e2e -c e2e-community-repository-a
+          k3d image import operator:e2e -c e2e-community-repository
 
       - name: Load Home Assistant image into k3d
         run: |
           docker load -i ha-image.tar
-          k3d image import ghcr.io/home-assistant/home-assistant:${{ env.HA_VERSION }} -c e2e-community-repository-a
+          k3d image import ghcr.io/home-assistant/home-assistant:${{ env.HA_VERSION }} -c e2e-community-repository
 
       - name: Verify cluster is ready
         run: |
           kubectl cluster-info
           kubectl get nodes
 
-      - name: Run E2E community-repository (group A) tests
+      - name: Run E2E community-repository tests
         env:
-          K3D_CLUSTER: e2e-community-repository-a
+          K3D_CLUSTER: e2e-community-repository
           HA_VERSION: ${{ env.HA_VERSION }}
           CERT_MANAGER_INSTALL_SKIP: "true"
           E2E_IMG: "operator:e2e"
@@ -806,7 +835,7 @@ jobs:
           make ginkgo
           ./bin/ginkgo run \
             -v \
-            --label-filter="community-repository && group-a" \
+            --label-filter=community-repository \
             --timeout=15m \
             ./test/e2e/
 
@@ -821,7 +850,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: controller-manager-logs-community-repository-a
+          name: controller-manager-logs-community-repository
           path: controller-manager.log
           retention-days: 7
 
@@ -835,118 +864,4 @@ jobs:
 
       - name: Cleanup k3d cluster
         if: always()
-        run: k3d cluster delete e2e-community-repository-a
-
-  e2e-community-repository-b:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 16
-
-    steps:
-      - name: Clone the code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-
-      - name: Setup Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version-file: go.mod
-
-      - name: Cache Ginkgo CLI
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: bin/ginkgo*
-          key: ginkgo-${{ hashFiles('go.mod', 'Makefile') }}
-          restore-keys: |
-            ginkgo-
-
-      - name: Download k3d binary artifact
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-        with:
-          name: k3d-binary
-          path: /tmp/k3d-bin
-
-      - name: Install k3d from artifact
-        run: |
-          chmod +x /tmp/k3d-bin/k3d
-          echo "/tmp/k3d-bin" >> "$GITHUB_PATH"
-
-      - name: Verify k3d installation
-        run: k3d version
-
-      - name: Download operator image artifact
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-        with:
-          name: operator-image
-
-      - name: Download Home Assistant image artifact
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-        with:
-          name: ha-image
-
-      - name: Create k3d cluster
-        run: |
-          k3d cluster create e2e-community-repository-b \
-            --image rancher/k3s:${{ env.K3S_VERSION }} \
-            --agents 0 \
-            --servers-memory 4g \
-            --wait \
-            --timeout 5m
-
-      - name: Load operator image into k3d
-        run: |
-          docker load -i operator-e2e.tar
-          k3d image import operator:e2e -c e2e-community-repository-b
-
-      - name: Load Home Assistant image into k3d
-        run: |
-          docker load -i ha-image.tar
-          k3d image import ghcr.io/home-assistant/home-assistant:${{ env.HA_VERSION }} -c e2e-community-repository-b
-
-      - name: Verify cluster is ready
-        run: |
-          kubectl cluster-info
-          kubectl get nodes
-
-      - name: Run E2E community-repository (group B) tests
-        env:
-          K3D_CLUSTER: e2e-community-repository-b
-          HA_VERSION: ${{ env.HA_VERSION }}
-          CERT_MANAGER_INSTALL_SKIP: "true"
-          E2E_IMG: "operator:e2e"
-          E2E_SKIP_IMAGE_BUILD: "true"
-        run: |
-          make ginkgo
-          ./bin/ginkgo run \
-            -v \
-            --label-filter="community-repository && group-b" \
-            --timeout=14m \
-            ./test/e2e/
-
-      - name: Collect controller logs on failure
-        if: failure()
-        run: |
-          kubectl logs -n homeassistant-operator-system \
-            -l control-plane=controller-manager \
-            --tail=-1 --prefix | tee controller-manager.log || true
-
-      - name: Upload controller logs artifact on failure
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: controller-manager-logs-community-repository-b
-          path: controller-manager.log
-          retention-days: 7
-
-      - name: Collect resource status on failure
-        if: failure()
-        run: |
-          echo "=== HomeAssistantCommunityRepositories ==="
-          kubectl get homeassistantcommunityrepositories --all-namespaces -o wide || true
-          echo "=== Pods ==="
-          kubectl get pods --all-namespaces -o wide || true
-
-      - name: Cleanup k3d cluster
-        if: always()
-        run: k3d cluster delete e2e-community-repository-b
+        run: k3d cluster delete e2e-community-repository

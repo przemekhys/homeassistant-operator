@@ -197,6 +197,9 @@ func volumeSourceCount(source corev1.VolumeSource) int {
 func validateHomeAssistantTLS(spec *hav1.HomeAssistantSpec) (admission.Warnings, []string) {
 	var warnings admission.Warnings
 	var errs []string
+	if spec.Alpha != nil && spec.Alpha.TLS != nil {
+		errs = append(errs, "spec.alpha.tls has been removed; use spec.ingress.tls or spec.gateway for HTTPS")
+	}
 
 	// Gateway exposure requires a host and an attach point.
 	if g := spec.Gateway; g != nil && g.Enabled {

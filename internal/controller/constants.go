@@ -18,6 +18,19 @@ package controller
 
 import "time"
 
+const (
+	conditionOperatorCredentialReady = "OperatorCredentialReady"
+	conditionDegraded                = "Degraded"
+	reasonCredentialMissing          = "CredentialMissing"
+	reasonCredentialMalformed        = "CredentialMalformed"
+	reasonCredentialRejected         = "CredentialRejected"
+	reasonSecretAccessDenied         = "SecretAccessDenied"
+	reasonHomeAssistantUnavailable   = "HomeAssistantUnavailable"
+	reasonRecoveryFailed             = "RecoveryFailed"
+	reasonRequiresElevatedRole       = "RequiresElevatedRole"
+	operatorPurposeLabel             = "homeassistant-operator.io/purpose"
+)
+
 // Shared constants used across multiple controllers
 
 const (
@@ -66,12 +79,6 @@ const (
 	conditionCertManagerAvailable = "CertManagerAvailable"
 	conditionExposureReady        = "ExposureReady"
 
-	// conditionTLSReady is retained only for the transitional cleanup step
-	// (reconcileNativeTLSRemoval), which strips this now-obsolete condition from
-	// HomeAssistant objects that had the removed spec.alpha.tls (native TLS)
-	// feature enabled. Safe to delete together with that step in a later minor.
-	conditionTLSReady = "TLSReady"
-
 	// TLS / cert-manager condition reasons (PascalCase per K8s convention)
 	reasonCertManagerInstalled    = "CertManagerInstalled"
 	reasonCertManagerNotInstalled = "CertManagerNotInstalled"
@@ -81,11 +88,6 @@ const (
 	eventCertManagerUnavailable = "CertManagerUnavailable"
 	eventCertificateRequested   = "CertificateRequested"
 	eventExposureConfigured     = "ExposureConfigured"
-
-	// eventNativeTLSRemoved is emitted once, by the transitional cleanup step,
-	// on a HomeAssistant that had the removed native TLS feature enabled. Safe to
-	// delete together with reconcileNativeTLSRemoval in a later minor.
-	eventNativeTLSRemoved = "NativeTLSRemoved"
 
 	// certManagerGroup is the cert-manager API group used for detection and
 	// Certificate resources.

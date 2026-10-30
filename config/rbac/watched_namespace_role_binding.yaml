@@ -9,6 +9,8 @@
 #   sed 's/namespace: homeassistant/namespace: homeassistant-dev/' this-file | kubectl apply -f -
 #
 # Set WATCH_NAMESPACES=homeassistant,homeassistant-dev on the operator Deployment.
+# Dedicated operator tokens use these existing Secret permissions in the managed
+# namespace; no token permissions in the operator namespace are needed.
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.22.0
+    controller-gen.kubebuilder.io/version: v0.23.0
   name: homeassistantdashboards.ha.homeassistant.io
 spec:
   group: ha.homeassistant.io
@@ -91,7 +91,7 @@ spec:
                   that owns this dashboard.
                 properties:
                   name:
-                    description: Name of the HomeAssistant resource
+                    description: Name of the HomeAssistant resource.
                     minLength: 1
                     type: string
                 required:

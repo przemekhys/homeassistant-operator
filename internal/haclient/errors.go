@@ -1,6 +1,13 @@
 package haclient
 
-import "fmt"
+import (
+	"fmt"
+	"net/http"
+)
+
+func ipBannedError() *Error {
+	return &Error{Type: ErrorTypeBanned, Message: "operator IP banned by Home Assistant", StatusCode: http.StatusForbidden}
+}
 
 // ErrorType represents different error categories
 type ErrorType string

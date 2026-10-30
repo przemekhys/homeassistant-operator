@@ -31,7 +31,7 @@ type HomeAssistantIntegrationSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	Domain string `json:"domain"`
 
-	// Configuration contains fields submitted to the Config Flow (single-step flows only).
+	// Configuration contains fields submitted to the initial Config Flow form.
 	// Keys are field names from the data_schema; values are plain text or Secret references.
 	// +optional
 	Configuration map[string]IntegrationValue `json:"configuration,omitempty"`
@@ -124,7 +124,8 @@ type HomeAssistantIntegrationStatus struct {
 
 // HomeAssistantIntegration manages a Home Assistant integration (config entry) via the Config Flow API.
 // It supports create, adopt, reconfigure (delete+re-create on spec change), and cleanup via finalizer.
-// Only single-step Config Flows are supported (e.g. mqtt, recorder, esphome).
+// It also supports the explicit Generic Camera user_confirm step; other multi-step
+// Config Flows are not supported (e.g. ZHA, Zigbee2MQTT).
 type HomeAssistantIntegration struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
