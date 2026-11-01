@@ -9,6 +9,7 @@ rules:
   resources:
   - configmaps
   - persistentvolumeclaims
+  - serviceaccounts
   - services
   verbs:
   - create
@@ -113,12 +114,14 @@ rules:
   resources:
   - homeassistantareas
   - homeassistantautomations
+  - homeassistantbackups
   - homeassistantcommunityrepositories
   - homeassistantconfigurations
   - homeassistantdashboards
   - homeassistantfloors
   - homeassistantintegrations
   - homeassistantlabels
+  - homeassistantrestores
   - homeassistants
   - homeassistantscenes
   - homeassistantscripts
@@ -135,12 +138,14 @@ rules:
   resources:
   - homeassistantareas/finalizers
   - homeassistantautomations/finalizers
+  - homeassistantbackups/finalizers
   - homeassistantcommunityrepositories/finalizers
   - homeassistantconfigurations/finalizers
   - homeassistantdashboards/finalizers
   - homeassistantfloors/finalizers
   - homeassistantintegrations/finalizers
   - homeassistantlabels/finalizers
+  - homeassistantrestores/finalizers
   - homeassistants/finalizers
   - homeassistantscenes/finalizers
   - homeassistantscripts/finalizers
@@ -152,12 +157,14 @@ rules:
   resources:
   - homeassistantareas/status
   - homeassistantautomations/status
+  - homeassistantbackups/status
   - homeassistantcommunityrepositories/status
   - homeassistantconfigurations/status
   - homeassistantdashboards/status
   - homeassistantfloors/status
   - homeassistantintegrations/status
   - homeassistantlabels/status
+  - homeassistantrestores/status
   - homeassistants/status
   - homeassistantscenes/status
   - homeassistantscripts/status
@@ -179,6 +186,19 @@ rules:
   resources:
   - ingresses
   - networkpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
   verbs:
   - create
   - delete

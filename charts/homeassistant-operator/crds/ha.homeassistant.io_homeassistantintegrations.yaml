@@ -234,6 +234,11 @@ spec:
                   recently observed CR
                 format: int64
                 type: integer
+              observedSynchronizationEpoch:
+                description: ObservedSynchronizationEpoch forces a fresh observation
+                  after a coordinated resume.
+                format: int64
+                type: integer
             type: object
         type: object
         x-kubernetes-validations:

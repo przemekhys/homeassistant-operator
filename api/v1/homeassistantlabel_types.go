@@ -50,6 +50,10 @@ type HomeAssistantLabelStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// ObservedSynchronizationEpoch forces a fresh observation after a coordinated resume.
+	// +optional
+	ObservedSynchronizationEpoch int64 `json:"observedSynchronizationEpoch,omitempty"`
+
 	// lastError contains the error message from the last failed operation
 	// Cleared when operation succeeds
 	// +optional

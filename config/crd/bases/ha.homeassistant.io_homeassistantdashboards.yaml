@@ -207,6 +207,11 @@ spec:
                   reconciled.
                 format: int64
                 type: integer
+              observedSynchronizationEpoch:
+                description: ObservedSynchronizationEpoch forces a fresh observation
+                  after a coordinated resume.
+                format: int64
+                type: integer
               sourceHash:
                 description: SourceHash is the hash of the dashboard definition and
                   metadata last saved to Home Assistant.

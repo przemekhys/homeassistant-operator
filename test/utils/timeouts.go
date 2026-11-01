@@ -9,6 +9,22 @@ import "time"
 // timeout values globally if needed (e.g., for slower CI environments).
 
 const (
+	// BackupRestoreActivePoll is used while an accepted native operation is
+	// observed. It does not authorize another dispatch.
+	BackupRestoreActivePoll = 5 * time.Second
+
+	// BackupRestoreDependencyRequeue is used for expected dependencies such as
+	// target readiness and drain acknowledgements.
+	BackupRestoreDependencyRequeue = 10 * time.Second
+
+	// BackupRestoreObservationInterval is the idle observation period for
+	// native backup state and encryption-key discovery.
+	BackupRestoreObservationInterval = 60 * time.Second
+
+	// BackupRestoreDiagnosticThreshold makes a long restore visible without
+	// releasing a hold or retrying a non-idempotent command.
+	BackupRestoreDiagnosticThreshold = 15 * time.Minute
+
 	// DefaultEventuallyTimeout is the default timeout for Eventually assertions
 	// when no specific timeout is needed. Used for general resource creation
 	// and basic API operations.

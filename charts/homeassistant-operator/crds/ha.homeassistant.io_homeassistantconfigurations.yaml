@@ -295,6 +295,11 @@ spec:
                   status reflects
                 format: int64
                 type: integer
+              observedSynchronizationEpoch:
+                description: ObservedSynchronizationEpoch forces a fresh observation
+                  after a coordinated resume.
+                format: int64
+                type: integer
               trustedProxiesDefaulted:
                 description: |-
                   TrustedProxiesDefaulted reports whether the operator's default

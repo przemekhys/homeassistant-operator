@@ -114,6 +114,10 @@ type HomeAssistantDashboardStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// ObservedSynchronizationEpoch forces a fresh observation after a coordinated resume.
+	// +optional
+	ObservedSynchronizationEpoch int64 `json:"observedSynchronizationEpoch,omitempty"`
+
 	// Conditions represent the latest available observations of the dashboard state.
 	// +optional
 	// +listType=map

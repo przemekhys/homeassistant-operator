@@ -70,13 +70,13 @@ var _ admission.Validator[*hav1.HomeAssistant] = &HomeAssistantCustomValidator{}
 func (v *HomeAssistantCustomValidator) ValidateCreate(
 	ctx context.Context, ha *hav1.HomeAssistant,
 ) (admission.Warnings, error) {
-	return validateHomeAssistant(ctx, v.APIReader, ha)
+	return validateHomeAssistant(ctx, v.APIReader, nil, ha)
 }
 
 func (v *HomeAssistantCustomValidator) ValidateUpdate(
-	ctx context.Context, _, newObj *hav1.HomeAssistant,
+	ctx context.Context, oldObj, newObj *hav1.HomeAssistant,
 ) (admission.Warnings, error) {
-	return validateHomeAssistant(ctx, v.APIReader, newObj)
+	return validateHomeAssistant(ctx, v.APIReader, oldObj, newObj)
 }
 
 func (v *HomeAssistantCustomValidator) ValidateDelete(
@@ -85,7 +85,7 @@ func (v *HomeAssistantCustomValidator) ValidateDelete(
 	return nil, nil
 }
 
-func validateHomeAssistant(ctx context.Context, cl client.Reader, ha *hav1.HomeAssistant) (admission.Warnings, error) {
+func validateHomeAssistant(ctx context.Context, cl client.Reader, oldHA, ha *hav1.HomeAssistant) (admission.Warnings, error) {
 	log := logf.Log.WithName("homeassistant-webhook")
 	warnings, msgs := validateHomeAssistantTLS(&ha.Spec)
 	msgs = append(msgs, validateGatewayFilters(&ha.Spec)...)
@@ -94,11 +94,36 @@ func validateHomeAssistant(ctx context.Context, cl client.Reader, ha *hav1.HomeA
 	msgs = append(msgs, validateMetadataSyntax(&ha.Spec)...)
 	msgs = append(msgs, validateNodeSelector(&ha.Spec)...)
 	msgs = append(msgs, validateScheduling(ctx, cl, &ha.Spec)...)
+	msgs = append(msgs, validateCoordinatedSynchronization(oldHA, ha)...)
 	if len(msgs) > 0 {
 		log.Info("rejecting HomeAssistant with invalid configuration", "name", ha.Name, "reasons", msgs)
 		return warnings, fmt.Errorf("invalid HomeAssistant %q: %s", ha.Name, strings.Join(msgs, "; "))
 	}
 	return warnings, nil
+}
+
+func validateCoordinatedSynchronization(oldHA, ha *hav1.HomeAssistant) []string {
+	if ha.Spec.Alpha == nil || ha.Spec.Alpha.CoordinatedSynchronization == nil {
+		return nil
+	}
+	policy := ha.Spec.Alpha.CoordinatedSynchronization.InitializationPolicy
+	if policy == "" || policy == "Managed" {
+		return nil
+	}
+	if policy != "RestoreOnly" {
+		return []string{"spec.alpha.coordinatedSynchronization.initializationPolicy must be Managed or RestoreOnly"}
+	}
+	if oldHA == nil {
+		return nil
+	}
+	oldPolicy := ""
+	if oldHA.Spec.Alpha != nil && oldHA.Spec.Alpha.CoordinatedSynchronization != nil {
+		oldPolicy = oldHA.Spec.Alpha.CoordinatedSynchronization.InitializationPolicy
+	}
+	if oldPolicy != "RestoreOnly" {
+		return []string{"spec.alpha.coordinatedSynchronization.initializationPolicy=RestoreOnly may only be selected when creating a HomeAssistant"}
+	}
+	return nil
 }
 
 var (

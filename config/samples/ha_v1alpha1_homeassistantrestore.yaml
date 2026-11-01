@@ -1,0 +1,26 @@
+apiVersion: ha.homeassistant.io/v1alpha1
+kind: HomeAssistantRestore
+metadata:
+  labels:
+    app.kubernetes.io/name: homeassistant-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: homeassistant-restore-sample
+spec:
+  # Replace with live values. This operation overwrites Home Assistant data.
+  homeAssistantRef:
+    name: homeassistant-sample
+    uid: REPLACE_WITH_LIVE_HOMEASSISTANT_UID
+  backupID: REPLACE_WITH_CONCRETE_BACKUP_ID
+  source:
+    agentID: backup.local
+  encryptionKeySecretRef:
+    name: exported-backup-key
+    key: password
+  postRestoreAccessSecretRef:
+    name: restored-admin-token
+    key: token
+  scope:
+    homeAssistant: true
+    includeDatabase: true
+  safetyBackupPolicy: CreateAndVerify
+  resumePolicy: KeepPaused

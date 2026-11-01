@@ -150,6 +150,10 @@ type HomeAssistantScriptStatus struct {
 	// ObservedGeneration reflects the generation of the most recently observed HomeAssistantScript
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// ObservedSynchronizationEpoch forces a fresh observation after a coordinated resume.
+	// +optional
+	ObservedSynchronizationEpoch int64 `json:"observedSynchronizationEpoch,omitempty"`
 }
 
 // +kubebuilder:storageversion

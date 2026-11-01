@@ -238,6 +238,11 @@ spec:
                   recently observed HomeAssistantScript
                 format: int64
                 type: integer
+              observedSynchronizationEpoch:
+                description: ObservedSynchronizationEpoch forces a fresh observation
+                  after a coordinated resume.
+                format: int64
+                type: integer
               scriptHash:
                 description: |-
                   ScriptHash is the SHA256 hash of the current script configuration

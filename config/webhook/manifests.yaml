@@ -50,6 +50,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-ha-homeassistant-io-v1alpha1-homeassistantbackup
+  failurePolicy: Fail
+  name: vhomeassistantbackup-v1alpha1.kb.io
+  rules:
+  - apiGroups:
+    - ha.homeassistant.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - homeassistantbackups
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-ha-homeassistant-io-v1-homeassistantconfiguration
   failurePolicy: Ignore
   name: vhomeassistantconfiguration-v1.kb.io
@@ -63,6 +83,26 @@ webhooks:
     - UPDATE
     resources:
     - homeassistantconfigurations
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-ha-homeassistant-io-v1alpha1-homeassistantrestore
+  failurePolicy: Fail
+  name: vhomeassistantrestore-v1alpha1.kb.io
+  rules:
+  - apiGroups:
+    - ha.homeassistant.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - homeassistantrestores
   sideEffects: None
 - admissionReviewVersions:
   - v1

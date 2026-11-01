@@ -103,6 +103,10 @@ type HomeAssistantSpec struct {
 	// +optional
 	Backup *BackupSpec `json:"backup,omitempty"`
 
+	// Synchronization controls coordinated pauses of operator-managed writes.
+	// +optional
+	Synchronization *SynchronizationSpec `json:"synchronization,omitempty"`
+
 	// DisableDefaultTrustedProxies opts out of the operator's automatic
 	// http.trusted_proxies / http.use_x_forwarded_for defaults. When Ingress or
 	// Gateway API exposure is enabled, Home Assistant rejects every request
@@ -173,6 +177,10 @@ type SchedulingSpec struct {
 // default false) -> stable default false -> stable default true -> mandatory.
 // +kubebuilder:validation:XValidation:rule="!has(self.tls)",message="spec.alpha.tls has been removed; use spec.ingress.tls or spec.gateway for HTTPS"
 type AlphaSpec struct {
+	// CoordinatedSynchronization enables the experimental distributed writer
+	// protocol required for a complete synchronization pause and restore.
+	// +optional
+	CoordinatedSynchronization *CoordinatedSynchronizationSpec `json:"coordinatedSynchronization,omitempty"`
 	// NetworkPolicy controls whether the operator creates a NetworkPolicy
 	// restricting ingress to the Home Assistant pod.
 	// +optional
@@ -446,10 +454,16 @@ type NetworkPolicyAlphaSpec struct {
 
 // BackupSpec configures Home Assistant's built-in backup system via WebSocket API.
 type BackupSpec struct {
+	// ManagementPolicy determines whether the operator configures native backup
+	// settings. Unmanaged observes without changing Home Assistant settings.
+	// +kubebuilder:validation:Enum=Managed;Unmanaged
+	// +kubebuilder:default=Managed
+	// +optional
+	ManagementPolicy string `json:"managementPolicy,omitempty"`
 	// Enabled controls whether automatic backups are configured in HA
 	// +kubebuilder:default=false
 	// +optional
-	Enabled bool `json:"enabled,omitempty"`
+	Enabled bool `json:"enabled"`
 
 	// Recurrence defines how often to create a backup
 	// +kubebuilder:validation:Enum=daily;mon;tue;wed;thu;fri;sat;sun;never
@@ -482,7 +496,26 @@ type BackupSpec struct {
 	// (e.g. "backup.local", "google_drive.my_drive").
 	// Defaults to ["backup.local"] if not specified.
 	// +optional
-	AgentIDs []string `json:"agentIDs,omitempty"`
+	AgentIDs []string `json:"agentIDs"`
+}
+
+// SynchronizationSpec declares a durable pause and an explicit restore resume.
+type SynchronizationSpec struct {
+	// +optional
+	Paused bool `json:"paused,omitempty"`
+	// +optional
+	ResumeAfterRestoreUID string `json:"resumeAfterRestoreUID,omitempty"`
+}
+
+// CoordinatedSynchronizationSpec groups experimental writer coordination.
+type CoordinatedSynchronizationSpec struct {
+	// +kubebuilder:default=false
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+	// +kubebuilder:validation:Enum=Managed;RestoreOnly
+	// +kubebuilder:default=Managed
+	// +optional
+	InitializationPolicy string `json:"initializationPolicy,omitempty"`
 }
 
 // BootstrapSpec configures automatic Home Assistant onboarding and API token creation
@@ -801,6 +834,19 @@ type HomeAssistantStatus struct {
 	// restarting and sets condition BanRecoveryFailed=True.
 	// +optional
 	BanRestartWindowCount int32 `json:"banRestartWindowCount,omitempty"`
+
+	// Synchronization is the observed durable coordination state.
+	// +optional
+	Synchronization *SynchronizationStatus `json:"synchronization,omitempty"`
+}
+
+type SynchronizationStatus struct {
+	// +optional
+	Paused bool `json:"paused,omitempty"`
+	// +optional
+	Epoch int64 `json:"epoch,omitempty"`
+	// +optional
+	ActiveRestoreUID string `json:"activeRestoreUID,omitempty"`
 }
 
 // BootstrapStatus contains the status of the automatic bootstrap process

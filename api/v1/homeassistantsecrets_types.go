@@ -81,6 +81,10 @@ type HomeAssistantSecretsStatus struct {
 	// +kubebuilder:validation:Optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// ObservedSynchronizationEpoch forces a fresh observation after a coordinated resume.
+	// +optional
+	ObservedSynchronizationEpoch int64 `json:"observedSynchronizationEpoch,omitempty"`
+
 	// LastError contains a human-readable description of the last error encountered
 	// +kubebuilder:validation:Optional
 	LastError string `json:"lastError,omitempty"`

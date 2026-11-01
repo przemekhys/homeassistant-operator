@@ -148,6 +148,25 @@ test-e2e: manifests generate fmt vet ginkgo ## Run all E2E tests sequentially (1
 		--timeout=60m \
 		./test/e2e/ | tee test-e2e.log
 
+.PHONY: test-backup-restore-unit
+test-backup-restore-unit: manifests generate fmt vet ## Run focused backup and restore unit tests.
+	go test ./internal/coordination/... ./internal/haclient/... ./internal/controller/... ./internal/webhook/... -count=1
+
+.PHONY: test-e2e-backup-restore
+test-e2e-backup-restore: manifests generate fmt vet ginkgo ## Run isolated backup and restore E2E tests.
+	trap '$(MAKE) cleanup-test-e2e' EXIT INT TERM; \
+	$(MAKE) setup-test-e2e; \
+	K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run -v --label-filter=backup-restore --timeout=30m ./test/e2e/ | tee test-e2e-backup-restore.log
+
+.PHONY: test-backup-restore-qualification
+test-backup-restore-qualification: ## Run the isolated qualification entrypoint; never enables runtime support.
+	@echo "Qualification requires an immutable candidate image digest and isolated target identity."
+	@test -n "$(QUALIFICATION_IMAGE_DIGEST)" || { echo "QUALIFICATION_IMAGE_DIGEST is required"; exit 2; }
+	@test -n "$(QUALIFICATION_NAMESPACE)" || { echo "QUALIFICATION_NAMESPACE is required"; exit 2; }
+	@test -n "$(QUALIFICATION_TARGET_UID)" || { echo "QUALIFICATION_TARGET_UID is required"; exit 2; }
+	QUALIFICATION_IMAGE_DIGEST=$(QUALIFICATION_IMAGE_DIGEST) QUALIFICATION_NAMESPACE=$(QUALIFICATION_NAMESPACE) QUALIFICATION_TARGET_UID=$(QUALIFICATION_TARGET_UID) \
+		$(MAKE) test-e2e-backup-restore
+
 .PHONY: cleanup-test-e2e
 cleanup-test-e2e: ## Tear down the k3d cluster used for e2e tests
 	@echo "Cleaning up k3d cluster $(K3D_CLUSTER_E2E)..."

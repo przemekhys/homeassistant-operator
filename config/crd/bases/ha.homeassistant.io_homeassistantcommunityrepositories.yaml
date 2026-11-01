@@ -188,6 +188,11 @@ spec:
                   observed by the controller.
                 format: int64
                 type: integer
+              observedSynchronizationEpoch:
+                description: ObservedSynchronizationEpoch forces a fresh observation
+                  after a coordinated resume.
+                format: int64
+                type: integer
               phase:
                 description: Phase is the current lifecycle phase.
                 type: string

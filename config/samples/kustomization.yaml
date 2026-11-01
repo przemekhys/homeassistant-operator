@@ -16,4 +16,6 @@ resources:
 - ha_v1_homeassistantlabel.yaml
 - ha_v1_homeassistantarea.yaml
 - ha_v1_homeassistantcommunityrepository.yaml
+- ha_v1alpha1_homeassistantbackup.yaml
+- ha_v1alpha1_homeassistantrestore.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

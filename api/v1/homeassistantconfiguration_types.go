@@ -191,6 +191,10 @@ type HomeAssistantConfigurationStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// ObservedSynchronizationEpoch forces a fresh observation after a coordinated resume.
+	// +optional
+	ObservedSynchronizationEpoch int64 `json:"observedSynchronizationEpoch,omitempty"`
+
 	// TrustedProxiesDefaulted reports whether the operator's default
 	// http.trusted_proxies / http.use_x_forwarded_for values are currently
 	// active in the generated configuration for the referenced HomeAssistant.

@@ -27,6 +27,21 @@ import (
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
 )
 
+func TestValidateCoordinatedSynchronization(t *testing.T) {
+	restoreOnly := &hav1.HomeAssistant{Spec: hav1.HomeAssistantSpec{Alpha: &hav1.AlphaSpec{
+		CoordinatedSynchronization: &hav1.CoordinatedSynchronizationSpec{InitializationPolicy: "RestoreOnly"},
+	}}}
+	if errs := validateCoordinatedSynchronization(nil, restoreOnly); len(errs) != 0 {
+		t.Fatalf("RestoreOnly create rejected: %v", errs)
+	}
+	if errs := validateCoordinatedSynchronization(&hav1.HomeAssistant{}, restoreOnly); len(errs) == 0 {
+		t.Fatal("RestoreOnly update from Managed must be rejected")
+	}
+	if errs := validateCoordinatedSynchronization(restoreOnly, restoreOnly); len(errs) != 0 {
+		t.Fatalf("RestoreOnly update should remain valid: %v", errs)
+	}
+}
+
 func TestValidateHomeAssistantTLS(t *testing.T) {
 	tests := []struct {
 		name         string

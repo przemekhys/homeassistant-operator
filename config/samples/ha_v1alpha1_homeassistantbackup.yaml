@@ -1,0 +1,15 @@
+apiVersion: ha.homeassistant.io/v1alpha1
+kind: HomeAssistantBackup
+metadata:
+  labels:
+    app.kubernetes.io/name: homeassistant-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: homeassistant-backup-sample
+spec:
+  # Replace with the UID of the live target before applying this manifest.
+  homeAssistantRef:
+    name: homeassistant-sample
+    uid: REPLACE_WITH_LIVE_HOMEASSISTANT_UID
+  includeDatabase: true
+  agentIDs:
+    - backup.local

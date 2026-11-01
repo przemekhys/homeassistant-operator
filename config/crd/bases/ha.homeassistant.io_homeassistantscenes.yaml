@@ -223,6 +223,11 @@ spec:
                   recently observed HomeAssistantScene
                 format: int64
                 type: integer
+              observedSynchronizationEpoch:
+                description: ObservedSynchronizationEpoch forces a fresh observation
+                  after a coordinated resume.
+                format: int64
+                type: integer
               sceneHash:
                 description: |-
                   SceneHash is the SHA256 hash of the current scene configuration

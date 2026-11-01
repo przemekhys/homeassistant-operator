@@ -2153,6 +2153,21 @@ spec:
                   Alpha groups experimental, unstable fields. Fields here may change or be
                   removed without a deprecation notice.
                 properties:
+                  coordinatedSynchronization:
+                    description: |-
+                      CoordinatedSynchronization enables the experimental distributed writer
+                      protocol required for a complete synchronization pause and restore.
+                    properties:
+                      enabled:
+                        default: false
+                        type: boolean
+                      initializationPolicy:
+                        default: Managed
+                        enum:
+                        - Managed
+                        - RestoreOnly
+                        type: string
+                    type: object
                   devices:
                     description: |-
                       Devices declares host device nodes (e.g. /dev/ttyACM0 for a Zigbee/
@@ -2252,6 +2267,15 @@ spec:
                     description: IncludeDatabase controls whether the database is
                       included in the backup.
                     type: boolean
+                  managementPolicy:
+                    default: Managed
+                    description: |-
+                      ManagementPolicy determines whether the operator configures native backup
+                      settings. Unmanaged observes without changing Home Assistant settings.
+                    enum:
+                    - Managed
+                    - Unmanaged
+                    type: string
                   recurrence:
                     default: daily
                     description: Recurrence defines how often to create a backup
@@ -4200,6 +4224,15 @@ spec:
                       default.
                     type: string
                 type: object
+              synchronization:
+                description: Synchronization controls coordinated pauses of operator-managed
+                  writes.
+                properties:
+                  paused:
+                    type: boolean
+                  resumeAfterRestoreUID:
+                    type: string
+                type: object
               timezone:
                 default: UTC
                 description: Timezone for the Home Assistant instance (e.g., "Europe/Warsaw")
@@ -4391,6 +4424,18 @@ spec:
                   backwards compatibility; prefer BanRestartWindowCount for limit enforcement.
                 format: int32
                 type: integer
+              synchronization:
+                description: Synchronization is the observed durable coordination
+                  state.
+                properties:
+                  activeRestoreUID:
+                    type: string
+                  epoch:
+                    format: int64
+                    type: integer
+                  paused:
+                    type: boolean
+                type: object
               url:
                 description: URL is the access URL for Home Assistant (if Ingress
                   is enabled)

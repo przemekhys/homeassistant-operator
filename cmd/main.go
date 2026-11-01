@@ -51,8 +51,10 @@ import (
 	hav1alpha1 "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 	"github.com/przemekhys/homeassistant-operator/internal/communityrepo"
 	"github.com/przemekhys/homeassistant-operator/internal/controller"
+	"github.com/przemekhys/homeassistant-operator/internal/haclient"
 	"github.com/przemekhys/homeassistant-operator/internal/version"
 	webhookhav1 "github.com/przemekhys/homeassistant-operator/internal/webhook/v1"
+	webhookhav1alpha1 "github.com/przemekhys/homeassistant-operator/internal/webhook/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -87,6 +89,7 @@ func ensureWebhookSecret(mgr ctrl.Manager, namespace, name string) error {
 	if err != nil {
 		return err
 	}
+
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Type:       corev1.SecretTypeOpaque,
@@ -337,6 +340,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	restoreSessions := haclient.NewRestoreSessionRunner(haclient.DefaultRestoreLifetime)
+	if err := mgr.Add(restoreSessions); err != nil {
+		setupLog.Error(err, "unable to add restore session runner")
+		os.Exit(1)
+	}
+
 	if err := (&controller.HomeAssistantReconciler{
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
@@ -487,6 +496,10 @@ func main() {
 			}
 			if err := webhookhav1.SetupHomeAssistantConfigurationWebhookWithManager(mgr); err != nil {
 				setupLog.Error(err, "unable to create webhook", "webhook", "HomeAssistantConfiguration")
+				os.Exit(1)
+			}
+			if err := webhookhav1alpha1.SetupBackupRestoreWebhooksWithManager(mgr); err != nil {
+				setupLog.Error(err, "unable to create operation webhooks")
 				os.Exit(1)
 			}
 			setupLog.Info("validating webhooks registered")

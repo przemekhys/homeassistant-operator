@@ -159,6 +159,11 @@ spec:
                 description: observedGeneration is the most recent generation observed
                 format: int64
                 type: integer
+              observedSynchronizationEpoch:
+                description: ObservedSynchronizationEpoch forces a fresh observation
+                  after a coordinated resume.
+                format: int64
+                type: integer
             type: object
         required:
         - spec
