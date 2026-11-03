@@ -186,6 +186,53 @@ spec:
 		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
 	})
 
+	It("creates one native backup from an explicit request", func() {
+		By("disabling the native schedule while preserving one-shot backups")
+		_, err := utils.Run(exec.Command(
+			"kubectl", "patch", "ha", haName, "-n", namespace, "--type=merge",
+			"-p", `{"spec":{"backup":{"enabled":true,"recurrence":"never","retentionCopies":3,"includeDatabase":true,"agentIDs":["backup.local"]}}}`,
+		))
+		Expect(err).NotTo(HaveOccurred())
+
+		token := criticalPathOperatorToken(namespace, haName+"-homeassistant-api-token")
+		apiClient, cleanup := criticalPathHAClient(namespace, haName)
+		defer cleanup()
+		requestID := "e2e-backup-" + utils.RandomString(12)
+		By("requesting one backup through the durable annotation")
+		_, err = utils.Run(exec.Command(
+			"kubectl", "annotate", "ha", haName, "-n", namespace,
+			"ha.homeassistant.io/backup-request="+requestID, "--overwrite",
+		))
+		Expect(err).NotTo(HaveOccurred())
+
+		var backupID string
+		Eventually(func(g Gomega) {
+			receipt := utils.Kubectl("get", "ha", haName, "-n", namespace,
+				"-o", "jsonpath={.metadata.annotations.ha\\.homeassistant\\.io/backup-receipt}")
+			g.Expect(receipt).To(ContainSubstring(requestID))
+			var parsed struct {
+				Phase    string `json:"phase"`
+				BackupID string `json:"backupID"`
+			}
+			g.Expect(json.Unmarshal([]byte(receipt), &parsed)).To(Succeed())
+			g.Expect(parsed.Phase).To(Or(Equal("Accepted"), Equal("Succeeded")))
+			g.Expect(parsed.BackupID).NotTo(BeEmpty())
+			backupID = parsed.BackupID
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+
+		By("observing the native archive identified by the request receipt")
+		Eventually(func(g Gomega) {
+			info, getErr := apiClient.GetBackupInfo(context.Background(), token)
+			g.Expect(getErr).NotTo(HaveOccurred())
+			for _, archive := range info.Backups {
+				if archive.ID == backupID {
+					return
+				}
+			}
+			g.Expect(info.Backups).To(ContainElement(HaveField("ID", backupID)))
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+	})
+
 	It("dedicated bootstrap isolates the runtime principal and retires bootstrap access", func() {
 		By("Verifying the namespace-local managed Secret metadata")
 		owner := utils.Kubectl(
