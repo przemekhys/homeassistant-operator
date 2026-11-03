@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +17,9 @@ func TestReceiptFromHARejectsMalformedOrForeignReceipts(t *testing.T) {
 		"invalid JSON":    `{"version":`,
 		"unknown version": `{"version":2,"instanceUID":"current"}`,
 		"foreign UID":     `{"version":1,"instanceUID":"other"}`,
+		"invalid request": `{"version":1,"instanceUID":"current","requestID":"bad id","phase":"Accepted","claimedAt":"2026-11-03T10:00:00Z","expectedAgentIDs":["backup.local"]}`,
+		"invalid phase":   `{"version":1,"instanceUID":"current","requestID":"request-1","phase":"Retry","claimedAt":"2026-11-03T10:00:00Z","expectedAgentIDs":["backup.local"]}`,
+		"duplicate agent": `{"version":1,"instanceUID":"current","requestID":"request-1","phase":"Accepted","claimedAt":"2026-11-03T10:00:00Z","expectedAgentIDs":["backup.local","backup.local"]}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			ha.Annotations = map[string]string{backupReceiptAnnotation: annotation}
@@ -56,5 +60,18 @@ func TestSetBackupRequestStatusDoesNotExposeReceiptReason(t *testing.T) {
 	}
 	if got := ha.Status.Backup.Request; got.ID != "request-1" || got.Phase != "Unknown" || got.BackupID != "backup-1" {
 		t.Fatalf("unexpected request status: %#v", got)
+	}
+}
+
+func TestBackupRequestIDPattern(t *testing.T) {
+	for _, id := range []string{"request-1", "A", "backup.request_2026"} {
+		if !backupRequestIDPattern.MatchString(id) {
+			t.Fatalf("valid request ID %q was rejected", id)
+		}
+	}
+	for _, id := range []string{"", "-starts-with-dash", "contains space", strings.Repeat("a", 65)} {
+		if backupRequestIDPattern.MatchString(id) {
+			t.Fatalf("invalid request ID %q was accepted", id)
+		}
 	}
 }

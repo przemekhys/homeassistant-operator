@@ -46,7 +46,36 @@ func receiptFromHA(ha *hav1.HomeAssistant) (*backupReceipt, error) {
 	if receipt.Version != 1 || receipt.InstanceUID != string(ha.UID) {
 		return nil, fmt.Errorf("invalid backup receipt")
 	}
+	if !backupRequestIDPattern.MatchString(receipt.RequestID) || receipt.ClaimedAt.IsZero() || !validBackupReceiptPhase(receipt.Phase) || !uniqueNonEmptyStrings(receipt.ExpectedAgentIDs) {
+		return nil, fmt.Errorf("invalid backup receipt")
+	}
 	return &receipt, nil
+}
+
+func validBackupReceiptPhase(phase string) bool {
+	switch phase {
+	case "Dispatching", "Accepted", "Succeeded", "Failed", "Unknown":
+		return true
+	default:
+		return false
+	}
+}
+
+func uniqueNonEmptyStrings(values []string) bool {
+	if len(values) == 0 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if value == "" {
+			return false
+		}
+		if _, exists := seen[value]; exists {
+			return false
+		}
+		seen[value] = struct{}{}
+	}
+	return true
 }
 
 func setBackupRequestStatus(ha *hav1.HomeAssistant, receipt *backupReceipt) {
@@ -114,6 +143,13 @@ func (r *HomeAssistantReconciler) reconcileBackupRequest(
 		if !available[id] {
 			return r.backupRequestStatus(ctx, ha, receipt, "AgentUnavailable", "a requested backup destination is unavailable")
 		}
+	}
+	info, err := c.GetBackupInfo(ctx, token)
+	if err != nil {
+		return r.backupRequestStatus(ctx, ha, receipt, "ObservationUnavailable", "cannot verify backup activity")
+	}
+	if info.State != "idle" {
+		return r.backupRequestStatus(ctx, ha, receipt, "RequestInProgress", "Home Assistant is already processing a backup")
 	}
 
 	receipt = &backupReceipt{
