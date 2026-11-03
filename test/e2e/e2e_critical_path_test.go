@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -184,6 +185,7 @@ spec:
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(config.Country).To(Equal("PL"))
 		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+
 	})
 
 	It("creates one native backup from an explicit request", Label("backup"), func() {
@@ -231,6 +233,14 @@ spec:
 			}
 			g.Expect(info.Backups).To(ContainElement(HaveField("ID", backupID)))
 		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+
+		By("streaming the archive from the native local agent without exporting it")
+		response, downloadErr := apiClient.DownloadBackup(context.Background(), token, backupID, "backup.local")
+		Expect(downloadErr).NotTo(HaveOccurred())
+		defer response.Body.Close()
+		bytesRead, copyErr := io.Copy(io.Discard, response.Body)
+		Expect(copyErr).NotTo(HaveOccurred())
+		Expect(bytesRead).To(BeNumerically(">", 0))
 	})
 
 	It("dedicated bootstrap isolates the runtime principal and retires bootstrap access", func() {
