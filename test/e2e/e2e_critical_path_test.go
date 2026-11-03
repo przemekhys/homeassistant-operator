@@ -186,7 +186,7 @@ spec:
 		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
 	})
 
-	It("creates one native backup from an explicit request", func() {
+	It("creates one native backup from an explicit request", Label("backup"), func() {
 		By("disabling the native schedule while preserving one-shot backups")
 		_, err := utils.Run(exec.Command(
 			"kubectl", "patch", "ha", haName, "-n", namespace, "--type=merge",
