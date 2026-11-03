@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -114,7 +115,11 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 			log.Error(err, "Failed to update backup status")
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, nil
+		result, err := r.reconcileBackupObservation(ctx, ha, haClient, token, currentConfig)
+		if err != nil || result.RequeueAfter > 0 {
+			return result, err
+		}
+		return r.reconcileBackupRequest(ctx, ha, haClient, token, currentConfig)
 	}
 
 	// Apply new config
@@ -151,7 +156,9 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	// Read the configuration again before a one-shot request so it always uses
+	// settings HA has acknowledged rather than a desired local approximation.
+	return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 }
 
 // buildBackupConfigRequest converts BackupSpec to haclient.BackupConfigRequest
@@ -162,6 +169,10 @@ func (r *HomeAssistantReconciler) buildBackupConfigRequest(spec *hav1.BackupSpec
 		},
 		Retention:    &haclient.BackupRetention{},
 		CreateBackup: &haclient.BackupCreateConfig{},
+	}
+	if isWeekday(spec.Recurrence) {
+		req.Schedule.Recurrence = "custom_days"
+		req.Schedule.Days = []string{spec.Recurrence}
 	}
 
 	// Time: empty string in spec → nil (HA picks automatically)
@@ -199,6 +210,9 @@ func (r *HomeAssistantReconciler) needsBackupUpdate(
 	// Compare schedule
 	if desired.Schedule != nil {
 		if current.Schedule.Recurrence != desired.Schedule.Recurrence {
+			return true
+		}
+		if !stringSliceSetEqual(current.Schedule.Days, desired.Schedule.Days) {
 			return true
 		}
 		if !ptrStringEqual(current.Schedule.Time, desired.Schedule.Time) {
@@ -273,6 +287,25 @@ func stringSliceEqual(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func stringSliceSetEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	aa, bb := append([]string(nil), a...), append([]string(nil), b...)
+	sort.Strings(aa)
+	sort.Strings(bb)
+	return stringSliceEqual(aa, bb)
+}
+
+func isWeekday(value string) bool {
+	switch value {
+	case "mon", "tue", "wed", "thu", "fri", "sat", "sun":
+		return true
+	default:
+		return false
+	}
 }
 
 // emitBackupEvent emits a Kubernetes event for backup operations.

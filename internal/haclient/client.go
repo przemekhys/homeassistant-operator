@@ -696,13 +696,24 @@ func (c *Client) GetBackupConfig(
 		return nil, err
 	}
 
-	var config BackupConfig
-	if err := json.Unmarshal(result, &config); err != nil {
+	var envelope struct {
+		Config BackupConfig `json:"config"`
+	}
+	if err := json.Unmarshal(result, &envelope); err != nil {
 		return nil, &Error{
 			Type:    ErrorTypeInvalidResponse,
 			Message: "failed to parse backup config",
 			Err:     err,
 		}
+	}
+	// HA returns {"config": ...}; accepting the direct form retains compatibility
+	// with older local test fixtures and does not affect values written back.
+	if envelope.Config.Schedule.Recurrence != "" || envelope.Config.CreateBackup.AgentIDs != nil {
+		return &envelope.Config, nil
+	}
+	var config BackupConfig
+	if err := json.Unmarshal(result, &config); err != nil {
+		return nil, &Error{Type: ErrorTypeInvalidResponse, Message: "failed to parse backup config", Err: err}
 	}
 	return &config, nil
 }

@@ -174,8 +174,9 @@ type Dashboard struct {
 
 // BackupSchedule represents the schedule section of HA backup config
 type BackupSchedule struct {
-	Recurrence string  `json:"recurrence"` // "daily", "mon", "tue", ..., "never"
-	Time       *string `json:"time"`       // "HH:MM:SS" or null
+	Recurrence string   `json:"recurrence"`
+	Days       []string `json:"days,omitempty"`
+	Time       *string  `json:"time"`
 }
 
 // BackupRetention represents the retention section of HA backup config
@@ -196,6 +197,43 @@ type BackupConfig struct {
 	Schedule     BackupSchedule     `json:"schedule"`
 	Retention    BackupRetention    `json:"retention"`
 	CreateBackup BackupCreateConfig `json:"create_backup"`
+}
+
+// BackupAgent is a destination advertised by Home Assistant. Its presence only
+// proves discovery; a later backup can still fail at that destination.
+type BackupAgent struct {
+	ID   string `json:"agent_id"`
+	Name string `json:"name"`
+}
+
+// BackupArchive records the observable part of a completed native backup.
+// Agent data is reconstructed by HA and is not a durable operation ledger.
+type BackupArchive struct {
+	ID             string                     `json:"backup_id"`
+	Date           string                     `json:"date"`
+	Agents         map[string]BackupAgentCopy `json:"agents"`
+	FailedAgentIDs []string                   `json:"failed_agent_ids"`
+	Automatic      bool                       `json:"with_automatic_settings"`
+}
+
+type BackupAgentCopy struct {
+	Protected bool  `json:"protected"`
+	Size      int64 `json:"size"`
+}
+
+// BackupInfo is deliberately narrow: it contains evidence HA exposes without
+// claiming that the response is a complete backup-attempt history.
+type BackupInfo struct {
+	State                        string          `json:"state"`
+	Backups                      []BackupArchive `json:"backups"`
+	AgentErrors                  map[string]any  `json:"agent_errors"`
+	LastAttemptedAutomaticBackup *string         `json:"last_attempted_automatic_backup"`
+	LastCompletedAutomaticBackup *string         `json:"last_completed_automatic_backup"`
+	LastActionEvent              map[string]any  `json:"last_action_event"`
+}
+
+type BackupGenerateResult struct {
+	JobID string `json:"backup_job_id"`
 }
 
 // BackupConfigRequest represents the request for backup/config/update

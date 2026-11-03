@@ -31,6 +31,7 @@ see the [explanations](../explanation/index.md).
 ## Operating
 
 - [Configure backups](configure-backups.md)
+- [Recover a native backup](recover-native-backup.md)
 - [Expose an instance with TLS](expose-with-tls.md)
 - [Enforce Pod Security Standards](enforce-pod-security.md)
 - [Verify signed releases](verify-signed-releases.md)

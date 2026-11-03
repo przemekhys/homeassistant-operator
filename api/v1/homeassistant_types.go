@@ -801,6 +801,67 @@ type HomeAssistantStatus struct {
 	// restarting and sets condition BanRecoveryFailed=True.
 	// +optional
 	BanRestartWindowCount int32 `json:"banRestartWindowCount,omitempty"`
+
+	// Backup contains the latest bounded backup observations. It never contains
+	// credentials, backup encryption keys, or a complete operation history.
+	// +optional
+	Backup *BackupStatus `json:"backup,omitempty"`
+}
+
+// BackupStatus is the operator's current view of native backups.
+type BackupStatus struct {
+	// ObservedAt is when Home Assistant backup information was last read.
+	// +optional
+	ObservedAt *metav1.Time `json:"observedAt,omitempty"`
+	// Agents are destinations last advertised by Home Assistant.
+	// +optional
+	Agents []BackupAgentStatus `json:"agents,omitempty"`
+	// LastAttempt is bounded evidence, not a full backup history.
+	// +optional
+	LastAttempt *BackupAttemptStatus `json:"lastAttempt,omitempty"`
+	// LastSuccessfulBackupTime is the native archive date of the last fully
+	// confirmed success, when that evidence is available.
+	// +optional
+	LastSuccessfulBackupTime *metav1.Time `json:"lastSuccessfulBackupTime,omitempty"`
+	// Request is the current durable one-shot request projection.
+	// +optional
+	Request *BackupRequestStatus `json:"request,omitempty"`
+	// KeySecretRef identifies the protected current observed encryption key.
+	// It never contains the key value.
+	// +optional
+	KeySecretRef *BackupSecretKeyReference `json:"keySecretRef,omitempty"`
+}
+
+type BackupAgentStatus struct {
+	ID   string `json:"id"`
+	Name string `json:"name,omitempty"`
+}
+
+type BackupAttemptStatus struct {
+	Source      string                 `json:"source"`
+	RequestID   string                 `json:"requestID,omitempty"`
+	BackupID    string                 `json:"backupID,omitempty"`
+	Outcome     string                 `json:"outcome"`
+	CompletedAt *metav1.Time           `json:"completedAt,omitempty"`
+	Locations   []BackupLocationStatus `json:"locations,omitempty"`
+}
+
+type BackupLocationStatus struct {
+	ID      string `json:"id"`
+	Outcome string `json:"outcome"`
+}
+
+type BackupRequestStatus struct {
+	ID        string       `json:"id"`
+	Phase     string       `json:"phase"`
+	BackupID  string       `json:"backupID,omitempty"`
+	ClaimedAt *metav1.Time `json:"claimedAt,omitempty"`
+}
+
+// BackupSecretKeyReference selects one key from an Opaque Secret without exposing it.
+type BackupSecretKeyReference struct {
+	Name string `json:"name"`
+	Key  string `json:"key"`
 }
 
 // BootstrapStatus contains the status of the automatic bootstrap process
