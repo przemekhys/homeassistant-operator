@@ -243,6 +243,69 @@ spec:
 		Expect(bytesRead).To(BeNumerically(">", 0))
 	})
 
+	It("observes a native scheduled backup independently of a request", Label("backup"), func() {
+		token := criticalPathOperatorToken(namespace, haName+"-homeassistant-api-token")
+		apiClient, cleanup := criticalPathHAClient(namespace, haName)
+		defer cleanup()
+		config, err := apiClient.GetConfig(context.Background(), token)
+		Expect(err).NotTo(HaveOccurred())
+		priorReceipt := utils.Kubectl("get", "ha", haName, "-n", namespace,
+			"-o", "jsonpath={.metadata.annotations.ha\\.homeassistant\\.io/backup-receipt}")
+		var priorRequest struct {
+			RequestID string `json:"requestID"`
+		}
+		Expect(json.Unmarshal([]byte(priorReceipt), &priorRequest)).To(Succeed())
+		location := time.UTC
+		if config.TimeZone != "" {
+			location, err = time.LoadLocation(config.TimeZone)
+			Expect(err).NotTo(HaveOccurred())
+		}
+		// Keep enough lead time for the controller to apply the configuration,
+		// but avoid waiting for a daily cycle.
+		target := time.Now().In(location).Add(90 * time.Second).Truncate(time.Second)
+		By("scheduling the nearest native backup in Home Assistant's timezone")
+		_, err = utils.Run(exec.Command(
+			"kubectl", "patch", "ha", haName, "-n", namespace, "--type=merge",
+			"-p", fmt.Sprintf(`{"spec":{"backup":{"enabled":true,"recurrence":"daily","time":"%s","retentionCopies":3,"includeDatabase":true,"agentIDs":["backup.local"]}}}`, target.Format("15:04:05")),
+		))
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(func() {
+			_, _ = utils.Run(exec.Command(
+				"kubectl", "patch", "ha", haName, "-n", namespace, "--type=merge",
+				"-p", `{"spec":{"backup":{"enabled":true,"recurrence":"never","retentionCopies":3,"includeDatabase":true,"agentIDs":["backup.local"]}}}`,
+			))
+		})
+
+		By("waiting for a new automatic archive rather than creating a request")
+		var scheduledID string
+		Eventually(func(g Gomega) {
+			info, getErr := apiClient.GetBackupInfo(context.Background(), token)
+			g.Expect(getErr).NotTo(HaveOccurred())
+			for _, archive := range info.Backups {
+				if archive.Automatic && archive.Date >= target.Add(-time.Minute).Format(time.RFC3339) {
+					scheduledID = archive.ID
+					return
+				}
+			}
+			g.Expect(scheduledID).NotTo(BeEmpty())
+		}, 4*time.Minute, reconcileInterval).Should(Succeed())
+
+		By("checking that backup status keeps the schedule separate from a request")
+		Eventually(func(g Gomega) {
+			lastSuccessful := utils.Kubectl("get", "ha", haName, "-n", namespace,
+				"-o", "jsonpath={.status.backup.lastSuccessfulBackupTime}")
+			g.Expect(lastSuccessful).NotTo(BeEmpty())
+			receipt := utils.Kubectl("get", "ha", haName, "-n", namespace,
+				"-o", "jsonpath={.metadata.annotations.ha\\.homeassistant\\.io/backup-receipt}")
+			var currentRequest struct {
+				RequestID string `json:"requestID"`
+			}
+			g.Expect(json.Unmarshal([]byte(receipt), &currentRequest)).To(Succeed())
+			g.Expect(currentRequest.RequestID).To(Equal(priorRequest.RequestID), "schedule must not create a one-shot request")
+		}, 3*time.Minute, reconcileInterval).Should(Succeed())
+		Expect(scheduledID).NotTo(BeEmpty())
+	})
+
 	It("dedicated bootstrap isolates the runtime principal and retires bootstrap access", func() {
 		By("Verifying the namespace-local managed Secret metadata")
 		owner := utils.Kubectl(

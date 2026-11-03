@@ -90,6 +90,15 @@ func setBackupRequestStatus(ha *hav1.HomeAssistant, receipt *backupReceipt) {
 	ha.Status.Backup.Request = &hav1.BackupRequestStatus{
 		ID: receipt.RequestID, Phase: receipt.Phase, BackupID: receipt.BackupID, ClaimedAt: &claimed,
 	}
+	if receipt.Phase == "Dispatching" || receipt.Phase == "Accepted" || receipt.Phase == "Succeeded" || receipt.Phase == "Failed" || receipt.Phase == "Unknown" {
+		outcome := receipt.Phase
+		if outcome == "Dispatching" || outcome == "Accepted" {
+			outcome = "Running"
+		}
+		ha.Status.Backup.LastAttempt = &hav1.BackupAttemptStatus{
+			Source: "Operator", RequestID: receipt.RequestID, BackupID: receipt.BackupID, Outcome: outcome,
+		}
+	}
 }
 
 func (r *HomeAssistantReconciler) reconcileBackupRequest(

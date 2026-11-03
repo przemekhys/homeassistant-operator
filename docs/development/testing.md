@@ -214,7 +214,15 @@ make test-e2e-tls                        # TLS ingress/gateway/webhook (4 specs)
 make test-e2e-network-policy             # NetworkPolicy enforcement (1 spec)
 make test-e2e-pod-security                # Pod Security Standards (2 specs)
 make test-e2e-community-repository       # All HACS-style categories and lifecycle (4 specs)
+HA_VERSION=2026.10.4 make test-e2e-backup K3D_CLUSTER_E2E=ha-backup-validation-e2e  # Native backup checks
 ```
+
+`test-e2e-critical-a` keeps its eight-minute budget and excludes the labelled
+backup cases. `test-e2e-backup` uses a 15-minute budget with one shared HA
+bootstrap. It verifies native `backup.local` one-shot creation, streamed
+archive download without exporting it, and a near-term scheduled backup in HA
+2026.10.4. It does not verify encrypted recovery, external agents, or a
+provider-specific destination failure.
 
 Each target creates its own fresh k3d cluster (`K3D_MEMORY_E2E=12g` by
 default; CI uses 4g), runs its `ginkgo run --label-filter=...` subset, and tears the
