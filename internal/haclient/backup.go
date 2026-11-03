@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -123,4 +125,25 @@ func (c *Client) GenerateBackupWithAutomaticSettings(ctx context.Context, token 
 		return "", &Error{Type: ErrorTypeInvalidResponse, Message: "invalid backup generate response", Err: err}
 	}
 	return result.JobID, nil
+}
+
+// DownloadBackup opens a stream for an archive held by a native HA backup
+// agent. Callers own and must close the response body. The method deliberately
+// has no password argument: protected archive downloads must remain encrypted.
+func (c *Client) DownloadBackup(ctx context.Context, token, backupID, agentID string) (*http.Response, error) {
+	endpoint := fmt.Sprintf("%s/api/backup/download/%s?agent_id=%s", c.baseURL, url.PathEscape(backupID), url.QueryEscape(agentID))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, &Error{Type: ErrorTypeHTTP, Message: "failed to create backup download request", Err: err}
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, &Error{Type: ErrorTypeHTTP, Message: "backup download failed", Err: err}
+	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		_ = resp.Body.Close()
+		return nil, &Error{Type: ErrorTypeHTTP, StatusCode: resp.StatusCode, Message: "backup download was rejected"}
+	}
+	return resp, nil
 }
