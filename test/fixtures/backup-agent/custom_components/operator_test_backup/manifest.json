@@ -1,0 +1,7 @@
+{
+  "domain": "operator_test_backup",
+  "name": "Operator test backup agent",
+  "version": "0.0.0",
+  "requirements": [],
+  "codeowners": []
+}

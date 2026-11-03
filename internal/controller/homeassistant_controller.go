@@ -315,14 +315,15 @@ func (r *HomeAssistantReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		log.Error(err, "Failed to reconcile Backup config")
 		return result, err
 	}
-	if result.RequeueAfter > 0 {
-		return result, nil
-	}
+	backupResult := result
 
 	// Update status based on StatefulSet status
 	statusResult, err := r.updateStatusFromStatefulSet(ctx, ha)
 	if err != nil || statusResult.RequeueAfter > 0 {
 		return statusResult, err
+	}
+	if backupResult.RequeueAfter > 0 {
+		return backupResult, nil
 	}
 
 	// When bootstrap is complete, requeue at a bounded interval so that the

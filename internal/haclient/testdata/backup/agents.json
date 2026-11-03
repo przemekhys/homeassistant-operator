@@ -1,0 +1,6 @@
+{
+  "agents": [
+    {"agent_id": "backup.local", "name": "Local backup"},
+    {"agent_id": "fixture.remote", "name": "Fixture remote"}
+  ]
+}

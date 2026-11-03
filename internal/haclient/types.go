@@ -232,6 +232,12 @@ type BackupInfo struct {
 	LastActionEvent              map[string]any  `json:"last_action_event"`
 }
 
+// BackupDetails is the bounded response for one archive lookup.
+type BackupDetails struct {
+	Backup      BackupArchive  `json:"backup"`
+	AgentErrors map[string]any `json:"agent_errors"`
+}
+
 type BackupGenerateResult struct {
 	JobID string `json:"backup_job_id"`
 }

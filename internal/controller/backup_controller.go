@@ -37,6 +37,7 @@ const (
 	reasonBackupConfigured        = "BackupConfigured"
 	reasonBackupConfigFailed      = "BackupConfigFailed"
 	reasonBackupTokenNotAvailable = "TokenNotAvailable"
+	reasonBackupUnmanaged         = "Unmanaged"
 )
 
 // reconcileBackupConfig configures HA's built-in backup system via WebSocket API.
@@ -47,17 +48,7 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	// If backup not enabled, clear condition if it was set and return
-	if ha.Spec.Backup == nil || !ha.Spec.Backup.Enabled {
-		if meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupConfigured) != nil {
-			meta.RemoveStatusCondition(&ha.Status.Conditions, conditionTypeBackupConfigured)
-			if err := r.Status().Update(ctx, ha); err != nil {
-				log.Error(err, "Failed to clear BackupConfigured condition")
-				return ctrl.Result{}, err
-			}
-		}
-		return ctrl.Result{}, nil
-	}
+	managed := ha.Spec.Backup != nil && ha.Spec.Backup.Enabled
 
 	// Get API token
 	token, err := getAPIToken(ctx, r.Client, ha)
@@ -96,6 +87,21 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 			log.Error(err, "Failed to update backup status")
 		}
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
+	if !managed {
+		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
+			Type: conditionTypeBackupConfigured, Status: metav1.ConditionUnknown,
+			ObservedGeneration: ha.Generation, Reason: reasonBackupUnmanaged,
+			Message: "backup configuration is unmanaged",
+		})
+		if err := r.Status().Update(ctx, ha); err != nil {
+			return ctrl.Result{}, err
+		}
+		result, err := r.reconcileBackupObservation(ctx, ha, haClient, token, currentConfig)
+		if err != nil || result.RequeueAfter > 0 {
+			return result, err
+		}
+		return r.reconcileBackupRequest(ctx, ha, haClient, token, currentConfig)
 	}
 
 	// Build desired config from spec
@@ -165,10 +171,13 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 func (r *HomeAssistantReconciler) buildBackupConfigRequest(spec *hav1.BackupSpec) *haclient.BackupConfigRequest {
 	req := &haclient.BackupConfigRequest{
 		Schedule: &haclient.BackupSchedule{
-			Recurrence: spec.Recurrence,
+			Recurrence: "daily",
 		},
 		Retention:    &haclient.BackupRetention{},
 		CreateBackup: &haclient.BackupCreateConfig{},
+	}
+	if spec.Recurrence != "" {
+		req.Schedule.Recurrence = spec.Recurrence
 	}
 	if isWeekday(spec.Recurrence) {
 		req.Schedule.Recurrence = "custom_days"
@@ -192,7 +201,11 @@ func (r *HomeAssistantReconciler) buildBackupConfigRequest(spec *hav1.BackupSpec
 	}
 
 	// CreateBackup
-	req.CreateBackup.IncludeDatabase = spec.IncludeDatabase
+	includeDatabase := true
+	if spec.IncludeDatabase != nil {
+		includeDatabase = *spec.IncludeDatabase
+	}
+	req.CreateBackup.IncludeDatabase = &includeDatabase
 	if len(spec.AgentIDs) > 0 {
 		req.CreateBackup.AgentIDs = spec.AgentIDs
 	} else {
@@ -235,7 +248,7 @@ func (r *HomeAssistantReconciler) needsBackupUpdate(
 		if !ptrBoolEqual(current.CreateBackup.IncludeDatabase, desired.CreateBackup.IncludeDatabase) {
 			return true
 		}
-		if !stringSliceEqual(current.CreateBackup.AgentIDs, desired.CreateBackup.AgentIDs) {
+		if !stringSliceSetEqual(current.CreateBackup.AgentIDs, desired.CreateBackup.AgentIDs) {
 			return true
 		}
 	}
