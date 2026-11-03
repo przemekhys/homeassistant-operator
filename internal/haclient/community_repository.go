@@ -89,6 +89,9 @@ func (c *Client) sendWebSocketCommandWithCode(
 	if err := conn.ReadJSON(&resp); err != nil {
 		return nil, "", &Error{Type: ErrorTypeHTTP, Message: "failed to read websocket response", Err: err}
 	}
+	if resp.Type != "result" || resp.ID != 1 {
+		return nil, "", &Error{Type: ErrorTypeInvalidResponse, Message: "unexpected websocket command response"}
+	}
 
 	if !resp.Success {
 		code := ""

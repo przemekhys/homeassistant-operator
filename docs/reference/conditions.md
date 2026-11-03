@@ -106,6 +106,19 @@ operator recovers by restarting the pod — see
 | `BackupConfigFailed` | Home Assistant rejected the backup configuration |
 | `TokenNotAvailable` | Waiting for the API token |
 
+### `BackupObservationReady` and `BackupKeyProtected`
+
+Backup configuration, the last observed backup result, and key protection are
+independent. A configured schedule is not proof that a backup completed.
+
+| Condition | Reason | Meaning |
+|-----------|--------|---------|
+| `BackupObservationReady` | `Observed` | Home Assistant backup information was read. |
+| `BackupObservationReady` | `ObservationUnavailable` | The operator cannot currently read backup information; old observations are not fresh proof. |
+| `BackupKeyProtected` | `Protected` | The current observed encryption key was stored in the retained Secret. |
+| `BackupKeyProtected` | `EncryptionNotEnabled` | Home Assistant did not expose an encryption key. |
+| `BackupKeyProtected` | `SecretWriteFailed` | The observed key could not be safely retained. |
+
 ### `CertManagerAvailable`
 
 | Reason | Meaning |

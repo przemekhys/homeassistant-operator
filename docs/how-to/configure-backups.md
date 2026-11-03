@@ -40,6 +40,41 @@ spec:
 
 The operator reads the current backup config from HA (`backup/config/info`) before writing. It only sends `backup/config/update` if the desired state differs from the actual state — no unnecessary WebSocket calls on every reconcile.
 
+## Create one backup now
+
+The operator uses Home Assistant's native backup mechanism. It does not upload,
+encrypt, or retain archives itself. To request one backup without enabling a
+schedule, keep `backup.enabled: true` with `recurrence: never`, then set a new
+opaque request identifier on the HomeAssistant object:
+
+```sh
+kubectl annotate homeassistant home \
+  ha.homeassistant.io/backup-request="$(cat /proc/sys/kernel/random/uuid)" --overwrite
+```
+
+The request identifier is consumed before Home Assistant receives the command.
+If communication fails after that point, the operator reports an unknown result
+instead of retrying and possibly making two backups. Inspect Home Assistant and
+use a new identifier only when you deliberately want another backup.
+
+`enabled: false` (or omitting `backup`) stops operator management; it does not
+change a schedule already stored by Home Assistant. In contrast, `recurrence:
+never` explicitly disables that native schedule.
+
+## Backup destinations and keys
+
+`agentIDs` accepts agent identifiers advertised by the individual Home
+Assistant instance, including user-configured integrations. The operator does
+not install integrations or replace an unavailable requested destination with a
+different one.
+
+When Home Assistant exposes a backup encryption key, the operator retains each
+observed distinct value in an Opaque Secret. The Secret is deliberately not
+owned by the HomeAssistant object, so it survives deletion of that object.
+Export the relevant entry to protected storage outside the cluster. Do not put
+the key, API token, or a downloaded archive in terminal history, CI artifacts,
+or tickets. A Secret in the same cluster is not a disaster-recovery copy.
+
 ## Getting backups off the cluster
 
 Home Assistant's own backups live on the same volume as the data they protect, so
@@ -86,8 +121,8 @@ kubectl get ha home -o jsonpath='{.status.conditions}' | jq '.[] | select(.type=
 ## Turn backups off again
 
 Setting `spec.backup.enabled` back to `false` stops the operator managing the
-schedule and clears the `BackupConfigured` condition. It does **not** delete
-backups Home Assistant has already written.
+schedule. It does **not** disable that schedule or delete backups Home Assistant
+has already written.
 
 ## Choose the schedule
 

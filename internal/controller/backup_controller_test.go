@@ -101,6 +101,16 @@ var _ = Describe("Backup Controller", func() {
 					"success": true,
 					"result":  nil,
 				})
+			case "backup/agents/info":
+				_ = conn.WriteJSON(map[string]interface{}{
+					"id": 1, "type": "result", "success": true,
+					"result": map[string]interface{}{"agents": []map[string]string{{"agent_id": "backup.local", "name": "Local"}}},
+				})
+			case "backup/info":
+				_ = conn.WriteJSON(map[string]interface{}{
+					"id": 1, "type": "result", "success": true,
+					"result": map[string]interface{}{"state": "idle", "backups": []interface{}{}},
+				})
 			}
 		}
 	}
