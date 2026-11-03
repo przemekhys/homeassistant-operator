@@ -278,11 +278,13 @@ var _ = Describe("Backup Controller", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		// Verify no BackupConfigured condition
+		// An unmanaged configuration must not modify HA, but remains observable.
 		ha := &hav1.HomeAssistant{}
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: haName, Namespace: namespace}, ha)).To(Succeed())
 		cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupConfigured)
-		Expect(cond).To(BeNil())
+		Expect(cond).NotTo(BeNil())
+		Expect(cond.Status).To(Equal(metav1.ConditionUnknown))
+		Expect(cond.Reason).To(Equal(reasonBackupUnmanaged))
 	})
 
 	It("should skip backup config when no API token", func() {
@@ -324,7 +326,7 @@ var _ = Describe("Backup Controller", func() {
 			NamespacedName: types.NamespacedName{Name: haName, Namespace: namespace},
 		})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(result.RequeueAfter).To(Equal(30 * time.Second))
+		Expect(result.RequeueAfter).To(Equal(10 * time.Second))
 
 		// Verify condition shows token not available
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: haName, Namespace: namespace}, ha)).To(Succeed())
@@ -425,7 +427,7 @@ var _ = Describe("Backup Controller", func() {
 			NamespacedName: types.NamespacedName{Name: haName, Namespace: namespace},
 		})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(result.RequeueAfter).To(Equal(30 * time.Second))
+		Expect(result.RequeueAfter).To(Equal(10 * time.Second))
 
 		// Condition should be False
 		ha := &hav1.HomeAssistant{}
@@ -436,7 +438,7 @@ var _ = Describe("Backup Controller", func() {
 		Expect(cond.Reason).To(Equal(reasonBackupConfigFailed))
 	})
 
-	It("should clear BackupConfigured condition when backup disabled", func() {
+	It("should report BackupConfigured as unmanaged when backup disabled", func() {
 		wsServer = httptest.NewServer(wsHandler(
 			map[string]interface{}{
 				"schedule":      map[string]interface{}{"recurrence": "never", "time": nil},
@@ -480,10 +482,12 @@ var _ = Describe("Backup Controller", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		// Verify condition is removed
+		// Verify the existing HA schedule was not changed and state is unmanaged.
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: haName, Namespace: namespace}, ha)).To(Succeed())
 		cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupConfigured)
-		Expect(cond).To(BeNil())
+		Expect(cond).NotTo(BeNil())
+		Expect(cond.Status).To(Equal(metav1.ConditionUnknown))
+		Expect(cond.Reason).To(Equal(reasonBackupUnmanaged))
 	})
 
 	It("should detect config drift and reconfigure", func() {

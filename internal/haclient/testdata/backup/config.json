@@ -1,0 +1,7 @@
+{
+  "config": {
+    "schedule": {"recurrence": "daily", "days": [], "time": null},
+    "retention": {"copies": 3, "days": null},
+    "create_backup": {"agent_ids": ["backup.local"], "include_database": true, "password": "fixture-recovery-key"}
+  }
+}
