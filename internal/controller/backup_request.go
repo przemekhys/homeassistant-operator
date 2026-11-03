@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"time"
@@ -124,6 +125,11 @@ func (r *HomeAssistantReconciler) reconcileBackupRequest(
 	}
 	jobID, err := c.GenerateBackupWithAutomaticSettings(ctx, token)
 	if err != nil {
+		var haErr *haclient.Error
+		if errors.As(err, &haErr) && haErr.Code != "" {
+			receipt.Phase, receipt.Reason = "Failed", "NativeRejected"
+			return r.persistBackupReceipt(ctx, ha, receipt, 30*time.Second)
+		}
 		receipt.Phase, receipt.Reason = "Unknown", "SubmissionUncertain"
 		return r.persistBackupReceipt(ctx, ha, receipt, 30*time.Second)
 	}

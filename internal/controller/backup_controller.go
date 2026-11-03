@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -38,6 +39,7 @@ const (
 	reasonBackupConfigFailed      = "BackupConfigFailed"
 	reasonBackupTokenNotAvailable = "TokenNotAvailable"
 	reasonBackupUnmanaged         = "Unmanaged"
+	reasonBackupAgentUnavailable  = "AgentUnavailable"
 )
 
 // reconcileBackupConfig configures HA's built-in backup system via WebSocket API.
@@ -74,14 +76,14 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 	currentConfig, err := haClient.GetBackupConfig(ctx, token)
 	if err != nil {
 		log.Error(err, "Failed to get backup config from HA")
-		msg := fmt.Sprintf("Failed to get backup config: %v", err)
-		r.emitBackupEvent(ha, corev1.EventTypeWarning, "BackupConfigFailed", msg)
+		reason, message := backupConfigReadFailure(err)
+		r.emitBackupEvent(ha, corev1.EventTypeWarning, reason, message)
 		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
 			Type:               conditionTypeBackupConfigured,
 			Status:             metav1.ConditionFalse,
 			ObservedGeneration: ha.Generation,
-			Reason:             reasonBackupConfigFailed,
-			Message:            fmt.Sprintf("Failed to get backup config: %v", err),
+			Reason:             reason,
+			Message:            message,
 		})
 		if err := r.Status().Update(ctx, ha); err != nil {
 			log.Error(err, "Failed to update backup status")
@@ -106,6 +108,29 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 
 	// Build desired config from spec
 	desired := r.buildBackupConfigRequest(ha.Spec.Backup)
+	availableAgents, err := haClient.ListBackupAgents(ctx, token)
+	if err != nil {
+		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
+			Type: conditionTypeBackupConfigured, Status: metav1.ConditionUnknown,
+			ObservedGeneration: ha.Generation, Reason: "ObservationUnavailable",
+			Message: "cannot verify requested backup destinations",
+		})
+		if statusErr := r.Status().Update(ctx, ha); statusErr != nil {
+			return ctrl.Result{}, statusErr
+		}
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
+	if missingBackupAgent(desired.CreateBackup.AgentIDs, availableAgents) {
+		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
+			Type: conditionTypeBackupConfigured, Status: metav1.ConditionFalse,
+			ObservedGeneration: ha.Generation, Reason: reasonBackupAgentUnavailable,
+			Message: "a requested backup destination is unavailable",
+		})
+		if statusErr := r.Status().Update(ctx, ha); statusErr != nil {
+			return ctrl.Result{}, statusErr
+		}
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
 
 	// Compare and update only if needed
 	if !r.needsBackupUpdate(currentConfig, desired) {
@@ -165,6 +190,32 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 	// Read the configuration again before a one-shot request so it always uses
 	// settings HA has acknowledged rather than a desired local approximation.
 	return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+}
+
+func backupConfigReadFailure(err error) (string, string) {
+	var haErr *haclient.Error
+	if errors.As(err, &haErr) {
+		switch haErr.Code {
+		case "unknown_command":
+			return "Unsupported", "backup commands are not supported by this Home Assistant instance"
+		case "unauthorized", "forbidden":
+			return "PermissionDenied", "permission to read backup configuration was denied"
+		}
+	}
+	return reasonBackupConfigFailed, "cannot read backup configuration"
+}
+
+func missingBackupAgent(expected []string, available []haclient.BackupAgent) bool {
+	seen := make(map[string]struct{}, len(available))
+	for _, agent := range available {
+		seen[agent.ID] = struct{}{}
+	}
+	for _, id := range expected {
+		if _, found := seen[id]; !found {
+			return true
+		}
+	}
+	return false
 }
 
 // buildBackupConfigRequest converts BackupSpec to haclient.BackupConfigRequest

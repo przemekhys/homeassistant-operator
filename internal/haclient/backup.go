@@ -20,7 +20,7 @@ func (c *Client) sendBackupCommand(
 	result, code, err := c.sendWebSocketCommandWithCode(ctx, token, command, data)
 	if err != nil {
 		if code != "" {
-			return nil, &Error{Type: ErrorTypeHTTP, Message: fmt.Sprintf("backup command rejected (%s)", code)}
+			return nil, &Error{Type: ErrorTypeHTTP, Code: code, Message: fmt.Sprintf("backup command rejected (%s)", code)}
 		}
 		return nil, &Error{Type: ErrorTypeHTTP, Message: "backup command transport failed", Err: err}
 	}

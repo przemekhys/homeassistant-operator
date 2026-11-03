@@ -1,8 +1,11 @@
 """Local E2E-only backup-agent fixture."""
 
-from .backup import async_setup_backup
+from __future__ import annotations
+
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.typing import ConfigType
 
 
-async def async_setup(hass, config):
-    """Register the fixture only when copied into an E2E Home Assistant config."""
-    return await async_setup_backup(hass)
+async def async_setup(_: HomeAssistant, __: ConfigType) -> bool:
+    """Load the fixture when the E2E configuration explicitly enables it."""
+    return True

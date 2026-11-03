@@ -24,7 +24,11 @@ const (
 
 // Error represents a Home Assistant API error
 type Error struct {
-	Type       ErrorType
+	Type ErrorType
+	// Code is the safe machine-readable error code returned by Home Assistant.
+	// It deliberately excludes the server-provided message, which can contain
+	// sensitive backup configuration details.
+	Code       string
 	Message    string
 	StatusCode int
 	Err        error
