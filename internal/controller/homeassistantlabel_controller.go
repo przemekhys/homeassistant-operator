@@ -48,8 +48,9 @@ const (
 // HomeAssistantLabelReconciler reconciles a HomeAssistantLabel object
 type HomeAssistantLabelReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	NewHAClient func(baseURL string) *haclient.Client
+	Coordination CoordinationDependencies
+	Scheme       *runtime.Scheme
+	NewHAClient  func(baseURL string) *haclient.Client
 }
 
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantlabels,verbs=get;list;watch;create;update;patch;delete
@@ -71,14 +72,22 @@ func (r *HomeAssistantLabelReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	// --- DELETION ---
 	if !label.DeletionTimestamp.IsZero() {
+		if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, label,
+			label.Spec.HomeAssistantRef.Name); err != nil || !result.IsZero() {
+			return result, err
+		}
 		if controllerutil.ContainsFinalizer(label, labelFinalizerName) {
 			r.handleDeletion(ctx, label)
-			controllerutil.RemoveFinalizer(label, labelFinalizerName)
-			if err := r.Update(ctx, label); err != nil {
-				return ctrl.Result{}, err
+			if result, err := removeFinalizerAfterSynchronizationGate(ctx, r.Coordination, r.Client,
+				label, label.Spec.HomeAssistantRef.Name, labelFinalizerName); err != nil || !result.IsZero() {
+				return result, err
 			}
 		}
 		return ctrl.Result{}, nil
+	}
+	if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, label,
+		label.Spec.HomeAssistantRef.Name); err != nil || !result.IsZero() {
+		return result, err
 	}
 
 	// --- FINALIZER ---
@@ -110,7 +119,7 @@ func (r *HomeAssistantLabelReconciler) Reconcile(ctx context.Context, req ctrl.R
 			"API token not available", 30*time.Second)
 	}
 
-	haClient := r.haClientFor(ha)
+	haClient := r.haClientFor(ctx, ha)
 
 	// --- LIST existing labels ---
 	existingLabels, err := r.listLabels(ctx, haClient, token)
@@ -199,7 +208,7 @@ func (r *HomeAssistantLabelReconciler) handleDeletion(ctx context.Context, label
 		return
 	}
 
-	haClient := r.haClientFor(ha)
+	haClient := r.haClientFor(ctx, ha)
 	if err := r.deleteLabel(ctx, haClient, token, label.Status.LabelID); err != nil {
 		log.Error(err, "Failed to delete label from HA (best-effort)", "labelID", label.Status.LabelID)
 	} else {
@@ -208,8 +217,8 @@ func (r *HomeAssistantLabelReconciler) handleDeletion(ctx context.Context, label
 }
 
 // haClientFor returns a haclient.Client for the given HA instance
-func (r *HomeAssistantLabelReconciler) haClientFor(ha *hav1.HomeAssistant) *haclient.Client {
-	return newHAClientForHA(ha, r.NewHAClient)
+func (r *HomeAssistantLabelReconciler) haClientFor(ctx context.Context, ha *hav1.HomeAssistant) *haclient.Client {
+	return coordinatedHAClient(ctx, ha, r.Coordination, r.Client, r.NewHAClient)
 }
 
 // setCondition updates the Ready condition and status
@@ -361,6 +370,7 @@ func (r *HomeAssistantLabelReconciler) needsLabelUpdate(
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HomeAssistantLabelReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Coordination = NewCoordinationDependencies(mgr.GetAPIReader(), mgr.GetClient(), nil)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hav1.HomeAssistantLabel{}).
 		Named("homeassistantlabel").

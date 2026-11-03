@@ -174,8 +174,9 @@ type Dashboard struct {
 
 // BackupSchedule represents the schedule section of HA backup config
 type BackupSchedule struct {
-	Recurrence string  `json:"recurrence"` // "daily", "mon", "tue", ..., "never"
-	Time       *string `json:"time"`       // "HH:MM:SS" or null
+	Recurrence string   `json:"recurrence"` // "daily", "mon", "tue", ..., "never"
+	Time       *string  `json:"time"`       // "HH:MM:SS" or null
+	Days       []string `json:"days,omitempty"`
 }
 
 // BackupRetention represents the retention section of HA backup config
@@ -191,11 +192,18 @@ type BackupCreateConfig struct {
 	Password        *string  `json:"password,omitempty"`
 }
 
+// BackupAgentConfig is the security-relevant, Home Assistant-owned policy for
+// one native backup destination.
+type BackupAgentConfig struct {
+	Protected bool `json:"protected"`
+}
+
 // BackupConfig represents the full HA backup configuration
 type BackupConfig struct {
-	Schedule     BackupSchedule     `json:"schedule"`
-	Retention    BackupRetention    `json:"retention"`
-	CreateBackup BackupCreateConfig `json:"create_backup"`
+	Schedule     BackupSchedule               `json:"schedule"`
+	Retention    BackupRetention              `json:"retention"`
+	CreateBackup BackupCreateConfig           `json:"create_backup"`
+	Agents       map[string]BackupAgentConfig `json:"agents"`
 }
 
 // BackupConfigRequest represents the request for backup/config/update

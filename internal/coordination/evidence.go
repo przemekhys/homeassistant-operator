@@ -20,8 +20,10 @@ const (
 )
 
 type Journal struct {
-	Dispatch DispatchState `json:"dispatch"`
-	Result   string        `json:"result,omitempty"`
+	Dispatch    DispatchState `json:"dispatch"`
+	Result      string        `json:"result,omitempty"`
+	BackupJobID string        `json:"backupJobID,omitempty"`
+	BackupID    string        `json:"backupID,omitempty"`
 }
 
 func dispatchRank(state DispatchState) int {
@@ -41,7 +43,12 @@ func dispatchRank(state DispatchState) int {
 
 // AdvanceJournal prevents a previously consumed operation from becoming
 // dispatchable after a restart, conflict, or status loss.
-func (s Store) AdvanceJournal(ctx context.Context, namespace string, operationUID types.UID, next Journal) (*Evidence, error) {
+func (s Store) AdvanceJournal(
+	ctx context.Context,
+	namespace string,
+	operationUID types.UID,
+	next Journal,
+) (*Evidence, error) {
 	return s.UpdateJournal(ctx, namespace, operationUID, func(raw json.RawMessage) (json.RawMessage, error) {
 		current := Journal{Dispatch: DispatchNotPrepared}
 		if len(raw) != 0 && string(raw) != "null" {
@@ -57,6 +64,12 @@ func (s Store) AdvanceJournal(ctx context.Context, namespace string, operationUI
 		}
 		if current.Result != "" && next.Result != current.Result {
 			return nil, fmt.Errorf("evidence result is immutable once recorded")
+		}
+		if current.BackupJobID != "" && next.BackupJobID != current.BackupJobID {
+			return nil, fmt.Errorf("accepted native backup job identity is immutable")
+		}
+		if current.BackupID != "" && next.BackupID != current.BackupID {
+			return nil, fmt.Errorf("confirmed native archive identity is immutable")
 		}
 		return json.Marshal(next)
 	})

@@ -54,14 +54,15 @@ const (
 // HomeAssistantScriptReconciler reconciles a HomeAssistantScript object
 type HomeAssistantScriptReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	Recorder    events.EventRecorder
-	NewHAClient func(baseURL string) *haclient.Client // overridable for testing
+	Coordination CoordinationDependencies
+	Scheme       *runtime.Scheme
+	Recorder     events.EventRecorder
+	NewHAClient  func(baseURL string) *haclient.Client // overridable for testing
 }
 
 // haClientFor returns a HA API client for the given HomeAssistant instance.
-func (r *HomeAssistantScriptReconciler) haClientFor(ha *hav1.HomeAssistant) *haclient.Client {
-	return newHAClientForHA(ha, r.NewHAClient)
+func (r *HomeAssistantScriptReconciler) haClientFor(ctx context.Context, ha *hav1.HomeAssistant) *haclient.Client {
+	return coordinatedHAClient(ctx, ha, r.Coordination, r.Client, r.NewHAClient)
 }
 
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantscripts,verbs=get;list;watch
@@ -89,6 +90,11 @@ func (r *HomeAssistantScriptReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
+	if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, script,
+		script.Spec.HomeAssistantRef.Name); err != nil || !result.IsZero() {
+		return result, err
+	}
+
 	// Handle finalizer for proper cleanup
 	if !script.DeletionTimestamp.IsZero() {
 		// Resource is being deleted
@@ -102,7 +108,7 @@ func (r *HomeAssistantScriptReconciler) Reconcile(ctx context.Context, req ctrl.
 			}
 			if ha, haErr := r.validateHomeAssistantRef(ctx, haRef, script); haErr == nil {
 				if token, tokenErr := getAPIToken(ctx, r.Client, ha); tokenErr == nil {
-					haClient := r.haClientFor(ha)
+					haClient := r.haClientFor(ctx, ha)
 					id := script.Spec.ID
 					if id == "" {
 						id = script.Name
@@ -115,11 +121,10 @@ func (r *HomeAssistantScriptReconciler) Reconcile(ctx context.Context, req ctrl.
 				}
 			}
 
-			// Remove finalizer to allow deletion
-			controllerutil.RemoveFinalizer(script, scriptFinalizerName)
-			if err := r.Update(ctx, script); err != nil {
+			if result, err := removeFinalizerAfterSynchronizationGate(ctx, r.Coordination, r.Client,
+				script, script.Spec.HomeAssistantRef.Name, scriptFinalizerName); err != nil || !result.IsZero() {
 				log.Error(err, "Failed to remove finalizer")
-				return ctrl.Result{}, err
+				return result, err
 			}
 			log.Info("Finalizer removed, script deleted")
 		}
@@ -323,7 +328,7 @@ func (r *HomeAssistantScriptReconciler) reconcileScriptViaAPI(
 		id = script.Name
 	}
 
-	haClient := r.haClientFor(ha)
+	haClient := r.haClientFor(ctx, ha)
 
 	// If spec.id was renamed, delete the old script from HA to avoid orphans.
 	prevID := script.Annotations[lastAppliedIDAnnotationKey]
@@ -382,6 +387,7 @@ func (r *HomeAssistantScriptReconciler) calculateScriptHash(
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HomeAssistantScriptReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Coordination = NewCoordinationDependencies(mgr.GetAPIReader(), mgr.GetClient(), nil)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hav1.HomeAssistantScript{}).
 		Watches(

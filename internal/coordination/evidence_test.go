@@ -10,11 +10,30 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+func TestAcceptedBackupJobIdentityCannotBeReplaced(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	if _, err := store.CreateEvidence(ctx, "test", "operation", "target", json.RawMessage(`{}`)); err != nil {
+		t.Fatal(err)
+	}
+	accepted := Journal{Dispatch: DispatchAcknowledged, BackupJobID: "accepted-job"}
+	if _, err := store.AdvanceJournal(ctx, "test", "operation", accepted); err != nil {
+		t.Fatal(err)
+	}
+	for _, jobID := range []string{"", "different-job"} {
+		changed := Journal{Dispatch: DispatchAcknowledged, BackupJobID: jobID}
+		if _, err := store.AdvanceJournal(ctx, "test", "operation", changed); err == nil {
+			t.Fatal("accepted backup identity could be replaced after dispatch")
+		}
+	}
+}
+
 func TestEvidenceRetainsIntentAndLimitsJournal(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
 	operation := types.UID("operation")
-	if _, err := store.CreateEvidence(ctx, "test", operation, "target", json.RawMessage(`{"backupID":"one"}`)); err != nil {
+	intent := json.RawMessage(`{"backupID":"one"}`)
+	if _, err := store.CreateEvidence(ctx, "test", operation, "target", intent); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.AcceptApproval(ctx, "test", operation, json.RawMessage(`{"challenge":"one"}`)); err != nil {
@@ -50,10 +69,12 @@ func TestEvidenceCannotBeRecreatedWithDifferentAcceptedIntent(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
 	operation := types.UID("operation")
-	if _, err := store.CreateEvidence(ctx, "test", operation, "target", json.RawMessage(`{"backupID":"one"}`)); err != nil {
+	intent := json.RawMessage(`{"backupID":"one"}`)
+	if _, err := store.CreateEvidence(ctx, "test", operation, "target", intent); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.CreateEvidence(ctx, "test", operation, "target", json.RawMessage(`{"backupID":"two"}`)); err == nil {
+	changed := json.RawMessage(`{"backupID":"two"}`)
+	if _, err := store.CreateEvidence(ctx, "test", operation, "target", changed); err == nil {
 		t.Fatal("recreated evidence accepted different intent")
 	}
 }
@@ -65,10 +86,12 @@ func TestEvidenceJournalResultCannotBeRewritten(t *testing.T) {
 	if _, err := store.CreateEvidence(ctx, "test", operation, "target", json.RawMessage(`{}`)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.AdvanceJournal(ctx, "test", operation, Journal{Dispatch: DispatchAcknowledged, Result: "succeeded"}); err != nil {
+	succeeded := Journal{Dispatch: DispatchAcknowledged, Result: "succeeded"}
+	if _, err := store.AdvanceJournal(ctx, "test", operation, succeeded); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.AdvanceJournal(ctx, "test", operation, Journal{Dispatch: DispatchAcknowledged, Result: "failed"}); err == nil {
+	failed := Journal{Dispatch: DispatchAcknowledged, Result: "failed"}
+	if _, err := store.AdvanceJournal(ctx, "test", operation, failed); err == nil {
 		t.Fatal("journal result was rewritten")
 	}
 }

@@ -115,7 +115,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet setup-envtest ## Run unit tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v '/test/e2e$$') -coverprofile cover.out
 
 # E2E tests use k3d (recommended for k3s-like target environments)
 K3D_CLUSTER_E2E ?= homeassistant-operator-test-e2e
@@ -159,13 +159,20 @@ test-e2e-backup-restore: manifests generate fmt vet ginkgo ## Run isolated backu
 	K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run -v --label-filter=backup-restore --timeout=30m ./test/e2e/ | tee test-e2e-backup-restore.log
 
 .PHONY: test-backup-restore-qualification
-test-backup-restore-qualification: ## Run the isolated qualification entrypoint; never enables runtime support.
+test-backup-restore-qualification: build-backup-restore-qualification ## Observe one isolated candidate backup; never enables runtime support.
 	@echo "Qualification requires an immutable candidate image digest and isolated target identity."
 	@test -n "$(QUALIFICATION_IMAGE_DIGEST)" || { echo "QUALIFICATION_IMAGE_DIGEST is required"; exit 2; }
 	@test -n "$(QUALIFICATION_NAMESPACE)" || { echo "QUALIFICATION_NAMESPACE is required"; exit 2; }
 	@test -n "$(QUALIFICATION_TARGET_UID)" || { echo "QUALIFICATION_TARGET_UID is required"; exit 2; }
-	QUALIFICATION_IMAGE_DIGEST=$(QUALIFICATION_IMAGE_DIGEST) QUALIFICATION_NAMESPACE=$(QUALIFICATION_NAMESPACE) QUALIFICATION_TARGET_UID=$(QUALIFICATION_TARGET_UID) \
-		$(MAKE) test-e2e-backup-restore
+	./bin/backup-restore-qualification \
+		--image-digest="$(QUALIFICATION_IMAGE_DIGEST)" --namespace="$(QUALIFICATION_NAMESPACE)" \
+		--target-uid="$(QUALIFICATION_TARGET_UID)" --target="$(QUALIFICATION_TARGET_NAME)" \
+		--operation="$(QUALIFICATION_OPERATION)" --kube-context="$(QUALIFICATION_KUBE_CONTEXT)" \
+		--ha-url="$(QUALIFICATION_HA_URL)"
+
+.PHONY: build-backup-restore-qualification
+build-backup-restore-qualification: ## Build the separate test-only candidate program, excluded from production images.
+	go build -o bin/backup-restore-qualification ./test/qualification
 
 .PHONY: cleanup-test-e2e
 cleanup-test-e2e: ## Tear down the k3d cluster used for e2e tests

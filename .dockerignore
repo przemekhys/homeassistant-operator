@@ -10,3 +10,5 @@ coverage/
 node_modules/
 .venv/
 site/
+*.test
+*.out

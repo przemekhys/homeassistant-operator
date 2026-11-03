@@ -225,7 +225,126 @@ func homeAssistantImageRef(ha *hav1.HomeAssistant) string {
 // communityRepositoryInitScript materializes "integration"-category entries only
 // (see buildCommunityRepositoryInitContainer doc comment). Stdlib-only (no pip
 // deps): json, os, shutil, sys, tarfile, tempfile, urllib.request.
-const communityRepositoryInitScript = `
+const synchronizationWriterProtocolScript = `
+import json, os, ssl, uuid
+import urllib.request
+
+SYNC_CONFIGMAP = os.environ.get('HA_SYNC_COORDINATION_CONFIGMAP')
+SYNC_NAMESPACE = os.environ.get('POD_NAMESPACE')
+SYNC_WRITER = os.environ.get('HA_SYNC_WRITER')
+SYNC_TOKEN_PATH = '/var/run/secrets/ha-coordination/token'
+SYNC_CA_PATH = '/var/run/secrets/ha-coordination/ca.crt'
+
+def sync_request(method, body=None):
+    if not (SYNC_CONFIGMAP and SYNC_NAMESPACE and SYNC_WRITER):
+        return None
+    try:
+        with open(SYNC_TOKEN_PATH) as f:
+            token = f.read().strip()
+        host = os.environ.get('KUBERNETES_SERVICE_HOST')
+        port = os.environ.get('KUBERNETES_SERVICE_PORT_HTTPS', '443')
+        if not host or not token:
+            raise RuntimeError('coordination API credentials are unavailable')
+        url = 'https://{}:{}/api/v1/namespaces/{}/configmaps/{}'.format(host, port, SYNC_NAMESPACE, SYNC_CONFIGMAP)
+        data = None if body is None else json.dumps(body).encode()
+        request = urllib.request.Request(url, data=data, method=method)
+        request.add_header('Authorization', 'Bearer ' + token)
+        request.add_header('Accept', 'application/json')
+        if data is not None:
+            request.add_header('Content-Type', 'application/json')
+        context = ssl.create_default_context(cafile=SYNC_CA_PATH)
+        with urllib.request.urlopen(request, timeout=10, context=context) as response:
+            return json.loads(response.read())
+    except Exception as error:
+        raise RuntimeError('coordination API is unavailable') from error
+
+def sync_update(root, resource_version):
+    current = sync_request('GET')
+    if current.get('metadata', {}).get('resourceVersion') != resource_version:
+        return False
+    current.setdefault('data', {})['coordination.json'] = json.dumps(root, separators=(',', ':'))
+    try:
+        sync_request('PUT', current)
+        return True
+    except RuntimeError:
+        return False
+
+def sync_read():
+    config_map = sync_request('GET')
+    raw = config_map.get('data', {}).get('coordination.json')
+    if not raw:
+        raise RuntimeError('coordination evidence is missing')
+    return json.loads(raw), config_map['metadata']['resourceVersion']
+
+def sync_acknowledge(root, resource_version):
+    acks = root.setdefault('drainAcks', {})
+    acks[SYNC_WRITER] = {'writer': SYNC_WRITER, 'podUID': os.environ.get('POD_UID', ''), 'epoch': root.get('epoch', 0)}
+    return sync_update(root, resource_version)
+
+def sync_acquire():
+    if not SYNC_CONFIGMAP:
+        return None
+    for _ in range(3):
+        root, resource_version = sync_read()
+        if root.get('mode') != 'Open' or root.get('restoreHold') or root.get('activePermit'):
+            sync_acknowledge(root, resource_version)
+            return None
+        permit = {'id': str(uuid.uuid4()), 'owner': SYNC_WRITER, 'class': 'Ordinary', 'state': 'Prepared', 'epoch': root.get('epoch', 0)}
+        root['activePermit'] = permit
+        if not sync_update(root, resource_version):
+            continue
+        root, resource_version = sync_read()
+        active = root.get('activePermit')
+        if not active or active.get('id') != permit['id'] or active.get('owner') != SYNC_WRITER or active.get('state') != 'Prepared':
+            return None
+        active['state'] = 'InFlight'
+        if sync_update(root, resource_version):
+            return permit['id']
+    raise RuntimeError('unable to acquire coordination permit')
+
+def sync_finish(permit_id, succeeded):
+    if not permit_id:
+        return
+    root, resource_version = sync_read()
+    active = root.get('activePermit')
+    if not active or active.get('id') != permit_id or active.get('owner') != SYNC_WRITER or active.get('state') != 'InFlight':
+        raise RuntimeError('coordination permit ownership was lost')
+    if not succeeded:
+        active['state'] = 'Unknown'
+        sync_update(root, resource_version)
+        return
+    active['state'] = 'Confirmed'
+    if not sync_update(root, resource_version):
+        raise RuntimeError('unable to confirm coordination permit')
+    root, resource_version = sync_read()
+    active = root.get('activePermit')
+    if active and active.get('id') == permit_id and active.get('owner') == SYNC_WRITER and active.get('state') == 'Confirmed':
+        root['activePermit'] = None
+        if not sync_update(root, resource_version):
+            raise RuntimeError('unable to release coordination permit')
+`
+
+const configurationInitScript = synchronizationWriterProtocolScript + `
+import os, sys
+
+CONFIG_DIR = os.environ.get('HA_CONFIG_DIR', '/config')
+permit_id = sync_acquire()
+if SYNC_CONFIGMAP and not permit_id:
+    raise SystemExit(0)
+try:
+    for filename in ('automations.yaml', 'scenes.yaml', 'scripts.yaml'):
+        path = os.path.join(CONFIG_DIR, filename)
+        if not os.path.isfile(path):
+            with open(path, 'w') as output:
+                output.write('[]')
+    os.makedirs(os.path.join(CONFIG_DIR, 'python_scripts'), exist_ok=True)
+except Exception:
+    sync_finish(permit_id, False)
+    raise
+sync_finish(permit_id, True)
+`
+
+const communityRepositoryInitScript = synchronizationWriterProtocolScript + `
 import hashlib, json, os, shutil, sys, tarfile, tempfile, urllib.request
 
 REPO_FILE = os.environ.get('COMMUNITY_REPOSITORIES_FILE', '/etc/community-repositories/repositories.json')
@@ -376,6 +495,9 @@ def remove_owned_target(target):
 
 
 def main():
+    permit_id = sync_acquire()
+    if SYNC_CONFIGMAP and not permit_id:
+        return
     errors = []
     try:
         entries = load_entries()
@@ -411,9 +533,11 @@ def main():
         print('ERROR: ' + message, file=sys.stderr)
         with open(TERMINATION_LOG, 'w') as f:
             f.write(message)
+        sync_finish(permit_id, False)
         raise SystemExit(1)
     with open(TERMINATION_LOG, 'w') as f:
         f.write(EXPECTED_HASH)
+    sync_finish(permit_id, True)
 
 
 if __name__ == '__main__':
@@ -425,7 +549,7 @@ if __name__ == '__main__':
 // the four non-restart categories. State (which ref is currently installed at
 // which path) is tracked in a small JSON file on the shared /config PVC so it
 // survives sidecar container restarts without needing any Kubernetes API access.
-const communityRepositorySidecarScript = `
+const communityRepositorySidecarScript = synchronizationWriterProtocolScript + `
 import json, os, shutil, sys, tarfile, tempfile, time, urllib.request
 
 REPO_FILE = os.environ.get('COMMUNITY_REPOSITORIES_FILE', '/etc/community-repositories/repositories.json')
@@ -588,9 +712,20 @@ def sync_once(state):
 def main():
     state = load_state()
     while True:
+        permit_id = None
         try:
+            permit_id = sync_acquire()
+            if SYNC_CONFIGMAP and not permit_id:
+                time.sleep(POLL_INTERVAL_SECONDS)
+                continue
             sync_once(state)
+            sync_finish(permit_id, True)
         except Exception as e:
+            if permit_id:
+                try:
+                    sync_finish(permit_id, False)
+                except Exception:
+                    pass
             print('WARNING: sync cycle failed: {}'.format(e), file=sys.stderr)
         time.sleep(POLL_INTERVAL_SECONDS)
 

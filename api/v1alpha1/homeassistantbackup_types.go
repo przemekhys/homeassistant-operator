@@ -67,6 +67,10 @@ type HomeAssistantBackupStatus struct {
 	// +optional
 	EvidenceRef string `json:"evidenceRef,omitempty"`
 	// +optional
+	BackupJobID string `json:"backupJobID,omitempty"`
+	// BackupID is the archive identifier correlated from a native event and used
+	// to poll final destination results.
+	// +optional
 	BackupID string `json:"backupID,omitempty"`
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`

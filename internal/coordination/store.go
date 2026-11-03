@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -35,14 +34,15 @@ var (
 // Root is the bounded, per-instance coordination document. It contains no
 // credentials or operation history.
 type Root struct {
-	FormatVersion string                          `json:"formatVersion"`
-	InstanceUID   string                          `json:"instanceUID"`
-	Initialized   bool                            `json:"initialized"`
-	Epoch         int64                           `json:"epoch"`
-	Mode          string                          `json:"mode"`
-	ActivePermit  *Permit                         `json:"activePermit,omitempty"`
-	RestoreHold   *Hold                           `json:"restoreHold,omitempty"`
-	DrainAcks     map[string]DrainAcknowledgement `json:"drainAcks,omitempty"`
+	FormatVersion   string                          `json:"formatVersion"`
+	InstanceUID     string                          `json:"instanceUID"`
+	Initialized     bool                            `json:"initialized"`
+	Epoch           int64                           `json:"epoch"`
+	Mode            string                          `json:"mode"`
+	ActivePermit    *Permit                         `json:"activePermit,omitempty"`
+	RestoreHold     *Hold                           `json:"restoreHold,omitempty"`
+	MaintenanceHold *MaintenanceHold                `json:"maintenanceHold,omitempty"`
+	DrainAcks       map[string]DrainAcknowledgement `json:"drainAcks,omitempty"`
 }
 
 // PermitState records the only transitions that may authorize an effect.
@@ -70,6 +70,16 @@ type Permit struct {
 type Hold struct {
 	OperationUID string `json:"operationUID"`
 	Reason       string `json:"reason"`
+}
+
+// MaintenanceHold preserves the running workload while a restore-related
+// operation is unsafe to interrupt. AllowedTickets are consumed only by the
+// explicitly authorized preparation/resume paths; ordinary reconciliation has
+// no authority to bypass this hold.
+type MaintenanceHold struct {
+	OperationUID   string   `json:"operationUID"`
+	Reason         string   `json:"reason"`
+	AllowedTickets []string `json:"allowedTickets,omitempty"`
 }
 
 // DrainAcknowledgement is tied to both epoch and pod/process identity. An old
@@ -108,7 +118,14 @@ func (s Store) CreateRoot(ctx context.Context, namespace string, instanceUID typ
 	if err != nil {
 		return nil, err
 	}
-	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: RootName(instanceUID), Namespace: namespace, Labels: map[string]string{instanceUIDLabel: string(instanceUID)}}, Data: map[string]string{coordinationDataKey: string(raw)}}
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      RootName(instanceUID),
+			Namespace: namespace,
+			Labels:    map[string]string{instanceUIDLabel: string(instanceUID)},
+		},
+		Data: map[string]string{coordinationDataKey: string(raw)},
+	}
 	err = s.Client.Create(ctx, cm)
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return nil, err
@@ -136,7 +153,12 @@ func (s Store) GetRoot(ctx context.Context, namespace string, instanceUID types.
 
 // UpdateRoot fetches directly and executes mutate once. An API conflict is
 // returned to the caller; effects must never occur inside this method.
-func (s Store) UpdateRoot(ctx context.Context, namespace string, instanceUID types.UID, mutate func(*Root) error) (*Root, error) {
+func (s Store) UpdateRoot(
+	ctx context.Context,
+	namespace string,
+	instanceUID types.UID,
+	mutate func(*Root) error,
+) (*Root, error) {
 	cm := &corev1.ConfigMap{}
 	if err := s.Reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: RootName(instanceUID)}, cm); err != nil {
 		return nil, err
@@ -159,8 +181,18 @@ func (s Store) UpdateRoot(ctx context.Context, namespace string, instanceUID typ
 	return &root, nil
 }
 
-func (s Store) CreateEvidence(ctx context.Context, namespace string, operationUID, targetUID types.UID, intent json.RawMessage) (*Evidence, error) {
-	evidence := &Evidence{FormatVersion: FormatVersion, OperationUID: string(operationUID), TargetUID: string(targetUID), Intent: intent}
+func (s Store) CreateEvidence(
+	ctx context.Context,
+	namespace string,
+	operationUID, targetUID types.UID,
+	intent json.RawMessage,
+) (*Evidence, error) {
+	evidence := &Evidence{
+		FormatVersion: FormatVersion,
+		OperationUID:  string(operationUID),
+		TargetUID:     string(targetUID),
+		Intent:        intent,
+	}
 	if err := validateEvidenceSize(evidence); err != nil {
 		return nil, err
 	}
@@ -168,7 +200,14 @@ func (s Store) CreateEvidence(ctx context.Context, namespace string, operationUI
 	if err != nil {
 		return nil, err
 	}
-	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: EvidenceName(operationUID), Namespace: namespace, Labels: map[string]string{operationUIDLabel: string(operationUID), instanceUIDLabel: string(targetUID)}}, Data: map[string]string{evidenceDataKey: string(raw)}}
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      EvidenceName(operationUID),
+			Namespace: namespace,
+			Labels:    map[string]string{operationUIDLabel: string(operationUID), instanceUIDLabel: string(targetUID)},
+		},
+		Data: map[string]string{evidenceDataKey: string(raw)},
+	}
 	err = s.Client.Create(ctx, cm)
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return nil, err
@@ -188,7 +227,8 @@ func (s Store) CreateEvidence(ctx context.Context, namespace string, operationUI
 
 func (s Store) GetEvidence(ctx context.Context, namespace string, operationUID types.UID) (*Evidence, error) {
 	cm := &corev1.ConfigMap{}
-	if err := s.Reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: EvidenceName(operationUID)}, cm); err != nil {
+	key := types.NamespacedName{Namespace: namespace, Name: EvidenceName(operationUID)}
+	if err := s.Reader.Get(ctx, key, cm); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, ErrEvidenceMissing
 		}
@@ -206,7 +246,12 @@ func (s Store) GetEvidence(ctx context.Context, namespace string, operationUID t
 
 // AcceptApproval stores the reviewed approval exactly once. A different
 // approval is rejected rather than silently replacing an accepted consent.
-func (s Store) AcceptApproval(ctx context.Context, namespace string, operationUID types.UID, approval json.RawMessage) (*Evidence, error) {
+func (s Store) AcceptApproval(
+	ctx context.Context,
+	namespace string,
+	operationUID types.UID,
+	approval json.RawMessage,
+) (*Evidence, error) {
 	return s.updateEvidence(ctx, namespace, operationUID, func(evidence *Evidence) error {
 		if len(evidence.Approval) != 0 && string(evidence.Approval) != string(approval) {
 			return errors.New("operation approval is immutable once accepted")
@@ -218,7 +263,12 @@ func (s Store) AcceptApproval(ctx context.Context, namespace string, operationUI
 
 // UpdateJournal is the sole mutable portion of evidence. It is intentionally
 // separate from intent and approval to make accidental consent mutation hard.
-func (s Store) UpdateJournal(ctx context.Context, namespace string, operationUID types.UID, mutate func(json.RawMessage) (json.RawMessage, error)) (*Evidence, error) {
+func (s Store) UpdateJournal(
+	ctx context.Context,
+	namespace string,
+	operationUID types.UID,
+	mutate func(json.RawMessage) (json.RawMessage, error),
+) (*Evidence, error) {
 	return s.updateEvidence(ctx, namespace, operationUID, func(evidence *Evidence) error {
 		next, err := mutate(append(json.RawMessage(nil), evidence.Journal...))
 		if err != nil {
@@ -229,9 +279,15 @@ func (s Store) UpdateJournal(ctx context.Context, namespace string, operationUID
 	})
 }
 
-func (s Store) updateEvidence(ctx context.Context, namespace string, operationUID types.UID, mutate func(*Evidence) error) (*Evidence, error) {
+func (s Store) updateEvidence(
+	ctx context.Context,
+	namespace string,
+	operationUID types.UID,
+	mutate func(*Evidence) error,
+) (*Evidence, error) {
 	cm := &corev1.ConfigMap{}
-	if err := s.Reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: EvidenceName(operationUID)}, cm); err != nil {
+	key := types.NamespacedName{Namespace: namespace, Name: EvidenceName(operationUID)}
+	if err := s.Reader.Get(ctx, key, cm); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, ErrEvidenceMissing
 		}
@@ -271,5 +327,3 @@ func validateEvidenceSize(evidence *Evidence) error {
 	}
 	return nil
 }
-
-func isValidUID(uid string) bool { return strings.TrimSpace(uid) != "" }

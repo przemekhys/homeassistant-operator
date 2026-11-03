@@ -16,6 +16,14 @@ type CoordinationDependencies struct {
 	RestoreSessions *haclient.RestoreSessionRunner
 }
 
-func NewCoordinationDependencies(apiReader client.Reader, writer client.Client, sessions *haclient.RestoreSessionRunner) CoordinationDependencies {
-	return CoordinationDependencies{APIReader: apiReader, Store: coordination.Store{Reader: apiReader, Client: writer}, RestoreSessions: sessions}
+func NewCoordinationDependencies(
+	apiReader client.Reader,
+	writer client.Client,
+	sessions *haclient.RestoreSessionRunner,
+) CoordinationDependencies {
+	return CoordinationDependencies{
+		APIReader:       apiReader,
+		Store:           coordination.Store{Reader: apiReader, Client: writer},
+		RestoreSessions: sessions,
+	}
 }

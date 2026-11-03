@@ -164,7 +164,9 @@ func (r *HomeAssistantConfigurationReconciler) reconcileHTTPConfig(
 	httpReadable bool,
 ) ctrl.Result {
 	log := logf.FromContext(ctx)
-	client := r.httpConfigClient(ha)
+	client := coordinatedHAClient(ctx, ha, r.Coordination, r.Client, func(string) *haclient.Client {
+		return r.httpConfigClient(ha)
+	})
 
 	switch decision.path {
 	case httpPathUndetermined:

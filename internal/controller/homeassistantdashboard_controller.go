@@ -37,8 +37,9 @@ const (
 // HomeAssistantDashboardReconciler manages storage-mode Lovelace dashboards.
 type HomeAssistantDashboardReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	NewHAClient func(baseURL string) *haclient.Client
+	Coordination CoordinationDependencies
+	Scheme       *runtime.Scheme
+	NewHAClient  func(baseURL string) *haclient.Client
 }
 
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantdashboards,verbs=get;list;watch;create;update;patch;delete
@@ -48,17 +49,26 @@ type HomeAssistantDashboardReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 
+//nolint:gocyclo // Storage dashboard lifecycle requires distinct read, write and cleanup outcomes.
 func (r *HomeAssistantDashboardReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	dashboard := &hav1alpha1.HomeAssistantDashboard{}
 	if err := r.Get(ctx, req.NamespacedName, dashboard); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	if !dashboard.DeletionTimestamp.IsZero() {
+		if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, dashboard,
+			dashboard.Spec.HomeAssistantRef.Name); err != nil || !result.IsZero() {
+			return result, err
+		}
 		return r.reconcileDeletion(ctx, dashboard)
 	}
 	if !controllerutil.ContainsFinalizer(dashboard, dashboardFinalizer) {
 		controllerutil.AddFinalizer(dashboard, dashboardFinalizer)
 		return ctrl.Result{}, r.Update(ctx, dashboard)
+	}
+	if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, dashboard,
+		dashboard.Spec.HomeAssistantRef.Name); err != nil || !result.IsZero() {
+		return result, err
 	}
 
 	config, err := r.resolveConfig(ctx, dashboard)
@@ -89,7 +99,7 @@ func (r *HomeAssistantDashboardReconciler) Reconcile(ctx context.Context, req ct
 		AllowSingleWord: dashboard.Spec.DefaultDashboard,
 	}
 	hash := dashboardHash(config, metadata)
-	haClient := r.haClientFor(ha)
+	haClient := r.haClientFor(ctx, ha)
 	dashboards, err := haClient.ListDashboards(ctx, token)
 	if err != nil {
 		return r.failed(ctx, dashboard, "HomeAssistantUnavailable", fmt.Sprintf("failed to list dashboards: %v", err))
@@ -149,8 +159,8 @@ func (r *HomeAssistantDashboardReconciler) Reconcile(ctx context.Context, req ct
 	return ctrl.Result{}, r.Status().Update(ctx, dashboard)
 }
 
-func (r *HomeAssistantDashboardReconciler) haClientFor(ha *hav1.HomeAssistant) *haclient.Client {
-	return newHAClientForHA(ha, r.NewHAClient)
+func (r *HomeAssistantDashboardReconciler) haClientFor(ctx context.Context, ha *hav1.HomeAssistant) *haclient.Client {
+	return coordinatedHAClient(ctx, ha, r.Coordination, r.Client, r.NewHAClient)
 }
 
 func findDashboard(
@@ -247,7 +257,7 @@ func (r *HomeAssistantDashboardReconciler) reconcileDeletion(
 	if err != nil {
 		return r.failed(ctx, dashboard, "TokenNotAvailable", "Home Assistant API token is not available")
 	}
-	if err := r.haClientFor(ha).DeleteDashboard(ctx, token, dashboard.Status.DashboardID); err != nil {
+	if err := r.haClientFor(ctx, ha).DeleteDashboard(ctx, token, dashboard.Status.DashboardID); err != nil {
 		return r.failed(ctx, dashboard, "DashboardDeleteFailed", fmt.Sprintf("failed to delete dashboard: %v", err))
 	}
 	controllerutil.RemoveFinalizer(dashboard, dashboardFinalizer)
@@ -255,6 +265,7 @@ func (r *HomeAssistantDashboardReconciler) reconcileDeletion(
 }
 
 func (r *HomeAssistantDashboardReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Coordination = NewCoordinationDependencies(mgr.GetAPIReader(), mgr.GetClient(), nil)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hav1alpha1.HomeAssistantDashboard{}).
 		Watches(&corev1.ConfigMap{}, handler.Funcs{

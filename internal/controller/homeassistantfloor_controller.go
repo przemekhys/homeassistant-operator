@@ -48,8 +48,9 @@ const (
 // HomeAssistantFloorReconciler reconciles a HomeAssistantFloor object
 type HomeAssistantFloorReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	NewHAClient func(baseURL string) *haclient.Client
+	Coordination CoordinationDependencies
+	Scheme       *runtime.Scheme
+	NewHAClient  func(baseURL string) *haclient.Client
 }
 
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantfloors,verbs=get;list;watch;create;update;patch;delete
@@ -71,14 +72,22 @@ func (r *HomeAssistantFloorReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	// --- DELETION ---
 	if !floor.DeletionTimestamp.IsZero() {
+		if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, floor,
+			floor.Spec.HomeAssistantRef.Name); err != nil || !result.IsZero() {
+			return result, err
+		}
 		if controllerutil.ContainsFinalizer(floor, floorFinalizerName) {
 			r.handleDeletion(ctx, floor)
-			controllerutil.RemoveFinalizer(floor, floorFinalizerName)
-			if err := r.Update(ctx, floor); err != nil {
-				return ctrl.Result{}, err
+			if result, err := removeFinalizerAfterSynchronizationGate(ctx, r.Coordination, r.Client,
+				floor, floor.Spec.HomeAssistantRef.Name, floorFinalizerName); err != nil || !result.IsZero() {
+				return result, err
 			}
 		}
 		return ctrl.Result{}, nil
+	}
+	if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, floor,
+		floor.Spec.HomeAssistantRef.Name); err != nil || !result.IsZero() {
+		return result, err
 	}
 
 	// --- FINALIZER ---
@@ -110,7 +119,7 @@ func (r *HomeAssistantFloorReconciler) Reconcile(ctx context.Context, req ctrl.R
 			"API token not available", 30*time.Second)
 	}
 
-	haClient := r.haClientFor(ha)
+	haClient := r.haClientFor(ctx, ha)
 
 	// --- LIST existing floors ---
 	existingFloors, err := r.listFloors(ctx, haClient, token)
@@ -200,7 +209,7 @@ func (r *HomeAssistantFloorReconciler) handleDeletion(ctx context.Context, floor
 		return
 	}
 
-	haClient := r.haClientFor(ha)
+	haClient := r.haClientFor(ctx, ha)
 	if err := r.deleteFloor(ctx, haClient, token, floor.Status.FloorID); err != nil {
 		log.Error(err, "Failed to delete floor from HA (best-effort)", "floorID", floor.Status.FloorID)
 	} else {
@@ -209,8 +218,8 @@ func (r *HomeAssistantFloorReconciler) handleDeletion(ctx context.Context, floor
 }
 
 // haClientFor returns a haclient.Client for the given HA instance
-func (r *HomeAssistantFloorReconciler) haClientFor(ha *hav1.HomeAssistant) *haclient.Client {
-	return newHAClientForHA(ha, r.NewHAClient)
+func (r *HomeAssistantFloorReconciler) haClientFor(ctx context.Context, ha *hav1.HomeAssistant) *haclient.Client {
+	return coordinatedHAClient(ctx, ha, r.Coordination, r.Client, r.NewHAClient)
 }
 
 // setCondition updates the Ready condition and status
@@ -371,6 +380,7 @@ func (r *HomeAssistantFloorReconciler) needsFloorUpdate(
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HomeAssistantFloorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Coordination = NewCoordinationDependencies(mgr.GetAPIReader(), mgr.GetClient(), nil)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hav1.HomeAssistantFloor{}).
 		Named("homeassistantfloor").

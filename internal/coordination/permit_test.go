@@ -64,7 +64,10 @@ func TestConflictDoesNotGrantOrReleasePermit(t *testing.T) {
 	}
 	conflicting := &conflictOnceClient{Client: base.Client, conflict: true}
 	store := Store{Reader: base.Reader, Client: conflicting}
-	if _, err := store.AcquirePermit(ctx, "test", uid, "writer", "Normal", "operation"); !errors.Is(err, errInjectedConflict) {
+	if _, err := store.AcquirePermit(ctx, "test", uid, "writer", "Normal", "operation"); !errors.Is(
+		err,
+		errInjectedConflict,
+	) {
 		t.Fatalf("got %v, want injected conflict", err)
 	}
 	root, err := base.GetRoot(ctx, "test", uid)
@@ -93,7 +96,10 @@ func TestLeaderHandoverCannotTakeOverDispatchedPermit(t *testing.T) {
 	if err := store.TransitionPermit(ctx, "test", uid, "leader-a", permit.ID, PermitInFlight); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.TakeOverPrepared(ctx, "test", uid, "leader-a", "leader-b", permit.ID); !errors.Is(err, ErrInvalidTransition) {
+	if err := store.TakeOverPrepared(ctx, "test", uid, "leader-a", "leader-b", permit.ID); !errors.Is(
+		err,
+		ErrInvalidTransition,
+	) {
 		t.Fatalf("handover error = %v, want invalid transition", err)
 	}
 }
@@ -108,7 +114,10 @@ func TestHoldDeniesOrdinaryPermitButAllowsPreparation(t *testing.T) {
 	if err := store.SetHold(ctx, "test", uid, "restore", "restore pending"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.AcquirePermit(ctx, "test", uid, "ordinary", "Normal", "operation"); !errors.Is(err, ErrHoldActive) {
+	if _, err := store.AcquirePermit(ctx, "test", uid, "ordinary", "Normal", "operation"); !errors.Is(
+		err,
+		ErrHoldActive,
+	) {
 		t.Fatalf("ordinary permit error = %v", err)
 	}
 	if _, err := store.AcquirePermit(ctx, "test", uid, "prepare", "RestorePreparation", "restore"); err != nil {

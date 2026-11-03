@@ -111,6 +111,8 @@ const (
 	// Condition reasons for ban-recovery
 	reasonBanRecoveryLimitExceeded = "RestartLimitExceeded"
 	reasonBanRecoveryInProgress    = "RecoveryInProgress"
+
+	synchronizationProtectionFinalizer = "ha.homeassistant.io/synchronization-protection"
 )
 
 // charDeviceHostPathType makes the kubelet itself verify a spec.alpha.devices
@@ -128,6 +130,9 @@ type HomeAssistantReconciler struct {
 	// unbounded, high-churn resource (Events) in memory just to serve an
 	// occasional lookup. See buildDevicesReadyCondition.
 	APIReader client.Reader
+
+	// Coordination authorizes ordinary mutations independently of cache state.
+	Coordination CoordinationDependencies
 
 	// NewHAClient overrides the default haclient constructor (for testing)
 	NewHAClient func(baseURL string) *haclient.Client
@@ -190,6 +195,25 @@ func (r *HomeAssistantReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		log.Error(err, "Failed to get HomeAssistant")
 		return ctrl.Result{}, err
 	}
+	if !ha.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(ha, synchronizationProtectionFinalizer) {
+			return ctrl.Result{}, nil
+		}
+		if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, ha, ha.Name); err != nil || !result.IsZero() {
+			return result, err
+		}
+		controllerutil.RemoveFinalizer(ha, synchronizationProtectionFinalizer)
+		if err := r.Update(ctx, ha); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+	if coordinationEnabled(ha) && !controllerutil.ContainsFinalizer(ha, synchronizationProtectionFinalizer) {
+		controllerutil.AddFinalizer(ha, synchronizationProtectionFinalizer)
+		if err := r.Update(ctx, ha); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
 
 	// Set initial status if not set
 	if ha.Status.Phase == "" {
@@ -245,6 +269,10 @@ func (r *HomeAssistantReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// ConfigMap exists when the init-container spec references it).
 	if err := r.reconcileOperatorIPConfigMap(ctx, ha); err != nil {
 		log.Error(err, "Failed to reconcile operator-IP ConfigMap")
+		return r.updateStatusFailed(ctx, ha, err)
+	}
+	if err := r.reconcileSynchronizationWriterAccess(ctx, ha); err != nil {
+		log.Error(err, "Failed to reconcile synchronization writer access")
 		return r.updateStatusFailed(ctx, ha, err)
 	}
 
@@ -532,6 +560,12 @@ func (r *HomeAssistantReconciler) reconcileStatefulSet(ctx context.Context, ha *
 		return r.Create(ctx, sts)
 	} else if err != nil {
 		return err
+	}
+	if blocked, holdErr := maintenanceHoldBlocksStatefulSetUpdate(ctx, r.Coordination, r.Client, ha); holdErr != nil {
+		return holdErr
+	} else if blocked {
+		log.Info("Deferring StatefulSet mutation while maintenance hold is active", "StatefulSet.Name", sts.Name)
+		return nil
 	}
 
 	// Update StatefulSet if needed
@@ -1011,6 +1045,7 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 			},
 		},
 	}
+	configureSynchronizationWriterPodAccess(sts, ha)
 
 	// Apply resource requirements if specified
 	if ha.Spec.Resources.Limits != nil || ha.Spec.Resources.Requests != nil {
@@ -1856,11 +1891,14 @@ func needsUpdate(current, desired *appsv1.StatefulSet) bool {
 		return true
 	}
 
-	// Check host networking, DNS policy, and service account token automount.
+	// Check host networking, DNS policy, and service-account settings. A change
+	// to the coordinated-writer ServiceAccount is a deliberate pod-protocol
+	// upgrade and must roll the StatefulSet rather than waiting for an unrelated
+	// restart.
 	// Extracted to its own function to keep this function's cyclomatic
 	// complexity in check, matching the volumeContentDiffers precedent.
 	if podLevelFieldsDiffer(current, desired) {
-		log.V(1).Info("Pod-level fields (HostNetwork/DNSPolicy/AutomountServiceAccountToken) differ")
+		log.V(1).Info("Pod-level fields (HostNetwork/DNSPolicy/ServiceAccount) differ")
 		return true
 	}
 
@@ -1953,8 +1991,8 @@ func trackedMetadataValues(
 	return tracked
 }
 
-// podLevelFieldsDiffer compares HostNetwork, DNSPolicy, and
-// AutomountServiceAccountToken between the current and desired pod
+// podLevelFieldsDiffer compares HostNetwork, DNSPolicy, ServiceAccountName,
+// and AutomountServiceAccountToken between the current and desired pod
 // templates. Split out of needsUpdate to keep its cyclomatic complexity in
 // check, matching the volumeContentDiffers precedent.
 func podLevelFieldsDiffer(current, desired *appsv1.StatefulSet) bool {
@@ -1965,6 +2003,9 @@ func podLevelFieldsDiffer(current, desired *appsv1.StatefulSet) bool {
 		return true
 	}
 	if currentSpec.DNSPolicy != desiredSpec.DNSPolicy {
+		return true
+	}
+	if currentSpec.ServiceAccountName != desiredSpec.ServiceAccountName {
 		return true
 	}
 
@@ -2293,25 +2334,7 @@ func (r *HomeAssistantReconciler) buildInitContainers(
 			Name:            "config-init",
 			Image:           fullImage,
 			ImagePullPolicy: corev1.PullIfNotPresent,
-			Command:         []string{"sh", "-c"},
-			Args: []string{
-				"set -e; " +
-					"for f in automations.yaml scenes.yaml scripts.yaml; do " +
-					"[ -f /config/$f ] || echo '[]' > /config/$f; " +
-					"done; " +
-					// Home Assistant's python_script component aborts its own setup
-					// (never registering the python_script.reload service) if
-					// /config/python_scripts doesn't exist at HA's very first start —
-					// see homeassistant/components/python_script/__init__.py's setup().
-					// A HomeAssistantCommunityRepository of that category only creates
-					// the directory later, well after HA has already booted (that
-					// category never restarts the pod), so without this the reload
-					// service would never exist for the process's lifetime. Pre-create
-					// it unconditionally, independent of whether any community
-					// repository CR exists, so "python_script:" in the user's own
-					// configuration.yaml always works.
-					"mkdir -p /config/python_scripts",
-			},
+			Command:         []string{"python3", "-c", configurationInitScript},
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      "config",
@@ -2363,7 +2386,7 @@ func (r *HomeAssistantReconciler) buildUnbanInitContainer(ha *hav1.HomeAssistant
 
 	// OPERATOR_IP is resolved at pod-start time from the ConfigMap, so the
 	// StatefulSet template is stable regardless of operator IP changes.
-	script := `
+	script := synchronizationWriterProtocolScript + `
 import yaml, os, sys
 ip = os.environ.get('OPERATOR_IP', '')
 if not ip:
@@ -2390,8 +2413,16 @@ except yaml.YAMLError:
 if ip not in d:
     sys.exit(0)
 del d[ip]
-with open(path, 'w') as f:
-    yaml.dump(d, f, default_flow_style=False)
+permit_id = sync_acquire()
+if SYNC_CONFIGMAP and not permit_id:
+    sys.exit(0)
+try:
+    with open(path, 'w') as f:
+        yaml.dump(d, f, default_flow_style=False)
+except Exception:
+    sync_finish(permit_id, False)
+    raise
+sync_finish(permit_id, True)
 print('removed operator IP from ip_bans.yaml')
 `
 

@@ -4246,6 +4246,39 @@ spec:
           status:
             description: HomeAssistantStatus defines the observed state of HomeAssistant.
             properties:
+              backup:
+                description: |-
+                  Backup is the observed outcome of native backup operations. It does not
+                  describe whether the native backup configuration has been applied.
+                properties:
+                  currentKeySecretRef:
+                    description: |-
+                      CurrentKeySecretRef identifies the retained Secret containing the current
+                      native backup key. It never contains the key value.
+                    properties:
+                      key:
+                        type: string
+                      name:
+                        type: string
+                      uid:
+                        type: string
+                    required:
+                    - key
+                    - name
+                    - uid
+                    type: object
+                  lastAttempt:
+                    description: LastAttempt is the time the most recent native backup
+                      request was accepted.
+                    format: date-time
+                    type: string
+                  lastSuccess:
+                    description: |-
+                      LastSuccess is the time the most recent backup completed at every required
+                      destination.
+                    format: date-time
+                    type: string
+                type: object
               banRestartWindowCount:
                 description: |-
                   BanRestartWindowCount is the number of ban-recovery pod restarts within the

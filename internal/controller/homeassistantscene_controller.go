@@ -53,14 +53,15 @@ const (
 // HomeAssistantSceneReconciler reconciles a HomeAssistantScene object
 type HomeAssistantSceneReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	Recorder    events.EventRecorder
-	NewHAClient func(baseURL string) *haclient.Client // overridable for testing
+	Coordination CoordinationDependencies
+	Scheme       *runtime.Scheme
+	Recorder     events.EventRecorder
+	NewHAClient  func(baseURL string) *haclient.Client // overridable for testing
 }
 
 // haClientFor returns a HA API client for the given HomeAssistant instance.
-func (r *HomeAssistantSceneReconciler) haClientFor(ha *hav1.HomeAssistant) *haclient.Client {
-	return newHAClientForHA(ha, r.NewHAClient)
+func (r *HomeAssistantSceneReconciler) haClientFor(ctx context.Context, ha *hav1.HomeAssistant) *haclient.Client {
+	return coordinatedHAClient(ctx, ha, r.Coordination, r.Client, r.NewHAClient)
 }
 
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantscenes,verbs=get;list;watch
@@ -87,6 +88,11 @@ func (r *HomeAssistantSceneReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
+	if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, scene,
+		scene.Spec.HomeAssistantRef.Name); err != nil || !result.IsZero() {
+		return result, err
+	}
+
 	// Handle finalizer for proper cleanup
 	if !scene.DeletionTimestamp.IsZero() {
 		// Resource is being deleted
@@ -100,7 +106,7 @@ func (r *HomeAssistantSceneReconciler) Reconcile(ctx context.Context, req ctrl.R
 			}
 			if ha, haErr := r.validateHomeAssistantRef(ctx, haRef, scene); haErr == nil {
 				if token, tokenErr := getAPIToken(ctx, r.Client, ha); tokenErr == nil {
-					haClient := r.haClientFor(ha)
+					haClient := r.haClientFor(ctx, ha)
 					id := scene.Spec.ID
 					if id == "" {
 						id = scene.Name
@@ -113,11 +119,10 @@ func (r *HomeAssistantSceneReconciler) Reconcile(ctx context.Context, req ctrl.R
 				}
 			}
 
-			// Remove finalizer to allow deletion
-			controllerutil.RemoveFinalizer(scene, sceneFinalizerName)
-			if err := r.Update(ctx, scene); err != nil {
+			if result, err := removeFinalizerAfterSynchronizationGate(ctx, r.Coordination, r.Client,
+				scene, scene.Spec.HomeAssistantRef.Name, sceneFinalizerName); err != nil || !result.IsZero() {
 				log.Error(err, "Failed to remove finalizer")
-				return ctrl.Result{}, err
+				return result, err
 			}
 			log.Info("Finalizer removed, scene deleted")
 		}
@@ -312,7 +317,7 @@ func (r *HomeAssistantSceneReconciler) reconcileSceneViaAPI(
 		id = scene.Name
 	}
 
-	haClient := r.haClientFor(ha)
+	haClient := r.haClientFor(ctx, ha)
 
 	// If spec.id was renamed, delete the old scene from HA to avoid orphans.
 	prevID := scene.Annotations[lastAppliedIDAnnotationKey]
@@ -359,6 +364,7 @@ func (r *HomeAssistantSceneReconciler) calculateSceneHash(
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HomeAssistantSceneReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Coordination = NewCoordinationDependencies(mgr.GetAPIReader(), mgr.GetClient(), nil)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hav1.HomeAssistantScene{}).
 		Watches(

@@ -68,14 +68,15 @@ const (
 // HomeAssistantIntegrationReconciler reconciles a HomeAssistantIntegration object
 type HomeAssistantIntegrationReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	Recorder    events.EventRecorder
-	NewHAClient func(baseURL string) *haclient.Client // overridable for testing
+	Coordination CoordinationDependencies
+	Scheme       *runtime.Scheme
+	Recorder     events.EventRecorder
+	NewHAClient  func(baseURL string) *haclient.Client // overridable for testing
 }
 
 // haClientFor returns a HA API client for the given HomeAssistant instance.
-func (r *HomeAssistantIntegrationReconciler) haClientFor(ha *hav1.HomeAssistant) *haclient.Client {
-	return newHAClientForHA(ha, r.NewHAClient)
+func (r *HomeAssistantIntegrationReconciler) haClientFor(ctx context.Context, ha *hav1.HomeAssistant) *haclient.Client {
+	return coordinatedHAClient(ctx, ha, r.Coordination, r.Client, r.NewHAClient)
 }
 
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantintegrations,verbs=get;list;watch;create;update;patch;delete
@@ -100,11 +101,19 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 
 	// Remove legacy condition type from before the Ready rename (one-time migration).
 	meta.RemoveStatusCondition(&integration.Status.Conditions, "IntegrationReady")
+	if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, integration,
+		integration.Spec.HomeAssistantRef.Name); err != nil || !result.IsZero() {
+		return result, err
+	}
 
 	// --- DELETION ---
 	if !integration.DeletionTimestamp.IsZero() {
 		if controllerutil.ContainsFinalizer(integration, integrationFinalizerName) {
 			r.handleDeletion(ctx, integration)
+			if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, integration,
+				integration.Spec.HomeAssistantRef.Name); err != nil || !result.IsZero() {
+				return result, err
+			}
 			controllerutil.RemoveFinalizer(integration, integrationFinalizerName)
 			if err := r.Update(ctx, integration); err != nil {
 				return ctrl.Result{}, err
@@ -139,7 +148,7 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 			errMsgTokenNotAvailable, 30*time.Second)
 	}
 
-	haClient := r.haClientFor(ha)
+	haClient := r.haClientFor(ctx, ha)
 
 	// --- RESOLVE CONFIGURATION ---
 	resolvedConfig, pendingFiles, fp, err := r.resolveConfiguration(ctx, integration)
@@ -353,7 +362,7 @@ func (r *HomeAssistantIntegrationReconciler) handleDeletion(
 		return
 	}
 
-	haClient := r.haClientFor(ha)
+	haClient := r.haClientFor(ctx, ha)
 	if delErr := haClient.RemoveConfigEntry(ctx, token, integration.Status.EntryID); delErr != nil {
 		log.Info("Failed to remove config entry during deletion (best-effort)", "error", delErr)
 		return
@@ -673,6 +682,7 @@ func (r *HomeAssistantIntegrationReconciler) emitEvent(
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HomeAssistantIntegrationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Coordination = NewCoordinationDependencies(mgr.GetAPIReader(), mgr.GetClient(), nil)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hav1.HomeAssistantIntegration{}).
 		Watches(

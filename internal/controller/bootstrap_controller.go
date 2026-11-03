@@ -65,6 +65,14 @@ func (r *HomeAssistantReconciler) reconcileBootstrap(
 	ha *hav1.HomeAssistant,
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
+	if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, ha, ha.Name); err != nil {
+		return result, err
+	} else if !result.IsZero() {
+		// Bootstrap/account writes are blocked, but the parent reconcile must
+		// continue to backup-key observation, which is a separately permitted
+		// Kubernetes-only safety action during a pause or restore hold.
+		return ctrl.Result{}, nil
+	}
 
 	if dedicatedOperatorAccount(ha) {
 		return r.reconcileOperatorAccount(ctx, ha)
@@ -807,6 +815,9 @@ func (r *HomeAssistantReconciler) handleSelfBan(
 	ha *hav1.HomeAssistant,
 	banErr error,
 ) (ctrl.Result, error) {
+	if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, ha, ha.Name); err != nil || !result.IsZero() {
+		return result, err
+	}
 	log := logf.FromContext(ctx)
 	now := metav1.Now()
 

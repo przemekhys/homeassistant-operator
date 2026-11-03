@@ -15,6 +15,7 @@ Dockerfile.cross
 
 # Go workspace file
 go.work
+vendor/
 
 # Kubernetes Generated files - skip generated files, except for vendored files
 !vendor/**/zz_generated.*
@@ -52,3 +53,5 @@ temp/
 # Documentation site
 site/
 .venv/
+__pycache__/
+*.pyc

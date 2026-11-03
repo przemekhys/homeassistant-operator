@@ -49,8 +49,9 @@ const (
 // HomeAssistantAreaReconciler reconciles a HomeAssistantArea object
 type HomeAssistantAreaReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	NewHAClient func(baseURL string) *haclient.Client
+	Coordination CoordinationDependencies
+	Scheme       *runtime.Scheme
+	NewHAClient  func(baseURL string) *haclient.Client
 }
 
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantareas,verbs=get;list;watch;create;update;patch;delete
@@ -59,6 +60,7 @@ type HomeAssistantAreaReconciler struct {
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistants,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 
+//nolint:gocyclo // Registry lifecycle branches are intentionally explicit; write authorization is fail-closed.
 func (r *HomeAssistantAreaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
@@ -72,14 +74,22 @@ func (r *HomeAssistantAreaReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	// --- DELETION ---
 	if !area.DeletionTimestamp.IsZero() {
+		if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, area,
+			area.Spec.HomeAssistantRef.Name); err != nil || !result.IsZero() {
+			return result, err
+		}
 		if controllerutil.ContainsFinalizer(area, areaFinalizerName) {
 			r.handleDeletion(ctx, area)
-			controllerutil.RemoveFinalizer(area, areaFinalizerName)
-			if err := r.Update(ctx, area); err != nil {
-				return ctrl.Result{}, err
+			if result, err := removeFinalizerAfterSynchronizationGate(ctx, r.Coordination, r.Client,
+				area, area.Spec.HomeAssistantRef.Name, areaFinalizerName); err != nil || !result.IsZero() {
+				return result, err
 			}
 		}
 		return ctrl.Result{}, nil
+	}
+	if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, area,
+		area.Spec.HomeAssistantRef.Name); err != nil || !result.IsZero() {
+		return result, err
 	}
 
 	// --- FINALIZER ---
@@ -111,7 +121,7 @@ func (r *HomeAssistantAreaReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			"API token not available", 30*time.Second)
 	}
 
-	haClient := r.haClientFor(ha)
+	haClient := r.haClientFor(ctx, ha)
 
 	// --- RESOLVE floor reference ---
 	var floorID string
@@ -237,7 +247,7 @@ func (r *HomeAssistantAreaReconciler) handleDeletion(ctx context.Context, area *
 		return
 	}
 
-	haClient := r.haClientFor(ha)
+	haClient := r.haClientFor(ctx, ha)
 	if err := r.deleteArea(ctx, haClient, token, area.Status.AreaID); err != nil {
 		log.Error(err, "Failed to delete area from HA (best-effort)", "areaID", area.Status.AreaID)
 	} else {
@@ -246,8 +256,8 @@ func (r *HomeAssistantAreaReconciler) handleDeletion(ctx context.Context, area *
 }
 
 // haClientFor returns a haclient.Client for the given HA instance
-func (r *HomeAssistantAreaReconciler) haClientFor(ha *hav1.HomeAssistant) *haclient.Client {
-	return newHAClientForHA(ha, r.NewHAClient)
+func (r *HomeAssistantAreaReconciler) haClientFor(ctx context.Context, ha *hav1.HomeAssistant) *haclient.Client {
+	return coordinatedHAClient(ctx, ha, r.Coordination, r.Client, r.NewHAClient)
 }
 
 // setCondition updates the Ready condition and status
@@ -466,6 +476,7 @@ func stringSlicesEqual(a, b []string) bool {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HomeAssistantAreaReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Coordination = NewCoordinationDependencies(mgr.GetAPIReader(), mgr.GetClient(), nil)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hav1.HomeAssistantArea{}).
 		Named("homeassistantarea").

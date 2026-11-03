@@ -68,6 +68,22 @@ func (c *Client) sendWebSocketCommandWithCode(
 	msgType string,
 	data map[string]interface{},
 ) (json.RawMessage, string, error) {
+	if c.writeGuard == nil || readOnlyWebSocketCommand(msgType) {
+		return c.sendUnguardedWebSocketCommand(ctx, token, msgType, data)
+	}
+	var result json.RawMessage
+	var code string
+	err := c.writeGuard(ctx, func(writeCtx context.Context) error {
+		var err error
+		result, code, err = c.sendUnguardedWebSocketCommand(writeCtx, token, msgType, data)
+		return err
+	})
+	return result, code, err
+}
+
+func (c *Client) sendUnguardedWebSocketCommand(
+	ctx context.Context, token, msgType string, data map[string]interface{},
+) (json.RawMessage, string, error) {
 	conn, err := c.wsAuthConnect(ctx, token)
 	if err != nil {
 		return nil, "", err

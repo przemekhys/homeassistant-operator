@@ -61,15 +61,16 @@ const (
 // HomeAssistantAutomationReconciler reconciles a HomeAssistantAutomation object
 type HomeAssistantAutomationReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	Recorder    events.EventRecorder
-	NewHAClient func(baseURL string) *haclient.Client // overridable for testing
+	Coordination CoordinationDependencies
+	Scheme       *runtime.Scheme
+	Recorder     events.EventRecorder
+	NewHAClient  func(baseURL string) *haclient.Client // overridable for testing
 }
 
 // haClientFor returns a HA API client for the given HomeAssistant instance.
 // Uses NewHAClient if set (tests), otherwise the default haclient.NewClient.
-func (r *HomeAssistantAutomationReconciler) haClientFor(ha *hav1.HomeAssistant) *haclient.Client {
-	return newHAClientForHA(ha, r.NewHAClient)
+func (r *HomeAssistantAutomationReconciler) haClientFor(ctx context.Context, ha *hav1.HomeAssistant) *haclient.Client {
+	return coordinatedHAClient(ctx, ha, r.Coordination, r.Client, r.NewHAClient)
 }
 
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantautomations,verbs=get;list;watch
@@ -99,6 +100,11 @@ func (r *HomeAssistantAutomationReconciler) Reconcile(ctx context.Context, req c
 		return ctrl.Result{}, err
 	}
 
+	if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, automation,
+		automation.Spec.HomeAssistantRef.Name); err != nil || !result.IsZero() {
+		return result, err
+	}
+
 	// Handle finalizer for proper cleanup
 	if !automation.DeletionTimestamp.IsZero() {
 		// Resource is being deleted
@@ -112,7 +118,7 @@ func (r *HomeAssistantAutomationReconciler) Reconcile(ctx context.Context, req c
 			}
 			if ha, haErr := r.validateHomeAssistantRef(ctx, haRef, automation); haErr == nil {
 				if token, tokenErr := getAPIToken(ctx, r.Client, ha); tokenErr == nil {
-					haClient := r.haClientFor(ha)
+					haClient := r.haClientFor(ctx, ha)
 					id := automation.Spec.ID
 					if id == "" {
 						id = automation.Name
@@ -125,11 +131,10 @@ func (r *HomeAssistantAutomationReconciler) Reconcile(ctx context.Context, req c
 				}
 			}
 
-			// Remove finalizer to allow deletion
-			controllerutil.RemoveFinalizer(automation, automationFinalizerName)
-			if err := r.Update(ctx, automation); err != nil {
+			if result, err := removeFinalizerAfterSynchronizationGate(ctx, r.Coordination, r.Client,
+				automation, automation.Spec.HomeAssistantRef.Name, automationFinalizerName); err != nil || !result.IsZero() {
 				log.Error(err, "Failed to remove finalizer")
-				return ctrl.Result{}, err
+				return result, err
 			}
 			log.Info("Finalizer removed, automation deleted")
 		}
@@ -364,7 +369,7 @@ func (r *HomeAssistantAutomationReconciler) reconcileAutomationViaAPI(
 		id = automation.Name
 	}
 
-	haClient := r.haClientFor(ha)
+	haClient := r.haClientFor(ctx, ha)
 
 	// If spec.id was renamed, delete the old automation from HA to avoid orphans.
 	prevID := automation.Annotations[lastAppliedIDAnnotationKey]
@@ -420,6 +425,7 @@ func (r *HomeAssistantAutomationReconciler) calculateAutomationHash(
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HomeAssistantAutomationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Coordination = NewCoordinationDependencies(mgr.GetAPIReader(), mgr.GetClient(), nil)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hav1.HomeAssistantAutomation{}).
 		Watches(

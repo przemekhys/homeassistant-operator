@@ -1630,17 +1630,19 @@ var _ = Describe("HAClient", func() {
 					"type":    "result",
 					"success": true,
 					"result": map[string]interface{}{
-						"schedule": map[string]interface{}{
-							"recurrence": "daily",
-							"time":       "03:00:00",
-						},
-						"retention": map[string]interface{}{
-							"copies": 7,
-							"days":   nil,
-						},
-						"create_backup": map[string]interface{}{
-							"include_database": true,
-							"agent_ids":        []string{"backup.local"},
+						"config": map[string]interface{}{
+							"schedule": map[string]interface{}{
+								"recurrence": "daily",
+								"time":       "03:00:00",
+							},
+							"retention": map[string]interface{}{
+								"copies": 7,
+								"days":   nil,
+							},
+							"create_backup": map[string]interface{}{
+								"include_database": true,
+								"agent_ids":        []string{"backup.local"},
+							},
 						},
 					},
 				})
@@ -1684,16 +1686,18 @@ var _ = Describe("HAClient", func() {
 					"type":    "result",
 					"success": true,
 					"result": map[string]interface{}{
-						"schedule": map[string]interface{}{
-							"recurrence": "never",
-							"time":       nil,
-						},
-						"retention": map[string]interface{}{
-							"copies": nil,
-							"days":   nil,
-						},
-						"create_backup": map[string]interface{}{
-							"include_database": false,
+						"config": map[string]interface{}{
+							"schedule": map[string]interface{}{
+								"recurrence": "never",
+								"time":       nil,
+							},
+							"retention": map[string]interface{}{
+								"copies": nil,
+								"days":   nil,
+							},
+							"create_backup": map[string]interface{}{
+								"include_database": false,
+							},
 						},
 					},
 				})

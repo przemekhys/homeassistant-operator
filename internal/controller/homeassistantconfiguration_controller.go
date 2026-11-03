@@ -52,9 +52,10 @@ const (
 	// configHashAnnotationKey moved to constants.go (shared with homeassistant_controller.go)
 
 	// Condition reasons for HomeAssistantConfiguration
-	reasonConfigurationGenerated = "ConfigurationGenerated"
-	reasonConfigurationNotFound  = "ConfigurationNotFound"
-	reasonInvalidConfig          = "InvalidConfiguration"
+	reasonConfigurationGenerated          = "ConfigurationGenerated"
+	reasonConfigurationNotFound           = "ConfigurationNotFound"
+	reasonInvalidConfig                   = "InvalidConfiguration"
+	configurationSynchronizationFinalizer = "ha.homeassistant.io/configuration-synchronization"
 	// Note: reloadMethodRestart, reloadMethodHotReload, reloadMethodNone,
 	// and defaultHomeAssistantPort are defined in constants.go
 )
@@ -125,9 +126,10 @@ var reloadableHttpKeys = map[string]bool{
 // HomeAssistantConfigurationReconciler reconciles a HomeAssistantConfiguration object
 type HomeAssistantConfigurationReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	Recorder    events.EventRecorder
-	NewHAClient func(baseURL string) *haclient.Client // overridable for testing
+	Scheme       *runtime.Scheme
+	Recorder     events.EventRecorder
+	NewHAClient  func(baseURL string) *haclient.Client // overridable for testing
+	Coordination CoordinationDependencies
 }
 
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantconfigurations,verbs=get;list;watch
@@ -155,7 +157,10 @@ func (r *HomeAssistantConfigurationReconciler) Reconcile(ctx context.Context, re
 		log.Error(err, "Failed to get HomeAssistantConfiguration")
 		return ctrl.Result{}, err
 	}
-
+	if !config.DeletionTimestamp.IsZero() {
+		return removeFinalizerAfterSynchronizationGate(ctx, r.Coordination, r.Client, config,
+			config.Spec.HomeAssistantRef.Name, configurationSynchronizationFinalizer)
+	}
 	// Validate HomeAssistant reference exists
 	haRef := types.NamespacedName{
 		Name:      config.Spec.HomeAssistantRef.Name,
@@ -164,6 +169,15 @@ func (r *HomeAssistantConfigurationReconciler) Reconcile(ctx context.Context, re
 	ha, err := r.validateHomeAssistantRef(ctx, haRef, config)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
+	if coordinationEnabled(ha) && !controllerutil.ContainsFinalizer(config, configurationSynchronizationFinalizer) {
+		controllerutil.AddFinalizer(config, configurationSynchronizationFinalizer)
+		if err := r.Update(ctx, config); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+	if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, config, ha.Name); err != nil || !result.IsZero() {
+		return result, err
 	}
 
 	// Compute the canonical configuration content (auto-includes + location + recorder secret
@@ -183,6 +197,10 @@ func (r *HomeAssistantConfigurationReconciler) Reconcile(ctx context.Context, re
 		if statusErr := r.Status().Update(ctx, config); statusErr != nil {
 			log.Error(statusErr, "Failed to update status")
 		}
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
+	if err := r.reconcileRecorderDBSecretState(ctx, config); err != nil {
+		log.Error(err, "Failed to reconcile recorder database Secret")
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 	}
 	// Probe the instance for http config API support (HA 2026.8+). On the API
@@ -649,11 +667,13 @@ func (r *HomeAssistantConfigurationReconciler) buildHomeAssistantURL(ha *hav1.Ho
 // Kubelet typically syncs ConfigMap volumes every 60s (syncFrequency), so we need
 // to wait for the file to be synced to the pod before hot-reload will work correctly
 func (r *HomeAssistantConfigurationReconciler) performHotReload(
-	ctx context.Context, haURL, token string,
+	ctx context.Context, ha *hav1.HomeAssistant, token string,
 ) error {
 	log := logf.FromContext(ctx)
 
-	haClient := haclient.NewClient(haURL)
+	haClient := coordinatedHAClient(ctx, ha, r.Coordination, r.Client, func(string) *haclient.Client {
+		return r.httpConfigClient(ha)
+	})
 
 	log.Info("Waiting for kubelet to sync ConfigMap to pod")
 
@@ -735,9 +755,6 @@ func (r *HomeAssistantConfigurationReconciler) performConfigReload(
 
 	// Get API token for hot-reload attempts
 	token, tokenErr := getAPIToken(ctx, r.Client, ha)
-
-	// Build Home Assistant URL
-	haURL := r.buildHomeAssistantURL(ha)
 
 	// Determine effective strategy
 	strategy := string(config.Spec.ReloadStrategy)
@@ -835,7 +852,7 @@ func (r *HomeAssistantConfigurationReconciler) performConfigReload(
 	}
 
 	// Attempt hot-reload
-	if err := r.performHotReload(ctx, haURL, token); err != nil {
+	if err := r.performHotReload(ctx, ha, token); err != nil {
 		// If user explicitly requested hot-reload strategy, fail instead of falling back
 		if strategy == string(hav1.ConfigurationReloadStrategyHotReload) {
 			config.Status.LastError = fmt.Sprintf("Hot-reload failed: %v", err)
@@ -1151,6 +1168,34 @@ func (r *HomeAssistantConfigurationReconciler) cleanupRecorderDBSecret(
 	return r.Delete(ctx, secret)
 }
 
+// reconcileRecorderDBSecretState applies the recorder Secret side effect only
+// after Reconcile has passed the durable synchronization gate. Keeping it out of
+// buildConfigContent makes configuration construction safe to repeat while a
+// pause or restore hold is being observed.
+func (r *HomeAssistantConfigurationReconciler) reconcileRecorderDBSecretState(
+	ctx context.Context,
+	config *hav1.HomeAssistantConfiguration,
+) error {
+	rec := config.Spec.Recorder
+	if rec == nil || (rec.Enabled != nil && !*rec.Enabled) {
+		if err := r.cleanupRecorderDBSecret(ctx, config); err != nil {
+			logf.FromContext(ctx).Error(err, "Failed to clean up recorder-db secret (best-effort)")
+		}
+		return nil
+	}
+	dbURL, fromSecretRef, err := r.resolveRecorderDB(ctx, config)
+	if err != nil {
+		return err
+	}
+	if !fromSecretRef {
+		if err := r.cleanupRecorderDBSecret(ctx, config); err != nil {
+			logf.FromContext(ctx).Error(err, "Failed to clean up recorder-db secret (best-effort)")
+		}
+		return nil
+	}
+	return r.reconcileRecorderDBSecret(ctx, config, dbURL)
+}
+
 // buildConfigContent builds the final configuration.yaml content for the ConfigMap.
 // It applies auto-includes, location injection, and recorder section injection.
 // When spec.recorder.databaseSecretRef is set, the actual URL is stored in the
@@ -1164,28 +1209,12 @@ func (r *HomeAssistantConfigurationReconciler) buildConfigContent(
 	content := buildEffectiveConfig(config.Spec.Configuration, ha)
 	rec := config.Spec.Recorder
 	if rec == nil || (rec.Enabled != nil && !*rec.Enabled) {
-		// No recorder injection — clean up any leftover recorder-db Secret.
-		if err := r.cleanupRecorderDBSecret(ctx, config); err != nil {
-			logf.FromContext(ctx).Error(err, "Failed to clean up recorder-db secret (best-effort)")
-		}
 		return applyTrustedProxies(ha, content)
 	}
 
 	dbURL, fromSecretRef, err := r.resolveRecorderDB(ctx, config)
 	if err != nil {
 		return "", trustedProxiesNotExposed, err
-	}
-
-	if fromSecretRef {
-		if err := r.reconcileRecorderDBSecret(ctx, config, dbURL); err != nil {
-			return "", trustedProxiesNotExposed, fmt.Errorf("reconcile recorder-db secret: %w", err)
-		}
-	} else {
-		// Plain database string or empty — remove any leftover Secret from a previous
-		// databaseSecretRef configuration.
-		if err := r.cleanupRecorderDBSecret(ctx, config); err != nil {
-			logf.FromContext(ctx).Error(err, "Failed to clean up recorder-db secret (best-effort)")
-		}
 	}
 
 	content, err = injectRecorder(content, rec, dbURL, fromSecretRef)

@@ -2779,8 +2779,8 @@ var _ = Describe("HomeAssistant Controller", func() {
 
 			for _, c := range containers {
 				if c.Name == "config-init" {
-					Expect(c.Args).To(HaveLen(1))
-					Expect(c.Args[0]).To(ContainSubstring("mkdir -p /config/python_scripts"),
+					Expect(c.Command).To(HaveLen(3))
+					Expect(c.Command[2]).To(ContainSubstring("os.path.join(CONFIG_DIR, 'python_scripts')"),
 						"python_script's own setup() never registers its reload service if "+
 							"this directory is missing at HA's first boot")
 				}

@@ -106,9 +106,10 @@ type communityRepositoriesConfigMapPayload struct {
 // HomeAssistantCommunityRepositoryReconciler reconciles a HomeAssistantCommunityRepository object.
 type HomeAssistantCommunityRepositoryReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	Recorder    events.EventRecorder
-	NewHAClient func(baseURL string) *haclient.Client // overridable for testing
+	Scheme       *runtime.Scheme
+	Recorder     events.EventRecorder
+	NewHAClient  func(baseURL string) *haclient.Client // overridable for testing
+	Coordination CoordinationDependencies
 }
 
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantcommunityrepositories,verbs=get;list;watch;create;update;patch;delete
@@ -133,6 +134,9 @@ func (r *HomeAssistantCommunityRepositoryReconciler) Reconcile(
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
+	}
+	if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, repo, repo.Spec.HomeAssistantRef.Name); err != nil || !result.IsZero() {
+		return result, err
 	}
 
 	// --- DELETION ---
@@ -317,7 +321,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) reconcileInstalling(
 		log.Info("API token not available yet, will retry activation")
 		return ctrl.Result{RequeueAfter: activationRetryInterval}, nil
 	}
-	haClient := newHAClientForHA(ha, r.NewHAClient)
+	haClient := coordinatedHAClient(ctx, ha, r.Coordination, r.Client, r.NewHAClient)
 
 	var activationErr error
 	switch repo.Spec.Category {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"testing"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -48,9 +49,21 @@ func (c *conflictOnceClient) Update(ctx context.Context, obj client.Object, opti
 	return c.Client.Update(ctx, obj, options...)
 }
 
-func newTestStore(objects ...runtime.Object) Store {
+func newTestStore() Store {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
-	c := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objects...).Build()
+	c := fake.NewClientBuilder().WithScheme(scheme).Build()
 	return Store{Reader: c, Client: c}
+}
+
+func TestFakeClockAdvancesWithoutWallClockDelay(t *testing.T) {
+	start := time.Date(2026, time.November, 2, 0, 0, 0, 0, time.UTC)
+	clock := &fakeClock{now: start}
+	if !clock.Now().Equal(start) {
+		t.Fatal("clock did not preserve the supplied observation time")
+	}
+	clock.Advance(24 * time.Hour)
+	if !clock.Now().Equal(start.Add(24 * time.Hour)) {
+		t.Fatal("clock advance did not preserve the requested diagnostic interval")
+	}
 }

@@ -838,6 +838,34 @@ type HomeAssistantStatus struct {
 	// Synchronization is the observed durable coordination state.
 	// +optional
 	Synchronization *SynchronizationStatus `json:"synchronization,omitempty"`
+
+	// Backup is the observed outcome of native backup operations. It does not
+	// describe whether the native backup configuration has been applied.
+	// +optional
+	Backup *BackupStatus `json:"backup,omitempty"`
+}
+
+// BackupStatus records timestamps derived from confirmed native backup
+// operations. It intentionally contains no archive metadata or credentials.
+type BackupStatus struct {
+	// LastAttempt is the time the most recent native backup request was accepted.
+	// +optional
+	LastAttempt *metav1.Time `json:"lastAttempt,omitempty"`
+	// LastSuccess is the time the most recent backup completed at every required
+	// destination.
+	// +optional
+	LastSuccess *metav1.Time `json:"lastSuccess,omitempty"`
+	// CurrentKeySecretRef identifies the retained Secret containing the current
+	// native backup key. It never contains the key value.
+	// +optional
+	CurrentKeySecretRef *BackupKeySecretReference `json:"currentKeySecretRef,omitempty"`
+}
+
+// BackupKeySecretReference binds retained key material to one concrete Secret.
+type BackupKeySecretReference struct {
+	Name string `json:"name"`
+	UID  string `json:"uid"`
+	Key  string `json:"key"`
 }
 
 type SynchronizationStatus struct {

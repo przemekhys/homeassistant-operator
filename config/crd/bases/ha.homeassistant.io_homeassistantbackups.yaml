@@ -93,6 +93,11 @@ spec:
               references to durable evidence; it never contains passwords or tokens.
             properties:
               backupID:
+                description: |-
+                  BackupID is the archive identifier correlated from a native event and used
+                  to poll final destination results.
+                type: string
+              backupJobID:
                 type: string
               conditions:
                 items:

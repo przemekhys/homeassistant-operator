@@ -85,7 +85,11 @@ func (v *HomeAssistantCustomValidator) ValidateDelete(
 	return nil, nil
 }
 
-func validateHomeAssistant(ctx context.Context, cl client.Reader, oldHA, ha *hav1.HomeAssistant) (admission.Warnings, error) {
+func validateHomeAssistant(
+	ctx context.Context,
+	cl client.Reader,
+	oldHA, ha *hav1.HomeAssistant,
+) (admission.Warnings, error) {
 	log := logf.Log.WithName("homeassistant-webhook")
 	warnings, msgs := validateHomeAssistantTLS(&ha.Spec)
 	msgs = append(msgs, validateGatewayFilters(&ha.Spec)...)
@@ -121,7 +125,10 @@ func validateCoordinatedSynchronization(oldHA, ha *hav1.HomeAssistant) []string 
 		oldPolicy = oldHA.Spec.Alpha.CoordinatedSynchronization.InitializationPolicy
 	}
 	if oldPolicy != "RestoreOnly" {
-		return []string{"spec.alpha.coordinatedSynchronization.initializationPolicy=RestoreOnly may only be selected when creating a HomeAssistant"}
+		return []string{
+			"spec.alpha.coordinatedSynchronization.initializationPolicy=RestoreOnly " +
+				"may only be selected when creating a HomeAssistant",
+		}
 	}
 	return nil
 }
@@ -149,7 +156,8 @@ func validateAdditionalVolumes(spec *hav1.HomeAssistantSpec) []string {
 	declaredVolumes := make(map[string]int, len(spec.AdditionalVolumes.Volumes))
 	for i, volume := range spec.AdditionalVolumes.Volumes {
 		path := fmt.Sprintf("spec.additionalVolumes.volumes[%d]", i)
-		if _, reserved := reservedVolumeNames[volume.Name]; reserved || deviceVolumeNamePattern.MatchString(volume.Name) {
+		if _, reserved := reservedVolumeNames[volume.Name]; reserved ||
+			deviceVolumeNamePattern.MatchString(volume.Name) {
 			errs = append(errs, fmt.Sprintf("%s.name %q is reserved by the operator", path, volume.Name))
 		}
 		if previous, duplicate := declaredVolumes[volume.Name]; duplicate {
@@ -488,14 +496,18 @@ func validatePathModifier(path string, p *hav1.HTTPPathModifier) []string {
 			return []string{fmt.Sprintf("%s.replaceFullPath is required when path.type is ReplaceFullPath", path)}
 		}
 		if p.ReplacePrefixMatch != nil {
-			return []string{fmt.Sprintf("%s.replacePrefixMatch must not be set when path.type is ReplaceFullPath", path)}
+			return []string{
+				fmt.Sprintf("%s.replacePrefixMatch must not be set when path.type is ReplaceFullPath", path),
+			}
 		}
 	case "ReplacePrefixMatch":
 		if p.ReplacePrefixMatch == nil {
 			return []string{fmt.Sprintf("%s.replacePrefixMatch is required when path.type is ReplacePrefixMatch", path)}
 		}
 		if p.ReplaceFullPath != nil {
-			return []string{fmt.Sprintf("%s.replaceFullPath must not be set when path.type is ReplacePrefixMatch", path)}
+			return []string{
+				fmt.Sprintf("%s.replaceFullPath must not be set when path.type is ReplacePrefixMatch", path),
+			}
 		}
 	default:
 		return []string{fmt.Sprintf("%s.type must be ReplaceFullPath or ReplacePrefixMatch, got %q", path, p.Type)}

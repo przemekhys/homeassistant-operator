@@ -15,6 +15,151 @@ Every reconciliation test should verify idempotent behavior.
 - Simple getters/setters without logic
 - Generated code (`zz_generated.deepcopy.go`)
 
+## Native backup candidate qualification
+
+Production backup generation is fail-closed until a reviewed capability record
+exists for the running image digest. Environment variables and CR fields cannot
+enable an unqualified image. Qualification of backup does not enable restore.
+
+The separate `test/qualification` program can observe one existing
+`HomeAssistantBackup` on a disposable target. It is not included in the
+production container. Build it with:
+
+```bash
+make build-backup-restore-qualification
+go test ./test/qualification ./internal/haclient ./test/utils
+```
+
+For a real candidate run, use an explicitly selected disposable k3d context,
+a dedicated namespace labelled
+`ha.homeassistant.io/backup-restore-qualification=true`, and a live target pinned
+to a **platform manifest** digest. The program directly checks the live target
+UID, StatefulSet/pod controller ownership, running container readiness, and actual
+container `imageID` against the pin. A multi-platform index digest that differs
+from the runtime's platform digest is rejected; do not relax the check.
+
+Prepare synthetic HA data, native encryption and protected destinations first.
+Wait for the operator to retain the observed key. Create a new backup operation
+with the live target UID, and port-forward **that target's** Service to a loopback
+port, explicitly specifying the same k3d context and namespace. Configure these
+non-secret variables from the disposable resources you prepared:
+
+- `QUALIFICATION_IMAGE_DIGEST`: immutable platform digest (`sha256:...`).
+- `QUALIFICATION_NAMESPACE`, `QUALIFICATION_TARGET_NAME`,
+  `QUALIFICATION_TARGET_UID`: the labelled namespace and live target identity.
+- `QUALIFICATION_OPERATION`: the existing backup operation name.
+- `QUALIFICATION_KUBE_CONTEXT`: the explicit `k3d-...` context.
+- `QUALIFICATION_HA_URL`: numeric loopback HTTP URL with the port-forward's port,
+  such as `http://127.0.0.1:18123`; never include credentials or query parameters.
+
+```bash
+make test-backup-restore-qualification
+```
+
+The program does not create or delete clusters, namespaces, targets or archives,
+change encryption keys, or perform restore. Its observation deadline does not
+release a durable permit or authorize redispatch. Failure/partial/unknown results
+exit unsuccessfully and require inspection of safe status and retained evidence.
+
+A successful operation is **not full qualification**: real protected-archive
+download, schedule, required-destination failure, and restart/no-duplicate checks
+remain necessary. Record actual HA/operator digests and each scenario's result.
+Required acceptance uses two native test-only BackupAgents, not Scaleway/S3.
+HA creates and encrypts the real archive; fixtures copy its unchanged stream into
+`/test-backups/agent-a` and `/test-backups/agent-b` on a shared disposable `emptyDir`.
+Their code is mounted read-only from a test ConfigMap. No NFS, MinIO, storage server,
+external account, cloud credentials or paid storage is required. Tests select only A,
+then A+B, then force B's write failure through `backup_test.set_failure`. Native
+details and archive downloads must show the exact destinations, protection, partial
+failure and no Core fallback. Archives disappear with the pod/cluster. These results
+qualify agent behavior, not a cloud provider or actual remote-storage compatibility.
+Run this scenario in a newly created disposable k3d context (set `K3D_CLUSTER`
+and `KUBECONFIG` to that cluster, never an existing development instance):
+
+```bash
+CERT_MANAGER_INSTALL_SKIP=true go test ./test/e2e -v -count=1 -timeout=30m \
+  '-ginkgo.label-filter=backup-restore && group-a'
+```
+
+The existing critical-path-only CI filters do not select `backup-restore`;
+this command is a separate qualification run until CI integration is completed.
+`make test` also runs the fixture's offline storage tests through Python 3
+(standard library only); these tests do not substitute for real HA E2E.
+No result automatically updates production capabilities. The Core-only outcome
+below does not qualify remote destinations, native busy handling or restore.
+
+#### Recorded Core candidate outcome — 2026-11-02
+
+One isolated real-Container scenario passed for HA **2026.10.0**, source commit
+`6a811d3359c7b2076dc9e1cf900843a129c044af`, Linux AMD64 platform image digest
+`sha256:956a5d9effc091888cd34cb0b6fb4f66c448d257d20519e72302557682734fd0`.
+It verified native Core destination protection, retained current-key evidence,
+managed daily scheduling, one-shot encrypted generation and original-archive
+download. After operator restart and a fresh qualification process, the operation
+UID/job/archive IDs, native archive inventory and retained evidence were unchanged;
+the downloaded archive had the same size and SHA-256. The disposable target and
+cluster were deleted after the run. The existing development cluster was not used.
+
+The selected scenario reported **1 pass, 0 failures**. Other specs outside its
+label selection are not additional qualification passes. ARM64, remote-only and
+multi-agent failures, Scaleway, key rotation/export, native busy serialization and
+both restore paths were **not exercised by this run**. The production catalog
+remains empty; this outcome is candidate evidence, not a production-support claim.
+
+#### Recorded local-agent candidate outcome — 2026-11-02
+
+The same HA 2026.10.0 AMD64 pin above passed an extended isolated scenario:
+Core protection/schedule/download/restart, protected A-only backup without Core,
+protected A+B backup with identical downloaded size/SHA-256, and injected B write
+failure yielding `PartiallySucceeded`. Native details showed only the selected
+successful agents and B's failure, no Core fallback, and no new `lastSuccess` on
+partial failure. The run reported **1 pass, 0 failures**, with 28 specs outside
+the filter; its log is `/tmp/opencode/homeassistant-backup-d2570152/e2e.log`.
+The disposable cluster and its archives were removed. `make test` and lint passed.
+This adds local native-agent evidence only: ARM64, actual remote/cloud storage,
+key rotation/export, native busy serialization and restore remain unqualified.
+Production capabilities were not promoted.
+
+#### Recorded key-history/export candidate outcome — 2026-11-02
+
+The same HA 2026.10.0 AMD64 platform pin passed native key rotation and
+back-rotation. Distinct observed keys remained in separate immutable Secrets
+without owner references; returning to the earlier value reused its Secret
+without changing either retained Secret's resourceVersion. Deleting the disposable
+HA and recreating its name with a new UID preserved the old UID-scoped history
+without assigning it to the replacement.
+
+The documented export procedure wrote each synthetic key Secret to a private
+local file outside the cluster with mode `0600`. Reading it back verified identity
+and nonempty matching key bytes in memory, without printing them. Export of a
+missing Secret failed and removed its incomplete file. This checks the file-export
+procedure, **not** an external vault, archive decryption or restore usability.
+
+The run also repeated Core and local-agent scenarios above: **1 pass, 0 failures**,
+28 specs outside the filter. Log:
+`/tmp/opencode/homeassistant-keys-dcd68add-hem1urv4/e2e.log`.
+The disposable cluster was deleted and the existing development cluster was not
+used. Unit/envtest, lint, vulnerability checks and focused race tests passed.
+ARM64, native busy serialization, actual remote providers and restore remain
+unqualified; no production capability was promoted.
+
+The wire-contract tests must use HA's actual response shapes:
+`backup/config/info` wraps settings in `result.config`; `backup/details` returns
+`result.backup`, whose `agents` is a map keyed by agent ID, plus separate
+`failed_agent_ids` and `agent_errors`. Generic manager events may arrive before
+the subscription acknowledgement and need not contain an operation ID. Do not
+invent IDs in every fixture or infer correlation from a timestamp or event name.
+
+Container images can be qualified for the additional `jobIDIsArchiveID` contract.
+That flag does not grant backup support by itself and is not implied by ordinary
+backup capability. The scoped candidate program applies this mapping only to its
+source-checked platform pins, then verifies the exact returned archive identity
+through native details. A visible archive alone does not establish that remote
+distribution finished: the reconciler also waits for the native manager to be
+idle before recording a terminal result and releasing its own writer permit.
+Accepted job identity and confirmed results remain in retained evidence so status
+loss cannot create a new dispatch right.
+
 ## Test Pyramid
 
 ```

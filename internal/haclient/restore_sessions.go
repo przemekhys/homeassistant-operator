@@ -31,7 +31,11 @@ func NewRestoreSessionRunner(lifetime time.Duration) *RestoreSessionRunner {
 	if lifetime <= 0 {
 		lifetime = DefaultRestoreLifetime
 	}
-	return &RestoreSessionRunner{lifetime: lifetime, sessions: make(map[string]context.CancelFunc), sem: make(chan struct{}, MaxRestoreSessions)}
+	return &RestoreSessionRunner{
+		lifetime: lifetime,
+		sessions: make(map[string]context.CancelFunc),
+		sem:      make(chan struct{}, MaxRestoreSessions),
+	}
 }
 
 func (r *RestoreSessionRunner) NeedLeaderElection() bool { return true }

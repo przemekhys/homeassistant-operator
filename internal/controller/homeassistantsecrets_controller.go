@@ -48,17 +48,19 @@ const (
 	secretsHashAnnotationKey = "ha.homeassistant.io/secrets-hash"
 
 	// Condition reasons
-	reasonSecretsGenerated      = "SecretsGenerated"
-	reasonSecretNotFound        = "SecretNotFound"
-	reasonInvalidConfiguration  = "InvalidConfiguration"
-	reasonReconciliationFailed  = "ReconciliationFailed"
-	reasonReconciliationSuccess = "ReconciliationSucceeded"
+	reasonSecretsGenerated          = "SecretsGenerated"
+	reasonSecretNotFound            = "SecretNotFound"
+	reasonInvalidConfiguration      = "InvalidConfiguration"
+	reasonReconciliationFailed      = "ReconciliationFailed"
+	reasonReconciliationSuccess     = "ReconciliationSucceeded"
+	secretsSynchronizationFinalizer = "ha.homeassistant.io/secrets-synchronization"
 )
 
 // HomeAssistantSecretsReconciler reconciles a HomeAssistantSecrets object
 type HomeAssistantSecretsReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme       *runtime.Scheme
+	Coordination CoordinationDependencies
 }
 
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantsecrets,verbs=get;list;watch
@@ -83,7 +85,10 @@ func (r *HomeAssistantSecretsReconciler) Reconcile(ctx context.Context, req ctrl
 		log.Error(err, "Failed to get HomeAssistantSecrets")
 		return ctrl.Result{}, err
 	}
-
+	if !haSecrets.DeletionTimestamp.IsZero() {
+		return removeFinalizerAfterSynchronizationGate(ctx, r.Coordination, r.Client, haSecrets,
+			haSecrets.Spec.HomeAssistantRef.Name, secretsSynchronizationFinalizer)
+	}
 	// Validate HomeAssistant reference exists
 	haRef := types.NamespacedName{
 		Name:      haSecrets.Spec.HomeAssistantRef.Name,
@@ -109,6 +114,15 @@ func (r *HomeAssistantSecretsReconciler) Reconcile(ctx context.Context, req ctrl
 		}
 		log.Error(err, "Failed to get HomeAssistant")
 		return ctrl.Result{}, err
+	}
+	if coordinationEnabled(ha) && !controllerutil.ContainsFinalizer(haSecrets, secretsSynchronizationFinalizer) {
+		controllerutil.AddFinalizer(haSecrets, secretsSynchronizationFinalizer)
+		if err := r.Update(ctx, haSecrets); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+	if result, err := childSynchronizationGate(ctx, r.Coordination, r.Client, haSecrets, ha.Name); err != nil || !result.IsZero() {
+		return result, err
 	}
 
 	// Collect secrets from all referenced sources

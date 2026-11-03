@@ -351,21 +351,41 @@ func main() {
 		Scheme:    mgr.GetScheme(),
 		Recorder:  mgr.GetEventRecorder("homeassistant-controller"),
 		APIReader: mgr.GetAPIReader(),
+		Coordination: controller.NewCoordinationDependencies(
+			mgr.GetAPIReader(), mgr.GetClient(), restoreSessions,
+		),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HomeAssistant")
 		os.Exit(1)
 	}
+	backupCapabilities, err := haclient.NewProductionCapabilityCatalog()
+	if err != nil {
+		setupLog.Error(err, "unable to load reviewed backup qualifications")
+		os.Exit(1)
+	}
+	if err := (&controller.HomeAssistantBackupReconciler{
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		APIReader:      mgr.GetAPIReader(),
+		KeyProtection:  controller.RetainedBackupKeyProvider{Reader: mgr.GetAPIReader()},
+		CapabilityGate: controller.NativeBackupCapabilityGate{Reader: mgr.GetAPIReader(), Catalog: backupCapabilities},
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "HomeAssistantBackup")
+		os.Exit(1)
+	}
 	if err := (&controller.HomeAssistantSecretsReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		Coordination: controller.NewCoordinationDependencies(mgr.GetAPIReader(), mgr.GetClient(), restoreSessions),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HomeAssistantSecrets")
 		os.Exit(1)
 	}
 	if err := (&controller.HomeAssistantConfigurationReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorder("homeassistantconfiguration-controller"),
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		Recorder:     mgr.GetEventRecorder("homeassistantconfiguration-controller"),
+		Coordination: controller.NewCoordinationDependencies(mgr.GetAPIReader(), mgr.GetClient(), restoreSessions),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HomeAssistantConfiguration")
 		os.Exit(1)
@@ -424,9 +444,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err := (&controller.HomeAssistantCommunityRepositoryReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorder("homeassistantcommunityrepository-controller"),
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		Recorder:     mgr.GetEventRecorder("homeassistantcommunityrepository-controller"),
+		Coordination: controller.NewCoordinationDependencies(mgr.GetAPIReader(), mgr.GetClient(), restoreSessions),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HomeAssistantCommunityRepository")
 		os.Exit(1)

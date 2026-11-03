@@ -139,6 +139,14 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		_, err = utils.Run(cmd)
 		g.Expect(err).NotTo(HaveOccurred(), "HomeAssistantSecrets CRD should exist")
 
+		cmd = exec.Command("kubectl", "get", "crd", "homeassistantbackups.ha.homeassistant.io")
+		_, err = utils.Run(cmd)
+		g.Expect(err).NotTo(HaveOccurred(), "HomeAssistantBackup CRD should exist")
+
+		cmd = exec.Command("kubectl", "get", "crd", "homeassistantrestores.ha.homeassistant.io")
+		_, err = utils.Run(cmd)
+		g.Expect(err).NotTo(HaveOccurred(), "HomeAssistantRestore CRD should exist")
+
 		cmd = exec.Command("kubectl", "get", "crd", "homeassistantautomations.ha.homeassistant.io")
 		_, err = utils.Run(cmd)
 		g.Expect(err).NotTo(HaveOccurred(), "HomeAssistantAutomation CRD should exist")

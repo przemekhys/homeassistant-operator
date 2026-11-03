@@ -29,19 +29,29 @@ type backupValidator struct{}
 var _ admission.Validator[*hav1alpha1.HomeAssistantBackup] = &backupValidator{}
 
 func SetupBackupRestoreWebhooksWithManager(mgr ctrl.Manager) error {
-	if err := ctrl.NewWebhookManagedBy(mgr, &hav1alpha1.HomeAssistantBackup{}).WithValidator(&backupValidator{}).Complete(); err != nil {
+	builder := ctrl.NewWebhookManagedBy(mgr, &hav1alpha1.HomeAssistantBackup{}).WithValidator(&backupValidator{})
+	if err := builder.Complete(); err != nil {
 		return err
 	}
-	return ctrl.NewWebhookManagedBy(mgr, &hav1alpha1.HomeAssistantRestore{}).WithValidator(&restoreValidator{}).Complete()
+	return ctrl.NewWebhookManagedBy(mgr, &hav1alpha1.HomeAssistantRestore{}).
+		WithValidator(&restoreValidator{}).
+		Complete()
 }
 
-func (*backupValidator) ValidateCreate(_ context.Context, obj *hav1alpha1.HomeAssistantBackup) (admission.Warnings, error) {
+func (*backupValidator) ValidateCreate(
+	_ context.Context,
+	obj *hav1alpha1.HomeAssistantBackup,
+) (admission.Warnings, error) {
 	if obj.Spec.HomeAssistantRef.Name == "" || obj.Spec.HomeAssistantRef.UID == "" {
 		return nil, fmt.Errorf("spec.homeAssistantRef.name and spec.homeAssistantRef.uid are required")
 	}
 	return nil, nil
 }
-func (*backupValidator) ValidateUpdate(_ context.Context, oldObj, newObj *hav1alpha1.HomeAssistantBackup) (admission.Warnings, error) {
+
+func (*backupValidator) ValidateUpdate(
+	_ context.Context,
+	oldObj, newObj *hav1alpha1.HomeAssistantBackup,
+) (admission.Warnings, error) {
 	if !reflect.DeepEqual(oldObj.Spec, newObj.Spec) {
 		return nil, fmt.Errorf("spec is immutable after creation")
 	}
@@ -55,13 +65,20 @@ type restoreValidator struct{}
 
 var _ admission.Validator[*hav1alpha1.HomeAssistantRestore] = &restoreValidator{}
 
-func (*restoreValidator) ValidateCreate(_ context.Context, obj *hav1alpha1.HomeAssistantRestore) (admission.Warnings, error) {
+func (*restoreValidator) ValidateCreate(
+	_ context.Context,
+	obj *hav1alpha1.HomeAssistantRestore,
+) (admission.Warnings, error) {
 	if err := validateRestore(obj); err != nil {
 		return nil, err
 	}
 	return nil, nil
 }
-func (*restoreValidator) ValidateUpdate(_ context.Context, oldObj, newObj *hav1alpha1.HomeAssistantRestore) (admission.Warnings, error) {
+
+func (*restoreValidator) ValidateUpdate(
+	_ context.Context,
+	oldObj, newObj *hav1alpha1.HomeAssistantRestore,
+) (admission.Warnings, error) {
 	if err := validateRestore(newObj); err != nil {
 		return nil, err
 	}
@@ -70,7 +87,10 @@ func (*restoreValidator) ValidateUpdate(_ context.Context, oldObj, newObj *hav1a
 	}
 	if raw := newObj.Annotations[restoreApprovalAnnotation]; raw != "" {
 		var approval restoreApproval
-		if err := json.Unmarshal([]byte(raw), &approval); err != nil || approval.OperationUID == "" || approval.TargetUID == "" || approval.PlanDigest == "" || approval.Challenge == "" {
+		if err := json.Unmarshal([]byte(raw), &approval); err != nil || approval.OperationUID == "" ||
+			approval.TargetUID == "" ||
+			approval.PlanDigest == "" ||
+			approval.Challenge == "" {
 			return nil, fmt.Errorf("%s must be a complete JSON approval binding", restoreApprovalAnnotation)
 		}
 	}

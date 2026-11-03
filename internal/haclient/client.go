@@ -26,6 +26,7 @@ const (
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
+	writeGuard WriteGuard
 }
 
 // NewClient creates a new Home Assistant API client
@@ -696,15 +697,16 @@ func (c *Client) GetBackupConfig(
 		return nil, err
 	}
 
-	var config BackupConfig
-	if err := json.Unmarshal(result, &config); err != nil {
+	var response struct {
+		Config *BackupConfig `json:"config"`
+	}
+	if err := json.Unmarshal(result, &response); err != nil || response.Config == nil {
 		return nil, &Error{
 			Type:    ErrorTypeInvalidResponse,
-			Message: "failed to parse backup config",
-			Err:     err,
+			Message: "invalid native backup configuration envelope",
 		}
 	}
-	return &config, nil
+	return response.Config, nil
 }
 
 // ConfigureBackup updates the backup configuration in HA via WebSocket.
