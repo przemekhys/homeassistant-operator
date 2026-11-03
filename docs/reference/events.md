@@ -34,6 +34,11 @@ password. See [conditions](conditions.md) and
 | `CertManagerUnavailable` | Warning | A cert-manager-backed mode is enabled but cert-manager is not installed. Exposure keeps working over HTTP. |
 | `ExposureConfigured` | Normal | Ingress or Gateway resources were reconciled |
 
+Backup outcomes are deliberately not emitted as Events. Read
+`status.backup`, the durable request receipt, and `BackupObservationReady`
+instead. This avoids placing archive metadata, native error payloads, keys, or
+tokens in the Event stream.
+
 ## HomeAssistantConfiguration
 
 | Event | Type | Meaning |

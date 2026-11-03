@@ -75,6 +75,25 @@ Export the relevant entry to protected storage outside the cluster. Do not put
 the key, API token, or a downloaded archive in terminal history, CI artifacts,
 or tickets. A Secret in the same cluster is not a disaster-recovery copy.
 
+Export one selected entry without printing it:
+
+```sh
+umask 077
+export_dir=$(mktemp -d)
+secret_name=$(kubectl get ha home -o jsonpath='{.status.backup.keySecretRef.name}')
+secret_key=$(kubectl get ha home -o jsonpath='{.status.backup.keySecretRef.key}')
+test -n "$secret_name" && test -n "$secret_key"
+kubectl get secret "$secret_name" -o json | \
+  jq -er --arg key "$secret_key" '.data[$key]' | base64 --decode >"$export_dir/recovery-key"
+chmod 600 "$export_dir/recovery-key"
+```
+
+The current reference may not match an older archive: choose the key observed
+when that archive was made. The retained Secret preserves prior different keys,
+but Kubernetes still enforces its size limit; export keys and manually remove
+only entries you no longer need if it fills. Deleting the `HomeAssistant` keeps
+this Secret, while deleting its namespace or the cluster does not.
+
 ## Getting backups off the cluster
 
 Home Assistant's own backups live on the same volume as the data they protect, so
@@ -117,6 +136,19 @@ kubectl get ha home -o jsonpath='{.status.conditions}' | jq '.[] | select(.type=
   "message": "Backup configuration applied successfully"
 }
 ```
+
+Configuration is separate from evidence that a copy completed. Check the
+observation and bounded result separately:
+
+```sh
+kubectl get ha home -o jsonpath='{.status.backup}' | jq
+```
+
+`lastSuccessfulBackupTime` appears only after Home Assistant reports an
+archive with every configured destination. `lastAttempt.outcome: Unknown`
+means the operator cannot prove the result; inspect Home Assistant before
+submitting a new request ID. An unavailable observation does not erase an older
+time, but that older value is not proof of a fresh copy.
 
 ## Turn backups off again
 

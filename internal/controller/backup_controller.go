@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sort"
 	"time"
 
@@ -41,6 +40,22 @@ const (
 	reasonBackupUnmanaged         = "Unmanaged"
 	reasonBackupAgentUnavailable  = "AgentUnavailable"
 )
+
+// earliestRequeue preserves the shortest outstanding backup deadline while
+// allowing configuration, observation, and a one-shot request to run in one
+// reconcile. A zero duration means no requested requeue.
+func earliestRequeue(results ...ctrl.Result) ctrl.Result {
+	var earliest time.Duration
+	for _, result := range results {
+		if result.Requeue {
+			return result
+		}
+		if result.RequeueAfter > 0 && (earliest == 0 || result.RequeueAfter < earliest) {
+			earliest = result.RequeueAfter
+		}
+	}
+	return ctrl.Result{RequeueAfter: earliest}
+}
 
 // reconcileBackupConfig configures HA's built-in backup system via WebSocket API.
 // Called after bootstrap — requires a valid API token.
@@ -75,7 +90,7 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 	// Get current backup config from HA
 	currentConfig, err := haClient.GetBackupConfig(ctx, token)
 	if err != nil {
-		log.Error(err, "Failed to get backup config from HA")
+		log.Info("Failed to get backup config from HA")
 		reason, message := backupConfigReadFailure(err)
 		r.emitBackupEvent(ha, corev1.EventTypeWarning, reason, message)
 		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
@@ -99,11 +114,12 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 		if err := r.Status().Update(ctx, ha); err != nil {
 			return ctrl.Result{}, err
 		}
-		result, err := r.reconcileBackupObservation(ctx, ha, haClient, token, currentConfig)
-		if err != nil || result.RequeueAfter > 0 {
-			return result, err
+		observationResult, err := r.reconcileBackupObservation(ctx, ha, haClient, token, currentConfig)
+		if err != nil {
+			return observationResult, err
 		}
-		return r.reconcileBackupRequest(ctx, ha, haClient, token, currentConfig)
+		requestResult, err := r.reconcileBackupRequest(ctx, ha, haClient, token, currentConfig)
+		return earliestRequeue(observationResult, requestResult), err
 	}
 
 	// Build desired config from spec
@@ -146,26 +162,27 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 			log.Error(err, "Failed to update backup status")
 			return ctrl.Result{}, err
 		}
-		result, err := r.reconcileBackupObservation(ctx, ha, haClient, token, currentConfig)
-		if err != nil || result.RequeueAfter > 0 {
-			return result, err
+		observationResult, err := r.reconcileBackupObservation(ctx, ha, haClient, token, currentConfig)
+		if err != nil {
+			return observationResult, err
 		}
-		return r.reconcileBackupRequest(ctx, ha, haClient, token, currentConfig)
+		requestResult, err := r.reconcileBackupRequest(ctx, ha, haClient, token, currentConfig)
+		return earliestRequeue(observationResult, requestResult), err
 	}
 
 	// Apply new config
 	log.Info("Updating backup configuration in HA",
 		"recurrence", desired.Schedule.Recurrence)
 	if err := haClient.ConfigureBackup(ctx, token, desired); err != nil {
-		log.Error(err, "Failed to configure backup in HA")
-		msg := fmt.Sprintf("Failed to configure backup: %v", err)
+		log.Info("Failed to configure backup in HA")
+		msg := "Home Assistant rejected or did not accept backup configuration"
 		r.emitBackupEvent(ha, corev1.EventTypeWarning, "BackupConfigFailed", msg)
 		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
 			Type:               conditionTypeBackupConfigured,
 			Status:             metav1.ConditionFalse,
 			ObservedGeneration: ha.Generation,
 			Reason:             reasonBackupConfigFailed,
-			Message:            fmt.Sprintf("Failed to configure backup: %v", err),
+			Message:            msg,
 		})
 		if err := r.Status().Update(ctx, ha); err != nil {
 			log.Error(err, "Failed to update backup status")

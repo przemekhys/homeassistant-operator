@@ -15,6 +15,10 @@ import (
 
 const backupKeyUIDLabel = "ha.homeassistant.io/backup-key-owner-uid"
 
+// Kubernetes limits a Secret payload to 1 MiB. Reserve no hidden capacity:
+// refusing an entry before Update preserves every already retained key.
+const maxBackupKeySecretBytes = 1 << 20
+
 func backupKeySecretName(ha *hav1.HomeAssistant) string {
 	name := strings.ToLower(ha.Name)
 	if len(name) > 35 {
@@ -61,19 +65,48 @@ func (r *HomeAssistantReconciler) protectBackupKey(
 	if secret.Labels[backupKeyUIDLabel] != string(ha.UID) {
 		return nil, fmt.Errorf("conflicting backup key Secret")
 	}
-	for existingKey, existingValue := range secret.Data {
-		if string(existingValue) == *value {
-			return &hav1.BackupSecretKeyReference{Name: name, Key: existingKey}, nil
+	for attempt := 0; attempt < 3; attempt++ {
+		if secret.Labels[backupKeyUIDLabel] != string(ha.UID) {
+			return nil, fmt.Errorf("conflicting backup key Secret")
+		}
+		for existingKey, existingValue := range secret.Data {
+			if string(existingValue) == *value {
+				return &hav1.BackupSecretKeyReference{Name: name, Key: existingKey}, nil
+			}
+		}
+		entry := nextBackupKeyEntry(secret.Data)
+		if backupSecretDataSize(secret.Data)+len(entry)+len(*value) > maxBackupKeySecretBytes {
+			return nil, fmt.Errorf("backup key Secret size limit reached")
+		}
+		if secret.Data == nil {
+			secret.Data = make(map[string][]byte)
+		}
+		secret.Data[entry] = []byte(*value)
+		if err := r.Update(ctx, secret); err == nil {
+			return &hav1.BackupSecretKeyReference{Name: name, Key: entry}, nil
+		} else if !apierrors.IsConflict(err) {
+			return nil, err
+		}
+		if err := r.Get(ctx, key, secret); err != nil {
+			return nil, err
 		}
 	}
+	return nil, fmt.Errorf("backup key Secret update conflicted")
+}
+
+func nextBackupKeyEntry(data map[string][]byte) string {
 	for n := 1; ; n++ {
 		entry := fmt.Sprintf("key-%06d", n)
-		if _, found := secret.Data[entry]; !found {
-			secret.Data[entry] = []byte(*value)
-			if err := r.Update(ctx, secret); err != nil {
-				return nil, err
-			}
-			return &hav1.BackupSecretKeyReference{Name: name, Key: entry}, nil
+		if _, found := data[entry]; !found {
+			return entry
 		}
 	}
+}
+
+func backupSecretDataSize(data map[string][]byte) int {
+	total := 0
+	for key, value := range data {
+		total += len(key) + len(value)
+	}
+	return total
 }
