@@ -45,6 +45,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -2159,7 +2160,7 @@ func schedulingFieldsDiffer(current, desired *appsv1.StatefulSet) bool {
 // SetupWithManager sets up the controller with the Manager.
 func (r *HomeAssistantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&hav1.HomeAssistant{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&hav1.HomeAssistant{}, builder.WithPredicates(homeAssistantPrimaryPredicate())).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
@@ -2183,6 +2184,26 @@ func (r *HomeAssistantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		).
 		Named("homeassistant").
 		Complete(r)
+}
+
+// homeAssistantPrimaryPredicate avoids feedback from the controller's own
+// status writes while retaining annotation-driven operations such as a durable
+// backup request. GenerationChangedPredicate alone would wrongly drop those
+// metadata-only updates.
+func homeAssistantPrimaryPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc:  func(event.CreateEvent) bool { return true },
+		DeleteFunc:  func(event.DeleteEvent) bool { return true },
+		GenericFunc: func(event.GenericEvent) bool { return true },
+		UpdateFunc: func(update event.UpdateEvent) bool {
+			oldHA, oldOK := update.ObjectOld.(*hav1.HomeAssistant)
+			newHA, newOK := update.ObjectNew.(*hav1.HomeAssistant)
+			if !oldOK || !newOK {
+				return true
+			}
+			return oldHA.Generation != newHA.Generation || !reflect.DeepEqual(oldHA.Annotations, newHA.Annotations)
+		},
+	}
 }
 
 func (r *HomeAssistantReconciler) findHomeAssistantForCommunityRepository(

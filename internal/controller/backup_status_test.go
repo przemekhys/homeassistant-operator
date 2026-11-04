@@ -9,6 +9,7 @@ import (
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
 	"github.com/przemekhys/homeassistant-operator/internal/haclient"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
 func TestBackupStatusProjectsScheduledArchiveWithoutRequest(t *testing.T) {
@@ -34,6 +35,20 @@ func TestEarliestRequeuePreservesBackupRequestDeadline(t *testing.T) {
 	)
 	if result.RequeueAfter != 10*time.Second {
 		t.Fatalf("requeue after = %s, want 10s", result.RequeueAfter)
+	}
+}
+
+func TestHomeAssistantPrimaryPredicateKeepsBackupRequestAnnotation(t *testing.T) {
+	oldHA := &hav1.HomeAssistant{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"other": "value"}}}
+	newHA := oldHA.DeepCopy()
+	newHA.Annotations[backupRequestAnnotation] = "request-1"
+	if !homeAssistantPrimaryPredicate().Update(event.UpdateEvent{ObjectOld: oldHA, ObjectNew: newHA}) {
+		t.Fatal("backup request annotation update was filtered")
+	}
+	statusOnly := oldHA.DeepCopy()
+	statusOnly.Status.Backup = &hav1.BackupStatus{}
+	if homeAssistantPrimaryPredicate().Update(event.UpdateEvent{ObjectOld: oldHA, ObjectNew: statusOnly}) {
+		t.Fatal("status-only update was not filtered")
 	}
 }
 
