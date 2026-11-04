@@ -97,6 +97,7 @@ func TestRestoreNativeBackupDoesNotExposeRecoveryKey(t *testing.T) {
 			return
 		}
 		defer connection.Close()
+		_ = connection.WriteJSON(map[string]string{"type": "auth_required"})
 		var auth map[string]string
 		_ = connection.ReadJSON(&auth)
 		_ = connection.WriteJSON(map[string]string{"type": "auth_ok"})
@@ -124,6 +125,7 @@ func TestRestoreNativeBackupSanitizesRejectedKey(t *testing.T) {
 			return
 		}
 		defer connection.Close()
+		_ = connection.WriteJSON(map[string]string{"type": "auth_required"})
 		var ignored map[string]any
 		_ = connection.ReadJSON(&ignored)
 		_ = connection.WriteJSON(map[string]string{"type": "auth_ok"})
@@ -135,5 +137,87 @@ func TestRestoreNativeBackupSanitizesRejectedKey(t *testing.T) {
 	err := RestoreNativeBackup(context.Background(), server.URL, "synthetic-token", "backup-1", "backup.local", "synthetic-recovery-key")
 	if err == nil || !strings.Contains(err.Error(), "password_incorrect") || strings.Contains(err.Error(), "synthetic-recovery-key") {
 		t.Fatalf("unsafe rejected-key error: %v", err)
+	}
+}
+
+func TestOnboardingUploadAndInfoUseFreshTargetEndpoints(t *testing.T) {
+	workspace, err := NewRecoveryWorkspace(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer workspace.Cleanup()
+	if err := os.WriteFile(workspace.Archive, []byte("synthetic archive"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/onboarding/backup/upload":
+			if err := r.ParseMultipartForm(1 << 20); err != nil {
+				t.Error(err)
+				return
+			}
+			file, _, err := r.FormFile("file")
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			defer file.Close()
+			payload, _ := io.ReadAll(file)
+			if string(payload) != "synthetic archive" {
+				t.Error("unexpected archive payload")
+			}
+			w.WriteHeader(http.StatusOK)
+		case "/api/onboarding/backup/info":
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	if err := UploadBackupForOnboarding(context.Background(), server.Client(), server.URL, workspace.Archive); err != nil {
+		t.Fatal(err)
+	}
+	if err := OnboardingBackupInfo(context.Background(), server.Client(), server.URL); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOnboardingRestoreSanitizesWrongRecoveryKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/onboarding/backup/restore" {
+			http.NotFound(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = io.WriteString(w, `{"code":"incorrect_password","message":"synthetic-recovery-key"}`)
+	}))
+	defer server.Close()
+	err := RestoreOnboardingBackup(context.Background(), server.Client(), server.URL, "backup-1", "backup.local", "synthetic-recovery-key")
+	if err == nil || !strings.Contains(err.Error(), "HTTP 400") || strings.Contains(err.Error(), "synthetic-recovery-key") {
+		t.Fatalf("unsafe onboarding restore error: %v", err)
+	}
+}
+
+func TestSetNativeBackupPasswordKeepsKeyOutOfErrors(t *testing.T) {
+	const key = "synthetic-recovery-key"
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		connection, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer connection.Close()
+		_ = connection.WriteJSON(map[string]string{"type": "auth_required"})
+		var ignored map[string]any
+		_ = connection.ReadJSON(&ignored)
+		_ = connection.WriteJSON(map[string]string{"type": "auth_ok"})
+		_ = connection.ReadJSON(&ignored)
+		_ = connection.WriteJSON(map[string]any{"id": 1, "type": "result", "success": false,
+			"error": map[string]string{"code": "invalid_key", "message": key}})
+	}))
+	defer server.Close()
+	err := SetNativeBackupPassword(context.Background(), server.URL, "synthetic-token", key)
+	if err == nil || !strings.Contains(err.Error(), "invalid_key") || strings.Contains(err.Error(), key) {
+		t.Fatalf("unsafe backup key error: %v", err)
 	}
 }

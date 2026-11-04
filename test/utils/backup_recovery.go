@@ -2,14 +2,17 @@ package utils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/gorilla/websocket"
 )
 
 // NativeBackupDownloadURL builds the native encrypted-archive endpoint. It
@@ -148,6 +151,120 @@ func DownloadProtectedBackup(
 	return bytes, nil
 }
 
+// UploadBackupForOnboarding uploads an encrypted archive to a new, isolated HA
+// target before user onboarding. It is test-runner code only.
+func UploadBackupForOnboarding(ctx context.Context, client *http.Client, baseURL, archivePath string) error {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	archive, err := os.Open(archivePath)
+	if err != nil {
+		return fmt.Errorf("open recovery archive: %w", err)
+	}
+	defer archive.Close()
+	reader, writer := io.Pipe()
+	multipartWriter := multipart.NewWriter(writer)
+	go func() {
+		part, copyErr := multipartWriter.CreateFormFile("file", filepath.Base(archivePath))
+		if copyErr == nil {
+			_, copyErr = io.Copy(part, archive)
+		}
+		_ = multipartWriter.Close()
+		_ = writer.CloseWithError(copyErr)
+	}()
+	endpoint, err := onboardingBackupURL(baseURL, "/api/onboarding/backup/upload")
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, reader)
+	if err != nil {
+		return fmt.Errorf("create onboarding upload request: %w", err)
+	}
+	req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
+	response, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("upload recovery archive: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("onboarding upload rejected: HTTP %d", response.StatusCode)
+	}
+	return nil
+}
+
+// OnboardingBackupInfo verifies that a fresh target recognizes an archive. The
+// response is intentionally not returned because runner assertions do not need
+// to expose its archive metadata.
+func OnboardingBackupInfo(ctx context.Context, client *http.Client, baseURL string) error {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	endpoint, err := onboardingBackupURL(baseURL, "/api/onboarding/backup/info")
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return fmt.Errorf("create onboarding info request: %w", err)
+	}
+	response, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("read onboarding backup info: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("onboarding backup info rejected: HTTP %d", response.StatusCode)
+	}
+	return nil
+}
+
+// RestoreOnboardingBackup restores an uploaded archive while the recovery
+// target is still in onboarding. The recovery key is confined to the JSON body
+// and is not included in errors, URLs, or returned values.
+func RestoreOnboardingBackup(ctx context.Context, client *http.Client, baseURL, backupID, agentID, password string) error {
+	if strings.TrimSpace(backupID) == "" || strings.TrimSpace(agentID) == "" || password == "" {
+		return fmt.Errorf("onboarding restore requires backup ID, agent ID, and recovery key")
+	}
+	if client == nil {
+		client = http.DefaultClient
+	}
+	endpoint, err := onboardingBackupURL(baseURL, "/api/onboarding/backup/restore")
+	if err != nil {
+		return err
+	}
+	payload, err := json.Marshal(map[string]any{
+		"backup_id": backupID, "agent_id": agentID, "password": password,
+		"restore_database": true,
+	})
+	if err != nil {
+		return fmt.Errorf("encode onboarding restore request: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(string(payload)))
+	if err != nil {
+		return fmt.Errorf("create onboarding restore request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	response, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("restore onboarding backup: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("onboarding restore rejected: HTTP %d", response.StatusCode)
+	}
+	return nil
+}
+
+func onboardingBackupURL(baseURL, endpointPath string) (string, error) {
+	endpoint, err := url.Parse(baseURL)
+	if err != nil || endpoint.Scheme == "" || endpoint.Host == "" {
+		return "", fmt.Errorf("invalid recovery target URL")
+	}
+	endpoint.Path = strings.TrimSuffix(endpoint.Path, "/") + endpointPath
+	endpoint.RawQuery = ""
+	return endpoint.String(), nil
+}
+
 // RestoreNativeBackup invokes HA's native restore command on an already
 // isolated, authenticated recovery target. It belongs to the test runner only:
 // production reconciliation must never restore an instance. The password stays
@@ -165,6 +282,12 @@ func RestoreNativeBackup(ctx context.Context, baseURL, token, backupID, agentID,
 		return fmt.Errorf("connect recovery target: %w", err)
 	}
 	defer connection.Close()
+	var authRequired struct {
+		Type string `json:"type"`
+	}
+	if err := connection.ReadJSON(&authRequired); err != nil || authRequired.Type != "auth_required" {
+		return fmt.Errorf("recovery target did not request authentication")
+	}
 	if err := connection.WriteJSON(map[string]any{"type": "auth", "access_token": token}); err != nil {
 		return fmt.Errorf("authenticate recovery target: %w", err)
 	}
@@ -197,6 +320,58 @@ func RestoreNativeBackup(ctx context.Context, baseURL, token, backupID, agentID,
 			return fmt.Errorf("native restore rejected (%s)", result.Error.Code)
 		}
 		return fmt.Errorf("native restore was not accepted")
+	}
+	return nil
+}
+
+// SetNativeBackupPassword is a test-fixture operation for preparing a protected
+// archive. Production code deliberately has no equivalent method.
+func SetNativeBackupPassword(ctx context.Context, baseURL, token, password string) error {
+	if password == "" {
+		return fmt.Errorf("backup encryption key is required")
+	}
+	endpoint, err := nativeBackupWebSocketURL(baseURL)
+	if err != nil {
+		return err
+	}
+	connection, _, err := websocket.DefaultDialer.DialContext(ctx, endpoint, nil)
+	if err != nil {
+		return fmt.Errorf("connect backup fixture: %w", err)
+	}
+	defer connection.Close()
+	var greeting struct {
+		Type string `json:"type"`
+	}
+	if err := connection.ReadJSON(&greeting); err != nil || greeting.Type != "auth_required" {
+		return fmt.Errorf("backup fixture did not request authentication")
+	}
+	if err := connection.WriteJSON(map[string]any{"type": "auth", "access_token": token}); err != nil {
+		return fmt.Errorf("authenticate backup fixture: %w", err)
+	}
+	var auth struct {
+		Type string `json:"type"`
+	}
+	if err := connection.ReadJSON(&auth); err != nil || auth.Type != "auth_ok" {
+		return fmt.Errorf("backup fixture authentication failed")
+	}
+	if err := connection.WriteJSON(map[string]any{
+		"id": 1, "type": "backup/config/update", "create_backup": map[string]string{"password": password},
+	}); err != nil {
+		return fmt.Errorf("set backup encryption key: %w", err)
+	}
+	var result struct {
+		ID      int    `json:"id"`
+		Type    string `json:"type"`
+		Success bool   `json:"success"`
+		Error   struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := connection.ReadJSON(&result); err != nil || result.ID != 1 || result.Type != "result" || !result.Success {
+		if result.Error.Code != "" {
+			return fmt.Errorf("backup encryption key rejected (%s)", result.Error.Code)
+		}
+		return fmt.Errorf("backup encryption key was not accepted")
 	}
 	return nil
 }

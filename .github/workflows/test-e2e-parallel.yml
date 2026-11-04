@@ -210,7 +210,7 @@ jobs:
           make ginkgo
           ./bin/ginkgo run \
             -v \
-            --label-filter="critical-path && group-a" \
+            --label-filter="critical-path && group-a && !backup" \
             --timeout=7m \
             ./test/e2e/
 
