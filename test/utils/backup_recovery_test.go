@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gorilla/websocket"
 )
 
 func TestNativeBackupDownloadURLNeverIncludesPassword(t *testing.T) {
@@ -83,5 +85,55 @@ func TestRecoveryWorkspaceDownloadsOnlyConfirmedProtectedArchive(t *testing.T) {
 	}
 	if _, err := DownloadProtectedBackup(context.Background(), server.Client(), server.URL+"?password=unsafe", "Bearer synthetic-token", filepath.Join(workspace.Dir, "second"), true); err == nil {
 		t.Fatal("password URL was accepted")
+	}
+}
+
+func TestRestoreNativeBackupDoesNotExposeRecoveryKey(t *testing.T) {
+	const key = "synthetic-recovery-key"
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		connection, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer connection.Close()
+		var auth map[string]string
+		_ = connection.ReadJSON(&auth)
+		_ = connection.WriteJSON(map[string]string{"type": "auth_ok"})
+		var command map[string]any
+		_ = connection.ReadJSON(&command)
+		if command["password"] != key {
+			t.Error("native restore did not pass recovery key in frame")
+		}
+		_ = connection.WriteJSON(map[string]any{"id": 1, "type": "result", "success": true})
+	}))
+	defer server.Close()
+	if err := RestoreNativeBackup(context.Background(), server.URL, "synthetic-token", "backup-1", "backup.local", key); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := nativeBackupWebSocketURL(server.URL + "?password=" + key); err == nil {
+		t.Fatal("recovery target URL accepted a password")
+	}
+}
+
+func TestRestoreNativeBackupSanitizesRejectedKey(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		connection, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer connection.Close()
+		var ignored map[string]any
+		_ = connection.ReadJSON(&ignored)
+		_ = connection.WriteJSON(map[string]string{"type": "auth_ok"})
+		_ = connection.ReadJSON(&ignored)
+		_ = connection.WriteJSON(map[string]any{"id": 1, "type": "result", "success": false,
+			"error": map[string]string{"code": "password_incorrect", "message": "synthetic-recovery-key"}})
+	}))
+	defer server.Close()
+	err := RestoreNativeBackup(context.Background(), server.URL, "synthetic-token", "backup-1", "backup.local", "synthetic-recovery-key")
+	if err == nil || !strings.Contains(err.Error(), "password_incorrect") || strings.Contains(err.Error(), "synthetic-recovery-key") {
+		t.Fatalf("unsafe rejected-key error: %v", err)
 	}
 }

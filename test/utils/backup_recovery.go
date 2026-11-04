@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"io"
 	"net/http"
 	"net/url"
@@ -145,4 +146,79 @@ func DownloadProtectedBackup(
 		return 0, fmt.Errorf("write protected backup file: %w", copyErr)
 	}
 	return bytes, nil
+}
+
+// RestoreNativeBackup invokes HA's native restore command on an already
+// isolated, authenticated recovery target. It belongs to the test runner only:
+// production reconciliation must never restore an instance. The password stays
+// in the WebSocket frame and is never added to a URL, error, or returned value.
+func RestoreNativeBackup(ctx context.Context, baseURL, token, backupID, agentID, password string) error {
+	if strings.TrimSpace(backupID) == "" || strings.TrimSpace(agentID) == "" || password == "" {
+		return fmt.Errorf("restore requires backup ID, agent ID, and recovery key")
+	}
+	endpoint, err := nativeBackupWebSocketURL(baseURL)
+	if err != nil {
+		return err
+	}
+	connection, _, err := websocket.DefaultDialer.DialContext(ctx, endpoint, nil)
+	if err != nil {
+		return fmt.Errorf("connect recovery target: %w", err)
+	}
+	defer connection.Close()
+	if err := connection.WriteJSON(map[string]any{"type": "auth", "access_token": token}); err != nil {
+		return fmt.Errorf("authenticate recovery target: %w", err)
+	}
+	var auth struct {
+		Type string `json:"type"`
+	}
+	if err := connection.ReadJSON(&auth); err != nil || auth.Type != "auth_ok" {
+		return fmt.Errorf("recovery target authentication failed")
+	}
+	const commandID = 1
+	if err := connection.WriteJSON(map[string]any{
+		"id": commandID, "type": "backup/restore", "backup_id": backupID, "agent_id": agentID,
+		"password": password, "restore_database": true, "restore_homeassistant": true,
+	}); err != nil {
+		return fmt.Errorf("send native restore command: %w", err)
+	}
+	var result struct {
+		ID      int    `json:"id"`
+		Type    string `json:"type"`
+		Success bool   `json:"success"`
+		Error   struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := connection.ReadJSON(&result); err != nil {
+		return fmt.Errorf("read native restore result: %w", err)
+	}
+	if result.ID != commandID || result.Type != "result" || !result.Success {
+		if result.Error.Code != "" {
+			return fmt.Errorf("native restore rejected (%s)", result.Error.Code)
+		}
+		return fmt.Errorf("native restore was not accepted")
+	}
+	return nil
+}
+
+func nativeBackupWebSocketURL(baseURL string) (string, error) {
+	endpoint, err := url.Parse(baseURL)
+	if err != nil || endpoint.Scheme == "" || endpoint.Host == "" {
+		return "", fmt.Errorf("invalid recovery target URL")
+	}
+	if endpoint.Query().Has("password") {
+		return "", fmt.Errorf("recovery target URL must not contain a password")
+	}
+	switch endpoint.Scheme {
+	case "http":
+		endpoint.Scheme = "ws"
+	case "https":
+		endpoint.Scheme = "wss"
+	case "ws", "wss":
+	default:
+		return "", fmt.Errorf("invalid recovery target URL")
+	}
+	endpoint.Path = strings.TrimSuffix(endpoint.Path, "/") + "/api/websocket"
+	endpoint.RawQuery = ""
+	return endpoint.String(), nil
 }
