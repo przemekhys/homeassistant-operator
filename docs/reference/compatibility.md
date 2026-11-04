@@ -20,6 +20,19 @@ straight through to the image tag, and `stable` is the default.
 | `http:` managed through Home Assistant's API | **2026.8 and newer** |
 | `http:` managed in `configuration.yaml` | Older than 2026.8 |
 
+### Native backups
+
+Native `backup.local` creation, archive discovery, streamed protected-archive
+download, and a near-term automatic schedule were exercised against Home
+Assistant Container **2026.10.4**. The result covers a Container instance and
+its local persistent configuration only.
+
+It does not qualify Home Assistant OS Apps, external databases, external backup
+agents/services, credential validity after restore, or a full HA OS migration.
+See [recover a native backup](../how-to/recover-native-backup.md) for the
+manual, isolated recovery procedure; a successful backup observation is not a
+claim that recovery has been verified.
+
 The operator detects which of the two applies at runtime, on every reconcile, so
 upgrading or rolling back Home Assistant needs no change on your side. See
 [manage configuration](../how-to/manage-configuration.md#http-configuration-on-home-assistant-20268).
