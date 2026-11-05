@@ -22,6 +22,8 @@ func TestLocalTodoFixtureHelpers(t *testing.T) {
 				t.Errorf("unexpected item request: %s", body)
 			}
 			w.WriteHeader(http.StatusOK)
+		case "/api/todo/todo.recovery":
+			_, _ = io.WriteString(w, `[{"summary":"control","status":"needs_action"}]`)
 		default:
 			http.NotFound(w, r)
 		}
@@ -37,5 +39,9 @@ func TestLocalTodoFixtureHelpers(t *testing.T) {
 	}
 	if err := AddLocalTodoItem(context.Background(), server.Client(), server.URL, "test-token", entityID, "control"); err != nil {
 		t.Fatal(err)
+	}
+	hasItem, err := LocalTodoHasItem(context.Background(), server.Client(), server.URL, "test-token", entityID, "control")
+	if err != nil || !hasItem {
+		t.Fatalf("LocalTodoHasItem() = %t, %v", hasItem, err)
 	}
 }
