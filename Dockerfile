@@ -3,7 +3,7 @@
 # (never emulated), so `go build` cross-compiles natively for TARGETARCH
 # instead of running the whole compile under QEMU — cuts the arm64 leg of the
 # multi-arch CI build from ~25 min to well under a minute.
-FROM --platform=$BUILDPLATFORM golang:1.27.3@sha256:2920bb124f1a2e12a1d39f0cab756ae0068441ee1da7655dec7f5e374944095b AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27.3@sha256:c292963ad0e5f51e843c726edc204a4e4c26a859ba1e4d736d91028aa3633048 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 ARG VERSION=dev
