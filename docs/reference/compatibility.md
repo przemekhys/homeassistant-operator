@@ -24,8 +24,10 @@ straight through to the image tag, and `stable` is the default.
 
 Native `backup.local` creation, archive discovery, streamed protected-archive
 download, and a near-term automatic schedule were exercised against Home
-Assistant Container **2026.10.4**. The result covers a Container instance and
-its local persistent configuration only.
+Assistant Container **2026.10.4**. Native recovery on fresh Container targets
+also preserved a Local To-do integration, entity identity, and item. A selected
+local recorder state was recovered when the database was included and was
+absent when it was excluded; the Local To-do file survived both cases.
 
 It does not qualify Home Assistant OS Apps, external databases, external backup
 agents/services, credential validity after restore, or a full HA OS migration.

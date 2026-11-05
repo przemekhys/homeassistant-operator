@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tokens, or recovery keys. Observed encryption keys are retained in a
   namespace-local Secret without an owner reference so they survive deletion of
   the `HomeAssistant` object.
+- **Native recovery validation.** Home Assistant Container 2026.10.4 was
+  verified on disposable targets with a protected archive and retained key;
+  local recorder history follows the database inclusion setting.
 
 ### Limitations
 

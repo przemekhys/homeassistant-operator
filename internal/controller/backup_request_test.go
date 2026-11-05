@@ -139,7 +139,12 @@ func TestReconcileBackupRequestDispatchesAcceptedRequestOnlyOnce(t *testing.T) {
 	c := haclient.NewClient(wsURL)
 	config := &haclient.BackupConfig{CreateBackup: haclient.BackupCreateConfig{AgentIDs: []string{"backup.local"}}}
 
-	for range 10 {
+	for i := range 10 {
+		if i == 5 {
+			// A new reconciler simulates a process restart while the durable
+			// receipt remains in the API server.
+			r = &HomeAssistantReconciler{Client: client}
+		}
 		current := &hav1.HomeAssistant{}
 		if err := client.Get(context.Background(), types.NamespacedName{Name: "ha", Namespace: "default"}, current); err != nil {
 			t.Fatal(err)
