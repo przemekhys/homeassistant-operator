@@ -51,6 +51,16 @@ const (
 	bootstrapInterval  = 10 * time.Second
 )
 
+// Query the native recorder without printing history or other database contents.
+const recorderHistoryProbe = `import sqlite3, sys
+try:
+    db = sqlite3.connect('file:/config/home-assistant_v2.db?mode=ro', uri=True)
+    row = db.execute("SELECT 1 FROM states JOIN states_meta USING (metadata_id) WHERE states_meta.entity_id = ? AND states.state = '0' LIMIT 1", (sys.argv[1],)).fetchone()
+    sys.exit(0 if bool(row) == (sys.argv[2] == 'present') else 1)
+except sqlite3.Error:
+    sys.exit(2)
+`
+
 var _ = Describe("Critical Path E2E", Ordered, ContinueOnFailure, Label("critical-path", "group-a"), func() {
 	// Shared state across all tests — set in BeforeAll, used by every It block.
 	var (
@@ -132,6 +142,8 @@ spec:
     name: %s
   reloadStrategy: auto
   configuration: |
+    recorder:
+    history:
     automation: !include automations.yaml
     scene: !include scenes.yaml
     script: !include scripts.yaml
@@ -230,6 +242,12 @@ spec:
 		By("adding a Local To-do control item")
 		localTodoItem = "recovery-control-" + utils.RandomString(12)
 		Expect(utils.AddLocalTodoItem(context.Background(), nil, endpoint, token, localTodoEntity, localTodoItem)).To(Succeed())
+		By("waiting for the local recorder to persist the To-do state")
+		Eventually(func() error {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			return exec.CommandContext(ctx, "kubectl", "exec", haName+"-0", "-n", namespace, "--", "python3", "-c", recorderHistoryProbe, localTodoEntity, "present").Run()
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
 	})
 
 	It("creates one native backup from an explicit request", Label("backup"), func() {
@@ -420,65 +438,88 @@ spec:
 		Expect(decodeErr).NotTo(HaveOccurred())
 		Expect(string(recoveryKey)).To(Equal(key))
 
-		By("creating a protected archive after the control data exists")
-		_, err = source.GenerateBackupWithAutomaticSettings(context.Background(), token)
-		Expect(err).NotTo(HaveOccurred())
-		var backupID string
-		Eventually(func(g Gomega) {
-			info, infoErr := source.GetBackupInfo(context.Background(), token)
-			g.Expect(infoErr).NotTo(HaveOccurred())
-			for _, archive := range info.Backups {
-				if archive.Agents["backup.local"].Protected {
-					backupID = archive.ID
-					return
-				}
+		for _, includeDatabase := range []bool{true, false} {
+			By(fmt.Sprintf("creating and recovering a protected archive with includeDatabase=%t", includeDatabase))
+			Expect(source.ConfigureBackup(context.Background(), token, &haclient.BackupConfigRequest{
+				CreateBackup: &haclient.BackupCreateConfig{AgentIDs: []string{"backup.local"}, IncludeDatabase: &includeDatabase},
+			})).To(Succeed())
+			previous, previousErr := source.GetBackupInfo(context.Background(), token)
+			Expect(previousErr).NotTo(HaveOccurred())
+			seen := make(map[string]bool)
+			for _, archive := range previous.Backups {
+				seen[archive.ID] = true
 			}
-			g.Expect(backupID).NotTo(BeEmpty())
-		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+			_, err = source.GenerateBackupWithAutomaticSettings(context.Background(), token)
+			Expect(err).NotTo(HaveOccurred())
+			var backupID string
+			Eventually(func(g Gomega) {
+				info, infoErr := source.GetBackupInfo(context.Background(), token)
+				g.Expect(infoErr).NotTo(HaveOccurred())
+				for _, archive := range info.Backups {
+					if !seen[archive.ID] && archive.Agents["backup.local"].Protected {
+						backupID = archive.ID
+						return
+					}
+				}
+				g.Expect(backupID).NotTo(BeEmpty())
+			}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
 
-		workspace, workspaceErr := utils.NewRecoveryWorkspace("")
-		Expect(workspaceErr).NotTo(HaveOccurred())
-		DeferCleanup(func() { _ = workspace.Cleanup() })
-		downloadURL, urlErr := utils.NativeBackupDownloadURL(endpoint, backupID, "backup.local")
-		Expect(urlErr).NotTo(HaveOccurred())
-		_, downloadErr := utils.DownloadProtectedBackup(context.Background(), nil, downloadURL, "Bearer "+token, workspace.Archive, true)
-		Expect(downloadErr).NotTo(HaveOccurred())
+			workspace, workspaceErr := utils.NewRecoveryWorkspace("")
+			Expect(workspaceErr).NotTo(HaveOccurred())
+			DeferCleanup(func() { _ = workspace.Cleanup() })
+			downloadURL, urlErr := utils.NativeBackupDownloadURL(endpoint, backupID, "backup.local")
+			Expect(urlErr).NotTo(HaveOccurred())
+			_, downloadErr := utils.DownloadProtectedBackup(context.Background(), nil, downloadURL, "Bearer "+token, workspace.Archive, true)
+			Expect(downloadErr).NotTo(HaveOccurred())
 
-		network := "ha-recovery-" + utils.RandomString(10)
-		// Docker cannot publish a loopback port from an --internal-only network.
-		// This private bridge has no published address except RecoveryContainerArgs'
-		// loopback binding; the target never shares the source's network or mounts.
-		_, err = utils.Run(exec.Command("docker", "network", "create", network))
-		Expect(err).NotTo(HaveOccurred())
-		DeferCleanup(func() { _, _ = utils.Run(exec.Command("docker", "network", "rm", network)) })
-		container := "ha-recovery-" + utils.RandomString(10)
-		DeferCleanup(func() { _, _ = utils.Run(exec.Command("docker", "rm", "--force", container)) })
-		args, argsErr := utils.RecoveryContainerArgs(container, network, workspace.ConfigDir, "ghcr.io/home-assistant/home-assistant:"+haVersion())
-		Expect(argsErr).NotTo(HaveOccurred())
-		_, err = utils.Run(exec.Command("docker", args...))
-		Expect(err).NotTo(HaveOccurred())
-		recoveryEndpoint := "http://127.0.0.1:18124"
-		Eventually(func() error { return utils.OnboardingBackupInfo(context.Background(), nil, recoveryEndpoint) }, utils.HAPodReadyTimeout, reconcileInterval).Should(Succeed())
-		Consistently(func() error { return utils.OnboardingBackupInfo(context.Background(), nil, recoveryEndpoint) }, 10*time.Second, reconcileInterval).Should(Succeed())
-		Expect(utils.UploadBackupForOnboarding(context.Background(), nil, recoveryEndpoint, workspace.Archive)).To(Succeed())
-		Expect(utils.OnboardingBackupInfo(context.Background(), nil, recoveryEndpoint)).To(Succeed())
-		wrongKeyErr := utils.RestoreOnboardingBackup(context.Background(), nil, recoveryEndpoint, backupID, "backup.local", "incorrect-"+utils.RandomString(12))
-		Expect(wrongKeyErr).To(HaveOccurred())
-		Expect(wrongKeyErr.Error()).NotTo(ContainSubstring("incorrect-"))
-		Expect(utils.RestoreOnboardingBackup(context.Background(), nil, recoveryEndpoint, backupID, "backup.local", string(recoveryKey))).To(Succeed())
+			network := "ha-recovery-" + utils.RandomString(10)
+			// Docker cannot publish a loopback port from an --internal-only network.
+			// This private bridge has no published address except RecoveryContainerArgs'
+			// loopback binding; the target never shares the source's network or mounts.
+			_, err = utils.Run(exec.Command("docker", "network", "create", network))
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() { _, _ = utils.Run(exec.Command("docker", "network", "rm", network)) })
+			container := "ha-recovery-" + utils.RandomString(10)
+			DeferCleanup(func() { _, _ = utils.Run(exec.Command("docker", "rm", "--force", container)) })
+			args, argsErr := utils.RecoveryContainerArgs(container, network, workspace.ConfigDir, "ghcr.io/home-assistant/home-assistant:"+haVersion())
+			Expect(argsErr).NotTo(HaveOccurred())
+			_, err = utils.Run(exec.Command("docker", args...))
+			Expect(err).NotTo(HaveOccurred())
+			recoveryEndpoint := "http://127.0.0.1:18124"
+			Eventually(func() error { return utils.OnboardingBackupInfo(context.Background(), nil, recoveryEndpoint) }, utils.HAPodReadyTimeout, reconcileInterval).Should(Succeed())
+			Consistently(func() error { return utils.OnboardingBackupInfo(context.Background(), nil, recoveryEndpoint) }, 10*time.Second, reconcileInterval).Should(Succeed())
+			Expect(utils.UploadBackupForOnboarding(context.Background(), nil, recoveryEndpoint, workspace.Archive)).To(Succeed())
+			Expect(utils.OnboardingBackupInfo(context.Background(), nil, recoveryEndpoint)).To(Succeed())
+			wrongKeyErr := utils.RestoreOnboardingBackup(context.Background(), nil, recoveryEndpoint, backupID, "backup.local", "incorrect-"+utils.RandomString(12))
+			Expect(wrongKeyErr).To(HaveOccurred())
+			Expect(wrongKeyErr.Error()).NotTo(ContainSubstring("incorrect-"))
+			Expect(utils.RestoreOnboardingBackup(context.Background(), nil, recoveryEndpoint, backupID, "backup.local", string(recoveryKey))).To(Succeed())
 
-		By("checking recovered Local To-do identity and control item without reusing source credentials")
-		Eventually(func(g Gomega) {
-			entryFound, entryErr := utils.RecoveredStorageContains(workspace.ConfigDir, "core.config_entries", localTodoEntryID)
-			g.Expect(entryErr).NotTo(HaveOccurred())
-			g.Expect(entryFound).To(BeTrue())
-			entityFound, entityErr := utils.RecoveredStorageContains(workspace.ConfigDir, "core.entity_registry", localTodoEntity)
-			g.Expect(entityErr).NotTo(HaveOccurred())
-			g.Expect(entityFound).To(BeTrue())
-			itemFound, itemErr := utils.RecoveredStorageContains(workspace.ConfigDir, "local_todo.*.ics", localTodoItem)
-			g.Expect(itemErr).NotTo(HaveOccurred())
-			g.Expect(itemFound).To(BeTrue())
-		}, utils.HAPodReadyTimeout, reconcileInterval).Should(Succeed())
+			By("checking recovered Local To-do identity and control item without reusing source credentials")
+			Eventually(func(g Gomega) {
+				entryFound, entryErr := utils.RecoveredStorageContains(workspace.ConfigDir, "core.config_entries", localTodoEntryID)
+				g.Expect(entryErr).NotTo(HaveOccurred())
+				g.Expect(entryFound).To(BeTrue())
+				entityFound, entityErr := utils.RecoveredStorageContains(workspace.ConfigDir, "core.entity_registry", localTodoEntity)
+				g.Expect(entityErr).NotTo(HaveOccurred())
+				g.Expect(entityFound).To(BeTrue())
+				itemFound, itemErr := utils.RecoveredStorageContains(workspace.ConfigDir, "local_todo.*.ics", localTodoItem)
+				g.Expect(itemErr).NotTo(HaveOccurred())
+				g.Expect(itemFound).To(BeTrue())
+			}, utils.HAPodReadyTimeout, reconcileInterval).Should(Succeed())
+			By("checking recorder history on the recovered target")
+			want := "absent"
+			if includeDatabase {
+				want = "present"
+			}
+			Eventually(func() error {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				return exec.CommandContext(ctx, "docker", "exec", container, "python3", "-c", recorderHistoryProbe, localTodoEntity, want).Run()
+			}, utils.HAPodReadyTimeout, reconcileInterval).Should(Succeed())
+			_, err = utils.Run(exec.Command("docker", "rm", "--force", container))
+			Expect(err).NotTo(HaveOccurred())
+		}
 		Expect(source.CheckHealth(context.Background())).To(Succeed(), "recovery must not modify the source")
 	})
 
@@ -814,6 +855,8 @@ spec:
     name: %s
   reloadStrategy: auto
   configuration: |
+    recorder:
+    history:
     automation: !include automations.yaml
     scene: !include scenes.yaml
     script: !include scripts.yaml

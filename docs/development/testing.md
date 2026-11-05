@@ -234,6 +234,21 @@ OS Apps.
   verified the Local To-do config entry, stable entity identity, and control
   item from the private recovery workspace, using a protected original archive
   and retained key. No archive, token, or recovery key was emitted.
+- **2026-11-05:** the same backup target passed (5 specs, 3m55s) with
+  `includeDatabase` enabled and disabled. Two fresh recovery targets retained
+  the Local To-do file and control item; a previously recorded local state was
+  present only in the database-enabled recovery. External databases were not
+  tested.
+- **2026-11-05:** `HA_VERSION=2026.10.4 make test-e2e-critical-a
+  K3D_CLUSTER_E2E=ha-backup-validation-e2e` passed (16 specs, 4m05s).
+  `make test` and `make docs-verify` also passed; backup destination failure
+  across multiple agents was not exercised against real HA.
+- **2026-11-05:** a separate, approved manual native onboarding API upload
+  and restore on a fresh HA Container 2026.10.4 recovered the Local To-do
+  configuration, entity identity, and control item with the retained key.
+  The test source had already been cleaned up before this manual restore;
+  the automated recovery separately checked the running source. The private
+  export and disposable target were removed afterward.
 
 Each target creates its own fresh k3d cluster (`K3D_MEMORY_E2E=12g` by
 default; CI uses 4g), runs its `ginkgo run --label-filter=...` subset, and tears the
