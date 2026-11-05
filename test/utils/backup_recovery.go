@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,9 +12,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+var recoveryHTTPClient = &http.Client{Timeout: 10 * time.Second}
 
 // NativeBackupDownloadURL builds the native encrypted-archive endpoint. It
 // deliberately accepts no recovery key or password: including either in the
@@ -109,6 +113,29 @@ func (w *RecoveryWorkspace) Cleanup() error {
 	return os.RemoveAll(w.Dir)
 }
 
+// RecoveredStorageContains checks a restored local-storage file without
+// returning its contents. It is limited to the recovery workspace so fixture
+// assertions cannot read the source instance or expose user-originated data.
+func RecoveredStorageContains(configDir, pattern, value string) (bool, error) {
+	if !filepath.IsAbs(configDir) || strings.TrimSpace(pattern) == "" || strings.TrimSpace(value) == "" {
+		return false, fmt.Errorf("recovery storage directory, pattern, and value are required")
+	}
+	files, err := filepath.Glob(filepath.Join(configDir, ".storage", pattern))
+	if err != nil {
+		return false, fmt.Errorf("resolve recovery storage files: %w", err)
+	}
+	for _, file := range files {
+		contents, readErr := os.ReadFile(file)
+		if readErr != nil {
+			return false, fmt.Errorf("read recovery storage file: %w", readErr)
+		}
+		if bytes.Contains(contents, []byte(value)) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // DownloadProtectedBackup copies an already-confirmed protected archive to the
 // private workspace. Callers supply an Authorization header value; it is never
 // logged, returned, or written to disk by this helper.
@@ -123,7 +150,7 @@ func DownloadProtectedBackup(
 		return 0, fmt.Errorf("invalid protected backup download endpoint")
 	}
 	if client == nil {
-		client = http.DefaultClient
+		client = recoveryHTTPClient
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -155,41 +182,71 @@ func DownloadProtectedBackup(
 // target before user onboarding. It is test-runner code only.
 func UploadBackupForOnboarding(ctx context.Context, client *http.Client, baseURL, archivePath string) error {
 	if client == nil {
-		client = http.DefaultClient
+		client = recoveryHTTPClient
 	}
 	archive, err := os.Open(archivePath)
 	if err != nil {
 		return fmt.Errorf("open recovery archive: %w", err)
 	}
 	defer archive.Close()
-	reader, writer := io.Pipe()
-	multipartWriter := multipart.NewWriter(writer)
-	go func() {
-		part, copyErr := multipartWriter.CreateFormFile("file", filepath.Base(archivePath))
-		if copyErr == nil {
-			_, copyErr = io.Copy(part, archive)
-		}
-		_ = multipartWriter.Close()
-		_ = writer.CloseWithError(copyErr)
-	}()
+	info, err := archive.Stat()
+	if err != nil {
+		return fmt.Errorf("stat recovery archive: %w", err)
+	}
+	var prefix bytes.Buffer
+	multipartWriter := multipart.NewWriter(&prefix)
+	if _, err := multipartWriter.CreateFormFile("file", filepath.Base(archivePath)); err != nil {
+		return fmt.Errorf("create recovery upload form: %w", err)
+	}
+	boundary := multipartWriter.Boundary()
+	// The writer's opening headers are in prefix. Supply its fixed closing
+	// boundary separately so the archive stays a single file stream rather than
+	// being copied into memory or a second on-disk artifact.
+	suffix := []byte("\r\n--" + boundary + "--\r\n")
+	reader := io.MultiReader(bytes.NewReader(prefix.Bytes()), archive, bytes.NewReader(suffix))
 	endpoint, err := onboardingBackupURL(baseURL, "/api/onboarding/backup/upload")
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, reader)
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return fmt.Errorf("invalid onboarding upload endpoint")
+	}
+	query := parsed.Query()
+	query.Add("agent_id", "backup.local")
+	parsed.RawQuery = query.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, parsed.String(), reader)
 	if err != nil {
 		return fmt.Errorf("create onboarding upload request: %w", err)
 	}
 	req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
+	req.ContentLength = int64(prefix.Len()) + info.Size() + int64(len(suffix))
 	response, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("upload recovery archive: %w", err)
 	}
 	defer response.Body.Close()
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return fmt.Errorf("onboarding upload rejected: HTTP %d", response.StatusCode)
+		// HA may include the archive's user-provided metadata in its detailed
+		// error text. Consume only enough to classify the failure and never
+		// return that body to an E2E log.
+		body, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
+		return fmt.Errorf("onboarding upload rejected: HTTP %d (%s)", response.StatusCode, onboardingUploadFailureKind(string(body)))
 	}
 	return nil
+}
+
+func onboardingUploadFailureKind(body string) string {
+	if strings.Contains(body, "backup.json") {
+		return "invalid archive metadata"
+	}
+	if strings.Contains(body, "Can't write backup file") {
+		return "recovery storage failure"
+	}
+	if strings.TrimSpace(body) == "" {
+		return "server error"
+	}
+	return "server rejected upload"
 }
 
 // OnboardingBackupInfo verifies that a fresh target recognizes an archive. The
@@ -197,7 +254,7 @@ func UploadBackupForOnboarding(ctx context.Context, client *http.Client, baseURL
 // to expose its archive metadata.
 func OnboardingBackupInfo(ctx context.Context, client *http.Client, baseURL string) error {
 	if client == nil {
-		client = http.DefaultClient
+		client = recoveryHTTPClient
 	}
 	endpoint, err := onboardingBackupURL(baseURL, "/api/onboarding/backup/info")
 	if err != nil {
@@ -226,7 +283,7 @@ func RestoreOnboardingBackup(ctx context.Context, client *http.Client, baseURL, 
 		return fmt.Errorf("onboarding restore requires backup ID, agent ID, and recovery key")
 	}
 	if client == nil {
-		client = http.DefaultClient
+		client = recoveryHTTPClient
 	}
 	endpoint, err := onboardingBackupURL(baseURL, "/api/onboarding/backup/restore")
 	if err != nil {

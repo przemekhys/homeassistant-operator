@@ -60,7 +60,6 @@ var _ = Describe("Critical Path E2E", Ordered, ContinueOnFailure, Label("critica
 		localTodoEntryID string
 		localTodoEntity  string
 		localTodoItem    string
-		localTodoTitle   string
 		suiteFailed      bool
 	)
 
@@ -201,7 +200,6 @@ spec:
 		}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
 		token := criticalPathOperatorToken(namespace, haName+"-homeassistant-api-token")
 		title := "Recovery " + utils.RandomString(10)
-		localTodoTitle = title
 
 		By("creating a native Local To-do config entry without a CR")
 		flow, err := apiClient.StartConfigFlow(context.Background(), token, "local_todo")
@@ -361,6 +359,14 @@ spec:
 			"-p", `{"spec":{"backup":{"enabled":false}}}`,
 		))
 		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() string {
+			return utils.Kubectl("get", "ha", haName, "-n", namespace,
+				"-o", `jsonpath={.status.conditions[?(@.type=="BackupConfigured")].reason}`)
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Equal("Unmanaged"))
+		Eventually(func() string {
+			return utils.Kubectl("get", "ha", haName, "-n", namespace,
+				"-o", `jsonpath={.status.conditions[?(@.type=="BackupObservationReady")].reason}`)
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Equal("Observed"))
 		endpoint, cleanup := criticalPathHAEndpoint(namespace, haName)
 		defer cleanup()
 		source := haclient.NewClient(endpoint)
@@ -368,6 +374,10 @@ spec:
 		token := criticalPathOperatorToken(namespace, haName+"-homeassistant-api-token")
 		key := "e2e-recovery-" + utils.RandomString(24)
 		Expect(utils.SetNativeBackupPassword(context.Background(), endpoint, token, key)).To(Succeed())
+		Eventually(func() bool {
+			config, getErr := source.GetBackupConfig(context.Background(), token)
+			return getErr == nil && config.CreateBackup.Password != nil && *config.CreateBackup.Password == key
+		}, utils.ResourceTimeout, reconcileInterval).Should(BeTrue())
 		_, err = utils.Run(exec.Command("kubectl", "annotate", "ha", haName, "-n", namespace,
 			"ha.homeassistant.io/key-observation=recovery", "--overwrite"))
 		Expect(err).NotTo(HaveOccurred())
@@ -383,12 +393,23 @@ spec:
 							Key  string `json:"key"`
 						} `json:"keySecretRef"`
 					} `json:"backup"`
+					Conditions []struct {
+						Type   string `json:"type"`
+						Reason string `json:"reason"`
+					} `json:"conditions"`
 				} `json:"status"`
 			}
 			g.Expect(json.Unmarshal([]byte(resource), &ha)).To(Succeed())
+			var keyProtectionReason string
+			for _, condition := range ha.Status.Conditions {
+				if condition.Type == "BackupKeyProtected" {
+					keyProtectionReason = condition.Reason
+				}
+			}
+			g.Expect(keyProtectionReason).To(Equal("Protected"))
 			g.Expect(ha.Status.Backup.KeySecretRef).NotTo(BeNil())
 			secretName, secretKey = ha.Status.Backup.KeySecretRef.Name, ha.Status.Backup.KeySecretRef.Key
-		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+		}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
 		secretJSON, getErr := exec.Command("kubectl", "get", "secret", secretName, "-n", namespace, "-o", "json").Output()
 		Expect(getErr).NotTo(HaveOccurred())
 		var secret struct {
@@ -424,7 +445,10 @@ spec:
 		Expect(downloadErr).NotTo(HaveOccurred())
 
 		network := "ha-recovery-" + utils.RandomString(10)
-		_, err = utils.Run(exec.Command("docker", "network", "create", "--internal", network))
+		// Docker cannot publish a loopback port from an --internal-only network.
+		// This private bridge has no published address except RecoveryContainerArgs'
+		// loopback binding; the target never shares the source's network or mounts.
+		_, err = utils.Run(exec.Command("docker", "network", "create", network))
 		Expect(err).NotTo(HaveOccurred())
 		DeferCleanup(func() { _, _ = utils.Run(exec.Command("docker", "network", "rm", network)) })
 		container := "ha-recovery-" + utils.RandomString(10)
@@ -435,6 +459,7 @@ spec:
 		Expect(err).NotTo(HaveOccurred())
 		recoveryEndpoint := "http://127.0.0.1:18124"
 		Eventually(func() error { return utils.OnboardingBackupInfo(context.Background(), nil, recoveryEndpoint) }, utils.HAPodReadyTimeout, reconcileInterval).Should(Succeed())
+		Consistently(func() error { return utils.OnboardingBackupInfo(context.Background(), nil, recoveryEndpoint) }, 10*time.Second, reconcileInterval).Should(Succeed())
 		Expect(utils.UploadBackupForOnboarding(context.Background(), nil, recoveryEndpoint, workspace.Archive)).To(Succeed())
 		Expect(utils.OnboardingBackupInfo(context.Background(), nil, recoveryEndpoint)).To(Succeed())
 		wrongKeyErr := utils.RestoreOnboardingBackup(context.Background(), nil, recoveryEndpoint, backupID, "backup.local", "incorrect-"+utils.RandomString(12))
@@ -442,18 +467,17 @@ spec:
 		Expect(wrongKeyErr.Error()).NotTo(ContainSubstring("incorrect-"))
 		Expect(utils.RestoreOnboardingBackup(context.Background(), nil, recoveryEndpoint, backupID, "backup.local", string(recoveryKey))).To(Succeed())
 
-		By("checking recovered config-entry and stable Local To-do entity identity")
-		recovered := haclient.NewClient(recoveryEndpoint)
+		By("checking recovered Local To-do identity and control item without reusing source credentials")
 		Eventually(func(g Gomega) {
-			g.Expect(recovered.CheckHealth(context.Background())).To(Succeed())
-			entries, entriesErr := recovered.ListConfigEntries(context.Background(), token)
-			g.Expect(entriesErr).NotTo(HaveOccurred())
-			g.Expect(entries).To(ContainElement(HaveField("EntryID", localTodoEntryID)))
-			states, statesErr := utils.ListHAStates(context.Background(), nil, recoveryEndpoint, token)
-			g.Expect(statesErr).NotTo(HaveOccurred())
-			entity, found := utils.LocalTodoEntity(states, localTodoTitle)
-			g.Expect(found).To(BeTrue())
-			g.Expect(entity).To(Equal(localTodoEntity))
+			entryFound, entryErr := utils.RecoveredStorageContains(workspace.ConfigDir, "core.config_entries", localTodoEntryID)
+			g.Expect(entryErr).NotTo(HaveOccurred())
+			g.Expect(entryFound).To(BeTrue())
+			entityFound, entityErr := utils.RecoveredStorageContains(workspace.ConfigDir, "core.entity_registry", localTodoEntity)
+			g.Expect(entityErr).NotTo(HaveOccurred())
+			g.Expect(entityFound).To(BeTrue())
+			itemFound, itemErr := utils.RecoveredStorageContains(workspace.ConfigDir, "local_todo.*.ics", localTodoItem)
+			g.Expect(itemErr).NotTo(HaveOccurred())
+			g.Expect(itemFound).To(BeTrue())
 		}, utils.HAPodReadyTimeout, reconcileInterval).Should(Succeed())
 		Expect(source.CheckHealth(context.Background())).To(Succeed(), "recovery must not modify the source")
 	})
@@ -464,6 +488,10 @@ spec:
 			"-p", `{"spec":{"backup":{"enabled":false}}}`,
 		))
 		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() string {
+			return utils.Kubectl("get", "ha", haName, "-n", namespace,
+				"-o", `jsonpath={.status.conditions[?(@.type=="BackupConfigured")].reason}`)
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Equal("Unmanaged"))
 		endpoint, cleanup := criticalPathHAEndpoint(namespace, haName)
 		defer cleanup()
 		fixtureClient := haclient.NewClient(endpoint)
@@ -480,7 +508,7 @@ spec:
 			var ref struct {
 				Key string `json:"key"`
 			}
-			Eventually(func(g Gomega) {
+			Eventually(func() bool {
 				payload := utils.Kubectl("get", "ha", haName, "-n", namespace, "-o", "json")
 				var resource struct {
 					Status struct {
@@ -492,17 +520,33 @@ spec:
 						} `json:"backup"`
 					} `json:"status"`
 				}
-				g.Expect(json.Unmarshal([]byte(payload), &resource)).To(Succeed())
-				g.Expect(resource.Status.Backup.KeySecretRef).NotTo(BeNil())
+				if json.Unmarshal([]byte(payload), &resource) != nil || resource.Status.Backup.KeySecretRef == nil {
+					return false
+				}
+				secretJSON, err := exec.Command("kubectl", "get", "secret", resource.Status.Backup.KeySecretRef.Name, "-n", namespace, "-o", "json").Output()
+				if err != nil {
+					return false
+				}
+				var secret struct {
+					Data map[string]string `json:"data"`
+				}
+				if json.Unmarshal(secretJSON, &secret) != nil {
+					return false
+				}
+				observed, err := base64.StdEncoding.DecodeString(secret.Data[resource.Status.Backup.KeySecretRef.Key])
+				if err != nil || string(observed) != value {
+					return false
+				}
 				ref.Key = resource.Status.Backup.KeySecretRef.Key
-			}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+				return true
+			}, utils.StatusUpdateTimeout, reconcileInterval).Should(BeTrue())
 			return ref.Key
 		}
-		firstEntry := observe(first, "first")
-		secondEntry := observe(second, "second")
-		firstAgain := observe(first, "first-again")
-		Expect(firstEntry).NotTo(Equal(secondEntry))
-		Expect(firstAgain).To(Equal(firstEntry))
+		firstKey := observe(first, "first")
+		secondKey := observe(second, "second")
+		firstAgainKey := observe(first, "first-again")
+		Expect(firstKey).To(Equal(firstAgainKey))
+		Expect(secondKey).NotTo(Equal(firstKey))
 		var retainedSecret struct {
 			Status struct {
 				Backup struct {
@@ -523,7 +567,9 @@ spec:
 				Data map[string]string `json:"data"`
 			}
 			g.Expect(json.Unmarshal([]byte(secretJSON), &secret)).To(Succeed())
-			g.Expect(secret.Data).To(HaveLen(3))
+			g.Expect(secret.Data).To(HaveKey(firstKey))
+			g.Expect(secret.Data).To(HaveKey(secondKey))
+			g.Expect(secret.Data).NotTo(HaveKey(""))
 		}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
 	})
 

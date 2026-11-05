@@ -220,9 +220,20 @@ HA_VERSION=2026.10.4 make test-e2e-backup K3D_CLUSTER_E2E=ha-backup-validation-e
 `test-e2e-critical-a` keeps its eight-minute budget and excludes the labelled
 backup cases. `test-e2e-backup` uses a 15-minute budget with one shared HA
 bootstrap. It verifies native `backup.local` one-shot creation, streamed
-archive download without exporting it, and a near-term scheduled backup in HA
-2026.10.4. It does not verify encrypted recovery, external agents, or a
-provider-specific destination failure.
+archive download without exporting it, a near-term scheduled backup, retained
+encryption keys, and native recovery of a protected archive onto a fresh
+loopback-only Container in HA 2026.10.4. It does not verify external agents,
+provider-specific destination failure, external databases, or Home Assistant
+OS Apps.
+
+### Native backup validation record
+
+- **2026-11-05:** `HA_VERSION=2026.10.4 make test-e2e-backup
+  K3D_CLUSTER_E2E=ha-backup-validation-e2e` passed (5 specs, 3m44s). The
+  approved native onboarding recovery on a fresh loopback-only Container
+  verified the Local To-do config entry, stable entity identity, and control
+  item from the private recovery workspace, using a protected original archive
+  and retained key. No archive, token, or recovery key was emitted.
 
 Each target creates its own fresh k3d cluster (`K3D_MEMORY_E2E=12g` by
 default; CI uses 4g), runs its `ginkgo run --label-filter=...` subset, and tears the

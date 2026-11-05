@@ -88,6 +88,25 @@ func TestRecoveryWorkspaceDownloadsOnlyConfirmedProtectedArchive(t *testing.T) {
 	}
 }
 
+func TestRecoveredStorageContains(t *testing.T) {
+	configDir := t.TempDir()
+	storageDir := filepath.Join(configDir, ".storage")
+	if err := os.Mkdir(storageDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(storageDir, "local_todo.control.ics"), []byte("control-item"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	found, err := RecoveredStorageContains(configDir, "local_todo.*.ics", "control-item")
+	if err != nil || !found {
+		t.Fatalf("RecoveredStorageContains() = %t, %v", found, err)
+	}
+	found, err = RecoveredStorageContains(configDir, "local_todo.*.ics", "absent")
+	if err != nil || found {
+		t.Fatalf("RecoveredStorageContains() absent = %t, %v", found, err)
+	}
+}
+
 func TestRestoreNativeBackupDoesNotExposeRecoveryKey(t *testing.T) {
 	const key = "synthetic-recovery-key"
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
@@ -179,6 +198,27 @@ func TestOnboardingUploadAndInfoUseFreshTargetEndpoints(t *testing.T) {
 	}
 	if err := OnboardingBackupInfo(context.Background(), server.Client(), server.URL); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestOnboardingUploadDoesNotExposeServerResponse(t *testing.T) {
+	workspace, err := NewRecoveryWorkspace(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer workspace.Cleanup()
+	if err := os.WriteFile(workspace.Archive, []byte("synthetic archive"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	const sensitiveResponse = "synthetic-recovery-key"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = io.WriteString(w, "Can't upload backup file: "+sensitiveResponse)
+	}))
+	defer server.Close()
+	err = UploadBackupForOnboarding(context.Background(), server.Client(), server.URL, workspace.Archive)
+	if err == nil || !strings.Contains(err.Error(), "onboarding upload rejected: HTTP 500") || strings.Contains(err.Error(), sensitiveResponse) {
+		t.Fatalf("unsafe onboarding upload error: %v", err)
 	}
 }
 

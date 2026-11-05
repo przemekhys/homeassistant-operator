@@ -53,11 +53,15 @@ func (r *HomeAssistantReconciler) protectBackupKey(
 			Type: corev1.SecretTypeOpaque,
 			Data: map[string][]byte{},
 		}
-		if err := r.Create(ctx, secret); err != nil && !apierrors.IsAlreadyExists(err) {
-			return nil, err
-		}
-		if err := r.Get(ctx, key, secret); err != nil {
-			return nil, err
+		if err := r.Create(ctx, secret); err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return nil, err
+			}
+			// Another reconciler created the retained Secret first. Read that
+			// object before validating its owner label and appending an entry.
+			if err := r.Get(ctx, key, secret); err != nil {
+				return nil, err
+			}
 		}
 	} else if err != nil {
 		return nil, err
