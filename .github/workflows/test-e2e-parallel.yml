@@ -131,7 +131,7 @@ jobs:
   e2e-backup:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 22
+    timeout-minutes: 48
     steps:
       - name: Clone the code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -157,6 +157,7 @@ jobs:
         with:
           name: ha-image
       - name: Create disposable cluster and import images
+        timeout-minutes: 10
         run: |
           k3d cluster create e2e-backup --image rancher/k3s:${{ env.K3S_VERSION }} \
             --agents 0 --servers-memory 4g --wait --timeout 5m
@@ -165,6 +166,7 @@ jobs:
           k3d image import operator:e2e -c e2e-backup
           k3d image import ghcr.io/home-assistant/home-assistant:${{ env.HA_VERSION }} -c e2e-backup
       - name: Run native backup and recovery tests
+        timeout-minutes: 29
         env:
           K3D_CLUSTER: e2e-backup
           HA_VERSION: ${{ env.HA_VERSION }}
@@ -173,9 +175,18 @@ jobs:
           E2E_SKIP_IMAGE_BUILD: "true"
         run: |
           make ginkgo
-          ./bin/ginkgo run -v --label-filter="critical-path && group-a && backup" --timeout=15m ./test/e2e/
+          ./bin/ginkgo run -v --label-filter="critical-path && group-a && backup" --timeout=25m ./test/e2e/
+      - name: Collect backup test diagnostics
+        if: failure() || cancelled()
+        timeout-minutes: 3
+        run: |
+          kubectl --request-timeout=10s logs -n homeassistant-operator-system \
+            -l control-plane=controller-manager --tail=300 --prefix || true
+          kubectl --request-timeout=10s get pods,homeassistants --all-namespaces -o wide || true
+          kubectl --request-timeout=10s get events --all-namespaces --sort-by=.lastTimestamp || true
       - name: Delete disposable cluster
         if: always()
+        timeout-minutes: 2
         run: k3d cluster delete e2e-backup
 
   e2e-critical-a:

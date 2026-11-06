@@ -145,7 +145,11 @@ func (c *Client) DownloadBackup(ctx context.Context, token, backupID, agentID st
 		return nil, &Error{Type: ErrorTypeHTTP, Message: "failed to create backup download request", Err: err}
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
-	resp, err := c.httpClient.Do(req)
+	// The regular client timeout also covers reading the response body. Keep
+	// its transport and settings, but allow large archive streams more time.
+	downloadClient := *c.httpClient
+	downloadClient.Timeout = 30 * time.Minute
+	resp, err := downloadClient.Do(req)
 	if err != nil {
 		return nil, &Error{Type: ErrorTypeHTTP, Message: "backup download failed", Err: err}
 	}

@@ -239,7 +239,10 @@ var _ = Describe("Backup Controller", func() {
 			case "backup/agents/info":
 				result = map[string]any{"agents": []map[string]string{{"agent_id": "backup.local", "name": "Local"}}}
 			case "backup/info":
-				result = map[string]any{"state": "idle", "backups": []any{map[string]any{"backup_id": "archive-1"}}}
+				result = map[string]any{"state": "idle", "backups": []any{map[string]any{
+					"backup_id": "archive-1", "date": "2026-11-03T12:00:00Z",
+					"agents": map[string]any{"backup.local": map[string]any{}},
+				}}}
 			case "backup/details":
 				result = map[string]any{"backup": map[string]any{
 					"backup_id": "archive-1", "agents": map[string]any{"backup.local": map[string]any{}},
@@ -268,6 +271,10 @@ var _ = Describe("Backup Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(actual.Phase).To(Equal("Succeeded"))
 		Expect(ha.Status.Backup.KeySecretRef).NotTo(BeNil())
+		Expect(ha.Status.Backup.ObservedAt).NotTo(BeNil())
+		Expect(ha.Status.Backup.LastSuccessfulBackupTime).NotTo(BeNil())
+		Expect(ha.Status.Backup.LastAttempt.BackupID).To(Equal("archive-1"))
+		Expect(meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupObservation).Reason).To(Equal("Observed"))
 		condition := meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupConfigured)
 		Expect(condition.Reason).To(Equal(reasonBackupAgentUnavailable))
 	})
@@ -348,6 +355,32 @@ var _ = Describe("Backup Controller", func() {
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: secret.Name, Namespace: namespace}, retained)).To(Succeed())
 		oldRetained := string(retained.Data["key-000001"]) == "old"
 		Expect(oldRetained).To(BeTrue())
+	})
+
+	It("reports an invalid receipt without blocking backup configuration observation", func() {
+		wsServer = httptest.NewServer(wsHandler(map[string]interface{}{
+			"schedule":  map[string]interface{}{"recurrence": "never", "time": nil},
+			"retention": map[string]interface{}{"copies": nil, "days": nil},
+			"create_backup": map[string]interface{}{
+				"include_database": true, "agent_ids": []string{"backup.local"},
+			},
+		}, nil))
+		wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
+		reconciler = &HomeAssistantReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(),
+			NewHAClient: func(_ string) *haclient.Client { return haclient.NewClient(wsURL) }}
+		createHA(&hav1.BackupSpec{Enabled: true, Recurrence: "never"})
+		ha := &hav1.HomeAssistant{}
+		objectKey := types.NamespacedName{Name: haName, Namespace: namespace}
+		Expect(k8sClient.Get(ctx, objectKey, ha)).To(Succeed())
+		ha.Annotations = map[string]string{backupReceiptAnnotation: "invalid receipt"}
+		Expect(k8sClient.Update(ctx, ha)).To(Succeed())
+		_, err := reconciler.reconcileBackupConfig(ctx, ha)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, objectKey, ha)).To(Succeed())
+		Expect(ha.Annotations[backupReceiptAnnotation]).To(Equal("invalid receipt"))
+		Expect(meta.FindStatusCondition(ha.Status.Conditions, "BackupRequestReady").Reason).To(Equal("InvalidReceipt"))
+		configured := meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupConfigured)
+		Expect(configured.Reason).To(Equal(reasonBackupConfigured))
 	})
 
 	It("should configure backup when spec.backup.enabled", func() {

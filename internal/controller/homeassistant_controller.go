@@ -322,11 +322,12 @@ func (r *HomeAssistantReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Update status based on StatefulSet status
 	statusResult, err := r.updateStatusFromStatefulSet(ctx, ha)
-	if err != nil || statusResult.RequeueAfter > 0 {
+	if err != nil {
 		return statusResult, err
 	}
-	if backupResult.RequeueAfter > 0 {
-		return backupResult, nil
+	result = earliestRequeue(statusResult, backupResult)
+	if result.RequeueAfter > 0 {
+		return result, nil
 	}
 
 	// When bootstrap is complete, requeue at a bounded interval so that the

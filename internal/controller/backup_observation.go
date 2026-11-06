@@ -19,6 +19,8 @@ const (
 	conditionTypeBackupKeyProtected = "BackupKeyProtected"
 )
 
+// reconcileBackupObservation retains the observed key and publishes available
+// backup evidence independently of the managed schedule.
 func (r *HomeAssistantReconciler) reconcileBackupObservation(
 	ctx context.Context, ha *hav1.HomeAssistant, c *haclient.Client, token string, config *haclient.BackupConfig,
 ) (ctrl.Result, error) {
@@ -64,11 +66,18 @@ func (r *HomeAssistantReconciler) reconcileBackupObservation(
 	info, err := c.GetBackupInfo(ctx, token)
 	var finalizeErr error
 	if err == nil {
+		finalizeErr = r.finalizeAcceptedBackupReceipt(ctx, ha, c, token, info)
+		if ha.Status.Backup == nil {
+			ha.Status.Backup = &hav1.BackupStatus{}
+		}
+		ha.Status.Backup.Agents = make([]hav1.BackupAgentStatus, 0, len(agents))
+		for _, agent := range agents {
+			ha.Status.Backup.Agents = append(ha.Status.Backup.Agents, hav1.BackupAgentStatus{ID: agent.ID, Name: agent.Name})
+		}
 		ha.Status.Backup.ObservedAt = &now
 		setBackupCondition(ha, conditionTypeBackupObservation, metav1.ConditionTrue,
 			"Observed", "backup information observed")
 		r.projectBackupInfo(ha, info, config)
-		finalizeErr = r.finalizeAcceptedBackupReceipt(ctx, ha, c, token, info)
 	} else {
 		setBackupCondition(ha, conditionTypeBackupObservation, metav1.ConditionFalse,
 			"ObservationUnavailable", "cannot read backup information")
@@ -84,13 +93,19 @@ func (r *HomeAssistantReconciler) reconcileBackupObservation(
 	return ctrl.Result{RequeueAfter: 120 * time.Second}, nil
 }
 
+// finalizeAcceptedBackupReceipt resolves only the archive identified by a
+// durable receipt, leaving ambiguous observations unchanged.
 func (r *HomeAssistantReconciler) finalizeAcceptedBackupReceipt(
 	ctx context.Context, ha *hav1.HomeAssistant, c *haclient.Client, token string, info *haclient.BackupInfo,
 ) error {
 	receipt, err := receiptFromHA(ha)
-	if err != nil || receipt == nil || (receipt.Phase != "Accepted" && receipt.Phase != "Unknown") ||
+	if err != nil {
+		// The request reconciler reports malformed receipts separately.
+		return nil
+	}
+	if receipt == nil || (receipt.Phase != "Accepted" && receipt.Phase != "Unknown") ||
 		receipt.BackupID == "" {
-		return err
+		return nil
 	}
 	var found bool
 	for _, archive := range info.Backups {
@@ -129,6 +144,7 @@ func (r *HomeAssistantReconciler) finalizeAcceptedBackupReceipt(
 	return nil
 }
 
+// backupArchiveCoversAgents requires evidence for every requested destination.
 func backupArchiveCoversAgents(archive haclient.BackupArchive, expected []string) bool {
 	if len(expected) == 0 || len(archive.Agents) == 0 {
 		return false
@@ -141,6 +157,7 @@ func backupArchiveCoversAgents(archive haclient.BackupArchive, expected []string
 	return true
 }
 
+// setBackupCondition sets a condition for the current resource generation.
 func setBackupCondition(
 	ha *hav1.HomeAssistant, conditionType string, status metav1.ConditionStatus, reason, message string,
 ) {
@@ -149,6 +166,8 @@ func setBackupCondition(
 	})
 }
 
+// projectBackupInfo projects available native evidence without inventing
+// historical destinations or clearing a previously confirmed success time.
 func (r *HomeAssistantReconciler) projectBackupInfo(
 	ha *hav1.HomeAssistant, info *haclient.BackupInfo, config *haclient.BackupConfig,
 ) {
@@ -173,7 +192,7 @@ func (r *HomeAssistantReconciler) projectBackupInfo(
 	if latest != nil && (info.State == "" || info.State == "idle") {
 		r.projectBackupArchive(ha, *latest, latestTime, requiredBackupAgents(config))
 	}
-	if len(info.AgentErrors) > 0 && (latest == nil || info.State == "" || info.State == "idle") {
+	if len(info.AgentErrors) > 0 && latest == nil {
 		ha.Status.Backup.LastAttempt = &hav1.BackupAttemptStatus{
 			Source: "HomeAssistant", Outcome: "Failed", Locations: backupAgentErrorLocations(info.AgentErrors),
 		}
@@ -195,6 +214,7 @@ func (r *HomeAssistantReconciler) projectBackupInfo(
 	}
 }
 
+// requiredBackupAgents returns only destinations explicitly observed in config.
 func requiredBackupAgents(config *haclient.BackupConfig) []string {
 	if config == nil || len(config.CreateBackup.AgentIDs) == 0 {
 		return nil
@@ -202,6 +222,7 @@ func requiredBackupAgents(config *haclient.BackupConfig) []string {
 	return config.CreateBackup.AgentIDs
 }
 
+// projectBackupArchive classifies one archive using its destination evidence.
 func (r *HomeAssistantReconciler) projectBackupArchive(
 	ha *hav1.HomeAssistant, archive haclient.BackupArchive, timestamp time.Time, expected []string,
 ) {
@@ -225,6 +246,7 @@ func (r *HomeAssistantReconciler) projectBackupArchive(
 	ha.Status.Backup.LastAttempt = attempt
 }
 
+// backupArchiveLocations returns a stable, sorted summary of archive destinations.
 func backupArchiveLocations(archive haclient.BackupArchive) []hav1.BackupLocationStatus {
 	locations := make([]hav1.BackupLocationStatus, 0, len(archive.Agents)+len(archive.FailedAgentIDs))
 	failed := make(map[string]struct{}, len(archive.FailedAgentIDs))
@@ -246,6 +268,7 @@ func backupArchiveLocations(archive haclient.BackupArchive) []hav1.BackupLocatio
 	return locations
 }
 
+// backupAgentErrorLocations lists affected agents without exposing raw errors.
 func backupAgentErrorLocations(errors map[string]any) []hav1.BackupLocationStatus {
 	locations := make([]hav1.BackupLocationStatus, 0, len(errors))
 	for id := range errors {

@@ -143,7 +143,7 @@ test-e2e: manifests generate fmt vet ginkgo ## Run all E2E tests sequentially (1
 	@echo "Running all E2E tests (1 bootstrap, sequential)..."
 	trap '$(MAKE) cleanup-test-e2e' EXIT INT TERM; \
 	$(MAKE) setup-test-e2e; \
-	K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run \
+	HA_VERSION=$(HA_VERSION) K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run \
 		-v \
 		--timeout=60m \
 		./test/e2e/ | tee test-e2e.log

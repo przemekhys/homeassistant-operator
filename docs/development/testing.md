@@ -224,7 +224,8 @@ archive download without exporting it, a near-term scheduled backup, retained
 encryption keys, and native recovery of a protected archive onto a fresh
 loopback-only Container in HA 2026.10.4. It does not verify external agents,
 provider-specific destination failure, external databases, or Home Assistant
-OS Apps.
+OS Apps. The separate CI backup job allows 25 minutes for the Ginkgo suite
+and 48 minutes for the whole job, including setup and failure diagnostics.
 
 ### Native backup validation record
 
