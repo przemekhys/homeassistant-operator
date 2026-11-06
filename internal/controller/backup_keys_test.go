@@ -33,7 +33,8 @@ func TestProtectBackupKeyRetainsDistinctValuesAndReusesExistingEntry(t *testing.
 		t.Fatalf("unexpected references: first=%#v second=%#v again=%#v", firstRef, secondRef, againRef)
 	}
 	secret := &corev1.Secret{}
-	if err := r.Get(context.Background(), types.NamespacedName{Namespace: ha.Namespace, Name: firstRef.Name}, secret); err != nil {
+	key := types.NamespacedName{Namespace: ha.Namespace, Name: firstRef.Name}
+	if err := r.Get(context.Background(), key, secret); err != nil {
 		t.Fatal(err)
 	}
 	if len(secret.Data) != 2 || len(secret.OwnerReferences) != 0 || len(secret.Finalizers) != 0 {
@@ -93,7 +94,8 @@ func TestProtectBackupKeyRejectsSecretSizeLimitWithoutDroppingExistingValues(t *
 		t.Fatal("oversized key was accepted")
 	}
 	secret := &corev1.Secret{}
-	if err := r.Get(context.Background(), types.NamespacedName{Namespace: ha.Namespace, Name: ref.Name}, secret); err != nil {
+	key := types.NamespacedName{Namespace: ha.Namespace, Name: ref.Name}
+	if err := r.Get(context.Background(), key, secret); err != nil {
 		t.Fatal(err)
 	}
 	if len(secret.Data) != 1 || string(secret.Data[ref.Key]) != first {

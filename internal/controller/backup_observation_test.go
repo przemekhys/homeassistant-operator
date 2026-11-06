@@ -27,7 +27,9 @@ func TestProjectBackupInfoUsesOnlySuccessfulArchiveDate(t *testing.T) {
 
 func TestProjectBackupInfoDoesNotInventSuccess(t *testing.T) {
 	prior := metav1.NewTime(mustTime(t, "2026-11-03T10:00:00Z"))
-	ha := &hav1.HomeAssistant{Status: hav1.HomeAssistantStatus{Backup: &hav1.BackupStatus{LastSuccessfulBackupTime: &prior}}}
+	ha := &hav1.HomeAssistant{Status: hav1.HomeAssistantStatus{
+		Backup: &hav1.BackupStatus{LastSuccessfulBackupTime: &prior},
+	}}
 	r := &HomeAssistantReconciler{}
 	r.projectBackupInfo(ha, &haclient.BackupInfo{Backups: []haclient.BackupArchive{
 		{ID: "failed", Date: "2026-11-03T12:00:00Z", FailedAgentIDs: []string{"backup.local"}},
@@ -50,7 +52,9 @@ func TestProjectBackupInfoRequiresDestinationEvidence(t *testing.T) {
 
 func TestProjectBackupInfoProjectsActiveWorkAsRunning(t *testing.T) {
 	ha := &hav1.HomeAssistant{}
-	(&HomeAssistantReconciler{}).projectBackupInfo(ha, &haclient.BackupInfo{State: "creating"}, backupConfigForAgents("backup.local"))
+	(&HomeAssistantReconciler{}).projectBackupInfo(
+		ha, &haclient.BackupInfo{State: "creating"}, backupConfigForAgents("backup.local"),
+	)
 	if ha.Status.Backup.LastAttempt == nil || ha.Status.Backup.LastAttempt.Outcome != "Running" {
 		t.Fatalf("active backup was not projected as running: %#v", ha.Status.Backup.LastAttempt)
 	}
@@ -88,7 +92,8 @@ func TestProjectBackupInfoProjectsAgentErrorsWithoutPayload(t *testing.T) {
 		"backup.remote": map[string]string{"unsafe": "do not expose"},
 	}}, backupConfigForAgents("backup.local", "backup.remote"))
 	attempt := ha.Status.Backup.LastAttempt
-	if attempt == nil || attempt.Outcome != "Failed" || len(attempt.Locations) != 1 || attempt.Locations[0].ID != "backup.remote" {
+	if attempt == nil || attempt.Outcome != "Failed" || len(attempt.Locations) != 1 ||
+		attempt.Locations[0].ID != "backup.remote" {
 		t.Fatalf("agent errors were not safely projected: %#v", attempt)
 	}
 }

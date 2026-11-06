@@ -25,6 +25,30 @@ func (r *HomeAssistantReconciler) reconcileBackupObservation(
 	if ha.Status.Backup == nil {
 		ha.Status.Backup = &hav1.BackupStatus{}
 	}
+	var observedKey *string
+	if config != nil {
+		observedKey = config.CreateBackup.Password
+	}
+	ref, keyErr := r.protectBackupKey(ctx, ha, observedKey)
+	applyKeyStatus := func() {
+		if ha.Status.Backup == nil {
+			ha.Status.Backup = &hav1.BackupStatus{}
+		}
+		if keyErr != nil {
+			ha.Status.Backup.KeySecretRef = nil
+			setBackupCondition(ha, conditionTypeBackupKeyProtected, metav1.ConditionFalse,
+				"SecretWriteFailed", "cannot protect backup encryption key")
+		} else if ref == nil {
+			ha.Status.Backup.KeySecretRef = nil
+			setBackupCondition(ha, conditionTypeBackupKeyProtected, metav1.ConditionUnknown,
+				"EncryptionNotEnabled", "no backup encryption key observed")
+		} else {
+			ha.Status.Backup.KeySecretRef = ref
+			setBackupCondition(ha, conditionTypeBackupKeyProtected, metav1.ConditionTrue,
+				"Protected", "current backup encryption key is protected")
+		}
+	}
+	applyKeyStatus()
 	now := metav1.Now()
 	agents, err := c.ListBackupAgents(ctx, token)
 	if err != nil {
@@ -38,37 +62,24 @@ func (r *HomeAssistantReconciler) reconcileBackupObservation(
 		ha.Status.Backup.Agents = append(ha.Status.Backup.Agents, hav1.BackupAgentStatus{ID: agent.ID, Name: agent.Name})
 	}
 	info, err := c.GetBackupInfo(ctx, token)
+	var finalizeErr error
 	if err == nil {
 		ha.Status.Backup.ObservedAt = &now
 		setBackupCondition(ha, conditionTypeBackupObservation, metav1.ConditionTrue,
 			"Observed", "backup information observed")
 		r.projectBackupInfo(ha, info, config)
-		if err := r.finalizeAcceptedBackupReceipt(ctx, ha, c, token, info); err != nil {
-			return ctrl.Result{}, err
-		}
+		finalizeErr = r.finalizeAcceptedBackupReceipt(ctx, ha, c, token, info)
 	} else {
 		setBackupCondition(ha, conditionTypeBackupObservation, metav1.ConditionFalse,
 			"ObservationUnavailable", "cannot read backup information")
 	}
-	var observedKey *string
-	if config != nil {
-		observedKey = config.CreateBackup.Password
-	}
-	ref, keyErr := r.protectBackupKey(ctx, ha, observedKey)
-	if keyErr != nil {
-		setBackupCondition(ha, conditionTypeBackupKeyProtected, metav1.ConditionFalse,
-			"SecretWriteFailed", "cannot protect backup encryption key")
-	} else if ref == nil {
-		ha.Status.Backup.KeySecretRef = nil
-		setBackupCondition(ha, conditionTypeBackupKeyProtected, metav1.ConditionUnknown,
-			"EncryptionNotEnabled", "no backup encryption key observed")
-	} else {
-		ha.Status.Backup.KeySecretRef = ref
-		setBackupCondition(ha, conditionTypeBackupKeyProtected, metav1.ConditionTrue,
-			"Protected", "current backup encryption key is protected")
-	}
+	// A receipt metadata update may refresh the object and replace its status.
+	applyKeyStatus()
 	if err := r.Status().Update(ctx, ha); err != nil {
 		return ctrl.Result{}, err
+	}
+	if finalizeErr != nil {
+		return ctrl.Result{}, finalizeErr
 	}
 	return ctrl.Result{RequeueAfter: 120 * time.Second}, nil
 }
@@ -77,7 +88,8 @@ func (r *HomeAssistantReconciler) finalizeAcceptedBackupReceipt(
 	ctx context.Context, ha *hav1.HomeAssistant, c *haclient.Client, token string, info *haclient.BackupInfo,
 ) error {
 	receipt, err := receiptFromHA(ha)
-	if err != nil || receipt == nil || (receipt.Phase != "Accepted" && receipt.Phase != "Unknown") || receipt.BackupID == "" {
+	if err != nil || receipt == nil || (receipt.Phase != "Accepted" && receipt.Phase != "Unknown") ||
+		receipt.BackupID == "" {
 		return err
 	}
 	var found bool
@@ -171,10 +183,12 @@ func (r *HomeAssistantReconciler) projectBackupInfo(
 	for i := range info.Backups {
 		archive := info.Backups[i]
 		timestamp, err := time.Parse(time.RFC3339, archive.Date)
-		if err != nil || len(archive.FailedAgentIDs) != 0 || !backupArchiveCoversAgents(archive, requiredBackupAgents(config)) {
+		if err != nil || len(archive.FailedAgentIDs) != 0 ||
+			!backupArchiveCoversAgents(archive, requiredBackupAgents(config)) {
 			continue
 		}
-		if ha.Status.Backup.LastSuccessfulBackupTime == nil || timestamp.After(ha.Status.Backup.LastSuccessfulBackupTime.Time) {
+		if ha.Status.Backup.LastSuccessfulBackupTime == nil ||
+			timestamp.After(ha.Status.Backup.LastSuccessfulBackupTime.Time) {
 			when := metav1.NewTime(timestamp)
 			ha.Status.Backup.LastSuccessfulBackupTime = &when
 		}
@@ -201,7 +215,8 @@ func (r *HomeAssistantReconciler) projectBackupArchive(
 		attempt.Outcome = "Failed"
 	case backupArchiveCoversAgents(archive, expected):
 		attempt.Outcome = "Succeeded"
-		if ha.Status.Backup.LastSuccessfulBackupTime == nil || timestamp.After(ha.Status.Backup.LastSuccessfulBackupTime.Time) {
+		if ha.Status.Backup.LastSuccessfulBackupTime == nil ||
+			timestamp.After(ha.Status.Backup.LastSuccessfulBackupTime.Time) {
 			ha.Status.Backup.LastSuccessfulBackupTime = &when
 		}
 	default:

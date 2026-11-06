@@ -44,3 +44,20 @@ func TestGetBackupDetailsParsesFixtureShape(t *testing.T) {
 		t.Fatalf("GetBackupDetails() = %#v, %v", details, err)
 	}
 }
+
+func TestGetBackupConfigRejectsMissingStructure(t *testing.T) {
+	for name, payload := range map[string]any{
+		"null": nil, "empty": map[string]any{}, "unrelated": map[string]any{"other": true},
+		"null config": map[string]any{"config": nil},
+	} {
+		t.Run(name, func(t *testing.T) {
+			server := newBackupWebSocketServer(t, func(_ map[string]any, conn *websocket.Conn) {
+				_ = conn.WriteJSON(map[string]any{"id": 1, "type": "result", "success": true, "result": payload})
+			})
+			defer server.Close()
+			if _, err := NewClient(server.URL).GetBackupConfig(context.Background(), "token"); err == nil {
+				t.Fatal("invalid configuration accepted")
+			}
+		})
+	}
+}

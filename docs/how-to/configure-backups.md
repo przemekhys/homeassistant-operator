@@ -48,8 +48,12 @@ schedule, keep `backup.enabled: true` with `recurrence: never`, then set a new
 opaque request identifier on the HomeAssistant object:
 
 ```sh
-kubectl annotate homeassistant home \
-  ha.homeassistant.io/backup-request="$(cat /proc/sys/kernel/random/uuid)" --overwrite
+if request_id=$(uuidgen) && test -n "$request_id"; then
+  kubectl annotate homeassistant home \
+    "ha.homeassistant.io/backup-request=$request_id" --overwrite
+else
+  echo "Could not generate a request ID" >&2
+fi
 ```
 
 The request identifier is consumed before Home Assistant receives the command.
@@ -77,15 +81,21 @@ or tickets. A Secret in the same cluster is not a disaster-recovery copy.
 
 Export one selected entry without printing it:
 
-```sh
+```bash
+(
+set -euo pipefail
 umask 077
 export_dir=$(mktemp -d)
 secret_name=$(kubectl get ha home -o jsonpath='{.status.backup.keySecretRef.name}')
 secret_key=$(kubectl get ha home -o jsonpath='{.status.backup.keySecretRef.key}')
-test -n "$secret_name" && test -n "$secret_key"
+test -n "$secret_name"
+test -n "$secret_key"
 kubectl get secret "$secret_name" -o json | \
   jq -er --arg key "$secret_key" '.data[$key]' | base64 --decode >"$export_dir/recovery-key"
+test -s "$export_dir/recovery-key"
 chmod 600 "$export_dir/recovery-key"
+printf 'Protected export directory: %s\n' "$export_dir"
+)
 ```
 
 The current reference may not match an older archive: choose the key observed

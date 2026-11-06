@@ -15,7 +15,8 @@ func TestLocalTodoFixtureHelpers(t *testing.T) {
 		}
 		switch r.URL.Path {
 		case "/api/states":
-			_, _ = io.WriteString(w, `[{"entity_id":"todo.recovery","state":"0","attributes":{"friendly_name":"Recovery list"}}]`)
+			_, _ = io.WriteString(w, `[{"entity_id":"todo.recovery","state":"0",`+
+				`"attributes":{"friendly_name":"Recovery list"}}]`)
 		case "/api/services/todo/add_item":
 			body, _ := io.ReadAll(r.Body)
 			if string(body) != `{"entity_id":"todo.recovery","item":"control"}` {
@@ -37,7 +38,8 @@ func TestLocalTodoFixtureHelpers(t *testing.T) {
 	if !found || entityID != "todo.recovery" {
 		t.Fatalf("LocalTodoEntity() = %q, %t", entityID, found)
 	}
-	if err := AddLocalTodoItem(context.Background(), server.Client(), server.URL, "test-token", entityID, "control"); err != nil {
+	if err := AddLocalTodoItem(context.Background(), server.Client(), server.URL,
+		"test-token", entityID, "control"); err != nil {
 		t.Fatal(err)
 	}
 	hasItem, err := LocalTodoHasItem(context.Background(), server.Client(), server.URL, "test-token", entityID, "control")

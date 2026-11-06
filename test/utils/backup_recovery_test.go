@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,9 +12,49 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+type failingArchiveClose struct{ bytes.Buffer }
+
+func (*failingArchiveClose) Close() error { return errors.New("synthetic close failure") }
+
+func TestWriteProtectedArchiveReportsCloseFailure(t *testing.T) {
+	_, err := writeProtectedArchive(&failingArchiveClose{}, strings.NewReader("synthetic archive"))
+	if err == nil {
+		t.Fatal("close failure was ignored")
+	}
+}
+
+func TestBackupWebsocketHelpersHonorCancellation(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		_, _, _ = conn.ReadMessage()
+	}))
+	defer server.Close()
+	for name, run := range map[string]func(context.Context) error{
+		"password": func(ctx context.Context) error { return SetNativeBackupPassword(ctx, server.URL, "token", "key") },
+		"restore": func(ctx context.Context) error {
+			return RestoreNativeBackup(ctx, server.URL, "token", "id", "backup.local", "key")
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+			start := time.Now()
+			if err := run(ctx); err == nil || time.Since(start) > 2*time.Second {
+				t.Fatal("websocket did not honor cancellation")
+			}
+		})
+	}
+}
 
 func TestNativeBackupDownloadURLNeverIncludesPassword(t *testing.T) {
 	endpoint, err := NativeBackupDownloadURL("http://127.0.0.1:18123", "backup/id", "backup.local")
@@ -25,6 +67,9 @@ func TestNativeBackupDownloadURLNeverIncludesPassword(t *testing.T) {
 	}
 	if parsed.Query().Get("agent_id") != "backup.local" || parsed.Query().Get("password") != "" {
 		t.Fatalf("unsafe native download URL: %s", endpoint)
+	}
+	if parsed.EscapedPath() != "/api/backup/download/backup%2Fid" {
+		t.Fatalf("unexpected encoded path: %s", parsed.EscapedPath())
 	}
 	if strings.Contains(endpoint, "password") {
 		t.Fatalf("password parameter present in %q", endpoint)
@@ -44,7 +89,8 @@ func TestValidateRecoveryTargetRequiresIsolation(t *testing.T) {
 }
 
 func TestRecoveryContainerArgsUsesOnlyFreshLoopbackTarget(t *testing.T) {
-	args, err := RecoveryContainerArgs("restore", "restore-net", "/tmp/opencode/restore-config", "ghcr.io/home-assistant/home-assistant:2026.10.4")
+	args, err := RecoveryContainerArgs("restore", "restore-net", "/tmp/opencode/restore-config",
+		"ghcr.io/home-assistant/home-assistant:2026.10.4")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,12 +105,36 @@ func TestRecoveryContainerArgsUsesOnlyFreshLoopbackTarget(t *testing.T) {
 	}
 }
 
+func TestRecoveryCleanupArgsOnlyUsesWorkspaceConfig(t *testing.T) {
+	w, err := NewRecoveryWorkspace(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = w.Cleanup() }()
+	args, err := RecoveryCleanupArgs(w, 123, 456)
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(args, " ")
+	if !strings.Contains(joined, "--network none") ||
+		!strings.Contains(joined, "src="+w.ConfigDir+",dst=/cleanup") || !strings.Contains(joined, "123:456") {
+		t.Fatal("cleanup is not confined to the recovery config mount")
+	}
+	if _, err := RecoveryCleanupArgs(&RecoveryWorkspace{Dir: "/", ConfigDir: "/"}, 123, 456); err == nil {
+		t.Fatal("unsafe recovery workspace accepted")
+	}
+}
+
 func TestRecoveryWorkspaceDownloadsOnlyConfirmedProtectedArchive(t *testing.T) {
 	workspace, err := NewRecoveryWorkspace(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer workspace.Cleanup()
+	defer func() {
+		if err := workspace.Cleanup(); err != nil {
+			t.Error(err)
+		}
+	}()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer synthetic-token" {
 			t.Error("authorization header not supplied")
@@ -72,18 +142,21 @@ func TestRecoveryWorkspaceDownloadsOnlyConfirmedProtectedArchive(t *testing.T) {
 		_, _ = io.WriteString(w, "archive")
 	}))
 	defer server.Close()
-	if _, err := DownloadProtectedBackup(context.Background(), server.Client(), server.URL, "Bearer synthetic-token", workspace.Archive, false); err == nil {
+	if _, err := DownloadProtectedBackup(context.Background(), server.Client(), server.URL,
+		"Bearer synthetic-token", workspace.Archive, false); err == nil {
 		t.Fatal("unconfirmed archive download was accepted")
 	}
-	bytes, err := DownloadProtectedBackup(context.Background(), server.Client(), server.URL, "Bearer synthetic-token", workspace.Archive, true)
-	if err != nil || bytes != int64(len("archive")) {
-		t.Fatalf("protected download = %d, %v", bytes, err)
+	written, err := DownloadProtectedBackup(context.Background(), server.Client(), server.URL,
+		"Bearer synthetic-token", workspace.Archive, true)
+	if err != nil || written != int64(len("archive")) {
+		t.Fatalf("protected download = %d, %v", written, err)
 	}
 	info, err := os.Stat(workspace.Archive)
 	if err != nil || info.Mode().Perm() != 0o600 {
 		t.Fatalf("archive permissions = %v, %v", info.Mode(), err)
 	}
-	if _, err := DownloadProtectedBackup(context.Background(), server.Client(), server.URL+"?password=unsafe", "Bearer synthetic-token", filepath.Join(workspace.Dir, "second"), true); err == nil {
+	if _, err := DownloadProtectedBackup(context.Background(), server.Client(), server.URL+"?password=unsafe",
+		"Bearer synthetic-token", filepath.Join(workspace.Dir, "second"), true); err == nil {
 		t.Fatal("password URL was accepted")
 	}
 }
@@ -94,7 +167,8 @@ func TestRecoveredStorageContains(t *testing.T) {
 	if err := os.Mkdir(storageDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(storageDir, "local_todo.control.ics"), []byte("control-item"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(storageDir, "local_todo.control.ics"),
+		[]byte("control-item"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	found, err := RecoveredStorageContains(configDir, "local_todo.*.ics", "control-item")
@@ -115,7 +189,7 @@ func TestRestoreNativeBackupDoesNotExposeRecoveryKey(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer connection.Close()
+		defer func() { _ = connection.Close() }()
 		_ = connection.WriteJSON(map[string]string{"type": "auth_required"})
 		var auth map[string]string
 		_ = connection.ReadJSON(&auth)
@@ -128,7 +202,8 @@ func TestRestoreNativeBackupDoesNotExposeRecoveryKey(t *testing.T) {
 		_ = connection.WriteJSON(map[string]any{"id": 1, "type": "result", "success": true})
 	}))
 	defer server.Close()
-	if err := RestoreNativeBackup(context.Background(), server.URL, "synthetic-token", "backup-1", "backup.local", key); err != nil {
+	if err := RestoreNativeBackup(context.Background(), server.URL, "synthetic-token", "backup-1",
+		"backup.local", key); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := nativeBackupWebSocketURL(server.URL + "?password=" + key); err == nil {
@@ -143,7 +218,7 @@ func TestRestoreNativeBackupSanitizesRejectedKey(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer connection.Close()
+		defer func() { _ = connection.Close() }()
 		_ = connection.WriteJSON(map[string]string{"type": "auth_required"})
 		var ignored map[string]any
 		_ = connection.ReadJSON(&ignored)
@@ -153,8 +228,10 @@ func TestRestoreNativeBackupSanitizesRejectedKey(t *testing.T) {
 			"error": map[string]string{"code": "password_incorrect", "message": "synthetic-recovery-key"}})
 	}))
 	defer server.Close()
-	err := RestoreNativeBackup(context.Background(), server.URL, "synthetic-token", "backup-1", "backup.local", "synthetic-recovery-key")
-	if err == nil || !strings.Contains(err.Error(), "password_incorrect") || strings.Contains(err.Error(), "synthetic-recovery-key") {
+	err := RestoreNativeBackup(context.Background(), server.URL, "synthetic-token", "backup-1",
+		"backup.local", "synthetic-recovery-key")
+	if err == nil || !strings.Contains(err.Error(), "password_incorrect") ||
+		strings.Contains(err.Error(), "synthetic-recovery-key") {
 		t.Fatalf("unsafe rejected-key error: %v", err)
 	}
 }
@@ -164,7 +241,11 @@ func TestOnboardingUploadAndInfoUseFreshTargetEndpoints(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer workspace.Cleanup()
+	defer func() {
+		if err := workspace.Cleanup(); err != nil {
+			t.Error(err)
+		}
+	}()
 	if err := os.WriteFile(workspace.Archive, []byte("synthetic archive"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +261,7 @@ func TestOnboardingUploadAndInfoUseFreshTargetEndpoints(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 			payload, _ := io.ReadAll(file)
 			if string(payload) != "synthetic archive" {
 				t.Error("unexpected archive payload")
@@ -206,7 +287,11 @@ func TestOnboardingUploadDoesNotExposeServerResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer workspace.Cleanup()
+	defer func() {
+		if err := workspace.Cleanup(); err != nil {
+			t.Error(err)
+		}
+	}()
 	if err := os.WriteFile(workspace.Archive, []byte("synthetic archive"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -217,7 +302,8 @@ func TestOnboardingUploadDoesNotExposeServerResponse(t *testing.T) {
 	}))
 	defer server.Close()
 	err = UploadBackupForOnboarding(context.Background(), server.Client(), server.URL, workspace.Archive)
-	if err == nil || !strings.Contains(err.Error(), "onboarding upload rejected: HTTP 500") || strings.Contains(err.Error(), sensitiveResponse) {
+	if err == nil || !strings.Contains(err.Error(), "onboarding upload rejected: HTTP 500") ||
+		strings.Contains(err.Error(), sensitiveResponse) {
 		t.Fatalf("unsafe onboarding upload error: %v", err)
 	}
 }
@@ -232,8 +318,10 @@ func TestOnboardingRestoreSanitizesWrongRecoveryKey(t *testing.T) {
 		_, _ = io.WriteString(w, `{"code":"incorrect_password","message":"synthetic-recovery-key"}`)
 	}))
 	defer server.Close()
-	err := RestoreOnboardingBackup(context.Background(), server.Client(), server.URL, "backup-1", "backup.local", "synthetic-recovery-key")
-	if err == nil || !strings.Contains(err.Error(), "HTTP 400") || strings.Contains(err.Error(), "synthetic-recovery-key") {
+	err := RestoreOnboardingBackup(context.Background(), server.Client(), server.URL,
+		"backup-1", "backup.local", "synthetic-recovery-key")
+	if err == nil || !strings.Contains(err.Error(), "HTTP 400") ||
+		strings.Contains(err.Error(), "synthetic-recovery-key") {
 		t.Fatalf("unsafe onboarding restore error: %v", err)
 	}
 }
@@ -246,7 +334,7 @@ func TestSetNativeBackupPasswordKeepsKeyOutOfErrors(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer connection.Close()
+		defer func() { _ = connection.Close() }()
 		_ = connection.WriteJSON(map[string]string{"type": "auth_required"})
 		var ignored map[string]any
 		_ = connection.ReadJSON(&ignored)

@@ -77,18 +77,25 @@ func (c *Client) GetBackupConfig(ctx context.Context, token string) (*BackupConf
 	if err != nil {
 		return nil, err
 	}
-	var envelope struct {
-		Config BackupConfig `json:"config"`
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &object); err != nil || object == nil {
+		return nil, &Error{Type: ErrorTypeInvalidResponse, Message: "invalid backup config response"}
 	}
-	if err := json.Unmarshal(raw, &envelope); err != nil {
-		return nil, &Error{Type: ErrorTypeInvalidResponse, Message: "invalid backup config response", Err: err}
-	}
-	if envelope.Config.Schedule.Recurrence == "" && envelope.Config.CreateBackup.AgentIDs == nil {
-		if err := json.Unmarshal(raw, &envelope.Config); err != nil {
-			return nil, &Error{Type: ErrorTypeInvalidResponse, Message: "invalid backup config response", Err: err}
+	if nested, ok := object["config"]; ok {
+		if err := json.Unmarshal(nested, &object); err != nil || object == nil {
+			return nil, &Error{Type: ErrorTypeInvalidResponse, Message: "invalid backup config response"}
 		}
+		raw = nested
 	}
-	return &envelope.Config, nil
+	var createBackup map[string]json.RawMessage
+	if err := json.Unmarshal(object["create_backup"], &createBackup); err != nil || createBackup == nil {
+		return nil, &Error{Type: ErrorTypeInvalidResponse, Message: "invalid backup config response"}
+	}
+	var config BackupConfig
+	if err := json.Unmarshal(raw, &config); err != nil || config.Schedule.Recurrence == "" {
+		return nil, &Error{Type: ErrorTypeInvalidResponse, Message: "invalid backup config response"}
+	}
+	return &config, nil
 }
 
 // ConfigureBackup updates only fields owned by the operator. In particular it
@@ -131,7 +138,8 @@ func (c *Client) GenerateBackupWithAutomaticSettings(ctx context.Context, token 
 // agent. Callers own and must close the response body. The method deliberately
 // has no password argument: protected archive downloads must remain encrypted.
 func (c *Client) DownloadBackup(ctx context.Context, token, backupID, agentID string) (*http.Response, error) {
-	endpoint := fmt.Sprintf("%s/api/backup/download/%s?agent_id=%s", c.baseURL, url.PathEscape(backupID), url.QueryEscape(agentID))
+	endpoint := fmt.Sprintf("%s/api/backup/download/%s?agent_id=%s",
+		c.baseURL, url.PathEscape(backupID), url.QueryEscape(agentID))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, &Error{Type: ErrorTypeHTTP, Message: "failed to create backup download request", Err: err}
