@@ -35,6 +35,7 @@ type backupReceipt struct {
 	Reason           string    `json:"reason,omitempty"`
 }
 
+// receiptFromHA validates the persisted receipt before using it for dispatch.
 func receiptFromHA(ha *hav1.HomeAssistant) (*backupReceipt, error) {
 	if ha.Annotations == nil || ha.Annotations[backupReceiptAnnotation] == "" {
 		return nil, nil
@@ -53,6 +54,7 @@ func receiptFromHA(ha *hav1.HomeAssistant) (*backupReceipt, error) {
 	return &receipt, nil
 }
 
+// validBackupReceiptPhase limits receipts to known dispatch states.
 func validBackupReceiptPhase(phase string) bool {
 	switch phase {
 	case "Dispatching", "Accepted", "Succeeded", "Failed", "Unknown":
@@ -62,6 +64,7 @@ func validBackupReceiptPhase(phase string) bool {
 	}
 }
 
+// uniqueNonEmptyStrings rejects unresolved or duplicate destination IDs.
 func uniqueNonEmptyStrings(values []string) bool {
 	if len(values) == 0 {
 		return false
@@ -79,6 +82,8 @@ func uniqueNonEmptyStrings(values []string) bool {
 	return true
 }
 
+// setBackupRequestStatus projects a receipt without replacing newer observations
+// when the request and its phase have not changed.
 func setBackupRequestStatus(ha *hav1.HomeAssistant, receipt *backupReceipt) {
 	if ha.Status.Backup == nil {
 		ha.Status.Backup = &hav1.BackupStatus{}
@@ -104,6 +109,8 @@ func setBackupRequestStatus(ha *hav1.HomeAssistant, receipt *backupReceipt) {
 	}
 }
 
+// reconcileBackupRequest claims and dispatches at most once for a receipt;
+// uncertain sends are never retried automatically.
 func (r *HomeAssistantReconciler) reconcileBackupRequest(
 	ctx context.Context, ha *hav1.HomeAssistant, c *haclient.Client, token string, config *haclient.BackupConfig,
 ) (ctrl.Result, error) {
@@ -185,6 +192,8 @@ func (r *HomeAssistantReconciler) reconcileBackupRequest(
 	return r.persistBackupReceipt(ctx, ha, receipt, 10*time.Second)
 }
 
+// persistBackupReceipt writes the durable dispatch boundary before its status
+// projection; a status failure must not suppress an already claimed dispatch.
 func (r *HomeAssistantReconciler) persistBackupReceipt(
 	ctx context.Context, ha *hav1.HomeAssistant, receipt *backupReceipt, requeue time.Duration,
 ) (ctrl.Result, error) {
@@ -201,12 +210,13 @@ func (r *HomeAssistantReconciler) persistBackupReceipt(
 	}
 	setBackupRequestStatus(ha, receipt)
 	setBackupCondition(ha, "BackupRequestReady", metav1.ConditionTrue, "Observed", "backup request recorded")
-	if err := r.Status().Update(ctx, ha); err != nil {
+	if err := r.Status().Update(ctx, ha); err != nil && receipt.Phase != "Dispatching" {
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{RequeueAfter: requeue}, nil
 }
 
+// backupRequestStatus reports why a request is deferred or already observed.
 func (r *HomeAssistantReconciler) backupRequestStatus(
 	ctx context.Context, ha *hav1.HomeAssistant, receipt *backupReceipt, reason, message string,
 ) (ctrl.Result, error) {

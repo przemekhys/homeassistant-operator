@@ -75,44 +75,6 @@ func AddLocalTodoItem(ctx context.Context, client *http.Client, baseURL, token, 
 	return nil
 }
 
-// LocalTodoHasItem checks recovery control data through HA's native To-do API.
-// The response is not returned or included in errors because item summaries may
-// be user-originated data.
-func LocalTodoHasItem(ctx context.Context, client *http.Client, baseURL, token, entityID, item string) (bool, error) {
-	if strings.TrimSpace(entityID) == "" || strings.TrimSpace(item) == "" {
-		return false, fmt.Errorf("local To-do entity and item are required")
-	}
-	if client == nil {
-		client = recoveryHTTPClient
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		strings.TrimSuffix(baseURL, "/")+"/api/todo/"+entityID, nil)
-	if err != nil {
-		return false, fmt.Errorf("create local To-do list request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	response, err := client.Do(req)
-	if err != nil {
-		return false, fmt.Errorf("list local To-do items: %w", err)
-	}
-	defer func() { _ = response.Body.Close() }()
-	if response.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("local To-do list rejected: HTTP %d", response.StatusCode)
-	}
-	var items []struct {
-		Summary string `json:"summary"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&items); err != nil {
-		return false, fmt.Errorf("decode local To-do items: %w", err)
-	}
-	for _, candidate := range items {
-		if candidate.Summary == item {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
 // LocalTodoEntity returns the entity exposed by a Local To-do config entry.
 // The fixture title is intentionally unique, so title matching cannot select a
 // user's list. Entity IDs stay inside the test process and are not logged.

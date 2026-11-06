@@ -131,6 +131,13 @@ func TestEarliestRequeuePreservesBackupRequestDeadline(t *testing.T) {
 	}
 }
 
+func TestEarliestRequeuePreservesBackupFailureRetry(t *testing.T) {
+	result := earliestRequeue(ctrl.Result{RequeueAfter: 2 * time.Minute}, ctrl.Result{RequeueAfter: 30 * time.Second})
+	if result.RequeueAfter != 30*time.Second {
+		t.Fatalf("requeue after = %s, want 30s", result.RequeueAfter)
+	}
+}
+
 func TestHomeAssistantPrimaryPredicateKeepsBackupRequestAnnotation(t *testing.T) {
 	oldHA := &hav1.HomeAssistant{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"other": "value"}}}
 	newHA := oldHA.DeepCopy()
@@ -156,6 +163,28 @@ func TestBackupStatusFailureDoesNotInventArchiveEvidence(t *testing.T) {
 	}
 	if ha.Status.Backup.LastSuccessfulBackupTime != nil {
 		t.Fatal("failure without archive invented a successful backup time")
+	}
+}
+
+func TestBackupStatusKeepsArchiveResultWhenAgentReadFails(t *testing.T) {
+	ha := &hav1.HomeAssistant{}
+	(&HomeAssistantReconciler{}).projectBackupInfo(ha, &haclient.BackupInfo{
+		State: "idle", AgentErrors: map[string]any{"backup.local": "unavailable"},
+		Backups: []haclient.BackupArchive{{ID: "archive-1", Date: "2026-11-03T12:00:00Z",
+			Agents: map[string]haclient.BackupAgentCopy{"backup.local": {}}}},
+	}, backupConfigForAgents("backup.local"))
+	if ha.Status.Backup.LastAttempt == nil || ha.Status.Backup.LastAttempt.Outcome != "Succeeded" {
+		t.Fatal("agent read error replaced independently observed archive outcome")
+	}
+}
+
+func TestFinalizeInvalidReceiptDoesNotBlockObservation(t *testing.T) {
+	ha := &hav1.HomeAssistant{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+		backupReceiptAnnotation: "invalid receipt",
+	}}}
+	err := (&HomeAssistantReconciler{}).finalizeAcceptedBackupReceipt(context.Background(), ha, nil, "", nil)
+	if err != nil || ha.Annotations[backupReceiptAnnotation] != "invalid receipt" {
+		t.Fatal("invalid receipt must be left for the request reconciler")
 	}
 }
 

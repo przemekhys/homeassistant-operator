@@ -3,10 +3,12 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,7 +17,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
 	"github.com/przemekhys/homeassistant-operator/internal/haclient"
@@ -268,5 +272,79 @@ func TestReconcileBackupRequestNeverRedispatchesUncertainReceipt(t *testing.T) {
 				t.Fatalf("phase = %q, want Unknown", got.Phase)
 			}
 		})
+	}
+}
+
+func TestBackupDispatchContinuesWhenInitialStatusWriteFails(t *testing.T) {
+	var calls atomic.Int32
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		conn, err := upgrader.Upgrade(w, req, nil)
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		_ = conn.WriteJSON(map[string]string{"type": "auth_required"})
+		var auth map[string]any
+		_ = conn.ReadJSON(&auth)
+		_ = conn.WriteJSON(map[string]string{"type": "auth_ok"})
+		var command struct {
+			ID   int    `json:"id"`
+			Type string `json:"type"`
+		}
+		if conn.ReadJSON(&command) != nil {
+			return
+		}
+		var result any
+		switch command.Type {
+		case "backup/agents/info":
+			result = map[string]any{"agents": []any{map[string]string{"agent_id": "backup.local"}}}
+		case "backup/info":
+			result = map[string]any{"state": "idle"}
+		case "backup/generate_with_automatic_settings":
+			calls.Add(1)
+			result = map[string]string{"backup_job_id": "backup-1"}
+		default:
+			return
+		}
+		_ = conn.WriteJSON(map[string]any{"id": command.ID, "type": "result", "success": true, "result": result})
+	}))
+	defer server.Close()
+	scheme := runtime.NewScheme()
+	_ = hav1.AddToScheme(scheme)
+	ha := &hav1.HomeAssistant{ObjectMeta: metav1.ObjectMeta{Name: "ha", Namespace: "default", UID: types.UID("uid-1"),
+		Annotations: map[string]string{backupRequestAnnotation: "request-1"}}}
+	var statusWrites atomic.Int32
+	storage := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(ha).WithObjects(ha).
+		WithInterceptorFuncs(interceptor.Funcs{SubResourceUpdate: func(ctx context.Context, c k8sclient.Client,
+			name string, obj k8sclient.Object, opts ...k8sclient.SubResourceUpdateOption) error {
+			if name == "status" && statusWrites.Add(1) == 1 {
+				return errors.New("synthetic status failure")
+			}
+			return c.SubResource(name).Update(ctx, obj, opts...)
+		}}).Build()
+	r := &HomeAssistantReconciler{Client: storage}
+	config := &haclient.BackupConfig{CreateBackup: haclient.BackupCreateConfig{AgentIDs: []string{"backup.local"}}}
+	api := haclient.NewClient(server.URL)
+	if _, err := r.reconcileBackupRequest(context.Background(), ha, api, "token", config); err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("generate calls = %d, want 1", calls.Load())
+	}
+	updated := &hav1.HomeAssistant{}
+	key := types.NamespacedName{Name: "ha", Namespace: "default"}
+	if err := storage.Get(context.Background(), key, updated); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := receiptFromHA(updated)
+	if err != nil || stored == nil || stored.Phase != "Accepted" {
+		t.Fatal("accepted receipt not persisted")
+	}
+	if _, err := r.reconcileBackupRequest(context.Background(), updated, api, "token", config); err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("generate calls after reconcile = %d, want 1", calls.Load())
 	}
 }

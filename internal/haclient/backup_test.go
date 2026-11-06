@@ -3,8 +3,12 @@ package haclient
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -59,5 +63,28 @@ func TestGetBackupConfigRejectsMissingStructure(t *testing.T) {
 				t.Fatal("invalid configuration accepted")
 			}
 		})
+	}
+}
+
+func TestDownloadBackupUsesStreamingTimeoutWithoutChangingClient(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("start"))
+		w.(http.Flusher).Flush()
+		time.Sleep(100 * time.Millisecond)
+		_, _ = w.Write([]byte("end"))
+	}))
+	defer server.Close()
+	c := NewClient(server.URL).WithTimeout(30 * time.Millisecond)
+	response, err := c.DownloadBackup(context.Background(), "token", "archive", "backup.local")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	data, err := io.ReadAll(response.Body)
+	if err != nil || string(data) != "startend" {
+		t.Fatal("stream did not complete")
+	}
+	if c.httpClient.Timeout != 30*time.Millisecond {
+		t.Fatal("shared client timeout was changed")
 	}
 }
