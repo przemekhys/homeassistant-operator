@@ -47,9 +47,6 @@ const (
 func earliestRequeue(results ...ctrl.Result) ctrl.Result {
 	var earliest time.Duration
 	for _, result := range results {
-		if result.Requeue {
-			return result
-		}
 		if result.RequeueAfter > 0 && (earliest == 0 || result.RequeueAfter < earliest) {
 			earliest = result.RequeueAfter
 		}
@@ -122,6 +119,12 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 		return earliestRequeue(observationResult, requestResult), err
 	}
 
+	// Observation and key retention remain independent of the requested agents.
+	observationResult, err := r.reconcileBackupObservation(ctx, ha, haClient, token, currentConfig)
+	if err != nil {
+		return observationResult, err
+	}
+
 	// Build desired config from spec
 	desired := r.buildBackupConfigRequest(ha.Spec.Backup)
 	availableAgents, err := haClient.ListBackupAgents(ctx, token)
@@ -134,7 +137,7 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 		if statusErr := r.Status().Update(ctx, ha); statusErr != nil {
 			return ctrl.Result{}, statusErr
 		}
-		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+		return earliestRequeue(observationResult, ctrl.Result{RequeueAfter: 30 * time.Second}), nil
 	}
 	if missingBackupAgent(desired.CreateBackup.AgentIDs, availableAgents) {
 		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
@@ -145,7 +148,7 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 		if statusErr := r.Status().Update(ctx, ha); statusErr != nil {
 			return ctrl.Result{}, statusErr
 		}
-		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+		return earliestRequeue(observationResult, ctrl.Result{RequeueAfter: 30 * time.Second}), nil
 	}
 
 	// Compare and update only if needed
@@ -161,10 +164,6 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 		if err := r.Status().Update(ctx, ha); err != nil {
 			log.Error(err, "Failed to update backup status")
 			return ctrl.Result{}, err
-		}
-		observationResult, err := r.reconcileBackupObservation(ctx, ha, haClient, token, currentConfig)
-		if err != nil {
-			return observationResult, err
 		}
 		requestResult, err := r.reconcileBackupRequest(ctx, ha, haClient, token, currentConfig)
 		return earliestRequeue(observationResult, requestResult), err

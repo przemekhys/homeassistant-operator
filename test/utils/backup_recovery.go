@@ -30,7 +30,10 @@ func NativeBackupDownloadURL(baseURL, backupID, agentID string) (string, error) 
 	if err != nil {
 		return "", fmt.Errorf("invalid backup base URL: %w", err)
 	}
-	endpoint.Path = strings.TrimSuffix(endpoint.Path, "/") + "/api/backup/download/" + url.PathEscape(backupID)
+	prefix := strings.TrimSuffix(endpoint.Path, "/") + "/api/backup/download/"
+	escapedPrefix := strings.TrimSuffix(endpoint.EscapedPath(), "/") + "/api/backup/download/"
+	endpoint.Path = prefix + backupID
+	endpoint.RawPath = escapedPrefix + url.PathEscape(backupID)
 	query := endpoint.Query()
 	query.Set("agent_id", agentID)
 	endpoint.RawQuery = query.Encode()
@@ -113,6 +116,18 @@ func (w *RecoveryWorkspace) Cleanup() error {
 	return os.RemoveAll(w.Dir)
 }
 
+// RecoveryCleanupArgs returns an isolated ownership-repair command for the
+// config directory created by NewRecoveryWorkspace. The caller runs it only
+// after stopping the recovery container, then removes the workspace normally.
+func RecoveryCleanupArgs(w *RecoveryWorkspace, uid, gid int) ([]string, error) {
+	if w == nil || !filepath.IsAbs(w.Dir) || !strings.HasPrefix(filepath.Base(w.Dir), "ha-backup-recovery-") ||
+		w.ConfigDir != filepath.Join(w.Dir, "config") || uid < 0 || gid < 0 {
+		return nil, fmt.Errorf("invalid recovery workspace for cleanup")
+	}
+	return []string{"run", "--rm", "--network", "none", "--mount", "type=bind,src=" + w.ConfigDir + ",dst=/cleanup",
+		"busybox:1.36", "chown", "-R", fmt.Sprintf("%d:%d", uid, gid), "/cleanup"}, nil
+}
+
 // RecoveredStorageContains checks a restored local-storage file without
 // returning its contents. It is limited to the recovery workspace so fixture
 // assertions cannot read the source instance or expose user-originated data.
@@ -161,7 +176,7 @@ func DownloadProtectedBackup(
 	if err != nil {
 		return 0, fmt.Errorf("download protected backup: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		return 0, fmt.Errorf("protected backup download rejected: HTTP %d", response.StatusCode)
 	}
@@ -169,13 +184,21 @@ func DownloadProtectedBackup(
 	if err != nil {
 		return 0, fmt.Errorf("create protected backup file: %w", err)
 	}
-	defer file.Close()
-	bytes, copyErr := io.Copy(file, response.Body)
+	written, copyErr := writeProtectedArchive(file, response.Body)
 	if copyErr != nil {
 		_ = os.Remove(destination)
 		return 0, fmt.Errorf("write protected backup file: %w", copyErr)
 	}
-	return bytes, nil
+	return written, nil
+}
+
+func writeProtectedArchive(file io.WriteCloser, source io.Reader) (int64, error) {
+	written, copyErr := io.Copy(file, source)
+	closeErr := file.Close()
+	if copyErr != nil {
+		return written, copyErr
+	}
+	return written, closeErr
 }
 
 // UploadBackupForOnboarding uploads an encrypted archive to a new, isolated HA
@@ -188,7 +211,7 @@ func UploadBackupForOnboarding(ctx context.Context, client *http.Client, baseURL
 	if err != nil {
 		return fmt.Errorf("open recovery archive: %w", err)
 	}
-	defer archive.Close()
+	defer func() { _ = archive.Close() }()
 	info, err := archive.Stat()
 	if err != nil {
 		return fmt.Errorf("stat recovery archive: %w", err)
@@ -225,13 +248,14 @@ func UploadBackupForOnboarding(ctx context.Context, client *http.Client, baseURL
 	if err != nil {
 		return fmt.Errorf("upload recovery archive: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		// HA may include the archive's user-provided metadata in its detailed
 		// error text. Consume only enough to classify the failure and never
 		// return that body to an E2E log.
 		body, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
-		return fmt.Errorf("onboarding upload rejected: HTTP %d (%s)", response.StatusCode, onboardingUploadFailureKind(string(body)))
+		return fmt.Errorf("onboarding upload rejected: HTTP %d (%s)",
+			response.StatusCode, onboardingUploadFailureKind(string(body)))
 	}
 	return nil
 }
@@ -268,7 +292,7 @@ func OnboardingBackupInfo(ctx context.Context, client *http.Client, baseURL stri
 	if err != nil {
 		return fmt.Errorf("read onboarding backup info: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		return fmt.Errorf("onboarding backup info rejected: HTTP %d", response.StatusCode)
 	}
@@ -278,7 +302,9 @@ func OnboardingBackupInfo(ctx context.Context, client *http.Client, baseURL stri
 // RestoreOnboardingBackup restores an uploaded archive while the recovery
 // target is still in onboarding. The recovery key is confined to the JSON body
 // and is not included in errors, URLs, or returned values.
-func RestoreOnboardingBackup(ctx context.Context, client *http.Client, baseURL, backupID, agentID, password string) error {
+func RestoreOnboardingBackup(
+	ctx context.Context, client *http.Client, baseURL, backupID, agentID, password string,
+) error {
 	if strings.TrimSpace(backupID) == "" || strings.TrimSpace(agentID) == "" || password == "" {
 		return fmt.Errorf("onboarding restore requires backup ID, agent ID, and recovery key")
 	}
@@ -305,7 +331,7 @@ func RestoreOnboardingBackup(ctx context.Context, client *http.Client, baseURL, 
 	if err != nil {
 		return fmt.Errorf("restore onboarding backup: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		return fmt.Errorf("onboarding restore rejected: HTTP %d", response.StatusCode)
 	}
@@ -327,6 +353,8 @@ func onboardingBackupURL(baseURL, endpointPath string) (string, error) {
 // production reconciliation must never restore an instance. The password stays
 // in the WebSocket frame and is never added to a URL, error, or returned value.
 func RestoreNativeBackup(ctx context.Context, baseURL, token, backupID, agentID, password string) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
 	if strings.TrimSpace(backupID) == "" || strings.TrimSpace(agentID) == "" || password == "" {
 		return fmt.Errorf("restore requires backup ID, agent ID, and recovery key")
 	}
@@ -338,7 +366,9 @@ func RestoreNativeBackup(ctx context.Context, baseURL, token, backupID, agentID,
 	if err != nil {
 		return fmt.Errorf("connect recovery target: %w", err)
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
+	stop := context.AfterFunc(ctx, func() { _ = connection.Close() })
+	defer stop()
 	var authRequired struct {
 		Type string `json:"type"`
 	}
@@ -384,6 +414,8 @@ func RestoreNativeBackup(ctx context.Context, baseURL, token, backupID, agentID,
 // SetNativeBackupPassword is a test-fixture operation for preparing a protected
 // archive. Production code deliberately has no equivalent method.
 func SetNativeBackupPassword(ctx context.Context, baseURL, token, password string) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
 	if password == "" {
 		return fmt.Errorf("backup encryption key is required")
 	}
@@ -395,7 +427,9 @@ func SetNativeBackupPassword(ctx context.Context, baseURL, token, password strin
 	if err != nil {
 		return fmt.Errorf("connect backup fixture: %w", err)
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
+	stop := context.AfterFunc(ctx, func() { _ = connection.Close() })
+	defer stop()
 	var greeting struct {
 		Type string `json:"type"`
 	}

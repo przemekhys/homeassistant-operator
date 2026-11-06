@@ -116,6 +116,11 @@ operator recovers by restarting the pod — see
 Backup configuration, the last observed backup result, and key protection are
 independent. A configured schedule is not proof that a backup completed.
 
+`BackupRequestReady` separately reports whether the one-shot request was
+recorded or why it could not be processed, including `InvalidRequest`,
+`InvalidReceipt`, `RequestInProgress`, `AgentUnavailable`, and
+`ObservationUnavailable`. An `Observed` request is not proof of backup success.
+
 | Condition | Reason | Meaning |
 |-----------|--------|---------|
 | `BackupObservationReady` | `Observed` | Home Assistant backup information was read. |

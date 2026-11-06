@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -26,9 +27,12 @@ func TestReceiptFromHARejectsMalformedOrForeignReceipts(t *testing.T) {
 		"invalid JSON":    `{"version":`,
 		"unknown version": `{"version":2,"instanceUID":"current"}`,
 		"foreign UID":     `{"version":1,"instanceUID":"other"}`,
-		"invalid request": `{"version":1,"instanceUID":"current","requestID":"bad id","phase":"Accepted","claimedAt":"2026-11-03T10:00:00Z","expectedAgentIDs":["backup.local"]}`,
-		"invalid phase":   `{"version":1,"instanceUID":"current","requestID":"request-1","phase":"Retry","claimedAt":"2026-11-03T10:00:00Z","expectedAgentIDs":["backup.local"]}`,
-		"duplicate agent": `{"version":1,"instanceUID":"current","requestID":"request-1","phase":"Accepted","claimedAt":"2026-11-03T10:00:00Z","expectedAgentIDs":["backup.local","backup.local"]}`,
+		"invalid request": `{"version":1,"instanceUID":"current","requestID":"bad id","phase":"Accepted",` +
+			`"claimedAt":"2026-11-03T10:00:00Z","expectedAgentIDs":["backup.local"]}`,
+		"invalid phase": `{"version":1,"instanceUID":"current","requestID":"request-1","phase":"Retry",` +
+			`"claimedAt":"2026-11-03T10:00:00Z","expectedAgentIDs":["backup.local"]}`,
+		"duplicate agent": `{"version":1,"instanceUID":"current","requestID":"request-1","phase":"Accepted",` +
+			`"claimedAt":"2026-11-03T10:00:00Z","expectedAgentIDs":["backup.local","backup.local"]}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			ha.Annotations = map[string]string{backupReceiptAnnotation: annotation}
@@ -85,6 +89,67 @@ func TestBackupRequestIDPattern(t *testing.T) {
 	}
 }
 
+func TestBackupRequestStatusPreservesNewerObservation(t *testing.T) {
+	ha := &hav1.HomeAssistant{}
+	receipt := &backupReceipt{RequestID: "request-1", Phase: "Accepted", ClaimedAt: time.Now().UTC()}
+	setBackupRequestStatus(ha, receipt)
+	observed := &hav1.BackupAttemptStatus{Source: "HomeAssistant", BackupID: "scheduled", Outcome: "Succeeded"}
+	ha.Status.Backup.LastAttempt = observed
+	setBackupRequestStatus(ha, receipt)
+	if ha.Status.Backup.LastAttempt != observed {
+		t.Fatal("unchanged receipt replaced a newer observed attempt")
+	}
+	receipt.Phase = "Succeeded"
+	setBackupRequestStatus(ha, receipt)
+	if ha.Status.Backup.LastAttempt.Source != "Operator" || ha.Status.Backup.LastAttempt.Outcome != "Succeeded" {
+		t.Fatal("receipt phase change was not projected")
+	}
+	receipt.RequestID, receipt.Phase = "request-2", "Dispatching"
+	setBackupRequestStatus(ha, receipt)
+	if ha.Status.Backup.LastAttempt.RequestID != "request-2" || ha.Status.Backup.LastAttempt.Outcome != "Running" {
+		t.Fatal("new receipt was not projected")
+	}
+}
+
+func TestBackupRequestReportsRejectedRequest(t *testing.T) {
+	for _, tc := range []struct{ name, requestID, phase, reason string }{
+		{"invalid", "invalid request", "", "InvalidRequest"},
+		{"busy", "next-request", "Accepted", "RequestInProgress"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scheme := runtime.NewScheme()
+			_ = hav1.AddToScheme(scheme)
+			ha := &hav1.HomeAssistant{ObjectMeta: metav1.ObjectMeta{
+				Name: "ha", Namespace: "default", UID: types.UID("uid-1"),
+				Annotations: map[string]string{backupRequestAnnotation: tc.requestID},
+			}}
+			if tc.phase != "" {
+				receipt := backupReceipt{Version: 1, InstanceUID: "uid-1", RequestID: "previous", Phase: tc.phase,
+					ClaimedAt: time.Now().UTC(), ExpectedAgentIDs: []string{"backup.local"}}
+				data, _ := json.Marshal(receipt)
+				ha.Annotations[backupReceiptAnnotation] = string(data)
+			}
+			storage := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(ha).WithObjects(ha).Build()
+			r := &HomeAssistantReconciler{Client: storage}
+			if _, err := r.reconcileBackupRequest(context.Background(), ha, nil, "", nil); err != nil {
+				t.Fatal(err)
+			}
+			got := &hav1.HomeAssistant{}
+			key := types.NamespacedName{Name: "ha", Namespace: "default"}
+			if err := storage.Get(context.Background(), key, got); err != nil {
+				t.Fatal(err)
+			}
+			cond := meta.FindStatusCondition(got.Status.Conditions, "BackupRequestReady")
+			if cond == nil || cond.Status != metav1.ConditionFalse || cond.Reason != tc.reason {
+				t.Fatalf("condition = %#v", cond)
+			}
+			if got.Annotations[backupRequestAnnotation] != tc.requestID {
+				t.Fatal("request annotation changed")
+			}
+		})
+	}
+}
+
 func TestReconcileBackupRequestDispatchesAcceptedRequestOnlyOnce(t *testing.T) {
 	var mu sync.Mutex
 	generateCalls := 0
@@ -94,7 +159,7 @@ func TestReconcileBackupRequestDispatchesAcceptedRequestOnlyOnce(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		_ = conn.WriteJSON(map[string]string{"type": "auth_required"})
 		var auth map[string]any
 		_ = conn.ReadJSON(&auth)
@@ -146,7 +211,8 @@ func TestReconcileBackupRequestDispatchesAcceptedRequestOnlyOnce(t *testing.T) {
 			r = &HomeAssistantReconciler{Client: client}
 		}
 		current := &hav1.HomeAssistant{}
-		if err := client.Get(context.Background(), types.NamespacedName{Name: "ha", Namespace: "default"}, current); err != nil {
+		key := types.NamespacedName{Name: "ha", Namespace: "default"}
+		if err := client.Get(context.Background(), key, current); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := r.reconcileBackupRequest(context.Background(), current, c, "token", config); err != nil {
@@ -190,7 +256,8 @@ func TestReconcileBackupRequestNeverRedispatchesUncertainReceipt(t *testing.T) {
 				t.Fatal(err)
 			}
 			updated := &hav1.HomeAssistant{}
-			if err := client.Get(context.Background(), types.NamespacedName{Name: "ha", Namespace: "default"}, updated); err != nil {
+			key := types.NamespacedName{Name: "ha", Namespace: "default"}
+			if err := client.Get(context.Background(), key, updated); err != nil {
 				t.Fatal(err)
 			}
 			got, err := receiptFromHA(updated)

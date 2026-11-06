@@ -22,7 +22,7 @@ type HAEntityState struct {
 // response bodies because they can contain user-originated entity attributes.
 func ListHAStates(ctx context.Context, client *http.Client, baseURL, token string) ([]HAEntityState, error) {
 	if client == nil {
-		client = http.DefaultClient
+		client = recoveryHTTPClient
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimSuffix(baseURL, "/")+"/api/states", nil)
 	if err != nil {
@@ -33,7 +33,7 @@ func ListHAStates(ctx context.Context, client *http.Client, baseURL, token strin
 	if err != nil {
 		return nil, fmt.Errorf("list fixture states: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("fixture state list rejected: HTTP %d", response.StatusCode)
 	}
@@ -51,13 +51,14 @@ func AddLocalTodoItem(ctx context.Context, client *http.Client, baseURL, token, 
 		return fmt.Errorf("local To-do entity and item are required")
 	}
 	if client == nil {
-		client = http.DefaultClient
+		client = recoveryHTTPClient
 	}
 	payload, err := json.Marshal(map[string]string{"entity_id": entityID, "item": item})
 	if err != nil {
 		return fmt.Errorf("encode local To-do item: %w", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimSuffix(baseURL, "/")+"/api/services/todo/add_item", bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		strings.TrimSuffix(baseURL, "/")+"/api/services/todo/add_item", bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("create local To-do request: %w", err)
 	}
@@ -67,7 +68,7 @@ func AddLocalTodoItem(ctx context.Context, client *http.Client, baseURL, token, 
 	if err != nil {
 		return fmt.Errorf("add local To-do item: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		return fmt.Errorf("local To-do item rejected: HTTP %d", response.StatusCode)
 	}
@@ -82,7 +83,7 @@ func LocalTodoHasItem(ctx context.Context, client *http.Client, baseURL, token, 
 		return false, fmt.Errorf("local To-do entity and item are required")
 	}
 	if client == nil {
-		client = http.DefaultClient
+		client = recoveryHTTPClient
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		strings.TrimSuffix(baseURL, "/")+"/api/todo/"+entityID, nil)
@@ -94,7 +95,7 @@ func LocalTodoHasItem(ctx context.Context, client *http.Client, baseURL, token, 
 	if err != nil {
 		return false, fmt.Errorf("list local To-do items: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
 		return false, fmt.Errorf("local To-do list rejected: HTTP %d", response.StatusCode)
 	}

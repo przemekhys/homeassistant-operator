@@ -175,7 +175,7 @@ test-e2e-critical-a: manifests generate fmt vet ginkgo ## Run the critical-path 
 test-e2e-backup: manifests generate fmt vet ginkgo ## Run the native backup scenario with one dedicated bootstrap
 	trap '$(MAKE) cleanup-test-e2e' EXIT INT TERM; \
 	$(MAKE) setup-test-e2e; \
-	CERT_MANAGER_INSTALL_SKIP=true K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run \
+	CERT_MANAGER_INSTALL_SKIP=true HA_VERSION=$(HA_VERSION) K3D_CLUSTER=$(K3D_CLUSTER_E2E) $(GINKGO) run \
 		-v --label-filter="critical-path && group-a && backup" --timeout=15m ./test/e2e/ | tee test-e2e-backup.log
 
 .PHONY: test-e2e-critical-b

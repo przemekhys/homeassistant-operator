@@ -33,7 +33,7 @@ func TestBackupTransportValidatesResultEnvelopeAndSanitizesFailures(t *testing.T
 	}
 }
 
-func TestBackupTransportRejectsEventsAndHonorsContext(t *testing.T) {
+func TestBackupTransportRejectsEvents(t *testing.T) {
 	server := newBackupWebSocketServer(t, func(command map[string]any, conn *websocket.Conn) {
 		_ = conn.WriteJSON(map[string]any{"id": 1, "type": "event", "event": map[string]any{}})
 	})
@@ -44,5 +44,19 @@ func TestBackupTransportRejectsEventsAndHonorsContext(t *testing.T) {
 	_, err := NewClient(server.URL).sendBackupCommand(ctx, "token", "backup/info", nil)
 	if err == nil || !strings.Contains(err.Error(), "backup command transport failed") {
 		t.Fatalf("event must not satisfy a command: %v", err)
+	}
+}
+
+func TestBackupTransportStopsAtDeadlineWhenPeerIsSilent(t *testing.T) {
+	server := newBackupWebSocketServer(t, func(_ map[string]any, conn *websocket.Conn) {
+		_, _, _ = conn.ReadMessage()
+	})
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	_, err := NewClient(server.URL).sendBackupCommand(ctx, "token", "backup/info", nil)
+	if err == nil || time.Since(started) > 2*time.Second {
+		t.Fatal("silent peer was not bounded by the deadline")
 	}
 }

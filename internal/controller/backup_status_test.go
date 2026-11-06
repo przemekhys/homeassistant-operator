@@ -1,16 +1,108 @@
 package controller
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
 	"github.com/przemekhys/homeassistant-operator/internal/haclient"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
+
+func TestObservationPublishesKeyStatusWhenReceiptFinalizationFails(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		conn, err := upgrader.Upgrade(w, req, nil)
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		_ = conn.WriteJSON(map[string]any{"type": "auth_required"})
+		var auth map[string]any
+		_ = conn.ReadJSON(&auth)
+		_ = conn.WriteJSON(map[string]any{"type": "auth_ok"})
+		var command struct {
+			ID   int    `json:"id"`
+			Type string `json:"type"`
+		}
+		if conn.ReadJSON(&command) != nil {
+			return
+		}
+		var result any
+		switch command.Type {
+		case "backup/agents/info":
+			result = map[string]any{"agents": []any{map[string]string{"agent_id": "backup.local"}}}
+		case "backup/info":
+			result = map[string]any{"state": "idle", "backups": []any{map[string]any{"backup_id": "archive-1"}}}
+		case "backup/details":
+			result = map[string]any{"backup": map[string]any{
+				"backup_id": "archive-1", "agents": map[string]any{"backup.local": map[string]any{}},
+			}}
+		default:
+			return
+		}
+		_ = conn.WriteJSON(map[string]any{"id": command.ID, "type": "result", "success": true, "result": result})
+	}))
+	defer server.Close()
+	scheme := runtime.NewScheme()
+	_ = hav1.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
+	receipt := backupReceipt{Version: 1, InstanceUID: "uid-1", RequestID: "request-1", Phase: "Accepted",
+		ClaimedAt: time.Now().UTC(), ExpectedAgentIDs: []string{"backup.local"}, BackupID: "archive-1"}
+	data, _ := json.Marshal(receipt)
+	ha := &hav1.HomeAssistant{ObjectMeta: metav1.ObjectMeta{
+		Name: "ha", Namespace: "default", UID: types.UID("uid-1"),
+		Annotations: map[string]string{backupReceiptAnnotation: string(data)},
+	}}
+	storage := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(ha).WithObjects(ha).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Update: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+				if _, ok := obj.(*hav1.HomeAssistant); ok {
+					return errors.New("synthetic receipt write failure")
+				}
+				return c.Update(ctx, obj, opts...)
+			},
+		}).Build()
+	r := &HomeAssistantReconciler{Client: storage}
+	key := "synthetic-key"
+	config := &haclient.BackupConfig{CreateBackup: haclient.BackupCreateConfig{
+		Password: &key, AgentIDs: []string{"backup.local"},
+	}}
+	api := haclient.NewClient("ws" + strings.TrimPrefix(server.URL, "http"))
+	_, err := r.reconcileBackupObservation(context.Background(), ha, api, "test-token", config)
+	if err == nil {
+		t.Fatal("receipt error was not returned")
+	}
+	updated := &hav1.HomeAssistant{}
+	objectKey := types.NamespacedName{Name: "ha", Namespace: "default"}
+	if err := storage.Get(context.Background(), objectKey, updated); err != nil {
+		t.Fatal(err)
+	}
+	if updated.Status.Backup == nil || updated.Status.Backup.KeySecretRef == nil {
+		t.Fatal("protected key status was not persisted")
+	}
+	condition := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeBackupKeyProtected)
+	if condition == nil || condition.Reason != "Protected" {
+		t.Fatal("protected condition was not persisted")
+	}
+}
 
 func TestBackupStatusProjectsScheduledArchiveWithoutRequest(t *testing.T) {
 	ha := &hav1.HomeAssistant{}
@@ -22,7 +114,8 @@ func TestBackupStatusProjectsScheduledArchiveWithoutRequest(t *testing.T) {
 		t.Fatal("scheduled backup created a one-shot request status")
 	}
 	attempt := ha.Status.Backup.LastAttempt
-	if attempt == nil || attempt.Source != "HomeAssistant" || attempt.Outcome != "Succeeded" || attempt.BackupID != "scheduled" {
+	if attempt == nil || attempt.Source != "HomeAssistant" || attempt.Outcome != "Succeeded" ||
+		attempt.BackupID != "scheduled" {
 		t.Fatalf("scheduled archive status = %#v", attempt)
 	}
 }
@@ -68,7 +161,9 @@ func TestBackupStatusFailureDoesNotInventArchiveEvidence(t *testing.T) {
 
 func TestBackupStatusKeepsNewerConfirmedSuccessWhenHistoryIsOld(t *testing.T) {
 	prior := metav1.NewTime(mustTime(t, "2026-11-03T12:00:00Z"))
-	ha := &hav1.HomeAssistant{Status: hav1.HomeAssistantStatus{Backup: &hav1.BackupStatus{LastSuccessfulBackupTime: &prior}}}
+	ha := &hav1.HomeAssistant{Status: hav1.HomeAssistantStatus{
+		Backup: &hav1.BackupStatus{LastSuccessfulBackupTime: &prior},
+	}}
 	(&HomeAssistantReconciler{}).projectBackupInfo(ha, &haclient.BackupInfo{Backups: []haclient.BackupArchive{{
 		ID: "old", Date: "2026-11-03T11:00:00Z", Agents: map[string]haclient.BackupAgentCopy{"backup.local": {}},
 	}}}, backupConfigForAgents("backup.local"))

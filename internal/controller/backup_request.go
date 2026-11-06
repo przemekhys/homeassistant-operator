@@ -46,7 +46,8 @@ func receiptFromHA(ha *hav1.HomeAssistant) (*backupReceipt, error) {
 	if receipt.Version != 1 || receipt.InstanceUID != string(ha.UID) {
 		return nil, fmt.Errorf("invalid backup receipt")
 	}
-	if !backupRequestIDPattern.MatchString(receipt.RequestID) || receipt.ClaimedAt.IsZero() || !validBackupReceiptPhase(receipt.Phase) || !uniqueNonEmptyStrings(receipt.ExpectedAgentIDs) {
+	if !backupRequestIDPattern.MatchString(receipt.RequestID) || receipt.ClaimedAt.IsZero() ||
+		!validBackupReceiptPhase(receipt.Phase) || !uniqueNonEmptyStrings(receipt.ExpectedAgentIDs) {
 		return nil, fmt.Errorf("invalid backup receipt")
 	}
 	return &receipt, nil
@@ -86,11 +87,13 @@ func setBackupRequestStatus(ha *hav1.HomeAssistant, receipt *backupReceipt) {
 		ha.Status.Backup.Request = nil
 		return
 	}
+	previous := ha.Status.Backup.Request
+	changed := previous == nil || previous.ID != receipt.RequestID || previous.Phase != receipt.Phase
 	claimed := metav1.NewTime(receipt.ClaimedAt)
 	ha.Status.Backup.Request = &hav1.BackupRequestStatus{
 		ID: receipt.RequestID, Phase: receipt.Phase, BackupID: receipt.BackupID, ClaimedAt: &claimed,
 	}
-	if receipt.Phase == "Dispatching" || receipt.Phase == "Accepted" || receipt.Phase == "Succeeded" || receipt.Phase == "Failed" || receipt.Phase == "Unknown" {
+	if changed && validBackupReceiptPhase(receipt.Phase) {
 		outcome := receipt.Phase
 		if outcome == "Dispatching" || outcome == "Accepted" {
 			outcome = "Running"
@@ -197,6 +200,7 @@ func (r *HomeAssistantReconciler) persistBackupReceipt(
 		return ctrl.Result{}, err
 	}
 	setBackupRequestStatus(ha, receipt)
+	setBackupCondition(ha, "BackupRequestReady", metav1.ConditionTrue, "Observed", "backup request recorded")
 	if err := r.Status().Update(ctx, ha); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -204,9 +208,14 @@ func (r *HomeAssistantReconciler) persistBackupReceipt(
 }
 
 func (r *HomeAssistantReconciler) backupRequestStatus(
-	ctx context.Context, ha *hav1.HomeAssistant, receipt *backupReceipt, _, _ string,
+	ctx context.Context, ha *hav1.HomeAssistant, receipt *backupReceipt, reason, message string,
 ) (ctrl.Result, error) {
 	setBackupRequestStatus(ha, receipt)
+	status := metav1.ConditionFalse
+	if reason == "Observed" {
+		status = metav1.ConditionTrue
+	}
+	setBackupCondition(ha, "BackupRequestReady", status, reason, message)
 	if err := r.Status().Update(ctx, ha); err != nil {
 		return ctrl.Result{}, err
 	}

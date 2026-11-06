@@ -34,8 +34,11 @@ func TestBuildBackupConfigRequestMapsWeekdayAndNever(t *testing.T) {
 			t.Fatalf("weekday %q was not mapped: %#v", day, weekday.Schedule)
 		}
 	}
-	never := r.buildBackupConfigRequest(&hav1.BackupSpec{Enabled: true, Recurrence: "never", IncludeDatabase: ptr.To(false)})
-	if never.Schedule.Recurrence != "never" || never.CreateBackup.IncludeDatabase == nil || *never.CreateBackup.IncludeDatabase {
+	never := r.buildBackupConfigRequest(&hav1.BackupSpec{
+		Enabled: true, Recurrence: "never", IncludeDatabase: ptr.To(false),
+	})
+	if never.Schedule.Recurrence != "never" || never.CreateBackup.IncludeDatabase == nil ||
+		*never.CreateBackup.IncludeDatabase {
 		t.Fatalf("never schedule not retained: %#v", never)
 	}
 }
