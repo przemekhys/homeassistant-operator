@@ -1870,7 +1870,8 @@ var _ = Describe("HAClient", func() {
 				Schedule: &BackupSchedule{Recurrence: "daily"},
 			})
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("Backup component not loaded"))
+			Expect(err.Error()).To(ContainSubstring("unknown_error"))
+			Expect(err.Error()).NotTo(ContainSubstring("Backup component not loaded"))
 		})
 	})
 })

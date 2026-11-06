@@ -105,6 +105,42 @@ operator recovers by restarting the pod — see
 | `BackupConfigured` | Schedule applied in Home Assistant |
 | `BackupConfigFailed` | Home Assistant rejected the backup configuration |
 | `TokenNotAvailable` | Waiting for the API token |
+| `Unmanaged` | The operator reads backup state but does not change HA's backup configuration. |
+| `AgentUnavailable` | A requested backup destination is not currently advertised by Home Assistant. |
+| `Unsupported` | This Home Assistant version does not provide the native backup command. |
+| `PermissionDenied` | The runtime account cannot read or configure native backups. |
+| `ObservationUnavailable` | The configuration or destination state could not be read safely. |
+
+### `BackupObservationReady` and `BackupKeyProtected`
+
+Backup configuration, the last observed backup result, and key protection are
+independent. A configured schedule is not proof that a backup completed.
+
+`BackupRequestReady` separately reports whether the one-shot request was
+recorded or why it could not be processed, including `InvalidRequest`,
+`InvalidReceipt`, `RequestInProgress`, `AgentUnavailable`, and
+`ObservationUnavailable`. An `Observed` request is not proof of backup success.
+
+| Condition | Reason | Meaning |
+|-----------|--------|---------|
+| `BackupObservationReady` | `Observed` | Home Assistant backup information was read. |
+| `BackupObservationReady` | `ObservationUnavailable` | The operator cannot currently read backup information; old observations are not fresh proof. |
+| `BackupKeyProtected` | `Protected` | The current observed encryption key was stored in the retained Secret. |
+| `BackupKeyProtected` | `EncryptionNotEnabled` | Home Assistant did not expose an encryption key. |
+| `BackupKeyProtected` | `SecretWriteFailed` | The observed key could not be safely retained. |
+
+`status.backup` is bounded observation rather than backup history. Its
+`lastAttempt.outcome` is `Running`, `Succeeded`, `Failed`, or `Unknown`.
+`Succeeded` requires archive metadata covering every configured destination;
+an accepted request, active upload, archive without destination metadata, or
+the native automatic-completion marker alone is not a success. `Unknown` means
+the operator lacks enough evidence, including when an accepted request has not
+resolved after 15 minutes. A later native archive observation can resolve it
+without sending the request again.
+
+`lastSuccessfulBackupTime` is the archive's native `date`, not an upload
+completion time. It is retained across newer failures and stale reads, but is
+not fresh proof while `BackupObservationReady=False`.
 
 ### `CertManagerAvailable`
 

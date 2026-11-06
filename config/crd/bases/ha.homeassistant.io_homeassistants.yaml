@@ -4212,6 +4212,95 @@ spec:
           status:
             description: HomeAssistantStatus defines the observed state of HomeAssistant.
             properties:
+              backup:
+                description: |-
+                  Backup contains the latest bounded backup observations. It never contains
+                  credentials, backup encryption keys, or a complete operation history.
+                properties:
+                  agents:
+                    description: Agents are destinations last advertised by Home Assistant.
+                    items:
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                      required:
+                      - id
+                      type: object
+                    type: array
+                  keySecretRef:
+                    description: |-
+                      KeySecretRef identifies the protected current observed encryption key.
+                      It never contains the key value.
+                    properties:
+                      key:
+                        type: string
+                      name:
+                        type: string
+                    required:
+                    - key
+                    - name
+                    type: object
+                  lastAttempt:
+                    description: LastAttempt is bounded evidence, not a full backup
+                      history.
+                    properties:
+                      backupID:
+                        type: string
+                      completedAt:
+                        format: date-time
+                        type: string
+                      locations:
+                        items:
+                          properties:
+                            id:
+                              type: string
+                            outcome:
+                              type: string
+                          required:
+                          - id
+                          - outcome
+                          type: object
+                        type: array
+                      outcome:
+                        type: string
+                      requestID:
+                        type: string
+                      source:
+                        type: string
+                    required:
+                    - outcome
+                    - source
+                    type: object
+                  lastSuccessfulBackupTime:
+                    description: |-
+                      LastSuccessfulBackupTime is the native archive date of the last fully
+                      confirmed success, when that evidence is available.
+                    format: date-time
+                    type: string
+                  observedAt:
+                    description: ObservedAt is when Home Assistant backup information
+                      was last read.
+                    format: date-time
+                    type: string
+                  request:
+                    description: Request is the current durable one-shot request projection.
+                    properties:
+                      backupID:
+                        type: string
+                      claimedAt:
+                        format: date-time
+                        type: string
+                      id:
+                        type: string
+                      phase:
+                        type: string
+                    required:
+                    - id
+                    - phase
+                    type: object
+                type: object
               banRestartWindowCount:
                 description: |-
                   BanRestartWindowCount is the number of ban-recovery pod restarts within the

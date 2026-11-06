@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -50,13 +51,35 @@ const (
 	bootstrapInterval  = 10 * time.Second
 )
 
+// Query the native recorder without printing history or other database contents.
+const recorderHistoryProbe = `import sqlite3, sys
+try:
+    db = sqlite3.connect('file:/config/home-assistant_v2.db?mode=ro', uri=True)
+    row = db.execute(
+        "SELECT 1 FROM states JOIN states_meta USING (metadata_id) "
+        "WHERE states_meta.entity_id = ? AND states.state = '0' LIMIT 1",
+        (sys.argv[1],),
+    ).fetchone()
+    sys.exit(0 if bool(row) == (sys.argv[2] == 'present') else 1)
+except sqlite3.Error:
+    sys.exit(2)
+`
+
 var _ = Describe("Critical Path E2E", Ordered, ContinueOnFailure, Label("critical-path", "group-a"), func() {
 	// Shared state across all tests — set in BeforeAll, used by every It block.
 	var (
-		namespace   string
-		haName      string
-		configName  string
-		suiteFailed bool
+		namespace           string
+		haName              string
+		configName          string
+		localTodoEntryID    string
+		localTodoEntity     string
+		localTodoItem       string
+		retainedKeySecret   string
+		retainedFirstKey    string
+		retainedSecondKey   string
+		retainedFirstValue  string
+		retainedSecondValue string
+		suiteFailed         bool
 	)
 
 	// -------------------------------------------------------------------------
@@ -128,6 +151,8 @@ spec:
     name: %s
   reloadStrategy: auto
   configuration: |
+    recorder:
+    history:
     automation: !include automations.yaml
     scene: !include scenes.yaml
     script: !include scripts.yaml
@@ -166,12 +191,37 @@ spec:
 	})
 
 	AfterAll(func() {
+		defer func() {
+			By("Deleting test namespace: " + namespace)
+			if err := utils.DeleteNamespace(namespace); err != nil {
+				_, _ = fmt.Fprintf(GinkgoWriter, "Warning: failed to delete namespace %s: %v\n", namespace, err)
+			}
+		}()
 		if suiteFailed {
 			collectCriticalPathDebugInfo(namespace, haName, configName)
 		}
-		By("Deleting test namespace: " + namespace)
-		if err := utils.DeleteNamespace(namespace); err != nil {
-			_, _ = fmt.Fprintf(GinkgoWriter, "Warning: failed to delete namespace %s: %v\n", namespace, err)
+		if retainedKeySecret != "" {
+			By("verifying retained backup keys after deleting the shared HomeAssistant")
+			_, err := utils.Run(exec.Command("kubectl", "delete", "ha", haName, "-n", namespace, "--wait=true"))
+			Expect(err).NotTo(HaveOccurred())
+			Eventually(func(g Gomega) {
+				secretJSON := utils.Kubectl("get", "secret", retainedKeySecret, "-n", namespace, "-o", "json")
+				var secret struct {
+					Data map[string]string `json:"data"`
+				}
+				g.Expect(json.Unmarshal([]byte(secretJSON), &secret)).To(Succeed())
+				g.Expect(secret.Data).To(HaveKey(retainedFirstKey))
+				g.Expect(secret.Data).To(HaveKey(retainedSecondKey))
+				first, firstErr := base64.StdEncoding.DecodeString(secret.Data[retainedFirstKey])
+				g.Expect(firstErr).NotTo(HaveOccurred())
+				firstMatches := string(first) == retainedFirstValue
+				g.Expect(firstMatches).To(BeTrue())
+				second, secondErr := base64.StdEncoding.DecodeString(secret.Data[retainedSecondKey])
+				g.Expect(secondErr).NotTo(HaveOccurred())
+				secondMatches := string(second) == retainedSecondValue
+				g.Expect(secondMatches).To(BeTrue())
+				g.Expect(secret.Data).NotTo(HaveKey(""))
+			}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
 		}
 	})
 
@@ -184,6 +234,438 @@ spec:
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(config.Country).To(Equal("PL"))
 		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+
+	})
+
+	It("creates Local To-do recovery control data outside operator CRs", Label("backup"), func() {
+		endpoint, cleanup := criticalPathHAEndpoint(namespace, haName)
+		defer cleanup()
+		apiClient := haclient.NewClient(endpoint)
+		Eventually(func() error {
+			return apiClient.CheckHealth(context.Background())
+		}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
+		token := criticalPathOperatorToken(namespace, haName+"-homeassistant-api-token")
+		title := "Recovery " + utils.RandomString(10)
+
+		By("creating a native Local To-do config entry without a CR")
+		flow, err := apiClient.StartConfigFlow(context.Background(), token, "local_todo")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(flow.FlowID).NotTo(BeEmpty())
+		completed, err := apiClient.SubmitConfigFlow(context.Background(), token, flow.FlowID,
+			map[string]interface{}{"todo_list_name": title})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(completed.Type).To(Equal("create_entry"))
+
+		By("recording the config entry and stable To-do entity identity")
+		Eventually(func(g Gomega) {
+			entries, listErr := apiClient.ListConfigEntries(context.Background(), token)
+			g.Expect(listErr).NotTo(HaveOccurred())
+			for _, entry := range entries {
+				if entry.Domain == "local_todo" && entry.Title == title {
+					localTodoEntryID = entry.EntryID
+					break
+				}
+			}
+			g.Expect(localTodoEntryID).NotTo(BeEmpty())
+			states, stateErr := utils.ListHAStates(context.Background(), nil, endpoint, token)
+			g.Expect(stateErr).NotTo(HaveOccurred())
+			var found bool
+			localTodoEntity, found = utils.LocalTodoEntity(states, title)
+			g.Expect(found).To(BeTrue())
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+
+		By("adding a Local To-do control item")
+		localTodoItem = "recovery-control-" + utils.RandomString(12)
+		Expect(utils.AddLocalTodoItem(context.Background(), nil, endpoint, token,
+			localTodoEntity, localTodoItem)).To(Succeed())
+		By("waiting for the local recorder to persist the To-do state")
+		Eventually(func() error {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			return exec.CommandContext(ctx, "kubectl", "exec", haName+"-0", "-n", namespace, "--",
+				"python3", "-c", recorderHistoryProbe, localTodoEntity, "present").Run()
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+	})
+
+	It("creates one native backup from an explicit request", Label("backup"), func() {
+		By("disabling the native schedule while preserving one-shot backups")
+		_, err := utils.Run(exec.Command(
+			"kubectl", "patch", "ha", haName, "-n", namespace, "--type=merge",
+			"-p", `{"spec":{"backup":{"enabled":true,"recurrence":"never",`+
+				`"retentionCopies":3,"includeDatabase":true,"agentIDs":["backup.local"]}}}`,
+		))
+		Expect(err).NotTo(HaveOccurred())
+
+		token := criticalPathOperatorToken(namespace, haName+"-homeassistant-api-token")
+		apiClient, cleanup := criticalPathHAClient(namespace, haName)
+		defer cleanup()
+		requestID := "e2e-backup-" + utils.RandomString(12)
+		By("requesting one backup through the durable annotation")
+		_, err = utils.Run(exec.Command(
+			"kubectl", "annotate", "ha", haName, "-n", namespace,
+			"ha.homeassistant.io/backup-request="+requestID, "--overwrite",
+		))
+		Expect(err).NotTo(HaveOccurred())
+
+		var backupID string
+		Eventually(func(g Gomega) {
+			receipt := utils.Kubectl("get", "ha", haName, "-n", namespace,
+				"-o", "jsonpath={.metadata.annotations.ha\\.homeassistant\\.io/backup-receipt}")
+			g.Expect(receipt).To(ContainSubstring(requestID))
+			var parsed struct {
+				Phase    string `json:"phase"`
+				BackupID string `json:"backupID"`
+			}
+			g.Expect(json.Unmarshal([]byte(receipt), &parsed)).To(Succeed())
+			g.Expect(parsed.Phase).To(Or(Equal("Accepted"), Equal("Succeeded")))
+			g.Expect(parsed.BackupID).NotTo(BeEmpty())
+			backupID = parsed.BackupID
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+
+		By("observing the native archive identified by the request receipt")
+		Eventually(func(g Gomega) {
+			info, getErr := apiClient.GetBackupInfo(context.Background(), token)
+			g.Expect(getErr).NotTo(HaveOccurred())
+			for _, archive := range info.Backups {
+				if archive.ID == backupID {
+					return
+				}
+			}
+			g.Expect(info.Backups).To(ContainElement(HaveField("ID", backupID)))
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+
+		By("streaming the archive from the native local agent without exporting it")
+		response, downloadErr := apiClient.DownloadBackup(context.Background(), token, backupID, "backup.local")
+		Expect(downloadErr).NotTo(HaveOccurred())
+		defer func() { _ = response.Body.Close() }()
+		bytesRead, copyErr := io.Copy(io.Discard, response.Body)
+		Expect(copyErr).NotTo(HaveOccurred())
+		Expect(bytesRead).To(BeNumerically(">", 0))
+	})
+
+	It("observes a native scheduled backup independently of a request", Label("backup"), func() {
+		token := criticalPathOperatorToken(namespace, haName+"-homeassistant-api-token")
+		apiClient, cleanup := criticalPathHAClient(namespace, haName)
+		defer cleanup()
+		config, err := apiClient.GetConfig(context.Background(), token)
+		Expect(err).NotTo(HaveOccurred())
+		priorReceipt := utils.Kubectl("get", "ha", haName, "-n", namespace,
+			"-o", "jsonpath={.metadata.annotations.ha\\.homeassistant\\.io/backup-receipt}")
+		var priorRequest struct {
+			RequestID string `json:"requestID"`
+		}
+		Expect(json.Unmarshal([]byte(priorReceipt), &priorRequest)).To(Succeed())
+		location := time.UTC
+		if config.TimeZone != "" {
+			location, err = time.LoadLocation(config.TimeZone)
+			Expect(err).NotTo(HaveOccurred())
+		}
+		// Keep enough lead time for the controller to apply the configuration,
+		// but avoid waiting for a daily cycle.
+		target := time.Now().In(location).Add(90 * time.Second).Truncate(time.Second)
+		By("scheduling the nearest native backup in Home Assistant's timezone")
+		_, err = utils.Run(exec.Command(
+			"kubectl", "patch", "ha", haName, "-n", namespace, "--type=merge",
+			"-p", fmt.Sprintf(`{"spec":{"backup":{"enabled":true,"recurrence":"daily","time":"%s",`+
+				`"retentionCopies":3,"includeDatabase":true,"agentIDs":["backup.local"]}}}`, target.Format("15:04:05")),
+		))
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(func() {
+			_, _ = utils.Run(exec.Command(
+				"kubectl", "patch", "ha", haName, "-n", namespace, "--type=merge",
+				"-p", `{"spec":{"backup":{"enabled":true,"recurrence":"never",`+
+					`"retentionCopies":3,"includeDatabase":true,"agentIDs":["backup.local"]}}}`,
+			))
+		})
+
+		By("waiting for a new automatic archive rather than creating a request")
+		var scheduledID string
+		var scheduledDate time.Time
+		Eventually(func(g Gomega) {
+			info, getErr := apiClient.GetBackupInfo(context.Background(), token)
+			g.Expect(getErr).NotTo(HaveOccurred())
+			for _, archive := range info.Backups {
+				if archive.Automatic && archive.Date >= target.Add(-time.Minute).Format(time.RFC3339) {
+					scheduledID = archive.ID
+					var parseErr error
+					scheduledDate, parseErr = time.Parse(time.RFC3339, archive.Date)
+					g.Expect(parseErr).NotTo(HaveOccurred())
+					return
+				}
+			}
+			g.Expect(scheduledID).NotTo(BeEmpty())
+		}, 4*time.Minute, reconcileInterval).Should(Succeed())
+
+		By("checking that backup status keeps the schedule separate from a request")
+		Eventually(func(g Gomega) {
+			lastSuccessful := utils.Kubectl("get", "ha", haName, "-n", namespace,
+				"-o", "jsonpath={.status.backup.lastSuccessfulBackupTime}")
+			g.Expect(lastSuccessful).NotTo(BeEmpty())
+			observedDate, parseErr := time.Parse(time.RFC3339, lastSuccessful)
+			g.Expect(parseErr).NotTo(HaveOccurred())
+			g.Expect(observedDate.Before(scheduledDate)).To(BeFalse())
+			receipt := utils.Kubectl("get", "ha", haName, "-n", namespace,
+				"-o", "jsonpath={.metadata.annotations.ha\\.homeassistant\\.io/backup-receipt}")
+			var currentRequest struct {
+				RequestID string `json:"requestID"`
+			}
+			g.Expect(json.Unmarshal([]byte(receipt), &currentRequest)).To(Succeed())
+			g.Expect(currentRequest.RequestID).To(Equal(priorRequest.RequestID), "schedule must not create a one-shot request")
+		}, 3*time.Minute, reconcileInterval).Should(Succeed())
+		Expect(scheduledID).NotTo(BeEmpty())
+	})
+
+	It("recovers a protected native archive onto a fresh isolated Container", Label("backup"), func() {
+		Expect(localTodoEntryID).NotTo(BeEmpty())
+		Expect(localTodoEntity).NotTo(BeEmpty())
+		Expect(localTodoItem).NotTo(BeEmpty())
+		_, err := utils.Run(exec.Command(
+			"kubectl", "patch", "ha", haName, "-n", namespace, "--type=merge",
+			"-p", `{"spec":{"backup":{"enabled":false}}}`,
+		))
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() string {
+			return utils.Kubectl("get", "ha", haName, "-n", namespace,
+				"-o", `jsonpath={.status.conditions[?(@.type=="BackupConfigured")].reason}`)
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Equal("Unmanaged"))
+		Eventually(func() string {
+			return utils.Kubectl("get", "ha", haName, "-n", namespace,
+				"-o", `jsonpath={.status.conditions[?(@.type=="BackupObservationReady")].reason}`)
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Equal("Observed"))
+		endpoint, cleanup := criticalPathHAEndpoint(namespace, haName)
+		defer cleanup()
+		source := haclient.NewClient(endpoint)
+		Eventually(func() error { return source.CheckHealth(context.Background()) },
+			utils.ResourceTimeout, reconcileInterval).Should(Succeed())
+		token := criticalPathOperatorToken(namespace, haName+"-homeassistant-api-token")
+		key := "e2e-recovery-" + utils.RandomString(24)
+		Expect(utils.SetNativeBackupPassword(context.Background(), endpoint, token, key)).To(Succeed())
+		Eventually(func() bool {
+			config, getErr := source.GetBackupConfig(context.Background(), token)
+			return getErr == nil && config.CreateBackup.Password != nil && *config.CreateBackup.Password == key
+		}, utils.ResourceTimeout, reconcileInterval).Should(BeTrue())
+		_, err = utils.Run(exec.Command("kubectl", "annotate", "ha", haName, "-n", namespace,
+			"ha.homeassistant.io/key-observation=recovery", "--overwrite"))
+		Expect(err).NotTo(HaveOccurred())
+
+		var secretName, secretKey string
+		Eventually(func(g Gomega) {
+			resource := utils.Kubectl("get", "ha", haName, "-n", namespace, "-o", "json")
+			var ha struct {
+				Status struct {
+					Backup struct {
+						KeySecretRef *struct {
+							Name string `json:"name"`
+							Key  string `json:"key"`
+						} `json:"keySecretRef"`
+					} `json:"backup"`
+					Conditions []struct {
+						Type   string `json:"type"`
+						Reason string `json:"reason"`
+					} `json:"conditions"`
+				} `json:"status"`
+			}
+			g.Expect(json.Unmarshal([]byte(resource), &ha)).To(Succeed())
+			var keyProtectionReason string
+			for _, condition := range ha.Status.Conditions {
+				if condition.Type == "BackupKeyProtected" {
+					keyProtectionReason = condition.Reason
+				}
+			}
+			g.Expect(keyProtectionReason).To(Equal("Protected"))
+			g.Expect(ha.Status.Backup.KeySecretRef).NotTo(BeNil())
+			secretName, secretKey = ha.Status.Backup.KeySecretRef.Name, ha.Status.Backup.KeySecretRef.Key
+		}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
+		secretJSON, getErr := exec.Command("kubectl", "get", "secret", secretName, "-n", namespace, "-o", "json").Output()
+		Expect(getErr).NotTo(HaveOccurred())
+		var secret struct {
+			Data map[string]string `json:"data"`
+		}
+		Expect(json.Unmarshal(secretJSON, &secret)).To(Succeed())
+		recoveryKey, decodeErr := base64.StdEncoding.DecodeString(secret.Data[secretKey])
+		Expect(decodeErr).NotTo(HaveOccurred())
+		keyMatches := string(recoveryKey) == key
+		Expect(keyMatches).To(BeTrue(), "retained recovery key does not match")
+
+		for _, includeDatabase := range []bool{true, false} {
+			By(fmt.Sprintf("creating and recovering a protected archive with includeDatabase=%t", includeDatabase))
+			Expect(source.ConfigureBackup(context.Background(), token, &haclient.BackupConfigRequest{
+				CreateBackup: &haclient.BackupCreateConfig{AgentIDs: []string{"backup.local"}, IncludeDatabase: &includeDatabase},
+			})).To(Succeed())
+			previous, previousErr := source.GetBackupInfo(context.Background(), token)
+			Expect(previousErr).NotTo(HaveOccurred())
+			seen := make(map[string]bool)
+			for _, archive := range previous.Backups {
+				seen[archive.ID] = true
+			}
+			_, err = source.GenerateBackupWithAutomaticSettings(context.Background(), token)
+			Expect(err).NotTo(HaveOccurred())
+			var backupID string
+			Eventually(func(g Gomega) {
+				info, infoErr := source.GetBackupInfo(context.Background(), token)
+				g.Expect(infoErr).NotTo(HaveOccurred())
+				for _, archive := range info.Backups {
+					if !seen[archive.ID] && archive.Agents["backup.local"].Protected {
+						backupID = archive.ID
+						return
+					}
+				}
+				g.Expect(backupID).NotTo(BeEmpty())
+			}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+
+			workspace, workspaceErr := utils.NewRecoveryWorkspace("")
+			Expect(workspaceErr).NotTo(HaveOccurred())
+			DeferCleanup(func() {
+				args, cleanupErr := utils.RecoveryCleanupArgs(workspace, os.Getuid(), os.Getgid())
+				Expect(cleanupErr).NotTo(HaveOccurred())
+				_, cleanupErr = utils.Run(exec.Command("docker", args...))
+				Expect(cleanupErr).NotTo(HaveOccurred())
+				Expect(workspace.Cleanup()).To(Succeed())
+			})
+			downloadURL, urlErr := utils.NativeBackupDownloadURL(endpoint, backupID, "backup.local")
+			Expect(urlErr).NotTo(HaveOccurred())
+			_, downloadErr := utils.DownloadProtectedBackup(
+				context.Background(), nil, downloadURL, "Bearer "+token, workspace.Archive, true)
+			Expect(downloadErr).NotTo(HaveOccurred())
+
+			network := "ha-recovery-" + utils.RandomString(10)
+			// Docker cannot publish a loopback port from an --internal-only network.
+			// This private bridge has no published address except RecoveryContainerArgs'
+			// loopback binding; the target never shares the source's network or mounts.
+			_, err = utils.Run(exec.Command("docker", "network", "create", network))
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() { _, _ = utils.Run(exec.Command("docker", "network", "rm", network)) })
+			container := "ha-recovery-" + utils.RandomString(10)
+			DeferCleanup(func() { _, _ = utils.Run(exec.Command("docker", "rm", "--force", container)) })
+			args, argsErr := utils.RecoveryContainerArgs(container, network, workspace.ConfigDir,
+				"ghcr.io/home-assistant/home-assistant:"+haVersion())
+			Expect(argsErr).NotTo(HaveOccurred())
+			_, err = utils.Run(exec.Command("docker", args...))
+			Expect(err).NotTo(HaveOccurred())
+			recoveryEndpoint := "http://127.0.0.1:18124"
+			checkOnboarding := func() error { return utils.OnboardingBackupInfo(context.Background(), nil, recoveryEndpoint) }
+			Eventually(checkOnboarding, utils.HAPodReadyTimeout, reconcileInterval).Should(Succeed())
+			Consistently(checkOnboarding, 10*time.Second, reconcileInterval).Should(Succeed())
+			Expect(utils.UploadBackupForOnboarding(context.Background(), nil, recoveryEndpoint, workspace.Archive)).To(Succeed())
+			Expect(utils.OnboardingBackupInfo(context.Background(), nil, recoveryEndpoint)).To(Succeed())
+			wrongKeyErr := utils.RestoreOnboardingBackup(context.Background(), nil, recoveryEndpoint,
+				backupID, "backup.local", "incorrect-"+utils.RandomString(12))
+			Expect(wrongKeyErr).To(HaveOccurred())
+			Expect(wrongKeyErr.Error()).NotTo(ContainSubstring("incorrect-"))
+			Expect(utils.RestoreOnboardingBackup(context.Background(), nil, recoveryEndpoint,
+				backupID, "backup.local", string(recoveryKey))).To(Succeed())
+
+			By("checking recovered Local To-do identity and control item without reusing source credentials")
+			Eventually(func(g Gomega) {
+				entryFound, entryErr := utils.RecoveredStorageContains(workspace.ConfigDir, "core.config_entries", localTodoEntryID)
+				g.Expect(entryErr).NotTo(HaveOccurred())
+				g.Expect(entryFound).To(BeTrue())
+				entityFound, entityErr := utils.RecoveredStorageContains(
+					workspace.ConfigDir, "core.entity_registry", localTodoEntity)
+				g.Expect(entityErr).NotTo(HaveOccurred())
+				g.Expect(entityFound).To(BeTrue())
+				itemFound, itemErr := utils.RecoveredStorageContains(workspace.ConfigDir, "local_todo.*.ics", localTodoItem)
+				g.Expect(itemErr).NotTo(HaveOccurred())
+				g.Expect(itemFound).To(BeTrue())
+			}, utils.HAPodReadyTimeout, reconcileInterval).Should(Succeed())
+			By("checking recorder history on the recovered target")
+			want := "absent"
+			if includeDatabase {
+				want = "present"
+			}
+			Eventually(func() error {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				return exec.CommandContext(ctx, "docker", "exec", container, "python3", "-c",
+					recorderHistoryProbe, localTodoEntity, want).Run()
+			}, utils.HAPodReadyTimeout, reconcileInterval).Should(Succeed())
+			_, err = utils.Run(exec.Command("docker", "rm", "--force", container))
+			Expect(err).NotTo(HaveOccurred())
+		}
+		Expect(source.CheckHealth(context.Background())).To(Succeed(), "recovery must not modify the source")
+	})
+
+	It("retains distinct observed backup encryption keys", Label("backup"), func() {
+		_, err := utils.Run(exec.Command(
+			"kubectl", "patch", "ha", haName, "-n", namespace, "--type=merge",
+			"-p", `{"spec":{"backup":{"enabled":false}}}`,
+		))
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() string {
+			return utils.Kubectl("get", "ha", haName, "-n", namespace,
+				"-o", `jsonpath={.status.conditions[?(@.type=="BackupConfigured")].reason}`)
+		}, utils.StatusUpdateTimeout, reconcileInterval).Should(Equal("Unmanaged"))
+		endpoint, cleanup := criticalPathHAEndpoint(namespace, haName)
+		defer cleanup()
+		fixtureClient := haclient.NewClient(endpoint)
+		Eventually(func() error {
+			return fixtureClient.CheckHealth(context.Background())
+		}, utils.ResourceTimeout, reconcileInterval).Should(Succeed())
+		token := criticalPathOperatorToken(namespace, haName+"-homeassistant-api-token")
+		first, second := "e2e-key-"+utils.RandomString(24), "e2e-key-"+utils.RandomString(24)
+		observe := func(value, marker string) string {
+			Expect(utils.SetNativeBackupPassword(context.Background(), endpoint, token, value)).To(Succeed())
+			_, err := utils.Run(exec.Command("kubectl", "annotate", "ha", haName, "-n", namespace,
+				"ha.homeassistant.io/key-observation="+marker, "--overwrite"))
+			Expect(err).NotTo(HaveOccurred())
+			var ref struct {
+				Key string `json:"key"`
+			}
+			Eventually(func() bool {
+				payload := utils.Kubectl("get", "ha", haName, "-n", namespace, "-o", "json")
+				var resource struct {
+					Status struct {
+						Backup struct {
+							KeySecretRef *struct {
+								Name string `json:"name"`
+								Key  string `json:"key"`
+							} `json:"keySecretRef"`
+						} `json:"backup"`
+					} `json:"status"`
+				}
+				if json.Unmarshal([]byte(payload), &resource) != nil || resource.Status.Backup.KeySecretRef == nil {
+					return false
+				}
+				secretJSON, err := exec.Command("kubectl", "get", "secret", resource.Status.Backup.KeySecretRef.Name,
+					"-n", namespace, "-o", "json").Output()
+				if err != nil {
+					return false
+				}
+				var secret struct {
+					Data map[string]string `json:"data"`
+				}
+				if json.Unmarshal(secretJSON, &secret) != nil {
+					return false
+				}
+				observed, err := base64.StdEncoding.DecodeString(secret.Data[resource.Status.Backup.KeySecretRef.Key])
+				if err != nil || string(observed) != value {
+					return false
+				}
+				ref.Key = resource.Status.Backup.KeySecretRef.Key
+				return true
+			}, utils.StatusUpdateTimeout, reconcileInterval).Should(BeTrue())
+			return ref.Key
+		}
+		firstKey := observe(first, "first")
+		secondKey := observe(second, "second")
+		firstAgainKey := observe(first, "first-again")
+		Expect(firstKey).To(Equal(firstAgainKey))
+		Expect(secondKey).NotTo(Equal(firstKey))
+		var retainedSecret struct {
+			Status struct {
+				Backup struct {
+					KeySecretRef struct {
+						Name string `json:"name"`
+					} `json:"keySecretRef"`
+				} `json:"backup"`
+			} `json:"status"`
+		}
+		payload := utils.Kubectl("get", "ha", haName, "-n", namespace, "-o", "json")
+		Expect(json.Unmarshal([]byte(payload), &retainedSecret)).To(Succeed())
+		Expect(retainedSecret.Status.Backup.KeySecretRef.Name).NotTo(BeEmpty())
+		retainedKeySecret = retainedSecret.Status.Backup.KeySecretRef.Name
+		retainedFirstKey, retainedSecondKey = firstKey, secondKey
+		retainedFirstValue, retainedSecondValue = first, second
 	})
 
 	It("dedicated bootstrap isolates the runtime principal and retires bootstrap access", func() {
@@ -427,6 +909,8 @@ spec:
     name: %s
   reloadStrategy: auto
   configuration: |
+    recorder:
+    history:
     automation: !include automations.yaml
     scene: !include scenes.yaml
     script: !include scripts.yaml
@@ -1306,6 +1790,17 @@ func criticalPathOperatorToken(namespace, name string) string {
 }
 
 func criticalPathHAClient(namespace, name string) (*haclient.Client, func()) {
+	endpoint, cleanup := criticalPathHAEndpoint(namespace, name)
+	c := haclient.NewClient(endpoint)
+	Eventually(
+		func() error { return c.CheckHealth(context.Background()) },
+		utils.ResourceTimeout,
+		reconcileInterval,
+	).Should(Succeed())
+	return c, cleanup
+}
+
+func criticalPathHAEndpoint(namespace, name string) (string, func()) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	Expect(err).NotTo(HaveOccurred())
 	port := listener.Addr().(*net.TCPAddr).Port
@@ -1314,13 +1809,7 @@ func criticalPathHAClient(namespace, name string) (*haclient.Client, func()) {
 	Expect(cmd.Start()).To(Succeed())
 	cleanup := func() { _ = cmd.Process.Kill(); _ = cmd.Wait() }
 	DeferCleanup(cleanup)
-	c := haclient.NewClient(fmt.Sprintf("http://127.0.0.1:%d", port))
-	Eventually(
-		func() error { return c.CheckHealth(context.Background()) },
-		utils.ResourceTimeout,
-		reconcileInterval,
-	).Should(Succeed())
-	return c, func() {} // registered cleanup also runs if a caller assertion fails
+	return fmt.Sprintf("http://127.0.0.1:%d", port), func() {} // cleanup is registered above
 }
 
 // collectCriticalPathDebugInfo gathers diagnostic information on failure.

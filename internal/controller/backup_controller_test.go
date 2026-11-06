@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -100,6 +101,16 @@ var _ = Describe("Backup Controller", func() {
 					"type":    "result",
 					"success": true,
 					"result":  nil,
+				})
+			case "backup/agents/info":
+				_ = conn.WriteJSON(map[string]interface{}{
+					"id": 1, "type": "result", "success": true,
+					"result": map[string]interface{}{"agents": []map[string]string{{"agent_id": "backup.local", "name": "Local"}}},
+				})
+			case "backup/info":
+				_ = conn.WriteJSON(map[string]interface{}{
+					"id": 1, "type": "result", "success": true,
+					"result": map[string]interface{}{"state": "idle", "backups": []interface{}{}},
 				})
 			}
 		}
@@ -202,6 +213,176 @@ var _ = Describe("Backup Controller", func() {
 		cleanupAll()
 	})
 
+	It("observes receipts and protects the key when a managed destination is missing", func() {
+		wsServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			conn, err := upgrader.Upgrade(w, req, nil)
+			if err != nil {
+				return
+			}
+			defer func() { _ = conn.Close() }()
+			_ = conn.WriteJSON(map[string]any{"type": "auth_required"})
+			var auth map[string]any
+			_ = conn.ReadJSON(&auth)
+			_ = conn.WriteJSON(map[string]any{"type": "auth_ok"})
+			var command struct {
+				ID   int    `json:"id"`
+				Type string `json:"type"`
+			}
+			if conn.ReadJSON(&command) != nil {
+				return
+			}
+			var result any
+			switch command.Type {
+			case "backup/config/info":
+				result = map[string]any{"schedule": map[string]any{"recurrence": "never"},
+					"create_backup": map[string]any{"password": "synthetic-key", "agent_ids": []string{"backup.local"}}}
+			case "backup/agents/info":
+				result = map[string]any{"agents": []map[string]string{{"agent_id": "backup.local", "name": "Local"}}}
+			case "backup/info":
+				result = map[string]any{"state": "idle", "backups": []any{map[string]any{
+					"backup_id": "archive-1", "date": "2026-11-03T12:00:00Z",
+					"agents": map[string]any{"backup.local": map[string]any{}},
+				}}}
+			case "backup/details":
+				result = map[string]any{"backup": map[string]any{
+					"backup_id": "archive-1", "agents": map[string]any{"backup.local": map[string]any{}},
+				}}
+			default:
+				return
+			}
+			_ = conn.WriteJSON(map[string]any{"id": command.ID, "type": "result", "success": true, "result": result})
+		}))
+		wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
+		reconciler = &HomeAssistantReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(),
+			NewHAClient: func(_ string) *haclient.Client { return haclient.NewClient(wsURL) }}
+		createHA(&hav1.BackupSpec{Enabled: true, AgentIDs: []string{"missing.agent"}})
+		ha := &hav1.HomeAssistant{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: haName, Namespace: namespace}, ha)).To(Succeed())
+		receipt := backupReceipt{Version: 1, InstanceUID: string(ha.UID), RequestID: "request-1", Phase: "Unknown",
+			ClaimedAt: time.Now().UTC(), ExpectedAgentIDs: []string{"backup.local"}, BackupID: "archive-1"}
+		data, err := json.Marshal(receipt)
+		Expect(err).NotTo(HaveOccurred())
+		ha.Annotations = map[string]string{backupReceiptAnnotation: string(data)}
+		Expect(k8sClient.Update(ctx, ha)).To(Succeed())
+		_, err = reconciler.reconcileBackupConfig(ctx, ha)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: haName, Namespace: namespace}, ha)).To(Succeed())
+		actual, err := receiptFromHA(ha)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(actual.Phase).To(Equal("Succeeded"))
+		Expect(ha.Status.Backup.KeySecretRef).NotTo(BeNil())
+		Expect(ha.Status.Backup.ObservedAt).NotTo(BeNil())
+		Expect(ha.Status.Backup.LastSuccessfulBackupTime).NotTo(BeNil())
+		Expect(ha.Status.Backup.LastAttempt.BackupID).To(Equal("archive-1"))
+		Expect(meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupObservation).Reason).To(Equal("Observed"))
+		condition := meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupConfigured)
+		Expect(condition.Reason).To(Equal(reasonBackupAgentUnavailable))
+	})
+
+	It("protects the observed key when agent discovery fails", func() {
+		wsServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			conn, err := upgrader.Upgrade(w, req, nil)
+			if err != nil {
+				return
+			}
+			defer func() { _ = conn.Close() }()
+			_ = conn.WriteJSON(map[string]any{"type": "auth_required"})
+			var auth map[string]any
+			_ = conn.ReadJSON(&auth)
+			_ = conn.WriteJSON(map[string]any{"type": "auth_ok"})
+			var command struct {
+				ID   int    `json:"id"`
+				Type string `json:"type"`
+			}
+			if conn.ReadJSON(&command) != nil {
+				return
+			}
+			if command.Type == "backup/config/info" {
+				_ = conn.WriteJSON(map[string]any{"id": command.ID, "type": "result", "success": true,
+					"result": map[string]any{"schedule": map[string]any{"recurrence": "never"},
+						"create_backup": map[string]any{"password": "synthetic-key", "agent_ids": []string{"backup.local"}}}})
+				return
+			}
+			_ = conn.WriteJSON(map[string]any{"id": command.ID, "type": "result", "success": false,
+				"error": map[string]string{"code": "unavailable", "message": "unavailable"}})
+		}))
+		wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
+		reconciler = &HomeAssistantReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(),
+			NewHAClient: func(_ string) *haclient.Client { return haclient.NewClient(wsURL) }}
+		createHA(&hav1.BackupSpec{Enabled: true})
+		ha := &hav1.HomeAssistant{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: haName, Namespace: namespace}, ha)).To(Succeed())
+		_, err := reconciler.reconcileBackupConfig(ctx, ha)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: haName, Namespace: namespace}, ha)).To(Succeed())
+		Expect(ha.Status.Backup.KeySecretRef).NotTo(BeNil())
+		secret := &corev1.Secret{}
+		secretKey := types.NamespacedName{Name: ha.Status.Backup.KeySecretRef.Name, Namespace: namespace}
+		Expect(k8sClient.Get(ctx, secretKey, secret)).To(Succeed())
+		matches := string(secret.Data[ha.Status.Backup.KeySecretRef.Key]) == "synthetic-key"
+		Expect(matches).To(BeTrue())
+		Expect(meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupKeyProtected).Reason).To(Equal("Protected"))
+		observation := meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupObservation)
+		Expect(observation.Reason).To(Equal("ObservationUnavailable"))
+	})
+
+	It("clears a previous key reference when key protection fails", func() {
+		wsServer = httptest.NewServer(wsHandler(map[string]interface{}{
+			"schedule":      map[string]interface{}{"recurrence": "never", "time": nil},
+			"create_backup": map[string]interface{}{"password": "synthetic-new-key", "agent_ids": []string{"backup.local"}},
+		}, nil))
+		wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
+		reconciler = &HomeAssistantReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(),
+			NewHAClient: func(_ string) *haclient.Client { return haclient.NewClient(wsURL) }}
+		createHA(&hav1.BackupSpec{Enabled: true})
+		ha := &hav1.HomeAssistant{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: haName, Namespace: namespace}, ha)).To(Succeed())
+		secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: backupKeySecretName(ha), Namespace: namespace,
+			Labels: map[string]string{backupKeyUIDLabel: "other-owner"}}, Data: map[string][]byte{"key-000001": []byte("old")}}
+		Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+		DeferCleanup(func() { _ = k8sClient.Delete(ctx, secret) })
+		ha.Status.Backup = &hav1.BackupStatus{KeySecretRef: &hav1.BackupSecretKeyReference{
+			Name: secret.Name, Key: "key-000001",
+		}}
+		Expect(k8sClient.Status().Update(ctx, ha)).To(Succeed())
+		_, err := reconciler.reconcileBackupConfig(ctx, ha)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: haName, Namespace: namespace}, ha)).To(Succeed())
+		Expect(ha.Status.Backup.KeySecretRef).To(BeNil())
+		condition := meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupKeyProtected)
+		Expect(condition.Reason).To(Equal("SecretWriteFailed"))
+		retained := &corev1.Secret{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: secret.Name, Namespace: namespace}, retained)).To(Succeed())
+		oldRetained := string(retained.Data["key-000001"]) == "old"
+		Expect(oldRetained).To(BeTrue())
+	})
+
+	It("reports an invalid receipt without blocking backup configuration observation", func() {
+		wsServer = httptest.NewServer(wsHandler(map[string]interface{}{
+			"schedule":  map[string]interface{}{"recurrence": "never", "time": nil},
+			"retention": map[string]interface{}{"copies": nil, "days": nil},
+			"create_backup": map[string]interface{}{
+				"include_database": true, "agent_ids": []string{"backup.local"},
+			},
+		}, nil))
+		wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
+		reconciler = &HomeAssistantReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(),
+			NewHAClient: func(_ string) *haclient.Client { return haclient.NewClient(wsURL) }}
+		createHA(&hav1.BackupSpec{Enabled: true, Recurrence: "never"})
+		ha := &hav1.HomeAssistant{}
+		objectKey := types.NamespacedName{Name: haName, Namespace: namespace}
+		Expect(k8sClient.Get(ctx, objectKey, ha)).To(Succeed())
+		ha.Annotations = map[string]string{backupReceiptAnnotation: "invalid receipt"}
+		Expect(k8sClient.Update(ctx, ha)).To(Succeed())
+		_, err := reconciler.reconcileBackupConfig(ctx, ha)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, objectKey, ha)).To(Succeed())
+		Expect(ha.Annotations[backupReceiptAnnotation]).To(Equal("invalid receipt"))
+		Expect(meta.FindStatusCondition(ha.Status.Conditions, "BackupRequestReady").Reason).To(Equal("InvalidReceipt"))
+		configured := meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupConfigured)
+		Expect(configured.Reason).To(Equal(reasonBackupConfigured))
+	})
+
 	It("should configure backup when spec.backup.enabled", func() {
 		var receivedUpdate map[string]json.RawMessage
 
@@ -253,7 +434,10 @@ var _ = Describe("Backup Controller", func() {
 	})
 
 	It("should skip backup config when not enabled", func() {
-		wsServer = httptest.NewServer(wsHandler(nil, nil))
+		wsServer = httptest.NewServer(wsHandler(map[string]interface{}{
+			"schedule":      map[string]interface{}{"recurrence": "never", "time": nil},
+			"create_backup": map[string]interface{}{"agent_ids": []string{"backup.local"}},
+		}, nil))
 		wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
 		reconciler = &HomeAssistantReconciler{
 			Client:      k8sClient,
@@ -268,11 +452,13 @@ var _ = Describe("Backup Controller", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		// Verify no BackupConfigured condition
+		// An unmanaged configuration must not modify HA, but remains observable.
 		ha := &hav1.HomeAssistant{}
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: haName, Namespace: namespace}, ha)).To(Succeed())
 		cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupConfigured)
-		Expect(cond).To(BeNil())
+		Expect(cond).NotTo(BeNil())
+		Expect(cond.Status).To(Equal(metav1.ConditionUnknown))
+		Expect(cond.Reason).To(Equal(reasonBackupUnmanaged))
 	})
 
 	It("should skip backup config when no API token", func() {
@@ -314,7 +500,7 @@ var _ = Describe("Backup Controller", func() {
 			NamespacedName: types.NamespacedName{Name: haName, Namespace: namespace},
 		})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(result.RequeueAfter).To(Equal(30 * time.Second))
+		Expect(result.RequeueAfter).To(Equal(10 * time.Second))
 
 		// Verify condition shows token not available
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: haName, Namespace: namespace}, ha)).To(Succeed())
@@ -415,7 +601,7 @@ var _ = Describe("Backup Controller", func() {
 			NamespacedName: types.NamespacedName{Name: haName, Namespace: namespace},
 		})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(result.RequeueAfter).To(Equal(30 * time.Second))
+		Expect(result.RequeueAfter).To(Equal(10 * time.Second))
 
 		// Condition should be False
 		ha := &hav1.HomeAssistant{}
@@ -426,14 +612,15 @@ var _ = Describe("Backup Controller", func() {
 		Expect(cond.Reason).To(Equal(reasonBackupConfigFailed))
 	})
 
-	It("should clear BackupConfigured condition when backup disabled", func() {
+	It("should report BackupConfigured as unmanaged when backup disabled", func() {
+		var configUpdated atomic.Bool
 		wsServer = httptest.NewServer(wsHandler(
 			map[string]interface{}{
 				"schedule":      map[string]interface{}{"recurrence": "never", "time": nil},
 				"retention":     map[string]interface{}{"copies": nil, "days": nil},
 				"create_backup": map[string]interface{}{"include_database": true},
 			},
-			nil,
+			func(map[string]json.RawMessage) { configUpdated.Store(true) },
 		))
 
 		wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
@@ -463,17 +650,21 @@ var _ = Describe("Backup Controller", func() {
 		// Now disable backup
 		ha.Spec.Backup = nil
 		Expect(k8sClient.Update(ctx, ha)).To(Succeed())
+		configUpdated.Store(false)
 
 		// Reconcile again
 		_, err = reconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: types.NamespacedName{Name: haName, Namespace: namespace},
 		})
 		Expect(err).NotTo(HaveOccurred())
+		Expect(configUpdated.Load()).To(BeFalse())
 
-		// Verify condition is removed
+		// Verify the existing HA schedule was not changed and state is unmanaged.
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: haName, Namespace: namespace}, ha)).To(Succeed())
 		cond := meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupConfigured)
-		Expect(cond).To(BeNil())
+		Expect(cond).NotTo(BeNil())
+		Expect(cond.Status).To(Equal(metav1.ConditionUnknown))
+		Expect(cond.Reason).To(Equal(reasonBackupUnmanaged))
 	})
 
 	It("should detect config drift and reconfigure", func() {
