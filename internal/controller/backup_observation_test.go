@@ -86,15 +86,37 @@ func TestProjectBackupInfoRequiresConfiguredDestinationHistory(t *testing.T) {
 	}
 }
 
-func TestProjectBackupInfoProjectsAgentErrorsWithoutPayload(t *testing.T) {
-	ha := &hav1.HomeAssistant{}
-	(&HomeAssistantReconciler{}).projectBackupInfo(ha, &haclient.BackupInfo{AgentErrors: map[string]any{
-		"backup.remote": map[string]string{"unsafe": "do not expose"},
-	}}, backupConfigForAgents("backup.local", "backup.remote"))
-	attempt := ha.Status.Backup.LastAttempt
-	if attempt == nil || attempt.Outcome != "Failed" || len(attempt.Locations) != 1 ||
-		attempt.Locations[0].ID != "backup.remote" {
-		t.Fatalf("agent errors were not safely projected: %#v", attempt)
+func TestProjectBackupInfoAgentErrorsNeverInventFailure(t *testing.T) {
+	for _, tc := range []struct {
+		name, state string
+		prior       *hav1.BackupAttemptStatus
+		want        string
+	}{
+		{name: "no attempt", state: "idle"},
+		{name: "running", state: "creating", want: "Running"},
+		{name: "receipt", state: "creating", prior: &hav1.BackupAttemptStatus{
+			Source: "Operator", RequestID: "request-1", Outcome: "Running",
+		}, want: "Running"},
+		{name: "uncertain receipt", state: "idle", prior: &hav1.BackupAttemptStatus{
+			Source: "Operator", RequestID: "request-1", Outcome: "Unknown",
+		}, want: "Unknown"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ha := &hav1.HomeAssistant{Status: hav1.HomeAssistantStatus{Backup: &hav1.BackupStatus{LastAttempt: tc.prior}}}
+			(&HomeAssistantReconciler{}).projectBackupInfo(ha, &haclient.BackupInfo{
+				State: tc.state, AgentErrors: map[string]any{"backup.remote": "synthetic-error"},
+			}, backupConfigForAgents("backup.local"))
+			attempt := ha.Status.Backup.LastAttempt
+			if tc.want == "" {
+				if attempt != nil {
+					t.Fatal("agent read error invented an attempt")
+				}
+				return
+			}
+			if attempt == nil || attempt.Outcome != tc.want || (tc.prior != nil && attempt != tc.prior) {
+				t.Fatal("agent read error replaced the existing attempt")
+			}
+		})
 	}
 }
 

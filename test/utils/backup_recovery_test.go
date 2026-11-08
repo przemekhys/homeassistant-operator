@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type failingArchiveClose struct{ bytes.Buffer }
@@ -25,6 +27,24 @@ func TestWriteProtectedArchiveReportsCloseFailure(t *testing.T) {
 	_, err := writeProtectedArchive(&failingArchiveClose{}, strings.NewReader("synthetic archive"))
 	if err == nil {
 		t.Fatal("close failure was ignored")
+	}
+}
+
+func TestBackupStatusCoversArchiveDate(t *testing.T) {
+	archive := time.Date(2026, 11, 6, 12, 0, 1, 500000000, time.UTC)
+	encoded, err := json.Marshal(metav1.NewTime(archive))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var status time.Time
+	if err := json.Unmarshal(encoded, &status); err != nil {
+		t.Fatal(err)
+	}
+	if !BackupStatusCoversArchiveDate(status, archive) {
+		t.Fatal("status truncated to seconds should match archive")
+	}
+	if BackupStatusCoversArchiveDate(archive.Add(-time.Second).Truncate(time.Second), archive) {
+		t.Fatal("older status matched a newer archive")
 	}
 }
 

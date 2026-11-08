@@ -19,6 +19,12 @@ import (
 
 var recoveryHTTPClient = &http.Client{Timeout: 10 * time.Second}
 
+// BackupStatusCoversArchiveDate compares at the second precision used by
+// Kubernetes metav1.Time JSON serialization.
+func BackupStatusCoversArchiveDate(status, archive time.Time) bool {
+	return !status.Before(archive.Truncate(time.Second))
+}
+
 // NativeBackupDownloadURL builds the native encrypted-archive endpoint. It
 // deliberately accepts no recovery key or password: including either in the
 // URL would request an unsafe decrypted export and risks process-list leaks.
@@ -86,6 +92,7 @@ type RecoveryWorkspace struct {
 	Key       string
 }
 
+// NewRecoveryWorkspace creates private, disposable paths for an isolated test.
 func NewRecoveryWorkspace(parent string) (*RecoveryWorkspace, error) {
 	if parent == "" {
 		parent = os.TempDir()
@@ -109,6 +116,7 @@ func NewRecoveryWorkspace(parent string) (*RecoveryWorkspace, error) {
 	}, nil
 }
 
+// Cleanup removes only the workspace owned by this recovery test.
 func (w *RecoveryWorkspace) Cleanup() error {
 	if w == nil || w.Dir == "" || filepath.Base(w.Dir) == "." {
 		return nil
@@ -192,6 +200,7 @@ func DownloadProtectedBackup(
 	return written, nil
 }
 
+// writeProtectedArchive reports both streaming and writable-file close errors.
 func writeProtectedArchive(file io.WriteCloser, source io.Reader) (int64, error) {
 	written, copyErr := io.Copy(file, source)
 	closeErr := file.Close()
@@ -260,6 +269,7 @@ func UploadBackupForOnboarding(ctx context.Context, client *http.Client, baseURL
 	return nil
 }
 
+// onboardingUploadFailureKind classifies a response without returning its data.
 func onboardingUploadFailureKind(body string) string {
 	if strings.Contains(body, "backup.json") {
 		return "invalid archive metadata"
@@ -338,6 +348,7 @@ func RestoreOnboardingBackup(
 	return nil
 }
 
+// onboardingBackupURL constructs a recovery endpoint without retaining queries.
 func onboardingBackupURL(baseURL, endpointPath string) (string, error) {
 	endpoint, err := url.Parse(baseURL)
 	if err != nil || endpoint.Scheme == "" || endpoint.Host == "" {
@@ -467,6 +478,7 @@ func SetNativeBackupPassword(ctx context.Context, baseURL, token, password strin
 	return nil
 }
 
+// nativeBackupWebSocketURL rejects credential-bearing URLs before conversion.
 func nativeBackupWebSocketURL(baseURL string) (string, error) {
 	endpoint, err := url.Parse(baseURL)
 	if err != nil || endpoint.Scheme == "" || endpoint.Host == "" {

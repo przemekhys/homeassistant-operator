@@ -125,6 +125,7 @@ recorded or why it could not be processed, including `InvalidRequest`,
 |-----------|--------|---------|
 | `BackupObservationReady` | `Observed` | Home Assistant backup information was read. |
 | `BackupObservationReady` | `ObservationUnavailable` | The operator cannot currently read backup information; old observations are not fresh proof. |
+| `BackupObservationReady` | `AgentReadError` | One or more backup destinations could not be read; this does not establish that a backup failed. |
 | `BackupKeyProtected` | `Protected` | The current observed encryption key was stored in the retained Secret. |
 | `BackupKeyProtected` | `EncryptionNotEnabled` | Home Assistant did not expose an encryption key. |
 | `BackupKeyProtected` | `SecretWriteFailed` | The observed key could not be safely retained. |

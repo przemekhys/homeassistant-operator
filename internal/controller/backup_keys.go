@@ -19,6 +19,7 @@ const backupKeyUIDLabel = "ha.homeassistant.io/backup-key-owner-uid"
 // refusing an entry before Update preserves every already retained key.
 const maxBackupKeySecretBytes = 1 << 20
 
+// backupKeySecretName binds a bounded Secret name to the instance UID.
 func backupKeySecretName(ha *hav1.HomeAssistant) string {
 	name := strings.ToLower(ha.Name)
 	if len(name) > 35 {
@@ -98,6 +99,7 @@ func (r *HomeAssistantReconciler) protectBackupKey(
 	return nil, fmt.Errorf("backup key Secret update conflicted")
 }
 
+// nextBackupKeyEntry finds an unused entry without replacing retained keys.
 func nextBackupKeyEntry(data map[string][]byte) string {
 	for n := 1; ; n++ {
 		entry := fmt.Sprintf("key-%06d", n)
@@ -107,6 +109,7 @@ func nextBackupKeyEntry(data map[string][]byte) string {
 	}
 }
 
+// backupSecretDataSize counts the data that contributes to the Secret limit.
 func backupSecretDataSize(data map[string][]byte) int {
 	total := 0
 	for key, value := range data {

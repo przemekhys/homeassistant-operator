@@ -75,8 +75,13 @@ func (r *HomeAssistantReconciler) reconcileBackupObservation(
 			ha.Status.Backup.Agents = append(ha.Status.Backup.Agents, hav1.BackupAgentStatus{ID: agent.ID, Name: agent.Name})
 		}
 		ha.Status.Backup.ObservedAt = &now
-		setBackupCondition(ha, conditionTypeBackupObservation, metav1.ConditionTrue,
-			"Observed", "backup information observed")
+		if len(info.AgentErrors) > 0 {
+			setBackupCondition(ha, conditionTypeBackupObservation, metav1.ConditionFalse,
+				"AgentReadError", "one or more backup destinations could not be read")
+		} else {
+			setBackupCondition(ha, conditionTypeBackupObservation, metav1.ConditionTrue,
+				"Observed", "backup information observed")
+		}
 		r.projectBackupInfo(ha, info, config)
 	} else {
 		setBackupCondition(ha, conditionTypeBackupObservation, metav1.ConditionFalse,
@@ -174,11 +179,6 @@ func (r *HomeAssistantReconciler) projectBackupInfo(
 	if ha.Status.Backup == nil {
 		ha.Status.Backup = &hav1.BackupStatus{}
 	}
-	if info.State != "" && info.State != "idle" {
-		ha.Status.Backup.LastAttempt = &hav1.BackupAttemptStatus{
-			Source: "HomeAssistant", Outcome: "Running",
-		}
-	}
 	var latest *haclient.BackupArchive
 	var latestTime time.Time
 	for i := range info.Backups {
@@ -189,13 +189,14 @@ func (r *HomeAssistantReconciler) projectBackupInfo(
 		}
 		latest, latestTime = archive, timestamp
 	}
+	if info.State != "" && info.State != "idle" &&
+		(len(info.AgentErrors) == 0 || latest != nil || ha.Status.Backup.LastAttempt == nil) {
+		ha.Status.Backup.LastAttempt = &hav1.BackupAttemptStatus{
+			Source: "HomeAssistant", Outcome: "Running",
+		}
+	}
 	if latest != nil && (info.State == "" || info.State == "idle") {
 		r.projectBackupArchive(ha, *latest, latestTime, requiredBackupAgents(config))
-	}
-	if len(info.AgentErrors) > 0 && latest == nil {
-		ha.Status.Backup.LastAttempt = &hav1.BackupAttemptStatus{
-			Source: "HomeAssistant", Outcome: "Failed", Locations: backupAgentErrorLocations(info.AgentErrors),
-		}
 	}
 	// History is bounded and may contain a newer failure. Preserve the newest
 	// independently proven success instead of letting that failure erase it.
@@ -262,16 +263,6 @@ func backupArchiveLocations(archive haclient.BackupArchive) []hav1.BackupLocatio
 		locations = append(locations, hav1.BackupLocationStatus{ID: id, Outcome: outcome})
 	}
 	for id := range failed {
-		locations = append(locations, hav1.BackupLocationStatus{ID: id, Outcome: "Failed"})
-	}
-	sort.Slice(locations, func(i, j int) bool { return locations[i].ID < locations[j].ID })
-	return locations
-}
-
-// backupAgentErrorLocations lists affected agents without exposing raw errors.
-func backupAgentErrorLocations(errors map[string]any) []hav1.BackupLocationStatus {
-	locations := make([]hav1.BackupLocationStatus, 0, len(errors))
-	for id := range errors {
 		locations = append(locations, hav1.BackupLocationStatus{ID: id, Outcome: "Failed"})
 	}
 	sort.Slice(locations, func(i, j int) bool { return locations[i].ID < locations[j].ID })

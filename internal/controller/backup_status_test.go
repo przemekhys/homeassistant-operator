@@ -50,7 +50,8 @@ func TestObservationPublishesKeyStatusWhenReceiptFinalizationFails(t *testing.T)
 		case "backup/agents/info":
 			result = map[string]any{"agents": []any{map[string]string{"agent_id": "backup.local"}}}
 		case "backup/info":
-			result = map[string]any{"state": "idle", "backups": []any{map[string]any{"backup_id": "archive-1"}}}
+			result = map[string]any{"state": "idle", "backups": []any{map[string]any{"backup_id": "archive-1"}},
+				"agent_errors": map[string]any{"backup.local": "synthetic-secret"}}
 		case "backup/details":
 			result = map[string]any{"backup": map[string]any{
 				"backup_id": "archive-1", "agents": map[string]any{"backup.local": map[string]any{}},
@@ -102,6 +103,11 @@ func TestObservationPublishesKeyStatusWhenReceiptFinalizationFails(t *testing.T)
 	if condition == nil || condition.Reason != "Protected" {
 		t.Fatal("protected condition was not persisted")
 	}
+	observation := meta.FindStatusCondition(updated.Status.Conditions, conditionTypeBackupObservation)
+	if observation == nil || observation.Status != metav1.ConditionFalse || observation.Reason != "AgentReadError" ||
+		strings.Contains(observation.Message, "synthetic-secret") {
+		t.Fatal("agent read error was not safely reported as an observation failure")
+	}
 }
 
 func TestBackupStatusProjectsScheduledArchiveWithoutRequest(t *testing.T) {
@@ -152,14 +158,13 @@ func TestHomeAssistantPrimaryPredicateKeepsBackupRequestAnnotation(t *testing.T)
 	}
 }
 
-func TestBackupStatusFailureDoesNotInventArchiveEvidence(t *testing.T) {
+func TestBackupStatusAgentErrorDoesNotInventAttempt(t *testing.T) {
 	ha := &hav1.HomeAssistant{}
 	(&HomeAssistantReconciler{}).projectBackupInfo(ha, &haclient.BackupInfo{AgentErrors: map[string]any{
 		"backup.local": "native create failed",
 	}}, backupConfigForAgents("backup.local"))
-	attempt := ha.Status.Backup.LastAttempt
-	if attempt == nil || attempt.Outcome != "Failed" || attempt.BackupID != "" || attempt.CompletedAt != nil {
-		t.Fatalf("failure status invented archive data: %#v", attempt)
+	if ha.Status.Backup.LastAttempt != nil {
+		t.Fatal("agent read error invented a backup attempt")
 	}
 	if ha.Status.Backup.LastSuccessfulBackupTime != nil {
 		t.Fatal("failure without archive invented a successful backup time")

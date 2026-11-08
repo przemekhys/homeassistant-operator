@@ -403,7 +403,7 @@ spec:
 			g.Expect(lastSuccessful).NotTo(BeEmpty())
 			observedDate, parseErr := time.Parse(time.RFC3339, lastSuccessful)
 			g.Expect(parseErr).NotTo(HaveOccurred())
-			g.Expect(observedDate.Before(scheduledDate)).To(BeFalse())
+			g.Expect(utils.BackupStatusCoversArchiveDate(observedDate, scheduledDate)).To(BeTrue())
 			receipt := utils.Kubectl("get", "ha", haName, "-n", namespace,
 				"-o", "jsonpath={.metadata.annotations.ha\\.homeassistant\\.io/backup-receipt}")
 			var currentRequest struct {

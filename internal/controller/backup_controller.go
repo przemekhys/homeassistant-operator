@@ -208,6 +208,7 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 	return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 }
 
+// backupConfigReadFailure maps native capability errors to safe status messages.
 func backupConfigReadFailure(err error) (string, string) {
 	var haErr *haclient.Error
 	if errors.As(err, &haErr) {
@@ -221,6 +222,7 @@ func backupConfigReadFailure(err error) (string, string) {
 	return reasonBackupConfigFailed, "cannot read backup configuration"
 }
 
+// missingBackupAgent prevents silently substituting another destination.
 func missingBackupAgent(expected []string, available []haclient.BackupAgent) bool {
 	seen := make(map[string]struct{}, len(available))
 	for _, agent := range available {
@@ -369,6 +371,7 @@ func stringSliceEqual(a, b []string) bool {
 	return true
 }
 
+// stringSliceSetEqual compares destination sets independently of ordering.
 func stringSliceSetEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
@@ -379,6 +382,7 @@ func stringSliceSetEqual(a, b []string) bool {
 	return stringSliceEqual(aa, bb)
 }
 
+// isWeekday recognizes individual weekday schedule values.
 func isWeekday(value string) bool {
 	switch value {
 	case "mon", "tue", "wed", "thu", "fri", "sat", "sun":
