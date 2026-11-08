@@ -53,7 +53,7 @@ func TestProjectBackupInfoRequiresDestinationEvidence(t *testing.T) {
 func TestProjectBackupInfoProjectsActiveWorkAsRunning(t *testing.T) {
 	ha := &hav1.HomeAssistant{}
 	(&HomeAssistantReconciler{}).projectBackupInfo(
-		ha, &haclient.BackupInfo{State: "creating"}, backupConfigForAgents("backup.local"),
+		ha, &haclient.BackupInfo{State: "create_backup"}, backupConfigForAgents("backup.local"),
 	)
 	if ha.Status.Backup.LastAttempt == nil || ha.Status.Backup.LastAttempt.Outcome != "Running" {
 		t.Fatalf("active backup was not projected as running: %#v", ha.Status.Backup.LastAttempt)
@@ -89,6 +89,7 @@ func TestProjectBackupInfoRequiresConfiguredDestinationHistory(t *testing.T) {
 // TestProjectBackupInfoAgentErrorsNeverInventFailure separates observation
 // failures from execution failures while retaining an in-flight request.
 func TestProjectBackupInfoAgentErrorsNeverInventFailure(t *testing.T) {
+	completed := metav1.NewTime(mustTime(t, "2026-11-03T10:00:00Z"))
 	for _, tc := range []struct {
 		name, state string
 		prior       *hav1.BackupAttemptStatus
@@ -96,18 +97,22 @@ func TestProjectBackupInfoAgentErrorsNeverInventFailure(t *testing.T) {
 		preserve    bool
 	}{
 		{name: "no attempt", state: "idle"},
-		{name: "running", state: "creating", want: "Running"},
-		{name: "receipt", state: "creating", prior: &hav1.BackupAttemptStatus{
+		{name: "receive", state: "receive_backup"},
+		{name: "restore", state: "restore_backup"},
+		{name: "blocked", state: "blocked"},
+		{name: "running", state: "create_backup", want: "Running"},
+		{name: "receipt", state: "create_backup", prior: &hav1.BackupAttemptStatus{
 			Source: "Operator", RequestID: "request-1", Outcome: "Running",
 		}, want: "Running", preserve: true},
 		{name: "uncertain receipt", state: "idle", prior: &hav1.BackupAttemptStatus{
 			Source: "Operator", RequestID: "request-1", Outcome: "Unknown",
 		}, want: "Unknown", preserve: true},
-		{name: "new backup after success", state: "creating", prior: &hav1.BackupAttemptStatus{
-			Source: "HomeAssistant", BackupID: "previous", Outcome: "Succeeded",
+		{name: "new backup after success", state: "create_backup", prior: &hav1.BackupAttemptStatus{
+			Source: "HomeAssistant", RequestID: "old-request", BackupID: "previous",
+			CompletedAt: &completed, Outcome: "Succeeded",
 		}, want: "Running"},
-		{name: "new backup after failure", state: "creating", prior: &hav1.BackupAttemptStatus{
-			Source: "Operator", RequestID: "previous", Outcome: "Failed",
+		{name: "new backup after failure", state: "create_backup", prior: &hav1.BackupAttemptStatus{
+			Source: "Operator", RequestID: "old-request", BackupID: "previous", CompletedAt: &completed, Outcome: "Failed",
 		}, want: "Running"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -124,6 +129,37 @@ func TestProjectBackupInfoAgentErrorsNeverInventFailure(t *testing.T) {
 			}
 			if attempt == nil || attempt.Outcome != tc.want || (tc.preserve && attempt != tc.prior) {
 				t.Fatal("agent read error replaced the existing attempt")
+			}
+			if tc.prior != nil && !tc.preserve &&
+				(attempt.CompletedAt != nil || attempt.RequestID != "" || attempt.BackupID != "") {
+				t.Fatal("new attempt retained completed attempt fields")
+			}
+		})
+	}
+}
+
+// TestProjectBackupInfoPreservesRunningRequestWithOlderArchive checks that
+// incomplete observations do not discard the identity of an active request.
+func TestProjectBackupInfoPreservesRunningRequestWithOlderArchive(t *testing.T) {
+	claimed := metav1.NewTime(mustTime(t, "2026-11-03T12:00:00Z"))
+	for _, tc := range []struct {
+		name, id, date string
+		preserve       bool
+	}{
+		{"older", "old", "2026-11-03T11:00:00Z", true},
+		{"same request", "current", "2026-11-03T12:01:00Z", true},
+		{"newer", "new", "2026-11-03T12:01:00Z", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			prior := &hav1.BackupAttemptStatus{Source: "Operator", Outcome: "Running", RequestID: "request", BackupID: "current"}
+			ha := &hav1.HomeAssistant{Status: hav1.HomeAssistantStatus{Backup: &hav1.BackupStatus{
+				LastAttempt: prior, Request: &hav1.BackupRequestStatus{ID: "request", ClaimedAt: &claimed},
+			}}}
+			(&HomeAssistantReconciler{}).projectBackupInfo(ha, &haclient.BackupInfo{State: "create_backup",
+				AgentErrors: map[string]any{"backup.local": "error"}, Backups: []haclient.BackupArchive{{ID: tc.id, Date: tc.date}},
+			}, backupConfigForAgents("backup.local"))
+			if (ha.Status.Backup.LastAttempt == prior) != tc.preserve {
+				t.Fatalf("unexpected attempt: %#v", ha.Status.Backup.LastAttempt)
 			}
 		})
 	}

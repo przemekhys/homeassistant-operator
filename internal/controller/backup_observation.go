@@ -189,9 +189,18 @@ func (r *HomeAssistantReconciler) projectBackupInfo(
 		}
 		latest, latestTime = archive, timestamp
 	}
-	if info.State != "" && info.State != "idle" &&
-		(len(info.AgentErrors) == 0 || latest != nil || ha.Status.Backup.LastAttempt == nil ||
-			ha.Status.Backup.LastAttempt.Outcome != "Running") {
+	prior := ha.Status.Backup.LastAttempt
+	newerArchive := false
+	request := ha.Status.Backup.Request
+	// A different archive after the matching claim is evidence of subsequent
+	// activity; absent either identity or timing, retain the running receipt.
+	if latest != nil && prior != nil && prior.Source == "Operator" && prior.RequestID != "" &&
+		prior.BackupID != "" && latest.ID != "" && latest.ID != prior.BackupID && request != nil &&
+		request.ID == prior.RequestID && request.ClaimedAt != nil {
+		newerArchive = latestTime.After(request.ClaimedAt.Time)
+	}
+	if info.State == "create_backup" &&
+		(len(info.AgentErrors) == 0 || prior == nil || prior.Outcome != "Running" || newerArchive) {
 		ha.Status.Backup.LastAttempt = &hav1.BackupAttemptStatus{
 			Source: "HomeAssistant", Outcome: "Running",
 		}
