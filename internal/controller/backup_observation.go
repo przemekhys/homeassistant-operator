@@ -190,7 +190,8 @@ func (r *HomeAssistantReconciler) projectBackupInfo(
 		latest, latestTime = archive, timestamp
 	}
 	if info.State != "" && info.State != "idle" &&
-		(len(info.AgentErrors) == 0 || latest != nil || ha.Status.Backup.LastAttempt == nil) {
+		(len(info.AgentErrors) == 0 || latest != nil || ha.Status.Backup.LastAttempt == nil ||
+			ha.Status.Backup.LastAttempt.Outcome != "Running") {
 		ha.Status.Backup.LastAttempt = &hav1.BackupAttemptStatus{
 			Source: "HomeAssistant", Outcome: "Running",
 		}

@@ -25,6 +25,8 @@ import (
 	"github.com/przemekhys/homeassistant-operator/internal/haclient"
 )
 
+// TestReceiptFromHARejectsMalformedOrForeignReceipts protects the dispatch
+// boundary from invalid or cross-instance annotations.
 func TestReceiptFromHARejectsMalformedOrForeignReceipts(t *testing.T) {
 	ha := &hav1.HomeAssistant{ObjectMeta: metav1.ObjectMeta{UID: types.UID("current")}}
 	for name, annotation := range map[string]string{
@@ -93,6 +95,8 @@ func TestBackupRequestIDPattern(t *testing.T) {
 	}
 }
 
+// TestBackupRequestStatusPreservesNewerObservation checks that replaying an
+// unchanged receipt cannot hide a subsequent native backup attempt.
 func TestBackupRequestStatusPreservesNewerObservation(t *testing.T) {
 	ha := &hav1.HomeAssistant{}
 	receipt := &backupReceipt{RequestID: "request-1", Phase: "Accepted", ClaimedAt: time.Now().UTC()}
@@ -115,6 +119,8 @@ func TestBackupRequestStatusPreservesNewerObservation(t *testing.T) {
 	}
 }
 
+// TestBackupRequestReportsRejectedRequest verifies that invalid and busy
+// requests remain unprocessed and expose safe status reasons.
 func TestBackupRequestReportsRejectedRequest(t *testing.T) {
 	for _, tc := range []struct{ name, requestID, phase, reason string }{
 		{"invalid", "invalid request", "", "InvalidRequest"},
@@ -154,6 +160,8 @@ func TestBackupRequestReportsRejectedRequest(t *testing.T) {
 	}
 }
 
+// TestReconcileBackupRequestDispatchesAcceptedRequestOnlyOnce counts native
+// generation across repeated reconciles and a reconciler restart.
 func TestReconcileBackupRequestDispatchesAcceptedRequestOnlyOnce(t *testing.T) {
 	var mu sync.Mutex
 	generateCalls := 0
@@ -230,6 +238,8 @@ func TestReconcileBackupRequestDispatchesAcceptedRequestOnlyOnce(t *testing.T) {
 	}
 }
 
+// TestReconcileBackupRequestNeverRedispatchesUncertainReceipt verifies that
+// ambiguous dispatches and timed-out accepted requests are not retried.
 func TestReconcileBackupRequestNeverRedispatchesUncertainReceipt(t *testing.T) {
 	scheme := runtime.NewScheme()
 	if err := hav1.AddToScheme(scheme); err != nil {
@@ -275,6 +285,8 @@ func TestReconcileBackupRequestNeverRedispatchesUncertainReceipt(t *testing.T) {
 	}
 }
 
+// TestBackupDispatchContinuesWhenInitialStatusWriteFails verifies that a
+// durably claimed request is dispatched once despite a status-only failure.
 func TestBackupDispatchContinuesWhenInitialStatusWriteFails(t *testing.T) {
 	var calls atomic.Int32
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}

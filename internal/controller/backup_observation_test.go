@@ -86,20 +86,29 @@ func TestProjectBackupInfoRequiresConfiguredDestinationHistory(t *testing.T) {
 	}
 }
 
+// TestProjectBackupInfoAgentErrorsNeverInventFailure separates observation
+// failures from execution failures while retaining an in-flight request.
 func TestProjectBackupInfoAgentErrorsNeverInventFailure(t *testing.T) {
 	for _, tc := range []struct {
 		name, state string
 		prior       *hav1.BackupAttemptStatus
 		want        string
+		preserve    bool
 	}{
 		{name: "no attempt", state: "idle"},
 		{name: "running", state: "creating", want: "Running"},
 		{name: "receipt", state: "creating", prior: &hav1.BackupAttemptStatus{
 			Source: "Operator", RequestID: "request-1", Outcome: "Running",
-		}, want: "Running"},
+		}, want: "Running", preserve: true},
 		{name: "uncertain receipt", state: "idle", prior: &hav1.BackupAttemptStatus{
 			Source: "Operator", RequestID: "request-1", Outcome: "Unknown",
-		}, want: "Unknown"},
+		}, want: "Unknown", preserve: true},
+		{name: "new backup after success", state: "creating", prior: &hav1.BackupAttemptStatus{
+			Source: "HomeAssistant", BackupID: "previous", Outcome: "Succeeded",
+		}, want: "Running"},
+		{name: "new backup after failure", state: "creating", prior: &hav1.BackupAttemptStatus{
+			Source: "Operator", RequestID: "previous", Outcome: "Failed",
+		}, want: "Running"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ha := &hav1.HomeAssistant{Status: hav1.HomeAssistantStatus{Backup: &hav1.BackupStatus{LastAttempt: tc.prior}}}
@@ -113,13 +122,15 @@ func TestProjectBackupInfoAgentErrorsNeverInventFailure(t *testing.T) {
 				}
 				return
 			}
-			if attempt == nil || attempt.Outcome != tc.want || (tc.prior != nil && attempt != tc.prior) {
+			if attempt == nil || attempt.Outcome != tc.want || (tc.preserve && attempt != tc.prior) {
 				t.Fatal("agent read error replaced the existing attempt")
 			}
 		})
 	}
 }
 
+// TestSetBackupRequestStatusDoesNotTreatAcceptanceAsSuccess checks that a
+// native acceptance alone never certifies a recoverable archive.
 func TestSetBackupRequestStatusDoesNotTreatAcceptanceAsSuccess(t *testing.T) {
 	ha := &hav1.HomeAssistant{}
 	setBackupRequestStatus(ha, &backupReceipt{RequestID: "request-1", Phase: "Accepted", ClaimedAt: time.Now()})
@@ -137,6 +148,8 @@ func backupConfigForAgents(agentIDs ...string) *haclient.BackupConfig {
 
 func stringPointer(value string) *string { return &value }
 
+// TestBackupArchiveCoversEveryExpectedAgent requires evidence from every
+// requested destination before classifying an archive as fully successful.
 func TestBackupArchiveCoversEveryExpectedAgent(t *testing.T) {
 	archive := haclient.BackupArchive{Agents: map[string]haclient.BackupAgentCopy{
 		"backup.local": {}, "custom.agent": {},

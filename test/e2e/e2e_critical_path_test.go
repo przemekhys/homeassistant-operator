@@ -404,6 +404,24 @@ spec:
 			observedDate, parseErr := time.Parse(time.RFC3339, lastSuccessful)
 			g.Expect(parseErr).NotTo(HaveOccurred())
 			g.Expect(utils.BackupStatusCoversArchiveDate(observedDate, scheduledDate)).To(BeTrue())
+			info, infoErr := apiClient.GetBackupInfo(context.Background(), token)
+			g.Expect(infoErr).NotTo(HaveOccurred())
+			selectedPresent, laterAttempt := false, false
+			for _, archive := range info.Backups {
+				if archive.ID == scheduledID {
+					selectedPresent = true
+					continue
+				}
+				archiveDate, dateErr := time.Parse(time.RFC3339, archive.Date)
+				if dateErr == nil && !archiveDate.Before(scheduledDate) {
+					laterAttempt = true
+				}
+			}
+			if selectedPresent && !laterAttempt && (info.State == "" || info.State == "idle") {
+				lastID := utils.Kubectl("get", "ha", haName, "-n", namespace,
+					"-o", "jsonpath={.status.backup.lastAttempt.backupID}")
+				g.Expect(lastID).To(Equal(scheduledID))
+			}
 			receipt := utils.Kubectl("get", "ha", haName, "-n", namespace,
 				"-o", "jsonpath={.metadata.annotations.ha\\.homeassistant\\.io/backup-receipt}")
 			var currentRequest struct {

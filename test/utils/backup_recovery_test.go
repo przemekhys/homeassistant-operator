@@ -46,6 +46,9 @@ func TestBackupStatusCoversArchiveDate(t *testing.T) {
 	if BackupStatusCoversArchiveDate(archive.Add(-time.Second).Truncate(time.Second), archive) {
 		t.Fatal("older status matched a newer archive")
 	}
+	if !BackupStatusCoversArchiveDate(archive.Add(time.Second).Truncate(time.Second), archive) {
+		t.Fatal("later status should cover an older archive")
+	}
 }
 
 func TestBackupWebsocketHelpersHonorCancellation(t *testing.T) {

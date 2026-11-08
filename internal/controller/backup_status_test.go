@@ -26,6 +26,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
+// TestObservationPublishesKeyStatusWhenReceiptFinalizationFails checks that a
+// metadata conflict does not conceal successful protection of the observed key.
 func TestObservationPublishesKeyStatusWhenReceiptFinalizationFails(t *testing.T) {
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -158,6 +160,8 @@ func TestHomeAssistantPrimaryPredicateKeepsBackupRequestAnnotation(t *testing.T)
 	}
 }
 
+// TestBackupStatusAgentErrorDoesNotInventAttempt separates an agent read error
+// from an unobserved backup execution failure.
 func TestBackupStatusAgentErrorDoesNotInventAttempt(t *testing.T) {
 	ha := &hav1.HomeAssistant{}
 	(&HomeAssistantReconciler{}).projectBackupInfo(ha, &haclient.BackupInfo{AgentErrors: map[string]any{
@@ -171,6 +175,8 @@ func TestBackupStatusAgentErrorDoesNotInventAttempt(t *testing.T) {
 	}
 }
 
+// TestBackupStatusKeepsArchiveResultWhenAgentReadFails preserves existing
+// archive evidence when another destination cannot be observed.
 func TestBackupStatusKeepsArchiveResultWhenAgentReadFails(t *testing.T) {
 	ha := &hav1.HomeAssistant{}
 	(&HomeAssistantReconciler{}).projectBackupInfo(ha, &haclient.BackupInfo{
