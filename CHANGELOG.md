@@ -10,23 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Native Home Assistant backup management (1.8 scope).** The operator can
-  reconcile native backup scheduling, issue a durable one-shot request, and
-  expose conservative archive observations without logging archive contents,
-  tokens, or recovery keys. Observed encryption keys are retained in a
-  namespace-local Secret without an owner reference so they survive deletion of
-  the `HomeAssistant` object.
-- **Native recovery validation.** Home Assistant Container 2026.10.4 was
-  verified on disposable targets with a protected archive and retained key;
-  local recorder history follows the database inclusion setting.
-
-### Limitations
-
-- Native recovery remains a manual operation on a fresh isolated target. The
-  operator does not upload, restore, rotate keys, manage external backup
-  agents, or validate external databases and Home Assistant OS Apps.
-- A successful configuration update or accepted one-shot request is not proof
-  of a completed backup. Missing destination evidence is reported as unknown.
+- **Native Home Assistant backups:** scheduled and one-shot backups, status
+  observations, and retention of encryption keys in a Kubernetes Secret.
 
 ## [v1.7.0] - 2026-10-30
 

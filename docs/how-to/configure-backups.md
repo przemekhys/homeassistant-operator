@@ -73,35 +73,15 @@ not install integrations or replace an unavailable requested destination with a
 different one.
 
 When Home Assistant exposes a backup encryption key, the operator retains each
-observed distinct value in an Opaque Secret. The Secret is deliberately not
-owned by the HomeAssistant object, so it survives deletion of that object.
-Export the relevant entry to protected storage outside the cluster. Do not put
-the key, API token, or a downloaded archive in terminal history, CI artifacts,
-or tickets. A Secret in the same cluster is not a disaster-recovery copy.
-
-Export one selected entry without printing it:
-
-```bash
-(
-set -euo pipefail
-umask 077
-export_dir=$(mktemp -d)
-secret_name=$(kubectl get ha home -o jsonpath='{.status.backup.keySecretRef.name}')
-secret_key=$(kubectl get ha home -o jsonpath='{.status.backup.keySecretRef.key}')
-test -n "$secret_name"
-test -n "$secret_key"
-kubectl get secret "$secret_name" -o json | \
-  jq -er --arg key "$secret_key" '.data[$key]' | base64 --decode >"$export_dir/recovery-key"
-test -s "$export_dir/recovery-key"
-chmod 600 "$export_dir/recovery-key"
-printf 'Protected export directory: %s\n' "$export_dir"
-)
-```
+observed distinct value in an Opaque Secret in the same namespace. The current
+Secret name and entry are identified by `status.backup.keySecretRef.name` and
+`status.backup.keySecretRef.key`. The Secret is not owned by the HomeAssistant
+object, so it survives deletion of that object. A Secret in the same cluster is
+not a disaster-recovery copy.
 
 The current reference may not match an older archive: choose the key observed
 when that archive was made. The retained Secret preserves prior different keys,
-but Kubernetes still enforces its size limit; export keys and manually remove
-only entries you no longer need if it fills. Deleting the `HomeAssistant` keeps
+but Kubernetes still enforces its size limit. Deleting the `HomeAssistant` keeps
 this Secret, while deleting its namespace or the cluster does not.
 
 ## Getting backups off the cluster
@@ -131,7 +111,9 @@ velero schedule create ha-daily \
 
 ## Restore
 
-Restore is performed manually through the HA UI (`Settings → System → Backups`). The operator does not automate restore operations.
+The operator does not automate restore operations. The documented recovery
+procedure uses a fresh, isolated Home Assistant Container, not an
+operator-managed instance. See [recover a native backup](recover-native-backup.md).
 
 ## Verify
 
