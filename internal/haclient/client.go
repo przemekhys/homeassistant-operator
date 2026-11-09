@@ -685,48 +685,6 @@ func (c *Client) CurrentUser(ctx context.Context, token string) (*AuthUser, erro
 	return &user, nil
 }
 
-// GetBackupConfig retrieves the current backup configuration from HA via WebSocket.
-func (c *Client) GetBackupConfig(
-	ctx context.Context, token string,
-) (*BackupConfig, error) {
-	result, err := c.SendWebSocketCommand(
-		ctx, token, "backup/config/info", nil,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	var config BackupConfig
-	if err := json.Unmarshal(result, &config); err != nil {
-		return nil, &Error{
-			Type:    ErrorTypeInvalidResponse,
-			Message: "failed to parse backup config",
-			Err:     err,
-		}
-	}
-	return &config, nil
-}
-
-// ConfigureBackup updates the backup configuration in HA via WebSocket.
-func (c *Client) ConfigureBackup(
-	ctx context.Context, token string, req *BackupConfigRequest,
-) error {
-	data := make(map[string]interface{})
-	if req.Schedule != nil {
-		data["schedule"] = req.Schedule
-	}
-	if req.Retention != nil {
-		data["retention"] = req.Retention
-	}
-	if req.CreateBackup != nil {
-		data["create_backup"] = req.CreateBackup
-	}
-	_, err := c.SendWebSocketCommand(
-		ctx, token, "backup/config/update", data,
-	)
-	return err
-}
-
 // SetCoreConfig completes the core_config onboarding step. Home Assistant does
 // not apply the request's settings here; UpdateCoreConfig performs that write.
 func (c *Client) SetCoreConfig(ctx context.Context, accessToken string, req *CoreConfigRequest) error {

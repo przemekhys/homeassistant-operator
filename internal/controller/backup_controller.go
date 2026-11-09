@@ -18,7 +18,8 @@ package controller
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"sort"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -36,7 +37,22 @@ const (
 	reasonBackupConfigured        = "BackupConfigured"
 	reasonBackupConfigFailed      = "BackupConfigFailed"
 	reasonBackupTokenNotAvailable = "TokenNotAvailable"
+	reasonBackupUnmanaged         = "Unmanaged"
+	reasonBackupAgentUnavailable  = "AgentUnavailable"
 )
+
+// earliestRequeue preserves the shortest outstanding backup deadline while
+// allowing configuration, observation, and a one-shot request to run in one
+// reconcile. A zero duration means no requested requeue.
+func earliestRequeue(results ...ctrl.Result) ctrl.Result {
+	var earliest time.Duration
+	for _, result := range results {
+		if result.RequeueAfter > 0 && (earliest == 0 || result.RequeueAfter < earliest) {
+			earliest = result.RequeueAfter
+		}
+	}
+	return ctrl.Result{RequeueAfter: earliest}
+}
 
 // reconcileBackupConfig configures HA's built-in backup system via WebSocket API.
 // Called after bootstrap — requires a valid API token.
@@ -46,17 +62,7 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	// If backup not enabled, clear condition if it was set and return
-	if ha.Spec.Backup == nil || !ha.Spec.Backup.Enabled {
-		if meta.FindStatusCondition(ha.Status.Conditions, conditionTypeBackupConfigured) != nil {
-			meta.RemoveStatusCondition(&ha.Status.Conditions, conditionTypeBackupConfigured)
-			if err := r.Status().Update(ctx, ha); err != nil {
-				log.Error(err, "Failed to clear BackupConfigured condition")
-				return ctrl.Result{}, err
-			}
-		}
-		return ctrl.Result{}, nil
-	}
+	managed := ha.Spec.Backup != nil && ha.Spec.Backup.Enabled
 
 	// Get API token
 	token, err := getAPIToken(ctx, r.Client, ha)
@@ -81,24 +87,69 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 	// Get current backup config from HA
 	currentConfig, err := haClient.GetBackupConfig(ctx, token)
 	if err != nil {
-		log.Error(err, "Failed to get backup config from HA")
-		msg := fmt.Sprintf("Failed to get backup config: %v", err)
-		r.emitBackupEvent(ha, corev1.EventTypeWarning, "BackupConfigFailed", msg)
+		log.Info("Failed to get backup config from HA")
+		reason, message := backupConfigReadFailure(err)
+		r.emitBackupEvent(ha, corev1.EventTypeWarning, reason, message)
 		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
 			Type:               conditionTypeBackupConfigured,
 			Status:             metav1.ConditionFalse,
 			ObservedGeneration: ha.Generation,
-			Reason:             reasonBackupConfigFailed,
-			Message:            fmt.Sprintf("Failed to get backup config: %v", err),
+			Reason:             reason,
+			Message:            message,
 		})
 		if err := r.Status().Update(ctx, ha); err != nil {
 			log.Error(err, "Failed to update backup status")
 		}
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 	}
+	if !managed {
+		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
+			Type: conditionTypeBackupConfigured, Status: metav1.ConditionUnknown,
+			ObservedGeneration: ha.Generation, Reason: reasonBackupUnmanaged,
+			Message: "backup configuration is unmanaged",
+		})
+		if err := r.Status().Update(ctx, ha); err != nil {
+			return ctrl.Result{}, err
+		}
+		observationResult, err := r.reconcileBackupObservation(ctx, ha, haClient, token, currentConfig)
+		if err != nil {
+			return observationResult, err
+		}
+		requestResult, err := r.reconcileBackupRequest(ctx, ha, haClient, token, currentConfig)
+		return earliestRequeue(observationResult, requestResult), err
+	}
+
+	// Observation and key retention remain independent of the requested agents.
+	observationResult, err := r.reconcileBackupObservation(ctx, ha, haClient, token, currentConfig)
+	if err != nil {
+		return observationResult, err
+	}
 
 	// Build desired config from spec
 	desired := r.buildBackupConfigRequest(ha.Spec.Backup)
+	availableAgents, err := haClient.ListBackupAgents(ctx, token)
+	if err != nil {
+		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
+			Type: conditionTypeBackupConfigured, Status: metav1.ConditionUnknown,
+			ObservedGeneration: ha.Generation, Reason: "ObservationUnavailable",
+			Message: "cannot verify requested backup destinations",
+		})
+		if statusErr := r.Status().Update(ctx, ha); statusErr != nil {
+			return ctrl.Result{}, statusErr
+		}
+		return earliestRequeue(observationResult, ctrl.Result{RequeueAfter: 30 * time.Second}), nil
+	}
+	if missingBackupAgent(desired.CreateBackup.AgentIDs, availableAgents) {
+		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
+			Type: conditionTypeBackupConfigured, Status: metav1.ConditionFalse,
+			ObservedGeneration: ha.Generation, Reason: reasonBackupAgentUnavailable,
+			Message: "a requested backup destination is unavailable",
+		})
+		if statusErr := r.Status().Update(ctx, ha); statusErr != nil {
+			return ctrl.Result{}, statusErr
+		}
+		return earliestRequeue(observationResult, ctrl.Result{RequeueAfter: 30 * time.Second}), nil
+	}
 
 	// Compare and update only if needed
 	if !r.needsBackupUpdate(currentConfig, desired) {
@@ -114,22 +165,23 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 			log.Error(err, "Failed to update backup status")
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, nil
+		requestResult, err := r.reconcileBackupRequest(ctx, ha, haClient, token, currentConfig)
+		return earliestRequeue(observationResult, requestResult), err
 	}
 
 	// Apply new config
 	log.Info("Updating backup configuration in HA",
 		"recurrence", desired.Schedule.Recurrence)
 	if err := haClient.ConfigureBackup(ctx, token, desired); err != nil {
-		log.Error(err, "Failed to configure backup in HA")
-		msg := fmt.Sprintf("Failed to configure backup: %v", err)
+		log.Info("Failed to configure backup in HA")
+		msg := "Home Assistant rejected or did not accept backup configuration"
 		r.emitBackupEvent(ha, corev1.EventTypeWarning, "BackupConfigFailed", msg)
 		meta.SetStatusCondition(&ha.Status.Conditions, metav1.Condition{
 			Type:               conditionTypeBackupConfigured,
 			Status:             metav1.ConditionFalse,
 			ObservedGeneration: ha.Generation,
 			Reason:             reasonBackupConfigFailed,
-			Message:            fmt.Sprintf("Failed to configure backup: %v", err),
+			Message:            msg,
 		})
 		if err := r.Status().Update(ctx, ha); err != nil {
 			log.Error(err, "Failed to update backup status")
@@ -151,17 +203,54 @@ func (r *HomeAssistantReconciler) reconcileBackupConfig(
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	// Read the configuration again before a one-shot request so it always uses
+	// settings HA has acknowledged rather than a desired local approximation.
+	return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+}
+
+// backupConfigReadFailure maps native capability errors to safe status messages.
+func backupConfigReadFailure(err error) (string, string) {
+	var haErr *haclient.Error
+	if errors.As(err, &haErr) {
+		switch haErr.Code {
+		case "unknown_command":
+			return "Unsupported", "backup commands are not supported by this Home Assistant instance"
+		case "unauthorized", "forbidden":
+			return "PermissionDenied", "permission to read backup configuration was denied"
+		}
+	}
+	return reasonBackupConfigFailed, "cannot read backup configuration"
+}
+
+// missingBackupAgent prevents silently substituting another destination.
+func missingBackupAgent(expected []string, available []haclient.BackupAgent) bool {
+	seen := make(map[string]struct{}, len(available))
+	for _, agent := range available {
+		seen[agent.ID] = struct{}{}
+	}
+	for _, id := range expected {
+		if _, found := seen[id]; !found {
+			return true
+		}
+	}
+	return false
 }
 
 // buildBackupConfigRequest converts BackupSpec to haclient.BackupConfigRequest
 func (r *HomeAssistantReconciler) buildBackupConfigRequest(spec *hav1.BackupSpec) *haclient.BackupConfigRequest {
 	req := &haclient.BackupConfigRequest{
 		Schedule: &haclient.BackupSchedule{
-			Recurrence: spec.Recurrence,
+			Recurrence: "daily",
 		},
 		Retention:    &haclient.BackupRetention{},
 		CreateBackup: &haclient.BackupCreateConfig{},
+	}
+	if spec.Recurrence != "" {
+		req.Schedule.Recurrence = spec.Recurrence
+	}
+	if isWeekday(spec.Recurrence) {
+		req.Schedule.Recurrence = "custom_days"
+		req.Schedule.Days = []string{spec.Recurrence}
 	}
 
 	// Time: empty string in spec → nil (HA picks automatically)
@@ -181,7 +270,11 @@ func (r *HomeAssistantReconciler) buildBackupConfigRequest(spec *hav1.BackupSpec
 	}
 
 	// CreateBackup
-	req.CreateBackup.IncludeDatabase = spec.IncludeDatabase
+	includeDatabase := true
+	if spec.IncludeDatabase != nil {
+		includeDatabase = *spec.IncludeDatabase
+	}
+	req.CreateBackup.IncludeDatabase = &includeDatabase
 	if len(spec.AgentIDs) > 0 {
 		req.CreateBackup.AgentIDs = spec.AgentIDs
 	} else {
@@ -199,6 +292,9 @@ func (r *HomeAssistantReconciler) needsBackupUpdate(
 	// Compare schedule
 	if desired.Schedule != nil {
 		if current.Schedule.Recurrence != desired.Schedule.Recurrence {
+			return true
+		}
+		if !stringSliceSetEqual(current.Schedule.Days, desired.Schedule.Days) {
 			return true
 		}
 		if !ptrStringEqual(current.Schedule.Time, desired.Schedule.Time) {
@@ -221,7 +317,7 @@ func (r *HomeAssistantReconciler) needsBackupUpdate(
 		if !ptrBoolEqual(current.CreateBackup.IncludeDatabase, desired.CreateBackup.IncludeDatabase) {
 			return true
 		}
-		if !stringSliceEqual(current.CreateBackup.AgentIDs, desired.CreateBackup.AgentIDs) {
+		if !stringSliceSetEqual(current.CreateBackup.AgentIDs, desired.CreateBackup.AgentIDs) {
 			return true
 		}
 	}
@@ -273,6 +369,27 @@ func stringSliceEqual(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+// stringSliceSetEqual compares destination sets independently of ordering.
+func stringSliceSetEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	aa, bb := append([]string(nil), a...), append([]string(nil), b...)
+	sort.Strings(aa)
+	sort.Strings(bb)
+	return stringSliceEqual(aa, bb)
+}
+
+// isWeekday recognizes individual weekday schedule values.
+func isWeekday(value string) bool {
+	switch value {
+	case "mon", "tue", "wed", "thu", "fri", "sat", "sun":
+		return true
+	default:
+		return false
+	}
 }
 
 // emitBackupEvent emits a Kubernetes event for backup operations.

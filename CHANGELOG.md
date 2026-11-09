@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Native Home Assistant backups:** scheduled and one-shot backups, status
+  observations, and retention of encryption keys in a Kubernetes Secret.
+
 ## [v1.7.0] - 2026-10-30
 
 ### Added

@@ -136,6 +136,97 @@ _Appears in:_
 
 
 
+#### BackupAgentStatus
+
+
+
+
+
+
+
+_Appears in:_
+- [BackupStatus](#backupstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `id` _string_ |  |  |  |
+| `name` _string_ |  |  |  |
+
+
+#### BackupAttemptStatus
+
+
+
+
+
+
+
+_Appears in:_
+- [BackupStatus](#backupstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `source` _string_ |  |  |  |
+| `requestID` _string_ |  |  |  |
+| `backupID` _string_ |  |  |  |
+| `outcome` _string_ |  |  |  |
+| `completedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ |  |  |  |
+| `locations` _[BackupLocationStatus](#backuplocationstatus) array_ |  |  |  |
+
+
+#### BackupLocationStatus
+
+
+
+
+
+
+
+_Appears in:_
+- [BackupAttemptStatus](#backupattemptstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `id` _string_ |  |  |  |
+| `outcome` _string_ |  |  |  |
+
+
+#### BackupRequestStatus
+
+
+
+
+
+
+
+_Appears in:_
+- [BackupStatus](#backupstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `id` _string_ |  |  |  |
+| `phase` _string_ |  |  |  |
+| `backupID` _string_ |  |  |  |
+| `claimedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ |  |  |  |
+
+
+#### BackupSecretKeyReference
+
+
+
+BackupSecretKeyReference selects one key from an Opaque Secret without exposing it.
+
+
+
+_Appears in:_
+- [BackupStatus](#backupstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ |  |  |  |
+| `key` _string_ |  |  |  |
+
+
 #### BackupSpec
 
 
@@ -156,6 +247,27 @@ _Appears in:_
 | `retentionDays` _integer_ | RetentionDays is the number of days to keep backups. Nil means unlimited. |  | Minimum: 1 <br />Optional: \{\} <br /> |
 | `includeDatabase` _boolean_ | IncludeDatabase controls whether the database is included in the backup. | true | Optional: \{\} <br /> |
 | `agentIDs` _string array_ | AgentIDs is the list of backup agent IDs to use<br />(e.g. "backup.local", "google_drive.my_drive").<br />Defaults to ["backup.local"] if not specified. |  | Optional: \{\} <br /> |
+
+
+#### BackupStatus
+
+
+
+BackupStatus is the operator's current view of native backups.
+
+
+
+_Appears in:_
+- [HomeAssistantStatus](#homeassistantstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `observedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | ObservedAt is when Home Assistant backup information was last read. |  | Optional: \{\} <br /> |
+| `agents` _[BackupAgentStatus](#backupagentstatus) array_ | Agents are destinations last advertised by Home Assistant. |  | Optional: \{\} <br /> |
+| `lastAttempt` _[BackupAttemptStatus](#backupattemptstatus)_ | LastAttempt is bounded evidence, not a full backup history. |  | Optional: \{\} <br /> |
+| `lastSuccessfulBackupTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastSuccessfulBackupTime is the native archive date of the last fully<br />confirmed success, when that evidence is available. |  | Optional: \{\} <br /> |
+| `request` _[BackupRequestStatus](#backuprequeststatus)_ | Request is the current durable one-shot request projection. |  | Optional: \{\} <br /> |
+| `keySecretRef` _[BackupSecretKeyReference](#backupsecretkeyreference)_ | KeySecretRef identifies the protected current observed encryption key.<br />It never contains the key value. |  | Optional: \{\} <br /> |
 
 
 #### BootstrapCredentials
@@ -1464,6 +1576,7 @@ _Appears in:_
 | `lastSelfUnban` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastSelfUnban is the timestamp of the most recent ban-recovery pod restart. |  | Optional: \{\} <br /> |
 | `banRestartWindowStart` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | BanRestartWindowStart is the start of the current ban-recovery sliding window.<br />Nil means no window is active (no ban seen or window has expired). |  | Optional: \{\} <br /> |
 | `banRestartWindowCount` _integer_ | BanRestartWindowCount is the number of ban-recovery pod restarts within the<br />current sliding window. When it reaches banRestartMaxCount the operator stops<br />restarting and sets condition BanRecoveryFailed=True. |  | Optional: \{\} <br /> |
+| `backup` _[BackupStatus](#backupstatus)_ | Backup contains the latest bounded backup observations. It never contains<br />credentials, backup encryption keys, or a complete operation history. |  | Optional: \{\} <br /> |
 
 
 #### IngressSpec

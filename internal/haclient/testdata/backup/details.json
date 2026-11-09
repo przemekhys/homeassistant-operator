@@ -1,0 +1,10 @@
+{
+  "backup": {
+    "backup_id": "fixture-backup-001",
+    "date": "2026-11-03T12:00:00Z",
+    "agents": {"backup.local": {"protected": true, "size": 1024}},
+    "failed_agent_ids": [],
+    "with_automatic_settings": true
+  },
+  "agent_errors": {}
+}

@@ -24,16 +24,20 @@ const (
 
 // Error represents a Home Assistant API error
 type Error struct {
-	Type       ErrorType
+	Type ErrorType
+	// Code is the safe machine-readable error code returned by Home Assistant.
+	// It deliberately excludes the server-provided message, which can contain
+	// sensitive backup configuration details.
+	Code       string
 	Message    string
 	StatusCode int
 	Err        error
 }
 
 func (e *Error) Error() string {
-	if e.Err != nil {
-		return fmt.Sprintf("%s: %s: %v", e.Type, e.Message, e.Err)
-	}
+	// The wrapped transport or decoder error can include an endpoint or a
+	// server-provided payload. Keep it available through Unwrap for callers
+	// that need classification, but never render it into logs, Events, or status.
 	return fmt.Sprintf("%s: %s", e.Type, e.Message)
 }
 

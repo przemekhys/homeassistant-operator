@@ -214,7 +214,42 @@ make test-e2e-tls                        # TLS ingress/gateway/webhook (4 specs)
 make test-e2e-network-policy             # NetworkPolicy enforcement (1 spec)
 make test-e2e-pod-security                # Pod Security Standards (2 specs)
 make test-e2e-community-repository       # All HACS-style categories and lifecycle (4 specs)
+HA_VERSION=2026.10.4 make test-e2e-backup K3D_CLUSTER_E2E=ha-backup-validation-e2e  # Native backup checks
 ```
+
+`test-e2e-critical-a` keeps its eight-minute budget and excludes the labelled
+backup cases. `test-e2e-backup` uses a 15-minute budget with one shared HA
+bootstrap. It verifies native `backup.local` one-shot creation, streamed
+archive download without exporting it, a near-term scheduled backup, retained
+encryption keys, and native recovery of a protected archive onto a fresh
+loopback-only Container in HA 2026.10.4. It does not verify external agents,
+provider-specific destination failure, external databases, or Home Assistant
+OS Apps. The separate CI backup job allows 25 minutes for the Ginkgo suite
+and 48 minutes for the whole job, including setup and failure diagnostics.
+
+### Native backup validation record
+
+- **2026-11-05:** `HA_VERSION=2026.10.4 make test-e2e-backup
+  K3D_CLUSTER_E2E=ha-backup-validation-e2e` passed (5 specs, 3m44s). The
+  approved native onboarding recovery on a fresh loopback-only Container
+  verified the Local To-do config entry, stable entity identity, and control
+  item from the private recovery workspace, using a protected original archive
+  and retained key. No archive, token, or recovery key was emitted.
+- **2026-11-05:** the same backup target passed (5 specs, 3m55s) with
+  `includeDatabase` enabled and disabled. Two fresh recovery targets retained
+  the Local To-do file and control item; a previously recorded local state was
+  present only in the database-enabled recovery. External databases were not
+  tested.
+- **2026-11-05:** `HA_VERSION=2026.10.4 make test-e2e-critical-a
+  K3D_CLUSTER_E2E=ha-backup-validation-e2e` passed (16 specs, 4m05s).
+  `make test` and `make docs-verify` also passed; backup destination failure
+  across multiple agents was not exercised against real HA.
+- **2026-11-05:** a separate, approved manual native onboarding API upload
+  and restore on a fresh HA Container 2026.10.4 recovered the Local To-do
+  configuration, entity identity, and control item with the retained key.
+  The test source had already been cleaned up before this manual restore;
+  the automated recovery separately checked the running source. The private
+  export and disposable target were removed afterward.
 
 Each target creates its own fresh k3d cluster (`K3D_MEMORY_E2E=12g` by
 default; CI uses 4g), runs its `ginkgo run --label-filter=...` subset, and tears the
