@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.7.1] - 2026-11-13
+
+### Security
+
+- Updated the Go toolchain from `go1.27.3` to `go1.27.4` to address a reported
+  security vulnerability.
+- Updated the OpenTelemetry SDK from `v1.46.0` to `v1.47.0` to address a
+  reported security vulnerability.
+
 ## [v1.7.0] - 2026-10-30
 
 ### Added
@@ -619,7 +628,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Primary: k3s on Raspberry Pi 4/5 (ARM64)
 - Also supported: Any Kubernetes cluster (AMD64/ARM64)
 
-[Unreleased]: https://github.com/przemekhys/homeassistant-operator/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/przemekhys/homeassistant-operator/compare/v1.7.1...HEAD
+[v1.7.1]: https://github.com/przemekhys/homeassistant-operator/compare/v1.7.0...v1.7.1
 [v1.7.0]: https://github.com/przemekhys/homeassistant-operator/compare/v1.6.1...v1.7.0
 [v1.6.1]: https://github.com/przemekhys/homeassistant-operator/compare/v1.6.0...v1.6.1
 [v1.6.0]: https://github.com/przemekhys/homeassistant-operator/compare/v1.5.1...v1.6.0
