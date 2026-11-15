@@ -2086,7 +2086,7 @@ func volumeContentDiffers(
 	for i, cv := range current.Spec.Template.Spec.Volumes {
 		dv := desired.Spec.Template.Spec.Volumes[i]
 		if !volumeSemanticEqual(cv, dv) {
-			log.V(1).Info("Volume differs", "index", i, "name", dv.Name)
+			log.V(1).Info("Volume differs", "index", i, "volumeName", dv.Name)
 			return true
 		}
 	}

@@ -472,7 +472,7 @@ func (r *HomeAssistantAutomationReconciler) validateHomeAssistantRef(
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			log.Error(err, "Referenced HomeAssistant not found",
-				"name", haRef.Name)
+				"homeAssistantName", haRef.Name)
 			meta.SetStatusCondition(&automation.Status.Conditions,
 				metav1.Condition{
 					Type:   conditionTypeReady,

@@ -348,7 +348,7 @@ func (r *HomeAssistantConfigurationReconciler) reconcileGeneratedConfigMap(
 				return err
 			}
 
-			log.Info("Creating new generated ConfigMap (no hash annotation initially)", "name", configMapName)
+			log.Info("Creating new generated ConfigMap (no hash annotation initially)", "configMapName", configMapName)
 			if err := r.Create(ctx, configMap); err != nil {
 				return err
 			}
@@ -369,7 +369,7 @@ func (r *HomeAssistantConfigurationReconciler) reconcileGeneratedConfigMap(
 		// This protects against accidentally modifying ConfigMaps from other resources
 		if owner.Kind == "HomeAssistantConfiguration" && owner.Name != config.Name {
 			log.Info("ConfigMap exists but is owned by different HomeAssistantConfiguration; skipping update",
-				"name", configMapName,
+				"configMapName", configMapName,
 				"owner", owner.Name)
 			return nil
 		}
@@ -377,7 +377,7 @@ func (r *HomeAssistantConfigurationReconciler) reconcileGeneratedConfigMap(
 		// update the owner reference to point to current CR
 		if owner.Name == config.Name && owner.UID != config.UID {
 			log.Info("ConfigMap owned by old instance of same CR, updating owner reference",
-				"name", configMapName)
+				"configMapName", configMapName)
 			if err := controllerutil.SetControllerReference(config, existingConfigMap, r.Scheme); err != nil {
 				return err
 			}
@@ -387,7 +387,7 @@ func (r *HomeAssistantConfigurationReconciler) reconcileGeneratedConfigMap(
 		}
 	} else {
 		// ConfigMap exists but has no owner - adopt it by setting owner reference
-		log.Info("Adopting existing ConfigMap (no owner reference)", "name", configMapName)
+		log.Info("Adopting existing ConfigMap (no owner reference)", "configMapName", configMapName)
 		if err := controllerutil.SetControllerReference(config, existingConfigMap, r.Scheme); err != nil {
 			return err
 		}
@@ -398,7 +398,8 @@ func (r *HomeAssistantConfigurationReconciler) reconcileGeneratedConfigMap(
 
 	existingData := existingConfigMap.Data[configurationYamlKey]
 	if existingData != canonicalContent {
-		log.Info("Updating generated ConfigMap content (hash annotation preserved for hot-reload)", "name", configMapName)
+		log.Info("Updating generated ConfigMap content (hash annotation preserved for hot-reload)",
+			"configMapName", configMapName)
 		existingConfigMap.Data[configurationYamlKey] = canonicalContent
 		if err := r.Update(ctx, existingConfigMap); err != nil {
 			return err
@@ -959,9 +960,7 @@ func (r *HomeAssistantConfigurationReconciler) syncConfigMapFromCRD(
 	// The hash annotation is ONLY updated during restart strategy in performConfigReload()
 	// to explicitly trigger pod restart.
 	log.Info("ConfigMap was modified externally, restoring from CRD state",
-		"configMapName", configMapName,
-		"currentContent", currentContent[:min(50, len(currentContent))],
-		"expectedContent", canonicalContent[:min(50, len(canonicalContent))])
+		"configMapName", configMapName)
 
 	existingConfigMap.Data[configurationYamlKey] = canonicalContent
 	// DO NOT update annotation hash here - it's managed by performConfigReload() only
@@ -1014,7 +1013,7 @@ func (r *HomeAssistantConfigurationReconciler) validateHomeAssistantRef(
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Error(err, "Referenced HomeAssistant not found",
-				"name", haRef.Name)
+				"homeAssistantName", haRef.Name)
 			meta.SetStatusCondition(&config.Status.Conditions,
 				metav1.Condition{
 					Type:   conditionTypeReady,

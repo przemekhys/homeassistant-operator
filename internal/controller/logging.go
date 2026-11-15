@@ -22,6 +22,9 @@ func reconcileLogger(
 	req reconcile.Request,
 ) (context.Context, logr.Logger) {
 	base := logf.FromContext(ctx)
+	if base.GetSink() == nil {
+		return logf.IntoContext(ctx, base), base
+	}
 	correlationID := uuid.NewString()
 	homeAssistant := ""
 	if resourceKind == "HomeAssistant" {
@@ -51,7 +54,10 @@ func withHomeAssistant(ctx context.Context, name string) (context.Context, logr.
 	return logf.IntoContext(ctx, log), log
 }
 
-var unsafeLogField = regexp.MustCompile(`(?i)(token|secret|password|credential|authorization|payload|requestbody|responsebody|config|^error$)`)
+var unsafeLogField = regexp.MustCompile(
+	`(?i)(token|secret|password|credential|authorization|payload|` +
+		`request(body)?|response(body)?|(?:current|expected|configuration|config)content|^error$)`,
+)
 
 // structuredSink provides a stable event identifier and prevents sensitive
 // values (including arbitrary error text from remote systems) from reaching logs.

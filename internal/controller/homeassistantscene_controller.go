@@ -86,6 +86,11 @@ func (r *HomeAssistantSceneReconciler) Reconcile(ctx context.Context, req ctrl.R
 		log.Error(err, "Failed to get HomeAssistantScene")
 		return ctrl.Result{}, err
 	}
+	haRef := types.NamespacedName{
+		Name:      scene.Spec.HomeAssistantRef.Name,
+		Namespace: scene.Namespace,
+	}
+	ctx, log = withHomeAssistant(ctx, haRef.Name)
 
 	// Handle finalizer for proper cleanup
 	if !scene.DeletionTimestamp.IsZero() {
@@ -94,10 +99,6 @@ func (r *HomeAssistantSceneReconciler) Reconcile(ctx context.Context, req ctrl.R
 			log.Info("Handling deletion - deleting scene via HA REST API")
 
 			// Delete scene via HA REST API (best effort — proceed even if HA is unavailable)
-			haRef := types.NamespacedName{
-				Name:      scene.Spec.HomeAssistantRef.Name,
-				Namespace: scene.Namespace,
-			}
 			if ha, haErr := r.validateHomeAssistantRef(ctx, haRef, scene); haErr == nil {
 				if token, tokenErr := getAPIToken(ctx, r.Client, ha); tokenErr == nil {
 					haClient := r.haClientFor(ha)
@@ -137,11 +138,6 @@ func (r *HomeAssistantSceneReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// Validate HomeAssistant reference exists
-	haRef := types.NamespacedName{
-		Name:      scene.Spec.HomeAssistantRef.Name,
-		Namespace: scene.Namespace,
-	}
-	ctx, log = withHomeAssistant(ctx, haRef.Name)
 	ha, err := r.validateHomeAssistantRef(ctx, haRef, scene)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
@@ -411,7 +407,7 @@ func (r *HomeAssistantSceneReconciler) validateHomeAssistantRef(
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Error(err, "Referenced HomeAssistant not found",
-				"name", haRef.Name)
+				"homeAssistantName", haRef.Name)
 			meta.SetStatusCondition(&scene.Status.Conditions,
 				metav1.Condition{
 					Type:   conditionTypeReady,

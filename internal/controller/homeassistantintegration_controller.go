@@ -88,7 +88,7 @@ func (r *HomeAssistantIntegrationReconciler) haClientFor(ha *hav1.HomeAssistant)
 // Reconcile is part of the main kubernetes reconciliation loop.
 // nolint:gocyclo // Integration lifecycle branches reflect Home Assistant flow states.
 func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx, log := reconcileLogger(ctx, "HomeAssistantIntegration", "HomeAssistantIntegration", req)
+	ctx, _ = reconcileLogger(ctx, "HomeAssistantIntegration", "HomeAssistantIntegration", req)
 
 	integration := &hav1.HomeAssistantIntegration{}
 	if err := r.Get(ctx, req.NamespacedName, integration); err != nil {
@@ -100,6 +100,9 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 
 	// Remove legacy condition type from before the Ready rename (one-time migration).
 	meta.RemoveStatusCondition(&integration.Status.Conditions, "IntegrationReady")
+
+	haRef := types.NamespacedName{Name: integration.Spec.HomeAssistantRef.Name, Namespace: integration.Namespace}
+	ctx, log := withHomeAssistant(ctx, haRef.Name)
 
 	// --- DELETION ---
 	if !integration.DeletionTimestamp.IsZero() {
@@ -123,11 +126,9 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 	}
 
 	// --- FETCH HomeAssistant CR ---
-	haRef := types.NamespacedName{Name: integration.Spec.HomeAssistantRef.Name, Namespace: integration.Namespace}
-	ctx, log = withHomeAssistant(ctx, haRef.Name)
 	ha, err := getHomeAssistant(ctx, r.Client, haRef)
 	if err != nil {
-		log.Info("HomeAssistant not found, requeueing", "name", haRef.Name)
+		log.Info("HomeAssistant not found, requeueing", "homeAssistantName", haRef.Name)
 		return r.setFailedCondition(ctx, integration, reasonIntegrationHANotReady,
 			fmt.Sprintf("HomeAssistant %s not found", haRef.Name), 30*time.Second)
 	}
