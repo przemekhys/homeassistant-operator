@@ -95,6 +95,7 @@ func (r *HomeAssistantFloorReconciler) Reconcile(ctx context.Context, req ctrl.R
 		Name:      floor.Spec.HomeAssistantRef.Name,
 		Namespace: floor.Namespace,
 	}
+	ctx, log = withHomeAssistant(ctx, haRef.Name)
 	ha, err := getHomeAssistant(ctx, r.Client, haRef)
 	if err != nil {
 		log.Info("HomeAssistant not found, requeueing", "name", haRef.Name)

@@ -33,11 +33,17 @@ The logger adds these fields to every emitted record:
 | `operation` | High-level operation; `reconcile` for reconciler entry points |
 | `entryPoint` | Entry point that initiated the work; `Reconcile` for reconciler entry points |
 | `correlationID` | UUID unique to one reconciliation attempt |
-| `event` | Stable lower-case identifier derived from the static log message |
+| `event` | Stable identifier for the operational outcome |
 
-For example, `log.Info("ConfigMap updated")` emits the event
-`configmap_updated`. Keep messages static: changing a message changes its event
-identifier and breaks log queries and alerts that rely on it.
+Give every new or changed log call an explicit event. This keeps dashboard and
+alert queries stable when its human-readable message changes:
+
+```go
+log.Info("ConfigMap updated", "event", "configmap_updated")
+```
+
+Existing calls without an `event` retain a compatibility fallback derived from
+their static message. Do not use that fallback in new code.
 
 ## Safe fields
 

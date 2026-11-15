@@ -143,6 +143,7 @@ func (r *HomeAssistantScriptReconciler) Reconcile(ctx context.Context, req ctrl.
 		Name:      script.Spec.HomeAssistantRef.Name,
 		Namespace: script.Namespace,
 	}
+	ctx, log = withHomeAssistant(ctx, haRef.Name)
 	ha, err := r.validateHomeAssistantRef(ctx, haRef, script)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil

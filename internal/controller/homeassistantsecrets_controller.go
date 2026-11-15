@@ -89,6 +89,7 @@ func (r *HomeAssistantSecretsReconciler) Reconcile(ctx context.Context, req ctrl
 		Name:      haSecrets.Spec.HomeAssistantRef.Name,
 		Namespace: haSecrets.Namespace,
 	}
+	ctx, log = withHomeAssistant(ctx, haRef.Name)
 	ha := &hav1.HomeAssistant{}
 	if err := r.Get(ctx, haRef, ha); err != nil {
 		if errors.IsNotFound(err) {

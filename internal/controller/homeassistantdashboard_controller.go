@@ -67,6 +67,7 @@ func (r *HomeAssistantDashboardReconciler) Reconcile(ctx context.Context, req ct
 		return r.failed(ctx, dashboard, "SourceInvalid", err.Error())
 	}
 	haRef := types.NamespacedName{Name: dashboard.Spec.HomeAssistantRef.Name, Namespace: dashboard.Namespace}
+	ctx, _ = withHomeAssistant(ctx, haRef.Name)
 	ha, err := getHomeAssistant(ctx, r.Client, haRef)
 	if err != nil {
 		if apierrors.IsNotFound(err) {

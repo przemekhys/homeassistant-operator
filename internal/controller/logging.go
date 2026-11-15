@@ -43,6 +43,14 @@ func reconcileLogger(
 	return logf.IntoContext(ctx, log), log
 }
 
+// withHomeAssistant enriches the reconcile context after a dependent resource
+// has resolved its HomeAssistant reference. Keep this context for every
+// subsequent helper and client call.
+func withHomeAssistant(ctx context.Context, name string) (context.Context, logr.Logger) {
+	log := logf.FromContext(ctx).WithValues("homeAssistant", name)
+	return logf.IntoContext(ctx, log), log
+}
+
 var unsafeLogField = regexp.MustCompile(`(?i)(token|secret|password|credential|authorization|payload|requestbody|responsebody|config|^error$)`)
 
 // structuredSink provides a stable event identifier and prevents sensitive
@@ -58,19 +66,21 @@ func (s *structuredSink) Init(info logr.RuntimeInfo) { s.delegate.Init(info) }
 func (s *structuredSink) Enabled(level int) bool { return s.delegate.Enabled(level) }
 
 func (s *structuredSink) Info(level int, message string, kv ...any) {
-	fields := append(append([]any{}, s.fields...), "event", stableEvent(message))
-	s.delegate.Info(level, message, append(fields, safeLogValues(kv)...)...)
+	values := mergeLogValues(s.fields, safeLogValues(kv))
+	values = append(withoutField(values, "event"), "event", eventValue(values, message))
+	s.delegate.Info(level, message, values...)
 }
 
 func (s *structuredSink) Error(err error, message string, kv ...any) {
-	fields := append(append([]any{}, s.fields...), "event", stableEvent(message), "errorType", errorType(err))
+	values := mergeLogValues(s.fields, safeLogValues(kv))
+	values = append(withoutField(values, "event"), "event", eventValue(values, message), "errorType", errorType(err))
 	// Do not forward the original error: HTTP and Kubernetes errors may contain
 	// request data, Secret values, or complete Home Assistant responses.
-	s.delegate.Error(errors.New("operation failed"), message, append(fields, safeLogValues(kv)...)...)
+	s.delegate.Error(errors.New("operation failed"), message, values...)
 }
 
 func (s *structuredSink) WithValues(kv ...any) logr.LogSink {
-	return &structuredSink{delegate: s.delegate.WithValues(safeLogValues(kv)...), fields: append([]any{}, s.fields...), name: s.name}
+	return &structuredSink{delegate: s.delegate, fields: mergeLogValues(s.fields, safeLogValues(kv)), name: s.name}
 }
 
 func (s *structuredSink) WithName(name string) logr.LogSink {
@@ -100,6 +110,48 @@ func safeLogValues(kv []any) []any {
 		i += 2
 	}
 	return filtered
+}
+
+func eventValue(kv []any, message string) string {
+	for i := 0; i+1 < len(kv); i += 2 {
+		if key, ok := kv[i].(string); ok && key == "event" {
+			if event, ok := kv[i+1].(string); ok && event != "" {
+				return event
+			}
+		}
+	}
+	// Compatibility fallback for existing call sites. New and changed log calls
+	// must supply an explicit event so a message edit cannot alter the contract.
+	return stableEvent(message)
+}
+
+func withoutField(kv []any, field string) []any {
+	filtered := make([]any, 0, len(kv))
+	for i := 0; i+1 < len(kv); i += 2 {
+		if key, ok := kv[i].(string); ok && key == field {
+			continue
+		}
+		filtered = append(filtered, kv[i], kv[i+1])
+	}
+	return filtered
+}
+
+// mergeLogValues keeps one value per string key. Values on the right override
+// earlier context, which makes a resolved HomeAssistant reference replace the
+// empty value installed at reconcile entry.
+func mergeLogValues(groups ...[]any) []any {
+	merged := make([]any, 0)
+	for _, group := range groups {
+		for i := 0; i+1 < len(group); i += 2 {
+			key, ok := group[i].(string)
+			if !ok {
+				merged = append(merged, group[i], group[i+1])
+				continue
+			}
+			merged = append(withoutField(merged, key), key, group[i+1])
+		}
+	}
+	return merged
 }
 
 func safeLogValue(value any) bool {

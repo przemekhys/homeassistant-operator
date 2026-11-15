@@ -154,6 +154,7 @@ func (r *HomeAssistantAutomationReconciler) Reconcile(ctx context.Context, req c
 		Name:      automation.Spec.HomeAssistantRef.Name,
 		Namespace: automation.Namespace,
 	}
+	ctx, log = withHomeAssistant(ctx, haRef.Name)
 	ha, err := r.validateHomeAssistantRef(ctx, haRef, automation)
 	if err != nil {
 		// Requeue quickly to retry validation

@@ -161,6 +161,7 @@ func (r *HomeAssistantConfigurationReconciler) Reconcile(ctx context.Context, re
 		Name:      config.Spec.HomeAssistantRef.Name,
 		Namespace: config.Namespace,
 	}
+	ctx, log = withHomeAssistant(ctx, haRef.Name)
 	ha, err := r.validateHomeAssistantRef(ctx, haRef, config)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil

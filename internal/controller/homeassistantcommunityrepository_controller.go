@@ -164,6 +164,7 @@ func (r *HomeAssistantCommunityRepositoryReconciler) Reconcile(
 
 	// --- FETCH HomeAssistant CR ---
 	haRef := types.NamespacedName{Name: repo.Spec.HomeAssistantRef.Name, Namespace: repo.Namespace}
+	ctx, log = withHomeAssistant(ctx, haRef.Name)
 	ha, err := getHomeAssistant(ctx, r.Client, haRef)
 	if err != nil {
 		log.Info("HomeAssistant not found, requeueing", "name", haRef.Name)

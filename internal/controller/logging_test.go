@@ -12,6 +12,20 @@ func TestStableEvent(t *testing.T) {
 	}
 }
 
+func TestEventValuePrefersExplicitEvent(t *testing.T) {
+	if got, want := eventValue([]any{"event", "automation_applied"}, "Automation applied"), "automation_applied"; got != want {
+		t.Fatalf("eventValue() = %q, want %q", got, want)
+	}
+}
+
+func TestMergeLogValuesUsesMostSpecificContext(t *testing.T) {
+	got := mergeLogValues([]any{"homeAssistant", "", "operation", "reconcile"}, []any{"homeAssistant", "home"})
+	want := []any{"operation", "reconcile", "homeAssistant", "home"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("mergeLogValues() = %#v, want %#v", got, want)
+	}
+}
+
 func TestSafeLogValuesDropsSensitiveFields(t *testing.T) {
 	got := safeLogValues([]any{
 		"operation", "apply",

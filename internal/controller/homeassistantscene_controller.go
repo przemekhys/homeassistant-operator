@@ -141,6 +141,7 @@ func (r *HomeAssistantSceneReconciler) Reconcile(ctx context.Context, req ctrl.R
 		Name:      scene.Spec.HomeAssistantRef.Name,
 		Namespace: scene.Namespace,
 	}
+	ctx, log = withHomeAssistant(ctx, haRef.Name)
 	ha, err := r.validateHomeAssistantRef(ctx, haRef, scene)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil

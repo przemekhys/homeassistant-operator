@@ -124,6 +124,7 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 
 	// --- FETCH HomeAssistant CR ---
 	haRef := types.NamespacedName{Name: integration.Spec.HomeAssistantRef.Name, Namespace: integration.Namespace}
+	ctx, log = withHomeAssistant(ctx, haRef.Name)
 	ha, err := getHomeAssistant(ctx, r.Client, haRef)
 	if err != nil {
 		log.Info("HomeAssistant not found, requeueing", "name", haRef.Name)
