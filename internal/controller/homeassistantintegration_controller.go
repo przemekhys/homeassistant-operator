@@ -88,7 +88,7 @@ func (r *HomeAssistantIntegrationReconciler) haClientFor(ha *hav1.HomeAssistant)
 // Reconcile is part of the main kubernetes reconciliation loop.
 // nolint:gocyclo // Integration lifecycle branches reflect Home Assistant flow states.
 func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	ctx, log := reconcileLogger(ctx, "HomeAssistantIntegration", "HomeAssistantIntegration", req)
 
 	integration := &hav1.HomeAssistantIntegration{}
 	if err := r.Get(ctx, req.NamespacedName, integration); err != nil {

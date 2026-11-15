@@ -143,7 +143,7 @@ type HomeAssistantConfigurationReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *HomeAssistantConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	ctx, log := reconcileLogger(ctx, "HomeAssistantConfiguration", "HomeAssistantConfiguration", req)
 
 	// Fetch the HomeAssistantConfiguration instance
 	config := &hav1.HomeAssistantConfiguration{}

@@ -60,7 +60,7 @@ type HomeAssistantAreaReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 
 func (r *HomeAssistantAreaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	ctx, log := reconcileLogger(ctx, "HomeAssistantArea", "HomeAssistantArea", req)
 
 	area := &hav1.HomeAssistantArea{}
 	if err := r.Get(ctx, req.NamespacedName, area); err != nil {

@@ -125,7 +125,7 @@ type HomeAssistantCommunityRepositoryReconciler struct {
 func (r *HomeAssistantCommunityRepositoryReconciler) Reconcile(
 	ctx context.Context, req ctrl.Request,
 ) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	ctx, log := reconcileLogger(ctx, "HomeAssistantCommunityRepository", "HomeAssistantCommunityRepository", req)
 
 	repo := &hav1.HomeAssistantCommunityRepository{}
 	if err := r.Get(ctx, req.NamespacedName, repo); err != nil {

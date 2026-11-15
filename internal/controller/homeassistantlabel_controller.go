@@ -59,7 +59,7 @@ type HomeAssistantLabelReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 
 func (r *HomeAssistantLabelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	ctx, log := reconcileLogger(ctx, "HomeAssistantLabel", "HomeAssistantLabel", req)
 
 	label := &hav1.HomeAssistantLabel{}
 	if err := r.Get(ctx, req.NamespacedName, label); err != nil {
