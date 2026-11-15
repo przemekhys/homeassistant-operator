@@ -86,7 +86,7 @@ func (r *HomeAssistantAutomationReconciler) haClientFor(ha *hav1.HomeAssistant) 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *HomeAssistantAutomationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	ctx, log := reconcileLogger(ctx, "HomeAssistantAutomation", "HomeAssistantAutomation", req)
 
 	// Fetch the HomeAssistantAutomation instance
 	automation := &hav1.HomeAssistantAutomation{}
@@ -154,6 +154,7 @@ func (r *HomeAssistantAutomationReconciler) Reconcile(ctx context.Context, req c
 		Name:      automation.Spec.HomeAssistantRef.Name,
 		Namespace: automation.Namespace,
 	}
+	ctx, log = withHomeAssistant(ctx, haRef.Name)
 	ha, err := r.validateHomeAssistantRef(ctx, haRef, automation)
 	if err != nil {
 		// Requeue quickly to retry validation
@@ -471,7 +472,7 @@ func (r *HomeAssistantAutomationReconciler) validateHomeAssistantRef(
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			log.Error(err, "Referenced HomeAssistant not found",
-				"name", haRef.Name)
+				"homeAssistantName", haRef.Name)
 			meta.SetStatusCondition(&automation.Status.Conditions,
 				metav1.Condition{
 					Type:   conditionTypeReady,

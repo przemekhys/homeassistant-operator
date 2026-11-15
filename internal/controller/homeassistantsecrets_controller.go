@@ -71,7 +71,7 @@ type HomeAssistantSecretsReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *HomeAssistantSecretsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	ctx, log := reconcileLogger(ctx, "HomeAssistantSecrets", "HomeAssistantSecrets", req)
 
 	// Fetch the HomeAssistantSecrets instance
 	haSecrets := &hav1.HomeAssistantSecrets{}
@@ -89,10 +89,11 @@ func (r *HomeAssistantSecretsReconciler) Reconcile(ctx context.Context, req ctrl
 		Name:      haSecrets.Spec.HomeAssistantRef.Name,
 		Namespace: haSecrets.Namespace,
 	}
+	ctx, log = withHomeAssistant(ctx, haRef.Name)
 	ha := &hav1.HomeAssistant{}
 	if err := r.Get(ctx, haRef, ha); err != nil {
 		if errors.IsNotFound(err) {
-			log.Error(err, "Referenced HomeAssistant not found", "name", haRef.Name)
+			log.Error(err, "Referenced HomeAssistant not found", "homeAssistantName", haRef.Name)
 			haSecrets.Status.ObservedGeneration = haSecrets.Generation
 			haSecrets.Status.LastError = fmt.Sprintf("HomeAssistant %s not found", haRef.Name)
 			meta.SetStatusCondition(&haSecrets.Status.Conditions, metav1.Condition{
@@ -304,7 +305,7 @@ func (r *HomeAssistantSecretsReconciler) reconcileGeneratedSecret(
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Create new secret
-			log.Info("Creating new generated secret", "name", secretName)
+			log.Info("Creating new generated secret", "secretName", secretName)
 			if err := r.Create(ctx, secret); err != nil {
 				return err
 			}
@@ -317,7 +318,7 @@ func (r *HomeAssistantSecretsReconciler) reconcileGeneratedSecret(
 	if existingSecret.Annotations[secretsHashAnnotationKey] != hash {
 		oldHash := existingSecret.Annotations[secretsHashAnnotationKey]
 		log.Info("Updating generated secret (hash changed)",
-			"name", secretName,
+			"secretName", secretName,
 			"oldHash", oldHash,
 			"newHash", hash)
 		existingSecret.Data = secret.Data
@@ -415,7 +416,7 @@ func (r *HomeAssistantSecretsReconciler) updateStatefulSetAnnotation(
 	sts := &appsv1.StatefulSet{}
 	if err := r.Get(ctx, stsName, sts); err != nil {
 		if errors.IsNotFound(err) {
-			log.Info("StatefulSet not found, skipping annotation update", "name", stsName.Name)
+			log.Info("StatefulSet not found, skipping annotation update", "statefulSetName", stsName.Name)
 			return nil
 		}
 		return err

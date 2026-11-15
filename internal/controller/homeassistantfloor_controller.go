@@ -59,7 +59,7 @@ type HomeAssistantFloorReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 
 func (r *HomeAssistantFloorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	ctx, _ = reconcileLogger(ctx, "HomeAssistantFloor", "HomeAssistantFloor", req)
 
 	floor := &hav1.HomeAssistantFloor{}
 	if err := r.Get(ctx, req.NamespacedName, floor); err != nil {
@@ -68,6 +68,12 @@ func (r *HomeAssistantFloorReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 		return ctrl.Result{}, err
 	}
+
+	haRef := types.NamespacedName{
+		Name:      floor.Spec.HomeAssistantRef.Name,
+		Namespace: floor.Namespace,
+	}
+	ctx, log := withHomeAssistant(ctx, haRef.Name)
 
 	// --- DELETION ---
 	if !floor.DeletionTimestamp.IsZero() {
@@ -91,13 +97,9 @@ func (r *HomeAssistantFloorReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// --- FETCH HomeAssistant CR ---
-	haRef := types.NamespacedName{
-		Name:      floor.Spec.HomeAssistantRef.Name,
-		Namespace: floor.Namespace,
-	}
 	ha, err := getHomeAssistant(ctx, r.Client, haRef)
 	if err != nil {
-		log.Info("HomeAssistant not found, requeueing", "name", haRef.Name)
+		log.Info("HomeAssistant not found, requeueing", "homeAssistantName", haRef.Name)
 		return r.setCondition(ctx, floor, metav1.ConditionFalse, reasonFloorHANotReady,
 			fmt.Sprintf("HomeAssistant %s not found", haRef.Name), 30*time.Second)
 	}
@@ -126,7 +128,7 @@ func (r *HomeAssistantFloorReconciler) Reconcile(ctx context.Context, req ctrl.R
 		existingFloor = findFloorByID(existingFloors, floor.Status.FloorID)
 		if existingFloor == nil {
 			// Floor was deleted externally — clear stale ID and re-create
-			log.Info("Floor was deleted externally, re-creating", "name", floor.Spec.Name)
+			log.Info("Floor was deleted externally, re-creating", "floorName", floor.Spec.Name)
 			floor.Status.FloorID = ""
 		} else {
 			// Check if update needed
@@ -136,7 +138,7 @@ func (r *HomeAssistantFloorReconciler) Reconcile(ctx context.Context, req ctrl.R
 					return r.setCondition(ctx, floor, metav1.ConditionFalse, reasonFloorFailed,
 						fmt.Sprintf("Failed to update floor: %v", err), 30*time.Second)
 				}
-				log.Info("Floor updated in HA", "name", floor.Spec.Name)
+				log.Info("Floor updated in HA", "floorName", floor.Spec.Name)
 			}
 			return r.setCondition(ctx, floor, metav1.ConditionTrue, reasonFloorReady,
 				"Floor configured in Home Assistant", 0)
@@ -149,7 +151,7 @@ func (r *HomeAssistantFloorReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 	if existingFloor != nil {
 		floor.Status.FloorID = existingFloor.FloorID
-		log.Info("Adopted existing floor", "name", floor.Spec.Name, "floorID", floor.Status.FloorID)
+		log.Info("Adopted existing floor", "floorName", floor.Spec.Name, "floorID", floor.Status.FloorID)
 		if r.needsFloorUpdate(floor, existingFloor) {
 			if err := r.updateFloor(ctx, haClient, token, floor); err != nil {
 				log.Error(err, "Failed to update adopted floor")
@@ -170,7 +172,7 @@ func (r *HomeAssistantFloorReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	floor.Status.FloorID = floorID
-	log.Info("Floor created in HA", "name", floor.Spec.Name, "floorID", floorID)
+	log.Info("Floor created in HA", "floorName", floor.Spec.Name, "floorID", floorID)
 
 	return r.setCondition(ctx, floor, metav1.ConditionTrue, reasonFloorReady,
 		"Floor configured in Home Assistant", 0)
