@@ -88,6 +88,21 @@ func (r *HomeAssistantScriptReconciler) Reconcile(ctx context.Context, req ctrl.
 		log.Error(err, "Failed to get HomeAssistantScript")
 		return ctrl.Result{}, err
 	}
+	if handled, err := removeBlockedMigrationFinalizer(ctx, r.Client, script, scriptFinalizerName); handled ||
+		err != nil {
+		return ctrl.Result{}, err
+	}
+	if migrationWritesBlocked(script) {
+		return observeImportedDefinition(
+			ctx,
+			r.Client,
+			script,
+			"script",
+			script.Spec.HomeAssistantRef.Name,
+			script.Spec.ID,
+			r.haClientFor,
+		)
+	}
 
 	// Handle finalizer for proper cleanup
 	if !script.DeletionTimestamp.IsZero() {
@@ -108,7 +123,11 @@ func (r *HomeAssistantScriptReconciler) Reconcile(ctx context.Context, req ctrl.
 						id = script.Name
 					}
 					if delErr := haClient.DeleteScript(ctx, token, id); delErr != nil {
-						log.Info("Failed to delete script via HA API (proceeding with finalizer removal)", "error", delErr)
+						log.Info(
+							"Failed to delete script via HA API (proceeding with finalizer removal)",
+							"error",
+							delErr,
+						)
 					}
 				} else {
 					log.Info("API token not available during deletion, proceeding with finalizer removal")

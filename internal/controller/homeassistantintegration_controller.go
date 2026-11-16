@@ -97,6 +97,13 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 		}
 		return ctrl.Result{}, err
 	}
+	if handled, err := removeBlockedMigrationFinalizer(ctx, r.Client, integration, integrationFinalizerName); handled ||
+		err != nil {
+		return ctrl.Result{}, err
+	}
+	if migrationWritesBlocked(integration) {
+		return r.observeImportedIntegration(ctx, integration)
+	}
 
 	// Remove legacy condition type from before the Ready rename (one-time migration).
 	meta.RemoveStatusCondition(&integration.Status.Conditions, "IntegrationReady")
@@ -305,8 +312,16 @@ func (r *HomeAssistantIntegrationReconciler) Reconcile(ctx context.Context, req 
 		}
 
 		cleanupUploadedFiles(ctx, haClient, token, uploadedIDs)
-		r.emitEvent(integration, corev1.EventTypeWarning, eventIntegrationFailed,
-			fmt.Sprintf("Config flow for %s did not reach create_entry (got: %s)", integration.Spec.Domain, submitResp.Type))
+		r.emitEvent(
+			integration,
+			corev1.EventTypeWarning,
+			eventIntegrationFailed,
+			fmt.Sprintf(
+				"Config flow for %s did not reach create_entry (got: %s)",
+				integration.Spec.Domain,
+				submitResp.Type,
+			),
+		)
 		return r.setFailedCondition(ctx, integration, reasonConfigFlowFailed,
 			fmt.Sprintf("Config flow did not complete: type=%s", submitResp.Type), 30*time.Second)
 	}
@@ -459,7 +474,11 @@ func (r *HomeAssistantIntegrationReconciler) resolveConfiguration(
 				Namespace: integration.Namespace,
 			}
 			if err := r.Get(ctx, secretRef, secret); err != nil {
-				return nil, nil, configFingerprint{}, fmt.Errorf("failed to get Secret %s: %w", val.SecretKeyRef.Name, err)
+				return nil, nil, configFingerprint{}, fmt.Errorf(
+					"failed to get Secret %s: %w",
+					val.SecretKeyRef.Name,
+					err,
+				)
 			}
 			secretValue, ok := secret.Data[val.SecretKeyRef.Key]
 			if !ok {
@@ -467,7 +486,12 @@ func (r *HomeAssistantIntegrationReconciler) resolveConfiguration(
 					"key %q not found in Secret %s", val.SecretKeyRef.Key, val.SecretKeyRef.Name)
 			}
 			resolved[key] = string(secretValue)
-			fp.secretRefs[key] = fmt.Sprintf("%s/%s/%s", val.SecretKeyRef.Name, val.SecretKeyRef.Key, secret.ResourceVersion)
+			fp.secretRefs[key] = fmt.Sprintf(
+				"%s/%s/%s",
+				val.SecretKeyRef.Name,
+				val.SecretKeyRef.Key,
+				secret.ResourceVersion,
+			)
 			continue
 		}
 		if val.FileSecretKeyRef != nil {
@@ -476,7 +500,8 @@ func (r *HomeAssistantIntegrationReconciler) resolveConfiguration(
 			if fileName == "" {
 				fileName = fileRef.Key
 			}
-			if fileName == "." || fileName == "" || filepath.Base(fileName) != fileName || strings.Contains(fileName, "\\") {
+			if fileName == "." || fileName == "" || filepath.Base(fileName) != fileName ||
+				strings.Contains(fileName, "\\") {
 				return nil, nil, configFingerprint{}, fmt.Errorf("field %q: invalid fileName %q", key, fileName)
 			}
 			secret := &corev1.Secret{}
@@ -486,7 +511,11 @@ func (r *HomeAssistantIntegrationReconciler) resolveConfiguration(
 			}
 			data, ok := secret.Data[fileRef.Key]
 			if !ok {
-				return nil, nil, configFingerprint{}, fmt.Errorf("file key %q not found in Secret %s", fileRef.Key, fileRef.Name)
+				return nil, nil, configFingerprint{}, fmt.Errorf(
+					"file key %q not found in Secret %s",
+					fileRef.Key,
+					fileRef.Name,
+				)
 			}
 			files = append(files, pendingFile{fieldName: key, fileName: fileName, data: data})
 			fp.secretRefs[key] = fmt.Sprintf("%s/%s/%s/%s", fileRef.Name, fileRef.Key, secret.ResourceVersion, fileName)

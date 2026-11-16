@@ -19,6 +19,7 @@ RUN go mod download
 
 # Copy the go source
 COPY cmd/main.go cmd/main.go
+COPY cmd/migrate-worker/ cmd/migrate-worker/
 COPY api/ api/
 COPY internal/ internal/
 
@@ -30,12 +31,14 @@ COPY internal/ internal/
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a \
     -ldflags "-X github.com/przemekhys/homeassistant-operator/internal/version.Version=${VERSION} -X github.com/przemekhys/homeassistant-operator/internal/version.GitCommit=${GIT_COMMIT}" \
     -o manager cmd/main.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -o migrate-worker ./cmd/migrate-worker
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
 WORKDIR /
 COPY --from=builder /workspace/manager .
+COPY --from=builder /workspace/migrate-worker .
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]

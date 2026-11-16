@@ -65,6 +65,12 @@ func (r *HomeAssistantReconciler) reconcileBootstrap(
 	ha *hav1.HomeAssistant,
 ) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
+	// Restore uses HA's onboarding endpoint. The normal bootstrap mutates that
+	// endpoint and creates a token, so it must remain disabled until the admin
+	// explicitly turns off the experimental preparation mode after verification.
+	if migrationRestorePreparationEnabled(ha) {
+		return ctrl.Result{}, nil
+	}
 
 	if dedicatedOperatorAccount(ha) {
 		return r.reconcileOperatorAccount(ctx, ha)

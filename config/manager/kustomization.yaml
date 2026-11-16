@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: example.com/homeassistant-operator
-  newTag: v0.0.1
+  newTag: migration-recovery-ref-20261115

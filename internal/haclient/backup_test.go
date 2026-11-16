@@ -32,6 +32,15 @@ func TestConfigureBackupNeverSendsPassword(t *testing.T) {
 	}
 }
 
+func TestCanDecryptBackupDoesNotExposePassword(t *testing.T) {
+	// Transport errors must not serialize the recovery key.
+	client := NewClient("http://127.0.0.1:1")
+	err := client.CanDecryptBackup(context.Background(), "token-private", "backup-id", "backup.local", "password-private")
+	if err == nil || strings.Contains(err.Error(), "password-private") || strings.Contains(err.Error(), "token-private") {
+		t.Fatalf("unsafe error: %v", err)
+	}
+}
+
 func TestGetBackupDetailsParsesFixtureShape(t *testing.T) {
 	server := newBackupWebSocketServer(t, func(command map[string]any, conn *websocket.Conn) {
 		if command["backup_id"] != "fixture-backup-001" {

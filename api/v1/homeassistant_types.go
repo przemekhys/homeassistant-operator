@@ -173,6 +173,13 @@ type SchedulingSpec struct {
 // default false) -> stable default false -> stable default true -> mandatory.
 // +kubebuilder:validation:XValidation:rule="!has(self.tls)",message="spec.alpha.tls has been removed; use spec.ingress.tls or spec.gateway for HTTPS"
 type AlphaSpec struct {
+	// MigrationRestore enables the experimental, guarded preparation of this
+	// otherwise new Home Assistant instance for a migration restore. It defaults
+	// to false and cannot start the workload until a matching migration records
+	// both restore and source-stop approvals.
+	// +optional
+	MigrationRestore *MigrationRestoreAlphaSpec `json:"migrationRestore,omitempty"`
+
 	// NetworkPolicy controls whether the operator creates a NetworkPolicy
 	// restricting ingress to the Home Assistant pod.
 	// +optional
@@ -194,6 +201,14 @@ type AlphaSpec struct {
 	// actionable validation error instead of being silently pruned.
 	// +optional
 	TLS *RemovedNativeTLSSpec `json:"tls,omitempty"`
+}
+
+// MigrationRestoreAlphaSpec controls the experimental migration-restore gate.
+type MigrationRestoreAlphaSpec struct {
+	// Enabled opts into the experimental restore workload preparation.
+	// +kubebuilder:default=false
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 // RemovedNativeTLSSpec intentionally has no supported fields. Its presence is

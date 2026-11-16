@@ -209,11 +209,18 @@ type BackupAgent struct {
 // BackupArchive records the observable part of a completed native backup.
 // Agent data is reconstructed by HA and is not a durable operation ledger.
 type BackupArchive struct {
-	ID             string                     `json:"backup_id"`
-	Date           string                     `json:"date"`
-	Agents         map[string]BackupAgentCopy `json:"agents"`
-	FailedAgentIDs []string                   `json:"failed_agent_ids"`
-	Automatic      bool                       `json:"with_automatic_settings"`
+	ID                    string                     `json:"backup_id"`
+	Date                  string                     `json:"date"`
+	HomeAssistantVersion  string                     `json:"homeassistant_version"`
+	DatabaseIncluded      *bool                      `json:"database_included"`
+	HomeAssistantIncluded *bool                      `json:"homeassistant_included"`
+	Folders               []string                   `json:"folders"`
+	Addons                []json.RawMessage          `json:"addons"`
+	FailedFolders         []string                   `json:"failed_folders"`
+	FailedAddons          []json.RawMessage          `json:"failed_addons"`
+	Agents                map[string]BackupAgentCopy `json:"agents"`
+	FailedAgentIDs        []string                   `json:"failed_agent_ids"`
+	Automatic             bool                       `json:"with_automatic_settings"`
 }
 
 type BackupAgentCopy struct {

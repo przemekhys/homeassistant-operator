@@ -134,6 +134,13 @@ func (r *HomeAssistantCommunityRepositoryReconciler) Reconcile(
 		}
 		return ctrl.Result{}, err
 	}
+	if handled, err := removeBlockedMigrationFinalizer(ctx, r.Client, repo, communityRepositoryFinalizerName); handled ||
+		err != nil {
+		return ctrl.Result{}, err
+	}
+	if migrationWritesBlocked(repo) {
+		return ctrl.Result{}, nil
+	}
 
 	// --- DELETION ---
 	if !repo.DeletionTimestamp.IsZero() {
@@ -215,7 +222,14 @@ func (r *HomeAssistantCommunityRepositoryReconciler) reconcileValidating(
 
 	extracted, err := communityrepo.FetchTarball(ctx, repo.Spec.Repository, repo.Spec.Ref)
 	if err != nil {
-		return r.setPhase(ctx, repo, hav1.CommunityRepositoryPhaseFailed, reasonRepoUnreachable, err.Error(), 30*time.Second)
+		return r.setPhase(
+			ctx,
+			repo,
+			hav1.CommunityRepositoryPhaseFailed,
+			reasonRepoUnreachable,
+			err.Error(),
+			30*time.Second,
+		)
 	}
 
 	resolved, err := communityrepo.ValidateAndResolve(extracted, communityrepo.Category(repo.Spec.Category))
@@ -376,7 +390,11 @@ func (r *HomeAssistantCommunityRepositoryReconciler) integrationMaterializationC
 
 	if pod.Annotations[communityRepositoryHashAnnotationKey] != desiredHash {
 		return false, reasonRepoMaterializing,
-			fmt.Sprintf("Waiting for Home Assistant pod %s with repository configuration %s", pod.Name, desiredHash), nil
+			fmt.Sprintf(
+				"Waiting for Home Assistant pod %s with repository configuration %s",
+				pod.Name,
+				desiredHash,
+			), nil
 	}
 
 	var initStatus *corev1.ContainerStatus
@@ -405,7 +423,11 @@ func (r *HomeAssistantCommunityRepositoryReconciler) integrationMaterializationC
 			detail = fmt.Sprintf("exit code %d", terminated.ExitCode)
 		}
 		return false, reasonRepoMaterializationFailed,
-			fmt.Sprintf("Integration materialization failed in pod %s: %s; Kubernetes will retry", pod.Name, detail), nil
+			fmt.Sprintf(
+				"Integration materialization failed in pod %s: %s; Kubernetes will retry",
+				pod.Name,
+				detail,
+			), nil
 	}
 	if terminated == nil || terminated.ExitCode != 0 || terminated.Message != desiredHash {
 		return false, reasonRepoMaterializing,
@@ -524,7 +546,13 @@ func (r *HomeAssistantCommunityRepositoryReconciler) handleDeletion(
 		return true, nil
 	}
 
-	content, err := r.removeConfigMapEntry(ctx, ha, repo.Namespace, string(repo.Spec.Category), repo.Status.ResolvedTarget)
+	content, err := r.removeConfigMapEntry(
+		ctx,
+		ha,
+		repo.Namespace,
+		string(repo.Spec.Category),
+		repo.Status.ResolvedTarget,
+	)
 	if err != nil {
 		return false, err
 	}

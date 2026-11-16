@@ -2182,6 +2182,19 @@ spec:
                       - hostPath
                       type: object
                     type: array
+                  migrationRestore:
+                    description: |-
+                      MigrationRestore enables the experimental, guarded preparation of this
+                      otherwise new Home Assistant instance for a migration restore. It defaults
+                      to false and cannot start the workload until a matching migration records
+                      both restore and source-stop approvals.
+                    properties:
+                      enabled:
+                        default: false
+                        description: Enabled opts into the experimental restore workload
+                          preparation.
+                        type: boolean
+                    type: object
                   networkPolicy:
                     description: |-
                       NetworkPolicy controls whether the operator creates a NetworkPolicy

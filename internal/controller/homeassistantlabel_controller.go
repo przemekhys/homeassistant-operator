@@ -68,6 +68,12 @@ func (r *HomeAssistantLabelReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 		return ctrl.Result{}, err
 	}
+	if handled, err := removeBlockedMigrationFinalizer(ctx, r.Client, label, labelFinalizerName); handled || err != nil {
+		return ctrl.Result{}, err
+	}
+	if migrationWritesBlocked(label) {
+		return observeMigrationRegistry(ctx, r.Client, label, "label", label.Spec.HomeAssistantRef.Name, r.haClientFor)
+	}
 
 	// --- DELETION ---
 	if !label.DeletionTimestamp.IsZero() {

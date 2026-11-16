@@ -20,6 +20,9 @@ const (
 	ErrorTypeAuth            ErrorType = "Auth"            // Authentication error
 	ErrorTypeLoginNoUser     ErrorType = "LoginNoUser"     // Login flow returned type=form (no user exists yet)
 	ErrorTypeBanned          ErrorType = "Banned"          // Operator IP banned by HA ip_bans.yaml
+	// ErrorTypeOutcomeUnknown means a destructive request may have reached HA but
+	// its final result was not observed. Callers must not retry it automatically.
+	ErrorTypeOutcomeUnknown ErrorType = "OutcomeUnknown"
 )
 
 // Error represents a Home Assistant API error

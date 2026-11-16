@@ -149,6 +149,7 @@ type HomeAssistantReconciler struct {
 }
 
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistants,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantmigrations,verbs=get;list;watch
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistants/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistants/finalizers,verbs=update
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
@@ -238,10 +239,14 @@ func (r *HomeAssistantReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{RequeueAfter: time.Second * 5}, nil
 	}
 
-	// Reconcile PVC
-	if err := r.reconcilePVC(ctx, ha); err != nil {
-		log.Error(err, "Failed to reconcile PVC")
-		return r.updateStatusFailed(ctx, ha, err)
+	// The migration operation owns the fresh restore PVC. Keeping the normal HA
+	// controller out of this path prevents two controller owners and ensures GC
+	// removes migration-created storage with the operation.
+	if !migrationRestorePreparationEnabled(ha) {
+		if err := r.reconcilePVC(ctx, ha); err != nil {
+			log.Error(err, "Failed to reconcile PVC")
+			return r.updateStatusFailed(ctx, ha, err)
+		}
 	}
 
 	// Reconcile operator-IP ConfigMap (must run before StatefulSet so the
@@ -312,11 +317,13 @@ func (r *HomeAssistantReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return result, nil
 	}
 
-	// Reconcile Backup configuration (requires bootstrap token)
-	result, err = r.reconcileBackupConfig(ctx, ha)
-	if err != nil {
-		log.Error(err, "Failed to reconcile Backup config")
-		return result, err
+	// Native onboarding restore must finish before any API configuration write.
+	if !migrationRestorePreparationEnabled(ha) {
+		result, err = r.reconcileBackupConfig(ctx, ha)
+		if err != nil {
+			log.Error(err, "Failed to reconcile Backup config")
+			return result, err
+		}
 	}
 	backupResult := result
 
@@ -739,6 +746,13 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 ) (*appsv1.StatefulSet, error) {
 	matchLabels := r.labelsForHomeAssistant(ha)
 	replicas := int32(1)
+	allowed, err := r.migrationRestoreStartAllowed(ctx, ha)
+	if err != nil {
+		return nil, err
+	}
+	if !allowed {
+		replicas = 0
+	}
 
 	image := defaultImage
 	if ha.Spec.Image != "" {
@@ -756,6 +770,7 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 	}
 
 	pvcName := fmt.Sprintf("%s-data", ha.Name)
+	restorePreparation := migrationRestorePreparationEnabled(ha)
 
 	// Build volume mounts
 	volumeMounts := []corev1.VolumeMount{
@@ -765,7 +780,7 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 		},
 	}
 
-	if ha.Spec.AdditionalVolumes != nil && ha.Spec.AdditionalVolumes.VolumeMounts != nil {
+	if !restorePreparation && ha.Spec.AdditionalVolumes != nil && ha.Spec.AdditionalVolumes.VolumeMounts != nil {
 		volumeMounts = append(volumeMounts, ha.Spec.AdditionalVolumes.VolumeMounts...)
 	}
 
@@ -781,18 +796,22 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 		},
 	}
 
-	if ha.Spec.AdditionalVolumes != nil && ha.Spec.AdditionalVolumes.Volumes != nil {
+	if !restorePreparation && ha.Spec.AdditionalVolumes != nil && ha.Spec.AdditionalVolumes.Volumes != nil {
 		volumes = append(volumes, ha.Spec.AdditionalVolumes.Volumes...)
 	}
 
 	// Add ConfigMap volume for configuration.yaml
 	// HomeAssistantConfiguration CRD is REQUIRED - always add the volume
-	generatedConfigMapName, err := r.getGeneratedConfigMapName(ctx, ha)
-	if err != nil || generatedConfigMapName == "" {
+	generatedConfigMapName := ""
+	var configErr error
+	if !restorePreparation {
+		generatedConfigMapName, configErr = r.getGeneratedConfigMapName(ctx, ha)
+	}
+	if !restorePreparation && (configErr != nil || generatedConfigMapName == "") {
 		// This should not happen if validation passed in Reconcile()
 		// But handle gracefully - skip volume mount
 		// The Reconcile() loop will requeue until HomeAssistantConfiguration exists
-	} else {
+	} else if !restorePreparation {
 		// Always add the ConfigMap volume (ConfigMap is guaranteed to exist by HomeAssistantConfiguration controller)
 		volumes = append(volumes, corev1.Volume{
 			Name: "ha-configuration",
@@ -817,29 +836,34 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 	recorderDBSecretName := ha.Name + recorderDBSecretSuffix
 	recorderDBSecret := &corev1.Secret{}
 	recorderDBKey := types.NamespacedName{Name: recorderDBSecretName, Namespace: ha.Namespace}
-	if getErr := r.Get(ctx, recorderDBKey, recorderDBSecret); getErr == nil {
-		volumes = append(volumes, corev1.Volume{
-			Name: "ha-recorder-db",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: recorderDBSecretName,
-					Items: []corev1.KeyToPath{
-						{Key: "recorder_db_url.yaml", Path: "recorder_db_url.yaml"},
+	if !restorePreparation {
+		if getErr := r.Get(ctx, recorderDBKey, recorderDBSecret); getErr == nil {
+			volumes = append(volumes, corev1.Volume{
+				Name: "ha-recorder-db",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: recorderDBSecretName,
+						Items: []corev1.KeyToPath{
+							{Key: "recorder_db_url.yaml", Path: "recorder_db_url.yaml"},
+						},
 					},
 				},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "ha-recorder-db",
-			MountPath: "/config/recorder_db_url.yaml",
-			SubPath:   "recorder_db_url.yaml",
-		})
+			})
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      "ha-recorder-db",
+				MountPath: "/config/recorder_db_url.yaml",
+				SubPath:   "recorder_db_url.yaml",
+			})
+		}
 	}
 
 	// Add Secret volume for secrets.yaml
 	// Priority: 1) Auto-generated by HomeAssistantSecrets, 2) Spec.SecretsFrom
-	generatedSecretName, err := r.getGeneratedSecretsName(ctx, ha)
-	if err == nil && generatedSecretName != "" {
+	generatedSecretName := ""
+	if !restorePreparation {
+		generatedSecretName, err = r.getGeneratedSecretsName(ctx, ha)
+	}
+	if !restorePreparation && err == nil && generatedSecretName != "" {
 		// Use auto-generated secret from HomeAssistantSecrets
 		volumes = append(volumes, corev1.Volume{
 			Name: "ha-secrets",
@@ -854,7 +878,7 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 			MountPath: "/config/secrets.yaml",
 			SubPath:   "secrets.yaml",
 		})
-	} else if ha.Spec.SecretsFrom != nil {
+	} else if !restorePreparation && ha.Spec.SecretsFrom != nil {
 		// Fallback to manually specified secret
 		volumes = append(volumes, corev1.Volume{
 			Name: "ha-secrets",
@@ -910,6 +934,15 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 	}
 
 	metadata := reconcileMetadata(matchLabels, currentSts, ha)
+	if restorePreparation {
+		selector := migrationTargetSelector(string(ha.UID))
+		if selector == "" {
+			return nil, fmt.Errorf("restore target UID unavailable")
+		}
+		metadata.podLabels[migrationTargetLabel] = selector
+	} else {
+		delete(metadata.podLabels, migrationTargetLabel)
+	}
 
 	// Probes always speak plain HTTP: HA serves HTTP inside the cluster and TLS
 	// is terminated at the edge (Ingress / Gateway API), never in the HA pod.
@@ -967,9 +1000,12 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 			SecurityContext: homeAssistantSecurityContext,
 		},
 	}
-	hasCR, err := hasCommunityRepositories(ctx, r.Client, ha)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check for HomeAssistantCommunityRepository resources: %w", err)
+	hasCR := false
+	if !restorePreparation {
+		hasCR, err = hasCommunityRepositories(ctx, r.Client, ha)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check for HomeAssistantCommunityRepository resources: %w", err)
+		}
 	}
 	if hasCR {
 		containers = append(containers, r.buildCommunityRepositorySidecar(ha))
@@ -2294,6 +2330,9 @@ func (r *HomeAssistantReconciler) findHomeAssistantForConfigMap(
 func (r *HomeAssistantReconciler) buildInitContainers(
 	ctx context.Context, ha *hav1.HomeAssistant,
 ) ([]corev1.Container, error) {
+	if migrationRestorePreparationEnabled(ha) {
+		return nil, nil
+	}
 	repo := defaultInitRepository
 	img := defaultInitImage
 	tag := defaultInitTag
