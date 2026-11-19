@@ -22,7 +22,8 @@ import (
 // An immutable one-shot claim precedes key generation, so an uncertain bundle
 // create cannot authorize another generation. The claim itself must be
 // protected against deletion before this primitive can be used in production.
-// The bundle contains both private keys and must never be mounted into either workload.
+// The bundle contains both private keys and must never be mounted; immutable,
+// least-privilege server and worker projections are created separately.
 func createProxyCredentialBundle(ctx context.Context, writer client.Client, reader client.Reader, scheme *runtime.Scheme, op *ha.HomeAssistantMigration, request ha.MigrationExecutionRequest, now time.Time) (*ha.MigrationProxyCredentialBinding, error) {
 	if ctx == nil || writer == nil || reader == nil || scheme == nil || op == nil || op.UID == "" || op.Namespace == "" || op.ResourceVersion == "" || request.Stage != "upload" {
 		return nil, fmt.Errorf("proxy credential prerequisites unavailable")
@@ -73,8 +74,20 @@ func createProxyCredentialBundle(ctx context.Context, writer client.Client, read
 	if secret.UID == "" || secret.ResourceVersion == "" {
 		return nil, fmt.Errorf("proxy credential create outcome unknown")
 	}
+	for name, data := range map[string]map[string][]byte{
+		proxyServerCredentialName(name): {"server.crt": credentials.ServerCertificate, "server.key": credentials.ServerKey, "client-ca.crt": credentials.CA, "client.crt": credentials.WorkerCertificate},
+		proxyWorkerCredentialName(name): {"ca.crt": credentials.CA, "server.crt": credentials.ServerCertificate, "client.crt": credentials.WorkerCertificate, "client.key": credentials.WorkerKey},
+	} {
+		projection := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: op.Namespace}, Immutable: &immutable, Data: data}
+		if controllerutil.SetControllerReference(op, projection, scheme) != nil || writer.Create(ctx, projection) != nil || projection.UID == "" {
+			return nil, fmt.Errorf("proxy credential projection outcome unknown")
+		}
+	}
 	return &ha.MigrationProxyCredentialBinding{Version: "v1", RequestID: request.RequestID, Bundle: ha.MigrationObjectReference{Name: secret.Name, UID: string(secret.UID)}, BundleResourceVersion: secret.ResourceVersion, Claim: ha.MigrationObjectReference{Name: claim.Name, UID: string(claim.UID)}}, nil
 }
+
+func proxyServerCredentialName(bundle string) string { return bundle + "-server" }
+func proxyWorkerCredentialName(bundle string) string { return bundle + "-worker" }
 
 // bindProxyCredentialBundle records only a confirmed, UID-bound result. It
 // does not authorize the proxy, mount secrets, or prove isolation.
@@ -114,6 +127,9 @@ func bindProxyCredentialBundle(ctx context.Context, writer client.Client, reader
 	if migration.ValidateProxyCredentials(material, now) != nil {
 		return fmt.Errorf("proxy credential bundle invalid")
 	}
+	if err := validateProxyCredentialProjections(reader, op, binding, bundle); err != nil {
+		return err
+	}
 	if current.Spec.ProxyCredentialBinding != nil {
 		return nil
 	}
@@ -123,6 +139,23 @@ func bindProxyCredentialBundle(ctx context.Context, writer client.Client, reader
 			return nil
 		}
 		return fmt.Errorf("proxy credential binding outcome unknown")
+	}
+	return nil
+}
+
+func validateProxyCredentialProjections(reader client.Reader, op *ha.HomeAssistantMigration, binding ha.MigrationProxyCredentialBinding, bundle *corev1.Secret) error {
+	for name, expected := range map[string]map[string][]byte{
+		proxyServerCredentialName(binding.Bundle.Name): {"server.crt": bundle.Data["server.crt"], "server.key": bundle.Data["server.key"], "client-ca.crt": bundle.Data["ca.crt"], "client.crt": bundle.Data["client.crt"]},
+		proxyWorkerCredentialName(binding.Bundle.Name): {"ca.crt": bundle.Data["ca.crt"], "server.crt": bundle.Data["server.crt"], "client.crt": bundle.Data["client.crt"], "client.key": bundle.Data["client.key"]},
+	} {
+		projection := &corev1.Secret{}
+		if reader.Get(context.Background(), client.ObjectKey{Namespace: op.Namespace, Name: name}, projection) != nil || projection.Immutable == nil || !*projection.Immutable || !reflect.DeepEqual(projection.Data, expected) {
+			return fmt.Errorf("proxy credential projection unavailable")
+		}
+		owner := metav1.GetControllerOf(projection)
+		if owner == nil || owner.UID != op.UID {
+			return fmt.Errorf("proxy credential projection unavailable")
+		}
 	}
 	return nil
 }

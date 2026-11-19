@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -202,6 +203,7 @@ func (r *HomeAssistantMigrationReconciler) Reconcile(
 		if reason == "ExecutionAttemptNotStarted" {
 			starter, available := r.stageObserver.(migrationStageStarter)
 			if available {
+			attemptStages:
 				for _, stage := range []string{"backup", "upload", "restore"} {
 					for _, request := range migration.Spec.ExecutionRequests {
 						if request.Stage != stage {
@@ -214,7 +216,23 @@ func (r *HomeAssistantMigrationReconciler) Reconcile(
 							}
 						}
 						if !started {
+							if preparer, isolates := r.stageObserver.(migrationStageIsolationPreparer); isolates && stage == "upload" {
+								requeue, prepErr := preparer.PrepareIsolation(ctx, migration, request)
+								if prepErr != nil {
+									phase, reason = "Blocked", "OnboardingIsolationPreparationUnavailable"
+									break attemptStages
+								}
+								if requeue {
+									return ctrl.Result{RequeueAfter: time.Second}, nil
+								}
+							}
 							if err := starter.Start(ctx, migration, request); err != nil {
+								if errors.Is(err, errMigrationStartPrecondition) {
+									// Refused before the attempt marker: nothing was
+									// started and it will be evaluated again.
+									phase, reason = "Blocked", "OnboardingStartPreconditionUnmet"
+									break attemptStages
+								}
 								migration.Status.Phase = "Unknown"
 								meta.SetStatusCondition(&migration.Status.Conditions, metav1.Condition{Type: "Progressing", Status: metav1.ConditionUnknown, ObservedGeneration: migration.Generation, Reason: "AttemptStartOutcomeUnknown", Message: "execution attempt creation could not be confirmed"})
 								if err := r.Status().Update(ctx, migration); err != nil {
@@ -232,7 +250,25 @@ func (r *HomeAssistantMigrationReconciler) Reconcile(
 		}
 		changed := migration.Status.Phase != phase
 		migration.Status.Phase = phase
-		if meta.SetStatusCondition(&migration.Status.Conditions, metav1.Condition{Type: "Progressing", Status: metav1.ConditionUnknown, ObservedGeneration: migration.Generation, Reason: reason, Message: "migration progress is derived from execution observations"}) {
+		message := "migration progress is derived from execution observations"
+		// Include result digest in message when awaiting resume approval
+		if reason == "ResumeApprovalRequired" {
+			// Try to get the result digest from observation
+			var restoreRequest *hav1alpha1.MigrationExecutionRequest
+			for i := range migration.Spec.ExecutionRequests {
+				if migration.Spec.ExecutionRequests[i].Stage == "restore" {
+					restoreRequest = &migration.Spec.ExecutionRequests[i]
+					break
+				}
+			}
+			if restoreRequest != nil && r.stageObserver != nil {
+				obs, err := observer.Observe(ctx, migration, *restoreRequest)
+				if err == nil && obs.ResultDigest != "" {
+					message = fmt.Sprintf("awaiting resume approval with digest %s matching verified result", obs.ResultDigest)
+				}
+			}
+		}
+		if meta.SetStatusCondition(&migration.Status.Conditions, metav1.Condition{Type: "Progressing", Status: metav1.ConditionUnknown, ObservedGeneration: migration.Generation, Reason: reason, Message: message}) {
 			changed = true
 		}
 		if changed {
@@ -326,6 +362,15 @@ func (r *HomeAssistantMigrationReconciler) Reconcile(
 				observeTargetPolicySnapshot(ctx, r.APIReader, r.Scheme, migration, target, request) != nil {
 				if phase != "Unknown" {
 					phase, reason = "Blocked", "OnboardingIsolationPreparationUnavailable"
+				}
+			} else if migration.Spec.ProxyCredentialBinding == nil {
+				binding, bindErr := createProxyCredentialBundle(ctx, r.Client, r.APIReader, r.Scheme, migration, request, time.Now())
+				if bindErr != nil || bindProxyCredentialBundle(ctx, r.Client, r.APIReader, migration, *binding, time.Now()) != nil {
+					phase, reason = "Blocked", "OnboardingCredentialBindingUnavailable"
+				} else {
+					// The spec update is the durable boundary. Re-read on the next
+					// reconcile rather than writing a status from stale memory.
+					return ctrl.Result{RequeueAfter: time.Second}, nil
 				}
 			}
 			break

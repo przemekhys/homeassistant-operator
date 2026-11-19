@@ -82,7 +82,9 @@ func TestGeneratedProxyCredentialsAuthenticateBothSides(t *testing.T) {
 	}
 	roots := x509.NewCertPool()
 	roots.AddCert(ca)
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"backups":[{"backup_id":"id","database_included":true,"homeassistant_included":true,"homeassistant_version":"2026.11.0","folders":[],"agents":{"agent":{"protected":true,"size":1}}}],"state":"idle","last_action_event":null}`))
+	}))
 	defer upstream.Close()
 	handler, err := NewOnboardingProxy(upstream.URL, workerLeaf)
 	if err != nil {
@@ -100,7 +102,7 @@ func TestGeneratedProxyCredentialsAuthenticateBothSides(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.MigrationOnboardingBackupInfo(context.Background()); err != nil {
+	if _, err := api.MigrationOnboardingBackupInfo(context.Background(), haclient.MigrationBackupExpectation{BackupID: "id", AgentID: "agent", Size: 1, RestoreDatabase: true}); err != nil {
 		t.Fatal(err)
 	}
 }

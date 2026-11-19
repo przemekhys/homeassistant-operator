@@ -20,6 +20,13 @@ type migrationStageStarter interface {
 	Start(context.Context, *ha.HomeAssistantMigration, ha.MigrationExecutionRequest) error
 }
 
+// migrationStageIsolationPreparer is implemented by executors that need durable
+// isolation (a target policy and proxy credentials) before an upload can start.
+// It reports true after writing a binding, so the caller re-reads before going on.
+type migrationStageIsolationPreparer interface {
+	PrepareIsolation(context.Context, *ha.HomeAssistantMigration, ha.MigrationExecutionRequest) (bool, error)
+}
+
 // migrationStagePreparer supplies observations only; it must not submit HA
 // mutations. The concrete source-stop and archive checks remain fail-closed.
 type migrationStagePreparer interface {

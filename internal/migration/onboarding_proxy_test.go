@@ -86,7 +86,11 @@ func TestOnboardingProxyRequiresVerifiedPinnedClient(t *testing.T) {
 			http.Redirect(w, r, "/api/onboarding/backup/info", http.StatusTemporaryRedirect)
 			return
 		}
-		w.WriteHeader(http.StatusNoContent)
+		if r.URL.Path == "/api/onboarding" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		_, _ = w.Write([]byte(`{"backups":[{"backup_id":"id","database_included":true,"homeassistant_included":true,"homeassistant_version":"2026.11.0","folders":[],"agents":{"agent":{"protected":true,"size":1}}}],"state":"idle","last_action_event":null}`))
 	}))
 	defer upstream.Close()
 	handler, err := NewOnboardingProxy(upstream.URL, workerCert)
@@ -126,7 +130,7 @@ func TestOnboardingProxyRequiresVerifiedPinnedClient(t *testing.T) {
 			response, err := c.Do(req)
 			if tc.fail {
 				if err == nil {
-					response.Body.Close()
+					_ = response.Body.Close()
 					t.Fatal("missing client certificate accepted")
 				}
 				return
@@ -134,7 +138,7 @@ func TestOnboardingProxyRequiresVerifiedPinnedClient(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer response.Body.Close()
+			defer func() { _ = response.Body.Close() }()
 			if response.StatusCode != tc.status {
 				t.Fatalf("status %d, want %d", response.StatusCode, tc.status)
 			}
@@ -162,19 +166,19 @@ func TestOnboardingProxyRequiresVerifiedPinnedClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := migrationClient.MigrationOnboardingBackupInfo(context.Background()); err != nil {
+	if _, err := migrationClient.MigrationOnboardingBackupInfo(context.Background(), haclient.MigrationBackupExpectation{BackupID: "id", AgentID: "agent", Size: 1, RestoreDatabase: true}); err != nil {
 		t.Fatal("pinned mTLS client rejected", err)
 	}
 	wrongClient, err := haclient.NewMigrationOnboardingClient(proxy.URL, pool, workerCert, worker, "127.0.0.1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := wrongClient.MigrationOnboardingBackupInfo(context.Background()); err == nil {
+	if _, err := wrongClient.MigrationOnboardingBackupInfo(context.Background(), haclient.MigrationBackupExpectation{BackupID: "id", AgentID: "agent", Size: 1, RestoreDatabase: true}); err == nil {
 		t.Fatal("foreign server certificate accepted")
 	}
 	redirect.Store(true)
 	before := upstreamCalls.Load()
-	if err := migrationClient.MigrationOnboardingBackupInfo(context.Background()); err == nil || upstreamCalls.Load() != before+1 {
+	if _, err := migrationClient.MigrationOnboardingBackupInfo(context.Background(), haclient.MigrationBackupExpectation{BackupID: "id", AgentID: "agent", Size: 1, RestoreDatabase: true}); err == nil || upstreamCalls.Load() != before+1 {
 		t.Fatal("onboarding redirect was followed")
 	}
 	redirect.Store(false)

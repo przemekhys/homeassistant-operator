@@ -151,6 +151,11 @@ func TestTargetPolicyBindsAcceptedUploadAndOwner(t *testing.T) {
 	if err := bindProxyCredentialBundle(ctx, kube, kube, op, *ref, now); err != nil {
 		t.Fatal("idempotent binding rejected", err)
 	}
+	serverProjection := &corev1.Secret{}
+	workerProjection := &corev1.Secret{}
+	if kube.Get(ctx, client.ObjectKey{Namespace: op.Namespace, Name: proxyServerCredentialName(ref.Bundle.Name)}, serverProjection) != nil || kube.Get(ctx, client.ObjectKey{Namespace: op.Namespace, Name: proxyWorkerCredentialName(ref.Bundle.Name)}, workerProjection) != nil || serverProjection.Data["client.key"] != nil || workerProjection.Data["server.key"] != nil || workerProjection.Data["client.key"] == nil {
+		t.Fatal("credential projections do not enforce key separation")
+	}
 	foreignBinding := *ref
 	foreignBinding.Bundle.UID = "foreign"
 	if err := bindProxyCredentialBundle(ctx, kube, kube, op, foreignBinding, now); err == nil {
@@ -175,6 +180,21 @@ func TestTargetPolicyBindsAcceptedUploadAndOwner(t *testing.T) {
 	sts := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: target.Name, Namespace: target.Namespace, OwnerReferences: []metav1.OwnerReference{{APIVersion: hav1.GroupVersion.String(), Kind: "HomeAssistant", Name: target.Name, UID: target.UID, Controller: &yes}}}, Spec: appsv1.StatefulSetSpec{Replicas: &zero, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "target"}}, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "target", migrationTargetLabel: migrationTargetSelector(string(target.UID))}}}}}
 	if err := kube.Create(ctx, sts); err != nil {
 		t.Fatal(err)
+	}
+	t.Setenv("MIGRATION_WORKER_IMAGE", "operator:test")
+	workload := &HomeAssistantReconciler{Client: kube, APIReader: kube, Scheme: kube.Scheme()}
+	secured, err := workload.buildStatefulSet(ctx, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyFound := false
+	for _, container := range secured.Spec.Template.Spec.Containers {
+		if container.Name == "migration-onboarding-proxy" && len(container.VolumeMounts) == 1 && container.VolumeMounts[0].Name == "migration-proxy-server" {
+			proxyFound = true
+		}
+	}
+	if !proxyFound {
+		t.Fatal("target did not receive server-only onboarding proxy")
 	}
 	if err := ensureStoppedTargetPolicy(ctx, kube, nil, kube.Scheme(), op, target, *r); err == nil {
 		t.Fatal("missing direct reader accepted")

@@ -109,20 +109,23 @@ func ReadArchiveDescriptor(ctx context.Context, reader client.Reader, op *ha.Hom
 // ArchiveDescriptor identifies encrypted bytes independently of the source.
 // It records claimed protection but does not itself prove key recoverability.
 type ArchiveDescriptor struct {
-	Version      string             `json:"version"`
-	OperationUID string             `json:"operationUID"`
-	RequestID    string             `json:"requestID"`
-	SourceID     string             `json:"sourceID"`
-	JobID        string             `json:"jobID"`
-	BackupID     string             `json:"backupID"`
-	AgentID      string             `json:"agentID"`
-	PVCUID       string             `json:"pvcUID"`
-	Filename     string             `json:"filename"`
-	Size         int64              `json:"size"`
-	Digest       string             `json:"digest"`
-	ScopeDigest  string             `json:"scopeDigest"`
-	Protected    bool               `json:"protected"`
-	Validation   *ArchiveValidation `json:"validation,omitempty"`
+	Version      string `json:"version"`
+	OperationUID string `json:"operationUID"`
+	RequestID    string `json:"requestID"`
+	SourceID     string `json:"sourceID"`
+	JobID        string `json:"jobID"`
+	BackupID     string `json:"backupID"`
+	AgentID      string `json:"agentID"`
+	PVCUID       string `json:"pvcUID"`
+	Filename     string `json:"filename"`
+	Size         int64  `json:"size"`
+	Digest       string `json:"digest"`
+	ScopeDigest  string `json:"scopeDigest"`
+	// DatabaseIncluded is validated from the exact source backup evidence and
+	// binds the onboarding restore flag; it is not inferred from HTTP defaults.
+	DatabaseIncluded bool               `json:"databaseIncluded"`
+	Protected        bool               `json:"protected"`
+	Validation       *ArchiveValidation `json:"validation,omitempty"`
 }
 
 // VerifyStoredArchive checks completeness and byte identity, not actual

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
 	ha "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 	"github.com/przemekhys/homeassistant-operator/internal/haclient"
 	"github.com/przemekhys/homeassistant-operator/internal/migration"
@@ -21,6 +22,10 @@ import (
 )
 
 const migrationRequestLabel = "ha.homeassistant.io/migration-worker"
+
+// migrationOnboardingRequestLabel identifies the exact upload or restore
+// request a worker belongs to, independent of its network-policy identity.
+const migrationOnboardingRequestLabel = "ha.homeassistant.io/migration-onboarding-request"
 
 // BackupQualificationOptions is deliberately not exposed as a production flag.
 // The caller must qualify an isolated disposable source and restrict the worker
@@ -54,6 +59,9 @@ type migrationBackupQualification struct {
 	scheme         *runtime.Scheme
 	options        BackupQualificationOptions
 	readResolution func(context.Context, string, []byte, ha.MigrationExecutionRequest, migrationprotocol.Evidence) (migration.BackupResolutionObservation, error)
+	// clientForHomeAssistant is injectable for tests. Production leaves it nil
+	// and verification builds the plain in-cluster HTTP client.
+	clientForHomeAssistant func(*hav1.HomeAssistant) *haclient.Client
 }
 
 // ObserveExternalResult reads the exact externally indicated backup; it does
@@ -176,6 +184,9 @@ func (o *migrationBackupQualification) startResolutionObservation(
 func (o *migrationBackupQualification) Start(
 	ctx context.Context, op *ha.HomeAssistantMigration, r ha.MigrationExecutionRequest,
 ) error {
+	if r.Stage == "upload" || r.Stage == "restore" {
+		return o.startOnboarding(ctx, op, r)
+	}
 	if r.Stage != "backup" || o.options.VerifyIsolation(ctx, op) != nil {
 		return fmt.Errorf("backup qualification isolation unavailable")
 	}
@@ -206,8 +217,11 @@ func (o *migrationBackupQualification) Observe(
 		OperationUID: string(op.UID), RequestID: r.RequestID, Stage: r.Stage,
 		SourceID: r.SourceID, TargetUID: r.Target.UID, Phase: "Dispatching",
 	}
+	if r.Stage == "upload" || r.Stage == "restore" {
+		return o.observeOnboarding(ctx, op, r)
+	}
 	if r.Stage != "backup" {
-		return observed, fmt.Errorf("only backup qualification is available")
+		return observed, fmt.Errorf("unsupported migration stage")
 	}
 	jobs, pods, err := o.localWorkers(ctx, op, r)
 	if err != nil {

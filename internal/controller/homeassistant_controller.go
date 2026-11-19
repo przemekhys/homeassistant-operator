@@ -318,7 +318,28 @@ func (r *HomeAssistantReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// Native onboarding restore must finish before any API configuration write.
-	if !migrationRestorePreparationEnabled(ha) {
+	if migrationRestorePreparationEnabled(ha) {
+		reader := r.APIReader
+		if reader == nil {
+			reader = r.Client
+		}
+		passed, err := migrationVerificationAndResumePassed(ctx, reader, ha)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if !passed {
+			// Skip backup config reconciliation until verification+resume
+			result = ctrl.Result{}
+		} else {
+			// Verification+resume passed, proceed with backup config
+			result, err = r.reconcileBackupConfig(ctx, ha)
+			if err != nil {
+				log.Error(err, "Failed to reconcile Backup config")
+				return result, err
+			}
+		}
+	} else {
+		// Not in migration restore preparation, proceed normally
 		result, err = r.reconcileBackupConfig(ctx, ha)
 		if err != nil {
 			log.Error(err, "Failed to reconcile Backup config")
@@ -771,6 +792,23 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 
 	pvcName := fmt.Sprintf("%s-data", ha.Name)
 	restorePreparation := migrationRestorePreparationEnabled(ha)
+	// If in restore preparation mode, check if verification+resume passed
+	// to determine if we should mount configuration and additional volumes
+	if restorePreparation {
+		reader := r.APIReader
+		if reader == nil {
+			reader = r.Client
+		}
+		passed, err := migrationVerificationAndResumePassed(ctx, reader, ha)
+		if err != nil {
+			// If we can't determine, assume still in restore preparation
+			// (safe default: don't mount configs)
+		} else if passed {
+			// Verification and resume passed, allow normal config mounts
+			// but keep opt-in enabled (user must explicitly disable)
+			restorePreparation = false
+		}
+	}
 
 	// Build volume mounts
 	volumeMounts := []corev1.VolumeMount{
@@ -1014,6 +1052,22 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 			return nil, err
 		}
 	}
+	if restorePreparation {
+		serverSecret, proxyErr := r.migrationProxyServerSecret(ctx, ha)
+		if proxyErr != nil {
+			return nil, proxyErr
+		}
+		if serverSecret != "" {
+			proxyImage := os.Getenv("MIGRATION_WORKER_IMAGE")
+			if proxyImage == "" {
+				return nil, fmt.Errorf("migration proxy image unavailable")
+			}
+			no, yes := false, true
+			uid := int64(65532)
+			volumes = append(volumes, corev1.Volume{Name: "migration-proxy-server", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: serverSecret}}})
+			containers = append(containers, corev1.Container{Name: "migration-onboarding-proxy", Image: proxyImage, ImagePullPolicy: corev1.PullIfNotPresent, Command: []string{"/migrate-worker"}, Args: []string{"--mode", "onboarding-proxy"}, Ports: []corev1.ContainerPort{{Name: "onboarding", ContainerPort: 8124, Protocol: corev1.ProtocolTCP}}, VolumeMounts: []corev1.VolumeMount{{Name: "migration-proxy-server", MountPath: "/var/run/migration-proxy", ReadOnly: true}}, SecurityContext: &corev1.SecurityContext{RunAsNonRoot: &yes, RunAsUser: &uid, AllowPrivilegeEscalation: &no, ReadOnlyRootFilesystem: &yes, Capabilities: &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}}}})
+		}
+	}
 
 	initContainers, err := r.buildInitContainers(ctx, ha)
 	if err != nil {
@@ -1198,6 +1252,9 @@ func (r *HomeAssistantReconciler) buildService(ha *hav1.HomeAssistant) *corev1.S
 				},
 			},
 		},
+	}
+	if migrationRestorePreparationEnabled(ha) {
+		svc.Spec.Ports = append(svc.Spec.Ports, corev1.ServicePort{Name: "migration-onboarding", Port: 8124, TargetPort: intstr.FromInt(8124), Protocol: corev1.ProtocolTCP})
 	}
 
 	// Set NodePort if specified

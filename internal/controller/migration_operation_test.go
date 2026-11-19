@@ -357,6 +357,241 @@ func TestMigrationReceiptRejectsRestartWithChangedIntentOrMalformedData(t *testi
 	}
 }
 
+// reloadVerificationOperation refreshes the fixture's operation from the fake
+// API server so approvals and status updates use the latest resourceVersion.
+func reloadVerificationOperation(t *testing.T, fixture *onboardingStageFixture) *hav1alpha1.HomeAssistantMigration {
+	t.Helper()
+	current := &hav1alpha1.HomeAssistantMigration{}
+	if err := fixture.kube.Get(context.Background(), client.ObjectKeyFromObject(fixture.op), current); err != nil {
+		t.Fatal(err)
+	}
+	fixture.op = current
+	return current
+}
+
+func verificationRequestForStage(t *testing.T, op *hav1alpha1.HomeAssistantMigration, stage string) hav1alpha1.MigrationExecutionRequest {
+	t.Helper()
+	for _, request := range op.Spec.ExecutionRequests {
+		if request.Stage == stage {
+			return request
+		}
+	}
+	t.Fatalf("%s request missing", stage)
+	return hav1alpha1.MigrationExecutionRequest{}
+}
+
+func reconcileVerification(t *testing.T, fixture *onboardingStageFixture, r *HomeAssistantMigrationReconciler) {
+	t.Helper()
+	if _, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(fixture.op)}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func verificationResultDigest(t *testing.T, qualification *migrationBackupQualification, op *hav1alpha1.HomeAssistantMigration) string {
+	t.Helper()
+	restore := verificationRequestForStage(t, op, "restore")
+	observed, err := qualification.Observe(context.Background(), op, restore)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !observed.AccessVerified || !migrationprotocol.ValidDigest(observed.ResultDigest) {
+		t.Fatalf("restore access not verified: access=%v digest=%q", observed.AccessVerified, observed.ResultDigest)
+	}
+	return observed.ResultDigest
+}
+
+// addVerificationApproval reloads the operation, replaces or appends a consent
+// bound to the restore request, and returns the refreshed operation.
+func addVerificationApproval(t *testing.T, fixture *onboardingStageFixture, id, digest string) *hav1alpha1.HomeAssistantMigration {
+	t.Helper()
+	op := reloadVerificationOperation(t, fixture)
+	restore := verificationRequestForStage(t, op, "restore")
+	approval := hav1alpha1.MigrationApproval{
+		ID: id, Approved: true, Digest: digest, TargetUID: op.Spec.Target.UID,
+		ArchiveDigest: restore.ArchiveDigest, VerificationDigest: restore.VerificationDigest,
+	}
+	replaced := false
+	for i := range op.Spec.Approvals {
+		if op.Spec.Approvals[i].ID == id {
+			op.Spec.Approvals[i] = approval
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		op.Spec.Approvals = append(op.Spec.Approvals, approval)
+	}
+	if err := fixture.kube.Update(context.Background(), op); err != nil {
+		t.Fatal(err)
+	}
+	return reloadVerificationOperation(t, fixture)
+}
+
+// TestMigrationVerificationRequiresResumeAndManualCutoverApprovals proves that
+// HTTP acceptance (2xx) and Pod readiness are not completion evidence. The
+// phase stays AwaitingResumeApproval until a resume consent binds the verified
+// result digest, then AwaitingManualCutover until a separate cutover consent.
+func TestMigrationVerificationRequiresResumeAndManualCutoverApprovals(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeVerificationHomeAssistant(t)
+	fixture, qualification := newVerificationFixture(t, fake)
+	backup := verificationRequestForStage(t, fixture.op, "backup")
+	upload := verificationRequestForStage(t, fixture.op, "upload")
+	observer := verificationObserver(qualification, fixture.op, &backup, &upload)
+	r := &HomeAssistantMigrationReconciler{Client: fixture.kube, APIReader: fixture.kube, Scheme: fixture.kube.Scheme(), stageObserver: observer}
+
+	// A ready target Pod next to an accepted restore is still not evidence.
+	ready := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: fixture.target.Name + "-0", Namespace: fixture.target.Namespace, Labels: map[string]string{migrationTargetLabel: migrationTargetSelector(string(fixture.target.UID))}},
+		Status:     corev1.PodStatus{Phase: corev1.PodRunning, Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}},
+	}
+	if err := fixture.kube.Create(ctx, ready); err != nil {
+		t.Fatal(err)
+	}
+
+	reconcileVerification(t, fixture, r)
+	op := reloadVerificationOperation(t, fixture)
+	if op.Status.Phase != "AwaitingResumeApproval" {
+		t.Fatalf("phase after accepted restore and ready Pod = %q, want AwaitingResumeApproval", op.Status.Phase)
+	}
+	progressing := meta.FindStatusCondition(op.Status.Conditions, "Progressing")
+	if progressing == nil || progressing.Reason != "ResumeApprovalRequired" {
+		t.Fatalf("resume condition = %#v", progressing)
+	}
+
+	digest := verificationResultDigest(t, qualification, op)
+	if !strings.Contains(progressing.Message, digest) {
+		t.Fatalf("condition message %q does not expose result digest %q", progressing.Message, digest)
+	}
+
+	// A resume consent bound to a different digest must not release the gate.
+	op = addVerificationApproval(t, fixture, "resume", "sha256:"+strings.Repeat("0", 64))
+	reconcileVerification(t, fixture, r)
+	op = reloadVerificationOperation(t, fixture)
+	if op.Status.Phase != "AwaitingResumeApproval" {
+		t.Fatalf("phase with mismatched resume digest = %q, want AwaitingResumeApproval", op.Status.Phase)
+	}
+
+	// The correctly bound resume consent advances to manual cutover only.
+	op = addVerificationApproval(t, fixture, "resume", digest)
+	reconcileVerification(t, fixture, r)
+	op = reloadVerificationOperation(t, fixture)
+	if op.Status.Phase != "AwaitingManualCutover" {
+		t.Fatalf("phase with bound resume consent = %q, want AwaitingManualCutover", op.Status.Phase)
+	}
+
+	// A separate manual cutover consent is required for completion.
+	op = addVerificationApproval(t, fixture, "manual-cutover", "sha256:"+strings.Repeat("1", 64))
+	reconcileVerification(t, fixture, r)
+	op = reloadVerificationOperation(t, fixture)
+	if op.Status.Phase != "Completed" {
+		t.Fatalf("phase with resume and cutover consent = %q, want Completed", op.Status.Phase)
+	}
+	progressing = meta.FindStatusCondition(op.Status.Conditions, "Progressing")
+	if progressing == nil || progressing.Reason != "MigrationVerified" {
+		t.Fatalf("completed condition = %#v", progressing)
+	}
+}
+
+// TestMigrationVerificationRestartStatusLossReproducesPhase proves that losing
+// the status (as after a controller restart) recomputes the same phase from the
+// durable operation, requests, receipts and consents instead of stale state.
+func TestMigrationVerificationRestartStatusLossReproducesPhase(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeVerificationHomeAssistant(t)
+	fixture, qualification := newVerificationFixture(t, fake)
+	backup := verificationRequestForStage(t, fixture.op, "backup")
+	upload := verificationRequestForStage(t, fixture.op, "upload")
+	observer := verificationObserver(qualification, fixture.op, &backup, &upload)
+	r := &HomeAssistantMigrationReconciler{Client: fixture.kube, APIReader: fixture.kube, Scheme: fixture.kube.Scheme(), stageObserver: observer}
+
+	reconcileVerification(t, fixture, r)
+	op := reloadVerificationOperation(t, fixture)
+	if op.Status.Phase != "AwaitingResumeApproval" {
+		t.Fatalf("initial phase = %q", op.Status.Phase)
+	}
+	digest := verificationResultDigest(t, qualification, op)
+
+	// Simulate a restart that loses the persisted status.
+	op.Status = hav1alpha1.HomeAssistantMigrationStatus{}
+	if err := fixture.kube.Status().Update(ctx, op); err != nil {
+		t.Fatal(err)
+	}
+	reconcileVerification(t, fixture, r)
+	op = reloadVerificationOperation(t, fixture)
+	if op.Status.Phase != "AwaitingResumeApproval" {
+		t.Fatalf("phase after status loss = %q, want AwaitingResumeApproval", op.Status.Phase)
+	}
+
+	addVerificationApproval(t, fixture, "resume", digest)
+	addVerificationApproval(t, fixture, "manual-cutover", "sha256:"+strings.Repeat("1", 64))
+	reconcileVerification(t, fixture, r)
+	op = reloadVerificationOperation(t, fixture)
+	if op.Status.Phase != "Completed" {
+		t.Fatalf("phase with consents = %q, want Completed", op.Status.Phase)
+	}
+
+	// Losing status again must reproduce Completed, not regress to a gate.
+	op.Status = hav1alpha1.HomeAssistantMigrationStatus{}
+	if err := fixture.kube.Status().Update(ctx, op); err != nil {
+		t.Fatal(err)
+	}
+	reconcileVerification(t, fixture, r)
+	op = reloadVerificationOperation(t, fixture)
+	if op.Status.Phase != "Completed" {
+		t.Fatalf("phase after second status loss = %q, want Completed", op.Status.Phase)
+	}
+}
+
+// TestMigrationVerificationBlocksOnMissingTokenOrDataMismatch proves that a
+// missing operator token or a projection mismatch leaves the operation before
+// verification and never releases the resume gate.
+func TestMigrationVerificationBlocksOnMissingTokenOrDataMismatch(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		mutate func(t *testing.T, fixture *onboardingStageFixture, fake *fakeVerificationHomeAssistant)
+	}{
+		{
+			name: "missing source token",
+			mutate: func(t *testing.T, fixture *onboardingStageFixture, _ *fakeVerificationHomeAssistant) {
+				secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "token", Namespace: "default"}}
+				if err := fixture.kube.Delete(context.Background(), secret); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name: "projection mismatch",
+			mutate: func(t *testing.T, _ *onboardingStageFixture, fake *fakeVerificationHomeAssistant) {
+				fake.projection.Items[0].Summary = "tampered"
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			fake := newFakeVerificationHomeAssistant(t)
+			fixture, qualification := newVerificationFixture(t, fake)
+			backup := verificationRequestForStage(t, fixture.op, "backup")
+			upload := verificationRequestForStage(t, fixture.op, "upload")
+			observer := verificationObserver(qualification, fixture.op, &backup, &upload)
+			r := &HomeAssistantMigrationReconciler{Client: fixture.kube, APIReader: fixture.kube, Scheme: fixture.kube.Scheme(), stageObserver: observer}
+			tc.mutate(t, fixture, fake)
+			reconcileVerification(t, fixture, r)
+			op := reloadVerificationOperation(t, fixture)
+			if op.Status.Phase == "AwaitingResumeApproval" || op.Status.Phase == "AwaitingManualCutover" || op.Status.Phase == "Completed" {
+				t.Fatalf("verification failure released phase %q", op.Status.Phase)
+			}
+			passed, err := migrationVerificationAndResumePassed(ctx, fixture.kube, fixture.target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if passed {
+				t.Fatal("verification failure released the resume gate")
+			}
+		})
+	}
+}
+
 func TestMigrationReconcileBlocksUnprotectedOnboardingAndKeepsUnknownReceipt(t *testing.T) {
 	scheme := runtime.NewScheme()
 	if err := hav1.AddToScheme(scheme); err != nil {

@@ -164,7 +164,9 @@ func MigrationTargetIsolationPolicy(namespace, name, targetID, workerID string) 
 		return nil
 	}
 	tcp := corev1.ProtocolTCP
-	port := intstr.FromInt32(8123)
+	// HA's unauthenticated port remains unreachable. Only the mTLS proxy port
+	// is exposed to the pinned worker identity.
+	port := intstr.FromInt32(8124)
 	return &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name},
 		Spec: networkingv1.NetworkPolicySpec{

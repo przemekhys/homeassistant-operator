@@ -219,7 +219,7 @@ func (o *backupArchiveObservation) publishValidatedFile(ctx context.Context, e B
 	d := ArchiveDescriptor{
 		Version: "v1", OperationUID: string(o.op.UID), RequestID: o.request.RequestID, SourceID: o.request.SourceID,
 		JobID: e.JobID, BackupID: e.BackupID, AgentID: e.AgentID, PVCUID: string(o.pvc.UID), Filename: "backup.tar",
-		Size: stored.Size, Digest: stored.Digest, ScopeDigest: o.request.ScopeDigest, Protected: true,
+		Size: stored.Size, Digest: stored.Digest, ScopeDigest: o.request.ScopeDigest, DatabaseIncluded: e.IncludeDatabase, Protected: true,
 		Validation: &ArchiveValidation{
 			Profile: ArchiveValidationProfile, ValidatorVersion: ArchiveValidatorVersion, CiphertextDigest: stored.Digest,
 			SourceEvidenceDigest: ed, KeyRef: *o.request.RecoveryKey, PayloadAuthenticated: true, StructureValid: true,

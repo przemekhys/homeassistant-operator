@@ -170,7 +170,13 @@ func (r *HomeAssistantConfigurationReconciler) Reconcile(ctx context.Context, re
 	// migration mode is durable in the target spec, so this remains safe after
 	// a controller restart and requires an explicit opt-out to resume sync.
 	if migrationRestorePreparationEnabled(ha) {
-		return ctrl.Result{}, nil
+		passed, err := migrationVerificationAndResumePassed(ctx, r.Client, ha)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if !passed {
+			return ctrl.Result{}, nil
+		}
 	}
 
 	// Compute the canonical configuration content (auto-includes + location + recorder secret

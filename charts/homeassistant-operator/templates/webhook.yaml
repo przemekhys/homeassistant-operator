@@ -67,6 +67,54 @@ metadata:
     cert-manager.io/inject-ca-from: {{ printf "%s/%s" $ns $certName }}
   {{- end }}
 webhooks:
+  # This boundary is deliberately independent of webhook.failurePolicy: a
+  # skipped validation would let any Pod creator mount the worker key.
+  - name: vmigrationisolationpods.ha.homeassistant.io
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: Fail
+    clientConfig:
+      service:
+        name: {{ $svcName }}
+        namespace: {{ $ns }}
+        path: /validate-migration-isolation
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+  - name: vmigrationisolationcredentials.ha.homeassistant.io
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: Fail
+    clientConfig:
+      service:
+        name: {{ $svcName }}
+        namespace: {{ $ns }}
+        path: /validate-migration-isolation
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["secrets", "configmaps"]
+  - name: vmigrationisolationworkloads.ha.homeassistant.io
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: Fail
+    clientConfig:
+      service:
+        name: {{ $svcName }}
+        namespace: {{ $ns }}
+        path: /validate-migration-isolation
+    rules:
+      - apiGroups: ["batch"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["jobs"]
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["statefulsets"]
   - name: vhomeassistant-v1.kb.io
     admissionReviewVersions: ["v1"]
     sideEffects: None

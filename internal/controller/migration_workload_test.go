@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -97,6 +98,142 @@ func TestMigrationRestorePreparationBlocksBootstrapBeforeAnyHARequest(t *testing
 	initContainers, err := reconciler.buildInitContainers(context.Background(), ha)
 	if err != nil || len(initContainers) != 0 {
 		t.Fatalf("init containers during restore preparation = %#v, %v", initContainers, err)
+	}
+}
+
+func TestMigrationRestoreStartAllowedWithVerificationGates(t *testing.T) {
+	// The restore window may start only when the target's exact UID is bound to a
+	// durable operation with a valid proxy credential binding, a bound restore
+	// approval, and verified source stop. A 2xx receipt or a ready Pod is not
+	// enough; those are handled by the state machine, not this gate.
+	t.Setenv("MIGRATION_ISOLATION_ADMISSION_ENABLED", "true")
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	for _, add := range []func(*runtime.Scheme) error{hav1.AddToScheme, hav1alpha1.AddToScheme, corev1.AddToScheme} {
+		if err := add(scheme); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ha := &hav1.HomeAssistant{
+		ObjectMeta: metav1.ObjectMeta{Name: "target", Namespace: "default", UID: "target-uid"},
+		Spec: hav1.HomeAssistantSpec{
+			Alpha: &hav1.AlphaSpec{MigrationRestore: &hav1.MigrationRestoreAlphaSpec{Enabled: true}},
+		},
+	}
+	yes := true
+	bundle := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "bundle", Namespace: "default", UID: "bundle-uid"},
+		Immutable:  &yes,
+	}
+	kube := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ha, bundle).Build()
+	if err := kube.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+		t.Fatal(err)
+	}
+	archiveDigest := "sha256:" + strings.Repeat("c", 64)
+	scopeDigest := "sha256:" + strings.Repeat("d", 64)
+	migration := &hav1alpha1.HomeAssistantMigration{
+		ObjectMeta: metav1.ObjectMeta{Name: "migration", Namespace: "default", UID: "operation"},
+		Spec: hav1alpha1.HomeAssistantMigrationSpec{
+			Target:             hav1alpha1.MigrationTarget{Name: "target", UID: "target-uid"},
+			Archive:            &hav1alpha1.MigrationArchive{BackupID: "backup", AgentID: "backup.local", Digest: archiveDigest},
+			RestoreScopeDigest: scopeDigest,
+			Approvals: []hav1alpha1.MigrationApproval{
+				{ID: "restore", Approved: true, Digest: "sha256:" + strings.Repeat("e", 64), TargetUID: "target-uid", ArchiveDigest: archiveDigest, ScopeDigest: scopeDigest},
+			},
+		},
+	}
+	if err := kube.Create(ctx, migration); err != nil {
+		t.Fatal(err)
+	}
+	reconciler := &HomeAssistantReconciler{Client: kube}
+	allowed, err := reconciler.migrationRestoreStartAllowed(ctx, ha)
+	if err != nil || allowed {
+		t.Fatalf("start without source stop = %t, %v", allowed, err)
+	}
+	migration.Spec.Approvals = append(migration.Spec.Approvals, hav1alpha1.MigrationApproval{ID: "source-stop", Approved: true, Digest: "sha256:" + strings.Repeat("f", 64), TargetUID: "target-uid"})
+	if err := kube.Update(ctx, migration); err != nil {
+		t.Fatal(err)
+	}
+	allowed, err = reconciler.migrationRestoreStartAllowed(ctx, ha)
+	if err != nil || allowed {
+		t.Fatalf("start without proxy binding = %t, %v", allowed, err)
+	}
+	migration.Spec.ProxyCredentialBinding = &hav1alpha1.MigrationProxyCredentialBinding{
+		Bundle:                hav1alpha1.MigrationObjectReference{Name: "bundle", UID: "bundle-uid"},
+		BundleResourceVersion: bundle.ResourceVersion,
+	}
+	if err := kube.Update(ctx, migration); err != nil {
+		t.Fatal(err)
+	}
+	allowed, err = reconciler.migrationRestoreStartAllowed(ctx, ha)
+	if err != nil || !allowed {
+		t.Fatalf("start with all gates = %t, %v", allowed, err)
+	}
+}
+
+func TestMigrationVerificationAndResumeGateReleasesOnlyAfterVerifiedResume(t *testing.T) {
+	// Ordinary bootstrap/projections/API writes stay blocked until the state
+	// machine reaches AwaitingManualCutover or Completed with a resume consent
+	// bound to the same target UID, archive digest, and verification digest.
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	for _, add := range []func(*runtime.Scheme) error{hav1.AddToScheme, hav1alpha1.AddToScheme} {
+		if err := add(scheme); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ha := &hav1.HomeAssistant{
+		ObjectMeta: metav1.ObjectMeta{Name: "target", Namespace: "default", UID: "target-uid"},
+		Spec: hav1.HomeAssistantSpec{
+			Alpha: &hav1.AlphaSpec{MigrationRestore: &hav1.MigrationRestoreAlphaSpec{Enabled: true}},
+		},
+	}
+	archiveDigest := "sha256:" + strings.Repeat("c", 64)
+	verificationDigest := "sha256:" + strings.Repeat("d", 64)
+	resultDigest := "sha256:" + strings.Repeat("e", 64)
+	migration := &hav1alpha1.HomeAssistantMigration{
+		ObjectMeta: metav1.ObjectMeta{Name: "migration", Namespace: "default", UID: "operation"},
+		Spec: hav1alpha1.HomeAssistantMigrationSpec{
+			Target: hav1alpha1.MigrationTarget{Name: "target", UID: "target-uid"},
+			ExecutionRequests: []hav1alpha1.MigrationExecutionRequest{
+				{Stage: "restore", Target: hav1alpha1.MigrationTarget{Name: "target", UID: "target-uid"}, ArchiveDigest: archiveDigest, VerificationDigest: verificationDigest},
+			},
+		},
+		Status: hav1alpha1.HomeAssistantMigrationStatus{Phase: "AwaitingResumeApproval"},
+	}
+	kube := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ha, migration).Build()
+	passed, err := migrationVerificationAndResumePassed(ctx, kube, ha)
+	if err != nil || passed {
+		t.Fatalf("released before verified resume = %t, %v", passed, err)
+	}
+	// A resume consent with a matching digest cannot release while the phase is
+	// still AwaitingResumeApproval: the digest must be verified first.
+	migration.Spec.Approvals = []hav1alpha1.MigrationApproval{
+		{ID: "resume", Approved: true, Digest: resultDigest, TargetUID: "target-uid", ArchiveDigest: archiveDigest, VerificationDigest: verificationDigest},
+	}
+	if err := kube.Update(ctx, migration); err != nil {
+		t.Fatal(err)
+	}
+	passed, err = migrationVerificationAndResumePassed(ctx, kube, ha)
+	if err != nil || passed {
+		t.Fatalf("released from unverified phase = %t, %v", passed, err)
+	}
+	migration.Status.Phase = "AwaitingManualCutover"
+	if err := kube.Update(ctx, migration); err != nil {
+		t.Fatal(err)
+	}
+	passed, err = migrationVerificationAndResumePassed(ctx, kube, ha)
+	if err != nil || !passed {
+		t.Fatalf("verified resume did not release = %t, %v", passed, err)
+	}
+	// A consent bound to a different target UID must not release.
+	migration.Spec.Approvals[0].TargetUID = "other-uid"
+	if err := kube.Update(ctx, migration); err != nil {
+		t.Fatal(err)
+	}
+	passed, err = migrationVerificationAndResumePassed(ctx, kube, ha)
+	if err != nil || passed {
+		t.Fatalf("released with mismatched target UID = %t, %v", passed, err)
 	}
 }
 

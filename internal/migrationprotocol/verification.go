@@ -104,6 +104,47 @@ func hasNonNullFields(raw []byte, required ...string) bool {
 	return true
 }
 
+// VerificationResult is one observed projection bound to its approved item. It
+// carries the digest of the actual data read from the restored instance, never
+// the approved expectation, so resume consent can bind the verified result.
+type VerificationResult struct {
+	Kind   string `json:"kind"`
+	ID     string `json:"id"`
+	Digest string `json:"digest"`
+}
+
+// VerificationResultDigest binds the actual observed projections after restore.
+// It is deliberately distinct from VerificationDigest, which binds only the
+// approved expectations. Input order does not matter and unknown kinds, empty
+// IDs or duplicate items are rejected.
+func VerificationResultDigest(results []VerificationResult) (string, error) {
+	bad := fmt.Errorf("invalid verification result")
+	if len(results) == 0 || len(results) > 256 {
+		return "", bad
+	}
+	results = append([]VerificationResult(nil), results...)
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Kind == results[j].Kind {
+			return results[i].ID < results[j].ID
+		}
+		return results[i].Kind < results[j].Kind
+	})
+	for i, result := range results {
+		if !VerificationKind(result.Kind) || strings.TrimSpace(result.ID) == "" || !ValidDigest(result.Digest) {
+			return "", bad
+		}
+		if i > 0 && results[i-1].Kind == result.Kind && results[i-1].ID == result.ID {
+			return "", bad
+		}
+	}
+	return Digest(struct {
+		Version string               `json:"version"`
+		Results []VerificationResult `json:"results"`
+	}{"v1", results})
+}
+
+// VerificationDigest binds the approved verification set. Callers must not use
+// it as the verified result digest; resume consent binds VerificationResultDigest.
 func VerificationDigest(items []ha.MigrationVerificationItem) (string, error) {
 	if len(items) == 0 || len(items) > 256 {
 		return "", fmt.Errorf("invalid verification set")

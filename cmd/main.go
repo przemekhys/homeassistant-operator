@@ -502,6 +502,12 @@ func main() {
 				setupLog.Error(err, "unable to create webhook", "webhook", "HomeAssistantMigration")
 				os.Exit(1)
 			}
+			operatorServiceAccount := getenvOr("OPERATOR_SERVICE_ACCOUNT", "controller-manager")
+			operatorUsername := fmt.Sprintf("system:serviceaccount:%s:%s", operatorNamespace, operatorServiceAccount)
+			if err := webhookhav1alpha1.SetupMigrationIsolationWebhookWithManager(mgr, operatorUsername); err != nil {
+				setupLog.Error(err, "unable to create webhook", "webhook", "MigrationIsolation")
+				os.Exit(1)
+			}
 			setupLog.Info("validating webhooks registered")
 		}()
 	}

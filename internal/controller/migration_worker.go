@@ -128,11 +128,24 @@ func buildMigrationWorkerJob(scheme *runtime.Scheme, op *ha.HomeAssistantMigrati
 	if !accepted || (request.Stage == "backup" && (request.ArchiveStorage == nil || request.ArchiveStorage.PVCName != pvc)) {
 		return nil, fmt.Errorf("worker request or archive is not bound")
 	}
+	if request.Stage != "backup" {
+		binding := op.Spec.ProxyCredentialBinding
+		if binding == nil || binding.RequestID == "" || (request.Stage == "upload" && binding.RequestID != request.RequestID) || (request.Stage == "restore" && binding.RequestID != request.UploadRequestID) {
+			return nil, fmt.Errorf("worker proxy credentials are not bound")
+		}
+	}
 	name := migrationWorkerJobName(request.RequestID)
 	zero, deadline := int32(0), int64(3300)
 	no, yes := false, true
 	uid, gid := int64(65532), int64(65532)
 	labels := map[string]string{migrationRequestLabel: strings.TrimPrefix(request.RequestID, "sha256:")[:40]}
+	if request.Stage != "backup" {
+		// The target NetworkPolicy admits the label derived from the upload
+		// request, which also names the credential binding. Restore therefore
+		// keeps that network label and is listed by its own request label.
+		labels[migrationRequestLabel] = strings.TrimPrefix(op.Spec.ProxyCredentialBinding.RequestID, "sha256:")[:40]
+		labels[migrationOnboardingRequestLabel] = strings.TrimPrefix(request.RequestID, "sha256:")[:40]
+	}
 	replaceFailed := batchv1.Failed
 	job := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: op.Namespace, Labels: labels}, Spec: batchv1.JobSpec{
 		BackoffLimit: &zero, ActiveDeadlineSeconds: &deadline, PodReplacementPolicy: &replaceFailed,
@@ -147,6 +160,17 @@ func buildMigrationWorkerJob(scheme *runtime.Scheme, op *ha.HomeAssistantMigrati
 			Volumes: []corev1.Volume{{Name: "archive", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvc}}}},
 		}},
 	}}
+	if request.Stage != "backup" {
+		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{Name: "migration-proxy-worker", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: proxyWorkerCredentialName(op.Spec.ProxyCredentialBinding.Bundle.Name)}}})
+		container := &job.Spec.Template.Spec.Containers[0]
+		// Upload and restore only read the archive; a writable mount would let a
+		// compromised worker alter the bytes its descriptor vouches for.
+		container.VolumeMounts[0].ReadOnly = true
+		job.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ReadOnly = true
+		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{Name: "migration-proxy-worker", MountPath: "/var/run/migration-worker", ReadOnly: true})
+		container.Env = append(container.Env, corev1.EnvVar{Name: "MIGRATION_ONBOARDING_ENDPOINT", Value: fmt.Sprintf("https://%s.%s.svc:8124", request.Target.Name, op.Namespace)})
+		container.Args = append(container.Args, "--mode", "dispatch-onboarding")
+	}
 	if err := controllerutil.SetControllerReference(op, job, scheme); err != nil {
 		return nil, fmt.Errorf("cannot set worker owner")
 	}
