@@ -12,6 +12,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -52,19 +53,42 @@ func (s *workerReceiptStore) Claim(ctx context.Context, receipt BackupDispatchRe
 		return false, fmt.Errorf("worker receipt binding invalid")
 	}
 	current := &ha.HomeAssistantMigration{}
-	if err := s.kube.Get(ctx, client.ObjectKeyFromObject(s.operation), current); err != nil || current.UID != s.operation.UID || current.Spec.CancelRequested || migrationprotocol.AbortRequested(current) || !current.DeletionTimestamp.IsZero() || !workerSettingsStable(current, *request) {
-		return false, fmt.Errorf("worker operation unavailable")
-	}
-	for _, marker := range current.Spec.ExecutionDispatches {
-		if marker.Stage == "backup" {
-			return false, nil
+	// The controller writes migration status concurrently, so a plain Update can
+	// conflict between Get and Update. Re-fetch and re-validate on conflict; the
+	// dispatch marker is append-only, so a retry cannot create a second permit.
+	claimed := false
+	var invalid error
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := s.kube.Get(ctx, client.ObjectKeyFromObject(s.operation), current); err != nil {
+			invalid = fmt.Errorf("worker operation unavailable")
+			return nil
 		}
-	}
-	// Claim the only POST permit in append-only spec before writing a receipt.
-	// A lost update response is ambiguous and can never authorize another POST.
-	current.Spec.ExecutionDispatches = append(current.Spec.ExecutionDispatches, ha.MigrationExecutionAttempt{Stage: "backup", RequestID: request.RequestID})
-	if err := s.kube.Update(ctx, current); err != nil {
+		if current.UID != s.operation.UID || current.Spec.CancelRequested || migrationprotocol.AbortRequested(current) || !current.DeletionTimestamp.IsZero() || !workerSettingsStable(current, *request) {
+			invalid = fmt.Errorf("worker operation unavailable")
+			return nil
+		}
+		for _, marker := range current.Spec.ExecutionDispatches {
+			if marker.Stage == "backup" {
+				claimed = false
+				return nil
+			}
+		}
+		// Claim the only POST permit in append-only spec before writing a receipt.
+		// A lost update response is ambiguous and can never authorize another POST.
+		current.Spec.ExecutionDispatches = append(current.Spec.ExecutionDispatches, ha.MigrationExecutionAttempt{Stage: "backup", RequestID: request.RequestID})
+		if err := s.kube.Update(ctx, current); err != nil {
+			return err
+		}
+		claimed = true
+		return nil
+	}); err != nil {
 		return false, fmt.Errorf("worker dispatch claim outcome unknown")
+	}
+	if invalid != nil {
+		return false, invalid
+	}
+	if !claimed {
+		return false, nil
 	}
 	data, err := json.Marshal(receipt)
 	if err != nil {

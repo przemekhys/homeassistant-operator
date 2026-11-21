@@ -35,7 +35,10 @@ func run() error {
 	name := flag.String("migration", "", "migration name")
 	stage := flag.String("stage", "", "accepted stage")
 	id := flag.String("request-id", "", "accepted request ID")
-	mode := flag.String("mode", "dispatch-backup", "dispatch-backup, observe-backup, dispatch-onboarding, or onboarding-proxy")
+	mode := flag.String(
+		"mode", "dispatch-backup",
+		"dispatch-backup, observe-backup, dispatch-onboarding, or onboarding-proxy",
+	)
 	flag.Parse()
 	if *mode == "onboarding-proxy" {
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -77,6 +80,13 @@ func run() error {
 		if err != nil {
 			return err
 		}
+		// The target NetworkPolicy admits this worker's Pod identity through a
+		// CNI ipset that converges after the Pod starts. A TCP preflight waits
+		// for that convergence without sending an HTTP request, so a refused
+		// dial cannot spend the single onboarding POST permit.
+		if err := waitForOnboardingProxy(ctx, onboarding); err != nil {
+			return err
+		}
 		return migration.RunOnboardingWorker(ctx, kube, scheme, *namespace, *name, *stage, *id, onboarding)
 	}
 	if request.Stage != "backup" {
@@ -94,6 +104,28 @@ func run() error {
 		return fmt.Errorf("backup archive is not ready: %w", err)
 	}
 	return migration.WriteArchiveValidationProof(ctx, kube, *namespace, *name, *id, "/dev/termination-log")
+}
+
+// waitForOnboardingProxy retries only the non-destructive TCP preflight. The
+// CNI may need a moment to admit a newly started worker Pod to the target's
+// pinned ingress policy. A refused preflight cannot have delivered a request,
+// so retrying it cannot duplicate a POST.
+func waitForOnboardingProxy(ctx context.Context, onboarding *haclient.Client) error {
+	deadline := time.Now().Add(2 * time.Minute)
+	for {
+		err := onboarding.Preflight(ctx)
+		if err == nil {
+			return nil
+		}
+		if !haclient.IsNotReady(err) || time.Now().After(deadline) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Second):
+		}
+	}
 }
 
 func migrationOnboardingClient() (*haclient.Client, error) {

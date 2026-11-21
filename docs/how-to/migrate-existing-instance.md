@@ -1,18 +1,18 @@
 # Migrowanie istniejącej instancji Home Assistant
 
-> Migracja jest eksperymentalna i nie jest gotowa do użycia produkcyjnego: skaner kwalifikuje obecnie wyłącznie kompletne, jednoznaczne obiekty Floor, a operator nie wykonuje automatycznie backupu i restore migracji. Poniższa checklista opisuje działania ręczne, nie kompletną automatyzację. Nie ma SLO czasu przerwy ani automatycznego przełączenia ruchu. Operator nigdy nie zatrzymuje starej instancji ani nie zmienia Service, Ingress lub Gateway w jej imieniu.
+> Migracja jest eksperymentalna i nie jest gotowa do użycia produkcyjnego. Pełny, izolowany przebieg backupu i restore został zweryfikowany wyłącznie na HA Container 2026.11.0 oraz jednorazowym workerze w k3d. Nie ma SLO czasu przerwy ani automatycznego przełączenia ruchu. Operator nigdy nie zatrzymuje starej instancji ani nie zmienia Service, Ingress lub Gateway w jej imieniu.
 
 ## Ręczna checklista cutoveru
 
 1. Zapisz namespace, nazwę i UID **nowego** `HomeAssistant` oraz lokalizację starego workloadu. Sprawdź, że nowy PVC jest pusty i nie jest współdzielony ze źródłem.
 2. Wykonaj wyłącznie odczytowy skan i sprawdź raport. Nie kopiuj raportu do Git: raporty, archiwum i klucze mogą wskazywać dane operacyjne. Obiekty `Unsupported` i `Incomplete` nie są importowane.
 3. Przed backupem potwierdź zakres (zwłaszcza bazę), agenta, miejsce na archiwum i bezpieczne miejsce dla klucza. Klucz i token przekazuj przez Secret/referencję, nigdy przez URL, manifest, status ani log.
-4. Utwórz chroniony backup. Zapisz identyfikator backupu, agenta i skrót archiwum; utrata odpowiedzi oznacza `Unknown`, nie zgodę na ślepe ponowienie.
+4. Zatwierdź osobno backup i stabilność jego ustawień. Worker zapisuje chronione archiwum na niezależnym PVC należącym do `HomeAssistantMigration`; deskryptor wiąże UID PVC, rozmiar, digest, wersję klucza i źródłowy wynik. Zapisz identyfikator backupu, agenta i skrót archiwum; utrata odpowiedzi oznacza `Unknown`, nie zgodę na ślepe ponowienie.
 5. **Ręcznie zatrzymaj źródło**, a potem potwierdź brak procesu i połączeń. Sama niedostępność sieci nie jest dowodem zatrzymania. Nie uruchamiaj obu instancji z tymi samymi integracjami produkcyjnymi.
-6. Tryb `spec.alpha.migrationRestore.enabled: true` jest domyślnie wyłączony i blokuje bootstrap, synchronizację konfiguracji, init-containery oraz projekcje plików do `/config`. **Obecnie utrzymuje też cel wyłączony nawet po zatwierdzeniach**, ponieważ nie wdrożono jeszcze izolacji endpointu onboardingu. Nie używaj go do produkcyjnego restore.
-7. Prześlij archiwum do onboarding endpointu celu, sprawdź backup i wykonaj restore. Błędny klucz, uszkodzone archiwum lub brak miejsca zatrzymują procedurę. Nie publikuj odpowiedzi endpointu.
-8. Po restarcie zweryfikuj tożsamość administratora/operatora, token, MFA, integracje i dane. Gotowość Poda nie jest dowodem poprawnego restore. Bez tokenu lub przy `Unknown` zatrzymaj się i rozstrzygnij stan ręcznie.
-9. Ręcznie przełącz Service/Ingress/Gateway dopiero po weryfikacji. Zachowaj źródło wyłączone podczas obserwacji. Powrót może utracić zmiany wykonane po restore i wymaga osobnej ręcznej procedury.
+6. Tryb `spec.alpha.migrationRestore.enabled: true` jest domyślnie wyłączony i blokuje bootstrap, synchronizację konfiguracji, init-containery oraz projekcje plików do `/config`. Cel może wystartować wyłącznie po związanych zgodach `source-stop` i `restore` oraz przygotowaniu egzekwowanej izolacji onboardingu.
+7. Zatwierdź restore powiązany z UID celu, digestem i zakresem archiwum. Worker przesyła archiwum i sprawdza onboarding info przed pojedynczym restore. Błędny klucz, uszkodzone archiwum, brak miejsca, utrata odpowiedzi lub rozbieżność wyniku zatrzymują procedurę. Nie publikuj odpowiedzi endpointu.
+8. Po restarcie zweryfikuj tożsamość administratora/operatora, token, MFA, integracje i zatwierdzone dane. Gotowość Poda ani HTTP 2xx nie są dowodem poprawnego restore. Dopiero związana zgoda `resume` zwalnia następną bramkę.
+9. Ręcznie przełącz Service/Ingress/Gateway dopiero po osobnej zgodzie `manual-cutover`. Zachowaj źródło wyłączone podczas obserwacji. Powrót może utracić zmiany wykonane po restore i wymaga osobnej ręcznej procedury.
 10. Po akceptacji celu wyłącz `migrationRestore.enabled` świadomą zmianą specyfikacji; tylko wtedy zwykły bootstrap i projekcje mogą wrócić do pracy.
 
 Jeśli źródło to Kubernetes `Deployment` lub `StatefulSet` w tym samym namespace,
@@ -24,6 +24,22 @@ selektora; nie zmienia źródła. Zgoda restore musi osobno wskazywać `targetUI
 ma technicznego potwierdzenia w Kubernetes: administrator pozostaje odpowiedzialny
 za jego sprawdzenie i ręczną zgodę. Odczyt jest migawką, nie blokadą ponownego
 uruchomienia źródła — nie uruchamiaj go ponownie podczas migracji.
+
+## Zgody, nieznany wynik i anulowanie
+
+Zgoda obowiązuje do atomowego przyjęcia konkretnego żądania. Jej wycofanie przed
+przyjęciem blokuje etap; po przyjęciu nie cofa już zewnętrznego żądania HA i nie
+pozwala na drugi POST. `Unknown` oznacza, że wynik mutacji nie został bezpiecznie
+ustalony. Użyj tylko związanego rozstrzygnięcia `ObserveExternalResult` (odczyt
+tego samego dowodu) albo `Abort`; nie usuwaj receiptów ani nie twórz nowej zgody
+w celu ponowienia operacji.
+
+Ustawienie `spec.cancelRequested: true`, rozstrzygnięcie `Abort` lub usunięcie
+operacji blokuje nowe etapy. Kontroler kończy lokalne Joby i czeka na zniknięcie
+ich Podów przed zwolnieniem finalizera. Nie deklaruje cofnięcia zadania już
+przyjętego przez HA. PVC archiwum, deskryptor, receipty oraz zasoby workera są
+własnością migracji i są usuwane przez garbage collection dopiero po bezpiecznym
+zakończeniu lokalnej pracy; nie usuwaj ich ręcznie podczas `Unknown` lub anulowania.
 
 ## Skan i zatwierdzony import
 
@@ -73,8 +89,8 @@ Gdy importowane są dostępne dane uwierzytelniające, wymagane jest także
 tworzenie/odczyt wynikowego Secretu. Nie ma
 domyślnej komendy mutującej ani domyślnego potwierdzenia.
 Opcjonalna flaga `--source-token-secret` zapisuje nazwę i klucz Secretu w operacji,
-nie wartość tokenu; klucz można zmienić przez `--source-token-key`. Aktualny
-kontroler nie używa jeszcze tej referencji do automatycznego backupu.
+nie wartość tokenu; klucz można zmienić przez `--source-token-key`. Wykonawca
+migracji odczytuje wyłącznie przypiętą referencję w zaakceptowanym żądaniu.
 Opcjonalne `--recovery-key-secret` i `--recovery-key-key` wskazują osobno Secret
 z kluczem odzyskiwania w tym samym namespace. Przechowuj go oddzielnie od
 archiwum. Referencja nie potwierdza poprawności klucza ani nie uruchamia restore.

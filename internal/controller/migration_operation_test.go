@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -138,6 +139,9 @@ func TestCancellationPreventsPreparingTargetStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	if err := batchv1.AddToScheme(scheme); err != nil {
 		t.Fatal(err)
 	}
 	op := &hav1alpha1.HomeAssistantMigration{ObjectMeta: metav1.ObjectMeta{Name: "cancelled", Namespace: "default", UID: "operation", Finalizers: []string{migrationOperationFinalizer}}, Spec: hav1alpha1.HomeAssistantMigrationSpec{CancelRequested: true, SourceID: "source", Target: hav1alpha1.MigrationTarget{Name: "missing", UID: "target"}}}
@@ -433,8 +437,8 @@ func addVerificationApproval(t *testing.T, fixture *onboardingStageFixture, id, 
 // result digest, then AwaitingManualCutover until a separate cutover consent.
 func TestMigrationVerificationRequiresResumeAndManualCutoverApprovals(t *testing.T) {
 	ctx := context.Background()
-	fake := newFakeVerificationHomeAssistant(t)
-	fixture, qualification := newVerificationFixture(t, fake)
+	haServer := newFakeVerificationHomeAssistant(t)
+	fixture, qualification := newVerificationFixture(t, haServer)
 	backup := verificationRequestForStage(t, fixture.op, "backup")
 	upload := verificationRequestForStage(t, fixture.op, "upload")
 	observer := verificationObserver(qualification, fixture.op, &backup, &upload)
@@ -465,7 +469,7 @@ func TestMigrationVerificationRequiresResumeAndManualCutoverApprovals(t *testing
 	}
 
 	// A resume consent bound to a different digest must not release the gate.
-	op = addVerificationApproval(t, fixture, "resume", "sha256:"+strings.Repeat("0", 64))
+	addVerificationApproval(t, fixture, "resume", "sha256:"+strings.Repeat("0", 64))
 	reconcileVerification(t, fixture, r)
 	op = reloadVerificationOperation(t, fixture)
 	if op.Status.Phase != "AwaitingResumeApproval" {
@@ -473,7 +477,7 @@ func TestMigrationVerificationRequiresResumeAndManualCutoverApprovals(t *testing
 	}
 
 	// The correctly bound resume consent advances to manual cutover only.
-	op = addVerificationApproval(t, fixture, "resume", digest)
+	addVerificationApproval(t, fixture, "resume", digest)
 	reconcileVerification(t, fixture, r)
 	op = reloadVerificationOperation(t, fixture)
 	if op.Status.Phase != "AwaitingManualCutover" {
@@ -481,7 +485,7 @@ func TestMigrationVerificationRequiresResumeAndManualCutoverApprovals(t *testing
 	}
 
 	// A separate manual cutover consent is required for completion.
-	op = addVerificationApproval(t, fixture, "manual-cutover", "sha256:"+strings.Repeat("1", 64))
+	addVerificationApproval(t, fixture, "manual-cutover", "sha256:"+strings.Repeat("1", 64))
 	reconcileVerification(t, fixture, r)
 	op = reloadVerificationOperation(t, fixture)
 	if op.Status.Phase != "Completed" {

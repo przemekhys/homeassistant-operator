@@ -38,6 +38,10 @@ type BackupQualificationOptions struct {
 	StorageClass         *string
 	VerifyIsolation      func(context.Context, *ha.HomeAssistantMigration) error
 	ReadBackupResolution func(context.Context, string, []byte, ha.MigrationExecutionRequest, migrationprotocol.Evidence) (migration.BackupResolutionObservation, error)
+	// ClientForHomeAssistant is optional test injection. Production leaves it
+	// nil and builds the plain in-cluster HTTP client. An E2E runner may supply a
+	// port-forwarded client so read-only verification reaches the same target.
+	ClientForHomeAssistant func(*hav1.HomeAssistant) *haclient.Client
 }
 
 func NewIsolatedBackupQualificationReconciler(
@@ -49,6 +53,7 @@ func NewIsolatedBackupQualificationReconciler(
 	}
 	observer := &migrationBackupQualification{
 		migrationWorkerObserver: migrationWorkerObserver{reader: kube}, kube: kube, scheme: scheme, options: options,
+		clientForHomeAssistant: options.ClientForHomeAssistant,
 	}
 	return &HomeAssistantMigrationReconciler{Client: kube, APIReader: kube, Scheme: scheme, stageObserver: observer}, nil
 }

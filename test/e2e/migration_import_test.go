@@ -248,12 +248,25 @@ spec:
 	operation := &hav1alpha1.HomeAssistantMigration{
 		ObjectMeta: metav1.ObjectMeta{Name: restoreName, Namespace: namespace},
 		Spec: hav1alpha1.HomeAssistantMigrationSpec{
-			SourceID: "disposable-source",
-			Target:   hav1alpha1.MigrationTarget{Name: restoreName, UID: string(restoreTarget.UID)},
+			ExecutionProtocol: "v1",
+			SourceID:          "http://source.example",
+			SourceEndpoint:    "http://source.example",
+			Target:            hav1alpha1.MigrationTarget{Name: restoreName, UID: string(restoreTarget.UID)},
 		},
 	}
 	Expect(kube.Create(ctx, operation)).To(Succeed())
 	defer func() { _ = kube.Delete(context.Background(), operation) }()
+	// The HomeAssistant controller creates the restore PVC only after its
+	// required configuration CR exists. Keep this fixture aligned with the
+	// restore flow: migration preparation must not bypass that prerequisite.
+	restoreConfig := &hav1.HomeAssistantConfiguration{
+		ObjectMeta: metav1.ObjectMeta{Name: restoreName + "-config", Namespace: namespace},
+		Spec: hav1.HomeAssistantConfigurationSpec{
+			HomeAssistantRef: hav1.HomeAssistantReference{Name: restoreName},
+			Configuration:    "homeassistant:\n  name: Restore GC target\ndefault_config:\n",
+		},
+	}
+	Expect(kube.Create(ctx, restoreConfig)).To(Succeed())
 	pvc := &corev1.PersistentVolumeClaim{}
 	Eventually(func(g Gomega) {
 		g.Expect(kube.Get(ctx, client.ObjectKey{Namespace: namespace, Name: restoreName + "-data"}, pvc)).To(Succeed())

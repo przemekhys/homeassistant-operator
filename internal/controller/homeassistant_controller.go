@@ -52,6 +52,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
+	hav1alpha1 "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 	"github.com/przemekhys/homeassistant-operator/internal/haclient"
 )
 
@@ -2276,6 +2277,10 @@ func (r *HomeAssistantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&hav1.HomeAssistantCommunityRepository{},
 			handler.EnqueueRequestsFromMapFunc(r.findHomeAssistantForCommunityRepository),
 		).
+		Watches(
+			&hav1alpha1.HomeAssistantMigration{},
+			handler.EnqueueRequestsFromMapFunc(r.findHomeAssistantForMigration),
+		).
 		Named("homeassistant").
 		Complete(r)
 }
@@ -2310,6 +2315,25 @@ func (r *HomeAssistantReconciler) findHomeAssistantForCommunityRepository(
 	}
 	return []reconcile.Request{{NamespacedName: types.NamespacedName{
 		Name: repo.Spec.HomeAssistantRef.Name, Namespace: repo.Namespace,
+	}}}
+}
+
+// findHomeAssistantForMigration maps a HomeAssistantMigration to its target
+// HomeAssistant. The target controller must re-run when the migration reaches a
+// verified resume/cutover phase, because bootstrap and file projections stay
+// gated until then and the migration's status update is the only event that
+// releases them. A migration whose target name or UID no longer matches the CR
+// is ignored: the target controller re-validates the UID itself.
+func (r *HomeAssistantReconciler) findHomeAssistantForMigration(
+	_ context.Context,
+	obj client.Object,
+) []reconcile.Request {
+	migration, ok := obj.(*hav1alpha1.HomeAssistantMigration)
+	if !ok || strings.TrimSpace(migration.Spec.Target.Name) == "" {
+		return nil
+	}
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{
+		Name: migration.Spec.Target.Name, Namespace: migration.Namespace,
 	}}}
 }
 

@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -47,6 +48,11 @@ func NewOnboardingProxy(upstream string, clientCertificate *x509.Certificate) (h
 			http.Error(w, "onboarding route unavailable", http.StatusNotFound)
 			return
 		}
+		// Emit only the closed route identity. Method and path are already
+		// constrained to non-secret onboarding routes; headers and bodies are
+		// never logged. This lets an operator prove how many mutating POSTs
+		// reached the target without relying on HA readiness or a 2xx receipt.
+		log.Printf("onboarding proxy request %s %s", r.Method, r.URL.Path)
 		// Forwarded headers are not identity evidence and must not be supplied by
 		// an untrusted client to the HA upstream.
 		r.Header.Del("Forwarded")

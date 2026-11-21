@@ -17,6 +17,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -216,43 +217,61 @@ func (e *RestoreExecutor) claimDispatch(ctx context.Context, r OnboardingReceipt
 		return false, nil, fmt.Errorf("onboarding dispatch claim unavailable")
 	}
 	current := &ha.HomeAssistantMigration{}
-	if err := e.Client.Get(ctx, client.ObjectKey{Namespace: e.Operation.Namespace, Name: e.Operation.Name}, current); err != nil ||
-		string(current.UID) != r.OperationUID || current.Spec.ExecutionProtocol != "v1" ||
-		current.Spec.CancelRequested || !current.DeletionTimestamp.IsZero() || migrationprotocol.AbortRequested(current) {
-		return false, nil, fmt.Errorf("onboarding dispatch claim unavailable")
-	}
-	attempted, dispatched := false, false
-	for _, marker := range current.Spec.ExecutionAttempts {
-		if marker.Stage == r.Stage && marker.RequestID == r.RequestID {
-			attempted = true
+	// The controller writes migration status concurrently, so a plain Update can
+	// conflict between Get and Update. Re-fetch and re-validate on conflict; the
+	// dispatch marker is append-only, so a retry cannot create a second permit.
+	permitted := false
+	var existing *OnboardingReceipt
+	var invalid error
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := e.Client.Get(ctx, client.ObjectKey{Namespace: e.Operation.Namespace, Name: e.Operation.Name}, current); err != nil ||
+			string(current.UID) != r.OperationUID || current.Spec.ExecutionProtocol != "v1" ||
+			current.Spec.CancelRequested || !current.DeletionTimestamp.IsZero() || migrationprotocol.AbortRequested(current) {
+			invalid = fmt.Errorf("onboarding dispatch claim unavailable")
+			return nil
 		}
-	}
-	for _, marker := range current.Spec.ExecutionDispatches {
-		if marker.Stage == r.Stage {
-			dispatched = true
+		attempted, dispatched := false, false
+		for _, marker := range current.Spec.ExecutionAttempts {
+			if marker.Stage == r.Stage && marker.RequestID == r.RequestID {
+				attempted = true
+			}
 		}
-	}
-	if dispatched {
-		// The permit is already spent. Only the recorded outcome may be read
-		// back; a missing receipt stays ambiguous rather than becoming a new
-		// permission to POST after a worker restart.
-		existing, err := e.read(ctx, r.RequestID)
-		if err != nil {
-			return false, nil, fmt.Errorf("onboarding dispatch already claimed")
+		for _, marker := range current.Spec.ExecutionDispatches {
+			if marker.Stage == r.Stage {
+				dispatched = true
+			}
 		}
-		return false, existing, nil
-	}
-	// A dispatch marker must answer to the controller's attempt marker; the
-	// CRD rejects it otherwise, so it is refused here before any write.
-	if !attempted {
-		return false, nil, fmt.Errorf("onboarding attempt marker unavailable")
-	}
-	updated := current.DeepCopy()
-	updated.Spec.ExecutionDispatches = append(updated.Spec.ExecutionDispatches, ha.MigrationExecutionAttempt{Stage: r.Stage, RequestID: r.RequestID})
-	if err := e.Client.Update(ctx, updated); err != nil {
+		if dispatched {
+			// The permit is already spent. Only the recorded outcome may be read
+			// back; a missing receipt stays ambiguous rather than becoming a new
+			// permission to POST after a worker restart.
+			existing, invalid = e.read(ctx, r.RequestID)
+			if invalid != nil {
+				invalid = fmt.Errorf("onboarding dispatch already claimed")
+			}
+			permitted = false
+			return nil
+		}
+		// A dispatch marker must answer to the controller's attempt marker; the
+		// CRD rejects it otherwise, so it is refused here before any write.
+		if !attempted {
+			invalid = fmt.Errorf("onboarding attempt marker unavailable")
+			return nil
+		}
+		updated := current.DeepCopy()
+		updated.Spec.ExecutionDispatches = append(updated.Spec.ExecutionDispatches, ha.MigrationExecutionAttempt{Stage: r.Stage, RequestID: r.RequestID})
+		if err := e.Client.Update(ctx, updated); err != nil {
+			return err
+		}
+		permitted = true
+		return nil
+	}); err != nil {
 		return false, nil, fmt.Errorf("onboarding dispatch claim outcome unknown")
 	}
-	return true, nil, nil
+	if invalid != nil {
+		return false, nil, invalid
+	}
+	return permitted, existing, nil
 }
 
 func (e *RestoreExecutor) claim(ctx context.Context, r OnboardingReceipt) (bool, *OnboardingReceipt, error) {

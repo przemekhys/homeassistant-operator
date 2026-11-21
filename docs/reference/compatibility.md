@@ -84,9 +84,24 @@ egress; worker RBAC did not permit listing or watching Secrets.
 
 `BackupReady` describes a verified restore input, not a successful restore or
 working integrations. Backup settings and key stability remain an explicit
-operational requirement, not an atomic HA lock. The production manager does
-**not** enable the qualification executor: onboarding isolation, safe
-cancellation/deletion, restore and cutover remain separate release gates.
+operational requirement, not an atomic HA lock.
+
+### Experimental migration restore
+
+One full disposable-cluster scenario passed on HA Container **2026.11.0** with
+an independent archive PVC, an isolated one-shot worker and a fresh target. It
+proved exactly one backup generation, upload and restore request; source stop;
+restored token/data verification; then separate `resume` and `manual-cutover`
+approvals. The target Core restart during restore was included. This does not
+qualify HA OS, external databases/agents, MFA recovery, a production network
+policy setup, or automatic traffic cutover.
+
+Archive PVCs, archive descriptors, worker Jobs/receipts and migration-created
+credentials are owned by `HomeAssistantMigration`. Cancellation or deletion
+stops local worker Pods before their finalizer permits garbage collection. An
+already accepted Home Assistant request is not rolled back. `Unknown` must be
+resolved by observation of bound evidence or explicitly aborted; it must not be
+retried as a new mutation.
 
 ### Migration adoption
 

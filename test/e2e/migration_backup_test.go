@@ -503,6 +503,10 @@ func backupSimulateLostReceipt(t *testing.T, ctx context.Context, kube client.Cl
 // remove its own operation finalizer. It never contacts HA or a different UID.
 func backupCleanupNamespace(t *testing.T, kube client.Client, created *corev1.Namespace) {
 	t.Helper()
+	if os.Getenv("E2E_KEEP_NAMESPACE") == "true" {
+		t.Logf("E2E_KEEP_NAMESPACE=true: keeping namespace %s for diagnosis", created.Name)
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	current := &corev1.Namespace{}

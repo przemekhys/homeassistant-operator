@@ -48,6 +48,9 @@ type HomeAssistantMigrationReconciler struct {
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantmigrations,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantmigrations/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ha.homeassistant.io,resources=homeassistantmigrations/finalizers,verbs=update
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;watch;create;delete
 
 func (r *HomeAssistantMigrationReconciler) Reconcile(
 	ctx context.Context,
@@ -58,36 +61,14 @@ func (r *HomeAssistantMigrationReconciler) Reconcile(
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	if !migration.DeletionTimestamp.IsZero() {
-		if controllerutil.ContainsFinalizer(migration, migrationOperationFinalizer) {
-			controllerutil.RemoveFinalizer(migration, migrationOperationFinalizer)
-			return ctrl.Result{}, r.Update(ctx, migration)
-		}
-		return ctrl.Result{}, nil
+		return r.handleMigrationDeletion(ctx, migration)
 	}
 	if !controllerutil.ContainsFinalizer(migration, migrationOperationFinalizer) {
 		controllerutil.AddFinalizer(migration, migrationOperationFinalizer)
 		return ctrl.Result{}, r.Update(ctx, migration)
 	}
 	if migration.Spec.CancelRequested || migrationAbortRequested(migration) {
-		changed := migration.Status.Phase != "Blocked"
-		migration.Status.Phase = "Blocked"
-		reason, message := "CancellationRequested", "new migration work is blocked; cancellation is not yet implemented"
-		if migrationAbortRequested(migration) {
-			reason = "AbortRequested"
-			message = "new migration work is blocked; local worker termination is not yet implemented"
-		}
-		if meta.SetStatusCondition(&migration.Status.Conditions, metav1.Condition{
-			Type: "Progressing", Status: metav1.ConditionFalse, ObservedGeneration: migration.Generation,
-			Reason: reason, Message: message,
-		}) {
-			changed = true
-		}
-		if changed {
-			if err := r.Status().Update(ctx, migration); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-		return ctrl.Result{RequeueAfter: time.Minute}, nil
+		return r.handleMigrationCancellation(ctx, migration)
 	}
 	if migration.Spec.ExecutionProtocol == "" {
 		reader := r.APIReader

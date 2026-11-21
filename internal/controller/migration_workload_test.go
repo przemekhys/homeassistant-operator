@@ -101,6 +101,26 @@ func TestMigrationRestorePreparationBlocksBootstrapBeforeAnyHARequest(t *testing
 	}
 }
 
+func TestHomeAssistantReconcilerMapsMigrationToItsTarget(t *testing.T) {
+	// The target controller must be woken when a migration's status changes,
+	// because bootstrap and projections stay gated until verification plus resume
+	// consent. The mapping must follow spec.target.name and stay in the same
+	// namespace; a migration without a target name must not enqueue anything.
+	reconciler := &HomeAssistantReconciler{}
+	requests := reconciler.findHomeAssistantForMigration(context.Background(), &hav1alpha1.HomeAssistantMigration{
+		ObjectMeta: metav1.ObjectMeta{Name: "migration", Namespace: "default"},
+		Spec: hav1alpha1.HomeAssistantMigrationSpec{
+			Target: hav1alpha1.MigrationTarget{Name: "target", UID: "target-uid"},
+		},
+	})
+	if len(requests) != 1 || requests[0].Namespace != "default" || requests[0].Name != "target" {
+		t.Fatalf("unexpected requests: %#v", requests)
+	}
+	if requests := reconciler.findHomeAssistantForMigration(context.Background(), &hav1alpha1.HomeAssistantMigration{}); len(requests) != 0 {
+		t.Fatalf("empty target produced requests: %#v", requests)
+	}
+}
+
 func TestMigrationRestoreStartAllowedWithVerificationGates(t *testing.T) {
 	// The restore window may start only when the target's exact UID is bound to a
 	// durable operation with a valid proxy credential binding, a bound restore
