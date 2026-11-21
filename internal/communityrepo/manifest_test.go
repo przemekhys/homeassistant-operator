@@ -77,18 +77,97 @@ func TestValidateAndResolve_Integration_MultipleDirs(t *testing.T) {
 }
 
 func TestValidateAndResolve_Plugin_ByFilename(t *testing.T) {
-	repo := buildExtractedRepo(map[string]string{
-		"hacs.json":     `{"name":"My Card","category":"plugin","filename":"my-card.js"}`,
-		"my-card.js":    "console.log('card');",
-		"other-file.js": "not the plugin",
-	})
+	tests := []struct {
+		name       string
+		filename   string
+		files      map[string]string
+		wantSource string
+		wantErr    bool
+	}{
+		{
+			name:       "dist only",
+			files:      map[string]string{"dist/my-card.js": "console.log('card');"},
+			wantSource: "dist/my-card.js",
+		},
+		{
+			name:       "dist preferred over root",
+			files:      map[string]string{"dist/my-card.js": "built card", "my-card.js": "source card"},
+			wantSource: "dist/my-card.js",
+		},
+		{
+			name:       "root only",
+			files:      map[string]string{"my-card.js": "console.log('card');", "other-file.js": "not the plugin"},
+			wantSource: "my-card.js",
+		},
+		{
+			name:       "dist directory falls back to root file",
+			files:      map[string]string{"dist/my-card.js/child": "not a file", "my-card.js": "root card"},
+			wantSource: "my-card.js",
+		},
+		{
+			name:    "named file missing",
+			files:   map[string]string{"dist/other-card.js": "not the named plugin"},
+			wantErr: true,
+		},
+		{
+			name:    "dist directory without root file",
+			files:   map[string]string{"dist/my-card.js/child": "not a JavaScript file"},
+			wantErr: true,
+		},
+		{
+			name:       "explicit relative path",
+			filename:   "assets/my-card.js",
+			files:      map[string]string{"assets/my-card.js": "explicit card", "dist/assets/my-card.js": "other card"},
+			wantSource: "assets/my-card.js",
+		},
+		{
+			name:       "explicit dist path",
+			filename:   "dist/my-card.js",
+			files:      map[string]string{"dist/my-card.js": "explicit card", "dist/dist/my-card.js": "not the explicit path"},
+			wantSource: "dist/my-card.js",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filename := tt.filename
+			if filename == "" {
+				filename = "my-card.js"
+			}
+			tt.files["hacs.json"] = `{"name":"My Card","category":"plugin","filename":"` + filename + `"}`
+			repo := buildExtractedRepo(tt.files)
+			got, err := ValidateAndResolve(repo, CategoryPlugin)
+			if tt.wantErr {
+				if !errors.Is(err, ErrStructureInvalid) {
+					t.Fatalf("expected ErrStructureInvalid, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ValidateAndResolve() error = %v", err)
+			}
+			if got.SourcePath != tt.wantSource {
+				t.Errorf("SourcePath = %q, want %q", got.SourcePath, tt.wantSource)
+			}
+			if got.ResolvedTarget != "my-card" {
+				t.Errorf("ResolvedTarget = %q, want %q", got.ResolvedTarget, "my-card")
+			}
+		})
+	}
+}
 
+func TestValidateAndResolve_Plugin_DistContentNotRetained(t *testing.T) {
+	repo := buildExtractedRepo(map[string]string{
+		"hacs.json": `{"filename":"my-card.js"}`,
+	})
+	// Large bundles remain indexed even when the extractor skips their contents.
+	repo.files["dist/my-card.js"] = fileEntry{size: maxRetainedEntryBytes + 1}
+	markParentDirs(repo.dirs, "dist/my-card.js")
 	got, err := ValidateAndResolve(repo, CategoryPlugin)
 	if err != nil {
 		t.Fatalf("ValidateAndResolve() error = %v", err)
 	}
-	if got.ResolvedTarget != "my-card" {
-		t.Errorf("ResolvedTarget = %q, want %q", got.ResolvedTarget, "my-card")
+	if got.SourcePath != "dist/my-card.js" || got.ResolvedTarget != "my-card" {
+		t.Errorf("ValidateAndResolve() = %+v, want dist/my-card.js and target my-card", got)
 	}
 }
 

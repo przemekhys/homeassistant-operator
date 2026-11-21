@@ -157,15 +157,24 @@ func resolveIntegration(repo *ExtractedRepo) (Resolved, error) {
 }
 
 // resolvePlugin finds the plugin's main JavaScript file: hacs.json's "filename" field
-// when set, otherwise the single ".js" file at the repository root.
+// when set (preferring dist/ for a basename), otherwise the single ".js" file at
+// the repository root.
 func resolvePlugin(repo *ExtractedRepo, manifest *hacsManifest) (Resolved, error) {
 	if manifest != nil && manifest.Filename != "" {
-		if !repo.Exists(manifest.Filename) {
+		sourcePath := manifest.Filename
+		if path.Base(sourcePath) == sourcePath {
+			distPath := path.Join("dist", sourcePath)
+			// Only regular files qualify; large bundles may have no retained content.
+			if _, ok := repo.files[distPath]; ok {
+				sourcePath = distPath
+			}
+		}
+		if !repo.Exists(sourcePath) {
 			return Resolved{}, fmt.Errorf("%w: hacs.json filename %q not found",
 				ErrStructureInvalid, manifest.Filename)
 		}
 		return Resolved{
-			SourcePath:     manifest.Filename,
+			SourcePath:     sourcePath,
 			ResolvedTarget: strings.TrimSuffix(path.Base(manifest.Filename), path.Ext(manifest.Filename)),
 		}, nil
 	}
