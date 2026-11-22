@@ -70,6 +70,11 @@ func (r *HomeAssistantDashboardReconciler) observeImportedDashboard(
 		dashboard.Status.ObservedGeneration = dashboard.Generation
 		changed = true
 	}
+	if reason != "Adopted" && (dashboard.Status.DashboardID != "" || dashboard.Status.ObservedGeneration != 0) {
+		dashboard.Status.DashboardID = ""
+		dashboard.Status.ObservedGeneration = 0
+		changed = true
+	}
 	if meta.SetStatusCondition(
 		&dashboard.Status.Conditions,
 		metav1.Condition{
@@ -186,6 +191,18 @@ func (r *HomeAssistantDashboardReconciler) compareImportedDashboard(
 	current := findMigrationDashboardID(latest, identity.SourceID)
 	if current == nil || *current != *existing {
 		return "DashboardMetadataChanged", ""
+	}
+	// Sequential reads narrow the race window but cannot provide an atomic snapshot.
+	actual, err = haClient.GetDashboardConfig(ctx, token, current.URLPath)
+	if err != nil {
+		return "DefinitionUnavailable", ""
+	}
+	observed, err = canonicalMigrationJSON(actual)
+	if err != nil {
+		return "DefinitionUnavailable", ""
+	}
+	if !bytes.Equal(wanted, observed) {
+		return "DashboardDefinitionChanged", ""
 	}
 	return "Adopted", ""
 }

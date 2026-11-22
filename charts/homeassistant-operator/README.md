@@ -18,7 +18,7 @@ A Kubernetes operator for deploying and managing Home Assistant instances with d
 
 ## Requirements
 
-Kubernetes: `>=1.24-0`
+Kubernetes: `>=1.30-0`
 
 ## Values
 

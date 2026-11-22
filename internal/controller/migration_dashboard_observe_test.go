@@ -73,7 +73,7 @@ func TestImportedDashboardObservationUsesOnlyReadCommands(t *testing.T) {
 		reason       string
 		calls        int
 	}{
-		{"matching", `{"views":[]}`, false, "Adopted", 3},
+		{"matching", `{"views":[]}`, false, "Adopted", 4},
 		{"conflict", `{"views":[{"title":"private-value"}]}`, false, "DashboardDefinitionConflict", 2},
 		{"duplicate identity", `{"views":[]}`, true, "DashboardIdentityUnverified", 1},
 		{"metadata changes", `{"views":[]}`, false, "DashboardMetadataChanged", 3},
@@ -82,6 +82,7 @@ func TestImportedDashboardObservationUsesOnlyReadCommands(t *testing.T) {
 			var mu sync.Mutex
 			var commands []string
 			var state atomic.Int32
+			var configReads atomic.Int32
 			var metadataChanged atomic.Bool
 			upgrader := websocket.Upgrader{}
 			server := httptest.NewServer(
@@ -135,7 +136,7 @@ func TestImportedDashboardObservationUsesOnlyReadCommands(t *testing.T) {
 							metadataChanged.Store(true)
 						}
 						result = json.RawMessage(tc.config)
-						if state.Load() == 1 {
+						if state.Load() == 1 || (state.Load() == 3 && configReads.Add(1) == 2) {
 							result = json.RawMessage(`{"views":[{"title":"changed"}]}`)
 						}
 					default:
@@ -251,7 +252,7 @@ func TestImportedDashboardObservationUsesOnlyReadCommands(t *testing.T) {
 				for _, step := range []struct {
 					state  int32
 					reason string
-				}{{1, "DashboardDefinitionConflict"}, {2, "DashboardIdentityUnverified"}} {
+				}{{1, "DashboardDefinitionConflict"}, {2, "DashboardIdentityUnverified"}, {3, "DashboardDefinitionChanged"}} {
 					state.Store(step.state)
 					if _, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(dashboard)}); err != nil {
 						t.Fatal(err)
@@ -266,6 +267,9 @@ func TestImportedDashboardObservationUsesOnlyReadCommands(t *testing.T) {
 					if condition == nil || condition.Status != metav1.ConditionFalse ||
 						condition.Reason != step.reason {
 						t.Fatalf("state=%d condition=%#v", step.state, condition)
+					}
+					if stored.Status.DashboardID != "" || stored.Status.ObservedGeneration != 0 {
+						t.Fatalf("stale status retained: %#v", stored.Status)
 					}
 				}
 				stored.Annotations[migrationPausedAnnotation] = "true"
@@ -286,7 +290,7 @@ func TestImportedDashboardObservationUsesOnlyReadCommands(t *testing.T) {
 					condition.Reason != "MigrationPaused" {
 					t.Fatalf("paused condition=%#v", condition)
 				}
-				tc.calls = tc.calls*2 + 3
+				tc.calls = tc.calls*3 + 3
 			}
 			if tc.reason == "DashboardDefinitionConflict" {
 				_, digest, ok := strings.Cut(condition.Message, "comparison=")

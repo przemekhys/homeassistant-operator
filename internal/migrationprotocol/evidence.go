@@ -55,7 +55,7 @@ func ValidateEvidenceRef(ref *ha.MigrationEvidenceReference) error {
 func ParseEvidence(raw []byte) (*Evidence, error) {
 	var e Evidence
 	var fields map[string]json.RawMessage
-	if json.Unmarshal(raw, &fields) != nil || ambiguousEvidenceKeys(fields) || Decode(raw, &e) != nil || e.Version != "v1" || !ValidStage(e.Stage) || !ValidDigest(e.RequestID) || e.OperationUID == "" || e.SourceID == "" || e.TargetUID == "" || (e.JobID == "" && e.BackupID == "" && e.ArchiveDescriptorRef == nil) || (e.ArchiveDigest != "" && !ValidDigest(e.ArchiveDigest)) {
+	if Decode(raw, &e) != nil || json.Unmarshal(raw, &fields) != nil || ambiguousEvidenceKeys(fields) || e.Version != "v1" || !ValidStage(e.Stage) || !ValidDigest(e.RequestID) || e.OperationUID == "" || e.SourceID == "" || e.TargetUID == "" || (e.JobID == "" && e.BackupID == "" && e.ArchiveDescriptorRef == nil) || (e.ArchiveDigest != "" && !ValidDigest(e.ArchiveDigest)) {
 		return nil, fmt.Errorf("invalid migration evidence")
 	}
 	// HA identifiers are opaque API identifiers, not Kubernetes DNS names.

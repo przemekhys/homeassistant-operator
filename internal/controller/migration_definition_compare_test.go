@@ -24,6 +24,24 @@ func TestSceneComparisonPreservesLargeNumbers(t *testing.T) {
 	}
 }
 
+func TestScriptComparisonPreservesLargeNumbers(t *testing.T) {
+	script := &hav1.HomeAssistantScript{Spec: hav1.HomeAssistantScriptSpec{
+		ID: "script", Alias: "Example", Sequence: []hav1.ScriptAction{{RawExtension: runtime.RawExtension{Raw: []byte(`{"service":"test.run","data":{"value":9007199254740993}}`)}}},
+		Fields: map[string]hav1.ScriptField{"value": {RawExtension: runtime.RawExtension{Raw: []byte(`{"default":9007199254740993}`)}}},
+	}}
+	for _, tc := range []struct {
+		raw  string
+		want migrationAdoptionState
+	}{
+		{`{"alias":"Example","sequence":[{"service":"test.run","data":{"value":9007199254740993}}],"fields":{"value":{"default":9007199254740993}}}`, migrationAdoptionAdopted},
+		{`{"alias":"Example","sequence":[{"service":"test.run","data":{"value":9007199254740992}}],"fields":{"value":{"default":9007199254740993}}}`, migrationAdoptionConflict},
+	} {
+		if got := compareMigrationDefinition(script, "script", json.RawMessage(tc.raw)); got.State != tc.want {
+			t.Fatalf("state=%s, want %s", got.State, tc.want)
+		}
+	}
+}
+
 func TestMigrationSceneDefinitionRequiresExactIdentityAndCompleteMatch(t *testing.T) {
 	scene := &hav1.HomeAssistantScene{
 		Spec: hav1.HomeAssistantSceneSpec{
