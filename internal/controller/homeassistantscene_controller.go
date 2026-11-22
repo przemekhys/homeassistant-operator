@@ -74,7 +74,7 @@ func (r *HomeAssistantSceneReconciler) haClientFor(ha *hav1.HomeAssistant) *hacl
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *HomeAssistantSceneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	ctx, log := reconcileLogger(ctx, "HomeAssistantScene", "HomeAssistantScene", req)
 
 	// Fetch the HomeAssistantScene instance
 	scene := &hav1.HomeAssistantScene{}
@@ -86,6 +86,11 @@ func (r *HomeAssistantSceneReconciler) Reconcile(ctx context.Context, req ctrl.R
 		log.Error(err, "Failed to get HomeAssistantScene")
 		return ctrl.Result{}, err
 	}
+	haRef := types.NamespacedName{
+		Name:      scene.Spec.HomeAssistantRef.Name,
+		Namespace: scene.Namespace,
+	}
+	ctx, log = withHomeAssistant(ctx, haRef.Name)
 	if handled, err := removeBlockedMigrationFinalizer(ctx, r.Client, scene, sceneFinalizerName); handled ||
 		err != nil {
 		return ctrl.Result{}, err
@@ -109,10 +114,6 @@ func (r *HomeAssistantSceneReconciler) Reconcile(ctx context.Context, req ctrl.R
 			log.Info("Handling deletion - deleting scene via HA REST API")
 
 			// Delete scene via HA REST API (best effort — proceed even if HA is unavailable)
-			haRef := types.NamespacedName{
-				Name:      scene.Spec.HomeAssistantRef.Name,
-				Namespace: scene.Namespace,
-			}
 			if ha, haErr := r.validateHomeAssistantRef(ctx, haRef, scene); haErr == nil {
 				if token, tokenErr := getAPIToken(ctx, r.Client, ha); tokenErr == nil {
 					haClient := r.haClientFor(ha)
@@ -156,10 +157,6 @@ func (r *HomeAssistantSceneReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// Validate HomeAssistant reference exists
-	haRef := types.NamespacedName{
-		Name:      scene.Spec.HomeAssistantRef.Name,
-		Namespace: scene.Namespace,
-	}
 	ha, err := r.validateHomeAssistantRef(ctx, haRef, scene)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
@@ -429,7 +426,7 @@ func (r *HomeAssistantSceneReconciler) validateHomeAssistantRef(
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Error(err, "Referenced HomeAssistant not found",
-				"name", haRef.Name)
+				"homeAssistantName", haRef.Name)
 			meta.SetStatusCondition(&scene.Status.Conditions,
 				metav1.Condition{
 					Type:   conditionTypeReady,

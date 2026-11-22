@@ -49,6 +49,7 @@ type HomeAssistantDashboardReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 
 func (r *HomeAssistantDashboardReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	ctx, _ = reconcileLogger(ctx, "HomeAssistantDashboard", "HomeAssistantDashboard", req)
 	dashboard := &hav1alpha1.HomeAssistantDashboard{}
 	if err := r.Get(ctx, req.NamespacedName, dashboard); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -73,6 +74,7 @@ func (r *HomeAssistantDashboardReconciler) Reconcile(ctx context.Context, req ct
 		return r.failed(ctx, dashboard, "SourceInvalid", err.Error())
 	}
 	haRef := types.NamespacedName{Name: dashboard.Spec.HomeAssistantRef.Name, Namespace: dashboard.Namespace}
+	ctx, _ = withHomeAssistant(ctx, haRef.Name)
 	ha, err := getHomeAssistant(ctx, r.Client, haRef)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
