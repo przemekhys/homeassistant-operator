@@ -253,7 +253,6 @@ lint-config: golangci-lint ## Verify golangci-lint linter configuration
 ##@ Documentation
 
 DOCS_VENV ?= .venv
-CRD_REF_DOCS_MAX_DEPTH ?= 20
 
 .PHONY: docs-setup
 docs-setup: ## Create Python venv and install documentation dependencies
@@ -291,7 +290,6 @@ docs-api: crd-ref-docs ## Regenerate docs/reference/api.md from Go types
 	$(CRD_REF_DOCS) \
 		--source-path=./api \
 		--config=./docs/crd-ref-docs.yaml \
-		--max-depth=$(CRD_REF_DOCS_MAX_DEPTH) \
 		--renderer=markdown \
 		--output-path=./docs/reference/api.md
 	@# Stamp in the type line every published page carries — crd-ref-docs has no
