@@ -70,6 +70,19 @@ func (c *Client) GetBackupDetails(ctx context.Context, token, backupID string) (
 	return &details, nil
 }
 
+// CanDecryptBackup asks HA to check a recovery key without placing it in a URL
+// or returning the remote error text, which may contain sensitive material.
+func (c *Client) CanDecryptBackup(ctx context.Context, token, backupID, agentID, password string) error {
+	if token == "" || backupID == "" || agentID == "" || password == "" {
+		return fmt.Errorf("backup verification inputs unavailable")
+	}
+	_, err := c.sendBackupCommand(ctx, token, "backup/can_decrypt_on_download", map[string]interface{}{"backup_id": backupID, "agent_id": agentID, "password": password})
+	if err != nil {
+		return fmt.Errorf("backup key verification unavailable or rejected")
+	}
+	return nil
+}
+
 // GetBackupConfig reads the complete HA configuration. The value is only for
 // comparison and key protection; callers must use ConfigureBackup to write.
 func (c *Client) GetBackupConfig(ctx context.Context, token string) (*BackupConfig, error) {
@@ -149,6 +162,9 @@ func (c *Client) DownloadBackup(ctx context.Context, token, backupID, agentID st
 	// its transport and settings, but allow large archive streams more time.
 	downloadClient := *c.httpClient
 	downloadClient.Timeout = 30 * time.Minute
+	// An archive must come from the qualified endpoint, not an unapproved
+	// redirect destination selected after the request was accepted.
+	downloadClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	resp, err := downloadClient.Do(req)
 	if err != nil {
 		return nil, &Error{Type: ErrorTypeHTTP, Message: "backup download failed", Err: err}

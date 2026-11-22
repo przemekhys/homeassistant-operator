@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -47,6 +48,27 @@ func NewClient(baseURL string) *Client {
 func (c *Client) WithTimeout(timeout time.Duration) *Client {
 	c.httpClient.Timeout = timeout
 	return c
+}
+
+// Preflight proves that the client's TCP endpoint is reachable without sending
+// an HTTP request. It is safe to retry: a failed dial cannot have delivered a
+// request. A successful dial only proves reachability; callers must still use
+// the authenticated request for the actual operation.
+func (c *Client) Preflight(ctx context.Context) error {
+	if c == nil {
+		return &Error{Type: ErrorTypeNotReady, Message: "migration onboarding unavailable"}
+	}
+	u, err := url.Parse(c.baseURL)
+	if err != nil || u.Host == "" {
+		return &Error{Type: ErrorTypeNotReady, Message: "migration onboarding unavailable"}
+	}
+	dialer := net.Dialer{Timeout: 5 * time.Second}
+	conn, err := dialer.DialContext(ctx, "tcp", u.Host)
+	if err != nil {
+		return &Error{Type: ErrorTypeNotReady, Message: "migration onboarding unavailable", Err: err}
+	}
+	_ = conn.Close()
+	return nil
 }
 
 // CheckHealth checks if Home Assistant is responding

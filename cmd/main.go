@@ -430,6 +430,14 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "HomeAssistantDashboard")
 		os.Exit(1)
 	}
+	if err := (&controller.HomeAssistantMigrationReconciler{
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		APIReader: mgr.GetAPIReader(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "HomeAssistantMigration")
+		os.Exit(1)
+	}
 	// Webhook: self-provision the serving certificate (cert-controller writes a
 	// self-signed cert to a Secret + CertDir and injects the caBundle into the
 	// ValidatingWebhookConfiguration) unless cert-manager provides it. The webhook

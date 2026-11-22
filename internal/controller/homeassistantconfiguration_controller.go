@@ -165,6 +165,19 @@ func (r *HomeAssistantConfigurationReconciler) Reconcile(ctx context.Context, re
 	if err != nil {
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 	}
+	// A projected configuration.yaml or an API reload during native onboarding
+	// restore can overwrite or reinterpret files extracted into /config. The
+	// migration mode is durable in the target spec, so this remains safe after
+	// a controller restart and requires an explicit opt-out to resume sync.
+	if migrationRestorePreparationEnabled(ha) {
+		passed, err := migrationVerificationAndResumePassed(ctx, r.Client, ha)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if !passed {
+			return ctrl.Result{}, nil
+		}
+	}
 
 	// Compute the canonical configuration content (auto-includes + location + recorder secret
 	// injection) once so that hash, ConfigMap data, sync detection, and needsRestart all use

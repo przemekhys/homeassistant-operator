@@ -41,7 +41,7 @@ GitOps is optional: the operator manages the same resources whether you apply th
 
 This project is a good fit if you already run Kubernetes, are comfortable with YAML, and want to manage selected parts of Home Assistant through Kubernetes resources.
 
-**Start with a new installation or a separate instance to try it out.** Migrating an existing Home Assistant installation is possible, but the process is not yet documented or validated end to end. A dedicated migration tool and accompanying documentation are planned.
+**Start with a new installation or a separate instance to try it out.** Existing-instance migration is experimental and not validated end to end; it has no downtime SLO and never changes source routing automatically. See the [migration checklist](how-to/migrate-existing-instance.md) before attempting it.
 
 Using Kubernetes resources and the Home Assistant UI side by side is a supported way to work, not a migration stage. Give each element one owner: for anything you hand over to the operator, update its resource declaration, because the operator will restore that state if you edit it in the UI. Everything else can stay UI-managed. See [resource ownership](explanation/resource-ownership.md) for details.
 
@@ -73,6 +73,7 @@ Choose the parts of your home you want to manage through Kubernetes:
 | Integrations | [Register integrations](how-to/register-integrations.md) |
 | Floors, areas, and labels | [Model your house structure](how-to/model-house-structure.md) |
 | Community extensions | [Install community repositories](how-to/install-community-repositories.md) |
+| An existing instance (experimental) | [Migration checklist](how-to/migrate-existing-instance.md) |
 
 For resource types and fields, see the [API reference](reference/api.md).
 

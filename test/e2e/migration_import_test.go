@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	. "github.com/onsi/gomega"
@@ -226,4 +227,62 @@ func runMigrationImportScenario(namespace, haName string) {
 	}
 	Expect(count).To(Equal(1), "migration garbage collection must not delete the HA object")
 
+	// A distinct restore target stays stopped while the migration owns its PVC.
+	restoreName := "restore-gc-" + utils.RandomString(8)
+	manifest := fmt.Sprintf(`apiVersion: ha.homeassistant.io/v1
+kind: HomeAssistant
+metadata:
+  name: %s
+  namespace: %s
+spec:
+  version: "2026.11.0"
+  storage:
+    size: "1Gi"
+  alpha:
+    migrationRestore:
+      enabled: true
+`, restoreName, namespace)
+	Expect(utils.ApplyYAML(manifest, namespace)).To(Succeed())
+	restoreTarget := &hav1.HomeAssistant{}
+	Expect(kube.Get(ctx, client.ObjectKey{Namespace: namespace, Name: restoreName}, restoreTarget)).To(Succeed())
+	operation := &hav1alpha1.HomeAssistantMigration{
+		ObjectMeta: metav1.ObjectMeta{Name: restoreName, Namespace: namespace},
+		Spec: hav1alpha1.HomeAssistantMigrationSpec{
+			ExecutionProtocol: "v1",
+			SourceID:          "http://source.example",
+			SourceEndpoint:    "http://source.example",
+			Target:            hav1alpha1.MigrationTarget{Name: restoreName, UID: string(restoreTarget.UID)},
+		},
+	}
+	Expect(kube.Create(ctx, operation)).To(Succeed())
+	defer func() { _ = kube.Delete(context.Background(), operation) }()
+	// The HomeAssistant controller creates the restore PVC only after its
+	// required configuration CR exists. Keep this fixture aligned with the
+	// restore flow: migration preparation must not bypass that prerequisite.
+	restoreConfig := &hav1.HomeAssistantConfiguration{
+		ObjectMeta: metav1.ObjectMeta{Name: restoreName + "-config", Namespace: namespace},
+		Spec: hav1.HomeAssistantConfigurationSpec{
+			HomeAssistantRef: hav1.HomeAssistantReference{Name: restoreName},
+			Configuration:    "homeassistant:\n  name: Restore GC target\ndefault_config:\n",
+		},
+	}
+	Expect(kube.Create(ctx, restoreConfig)).To(Succeed())
+	pvc := &corev1.PersistentVolumeClaim{}
+	Eventually(func(g Gomega) {
+		g.Expect(kube.Get(ctx, client.ObjectKey{Namespace: namespace, Name: restoreName + "-data"}, pvc)).To(Succeed())
+		pvcOwner := metav1.GetControllerOf(pvc)
+		g.Expect(pvcOwner).NotTo(BeNil())
+		g.Expect(pvcOwner.UID).To(Equal(operation.UID))
+	}, utils.StatusUpdateTimeout, reconcileInterval).Should(Succeed())
+	Expect(kube.Delete(ctx, operation)).To(Succeed())
+	Eventually(func() bool {
+		return apierrors.IsNotFound(
+			kube.Get(
+				ctx,
+				client.ObjectKey{Namespace: namespace, Name: restoreName + "-data"},
+				&corev1.PersistentVolumeClaim{},
+			),
+		)
+	}, utils.StatusUpdateTimeout, reconcileInterval).Should(BeTrue())
+	Expect(kube.Get(ctx, client.ObjectKey{Namespace: namespace, Name: restoreName}, restoreTarget)).To(Succeed())
 }
