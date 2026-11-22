@@ -28,20 +28,6 @@ tests:
       - isKind:
           of: ClusterRoleBinding
 
-  - it: grants migration operations only the required namespaced resource verbs
-    templates:
-      - clusterrole.yaml
-    asserts:
-      - contains:
-          path: rules
-          content:
-            apiGroups: ["ha.homeassistant.io"]
-            resources: ["homeassistantmigrations"]
-            verbs: ["get", "list", "patch", "update", "watch"]
-      - contains:
-          path: rules[12].resources
-          content: homeassistantmigrations/status
-
   - it: fails closed for protected migration credential mounts
     templates:
       - webhook.yaml

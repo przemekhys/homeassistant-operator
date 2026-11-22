@@ -87,6 +87,19 @@ tests:
             operations: ["CREATE", "UPDATE"]
             resources: ["homeassistantmigrations"]
 
+  - it: filters migration isolation workloads to protected credential references
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: webhooks[2].failurePolicy
+          value: Fail
+      - equal:
+          path: webhooks[2].matchConditions[0].name
+          value: references-migration-credentials
+      - matchRegex:
+          path: webhooks[2].matchConditions[0].expression
+          pattern: "object\\.spec\\.template\\.spec\\.containers"
+
   - it: webhook Service name stays within the 63-char DNS-label limit for long release names
     release:
       name: a-very-long-release-name-for-testing-long-names

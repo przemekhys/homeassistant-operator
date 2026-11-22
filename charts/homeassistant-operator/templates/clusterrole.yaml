@@ -143,7 +143,6 @@ rules:
     - homeassistantfloors/finalizers
     - homeassistantintegrations/finalizers
     - homeassistantlabels/finalizers
-    - homeassistantmigrations/finalizers
     - homeassistants/finalizers
     - homeassistantscenes/finalizers
     - homeassistantscripts/finalizers
@@ -161,7 +160,6 @@ rules:
     - homeassistantfloors/status
     - homeassistantintegrations/status
     - homeassistantlabels/status
-    - homeassistantmigrations/status
     - homeassistants/status
     - homeassistantscenes/status
     - homeassistantscripts/status
@@ -170,16 +168,6 @@ rules:
     - get
     - patch
     - update
-- apiGroups:
-    - ha.homeassistant.io
-  resources:
-    - homeassistantmigrations
-  verbs:
-    - get
-    - list
-    - patch
-    - update
-    - watch
 - apiGroups:
     - ha.homeassistant.io
   resources:
