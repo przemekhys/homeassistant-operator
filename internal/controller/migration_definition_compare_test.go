@@ -6,7 +6,23 @@ import (
 	"testing"
 
 	hav1 "github.com/przemekhys/homeassistant-operator/api/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
+
+func TestSceneComparisonPreservesLargeNumbers(t *testing.T) {
+	scene := &hav1.HomeAssistantScene{Spec: hav1.HomeAssistantSceneSpec{ID: "scene", Entities: []hav1.SceneEntity{{EntityID: "light.test", State: "on", Attributes: runtime.RawExtension{Raw: []byte(`{"value":9007199254740993}`)}}}}}
+	for _, tc := range []struct {
+		raw  string
+		want migrationAdoptionState
+	}{
+		{`{"id":"scene","entities":{"light.test":{"state":"on","value":9007199254740993}}}`, migrationAdoptionAdopted},
+		{`{"id":"scene","entities":{"light.test":{"state":"on","value":9007199254740992}}}`, migrationAdoptionConflict},
+	} {
+		if got := compareMigrationDefinition(scene, "scene", json.RawMessage(tc.raw)); got.State != tc.want {
+			t.Fatalf("state=%s, want %s", got.State, tc.want)
+		}
+	}
+}
 
 func TestMigrationSceneDefinitionRequiresExactIdentityAndCompleteMatch(t *testing.T) {
 	scene := &hav1.HomeAssistantScene{
@@ -43,10 +59,11 @@ func TestNormalizeMigrationAutomationFields(t *testing.T) {
 		name, input, want string
 		invalid           bool
 	}{
-		{"plural HA response", `{"triggers":[1],"actions":[2],"conditions":[3],"other":"keep"}`, `{"action":[2],"conditions":[3],"other":"keep","trigger":[1]}`, false},
+		{"plural HA response", `{"triggers":[1],"actions":[2],"conditions":[3],"other":"keep"}`, `{"action":[2],"condition":[3],"other":"keep","trigger":[1]}`, false},
 		{"singular unchanged", `{"trigger":[1],"action":[2]}`, `{"action":[2],"trigger":[1]}`, false},
 		{"ambiguous trigger", `{"trigger":[],"triggers":[]}`, "", true},
 		{"ambiguous action", `{"action":[],"actions":[]}`, "", true},
+		{"ambiguous condition", `{"condition":[],"conditions":[]}`, "", true},
 		{"duplicate key", `{"triggers":[],"triggers":[1]}`, "", true},
 		{"invalid response", `null`, "", true},
 	} {

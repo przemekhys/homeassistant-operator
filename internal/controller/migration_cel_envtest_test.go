@@ -172,7 +172,7 @@ var _ = Describe("Migration CEL admission", func() {
 		id := "sha256:" + strings.Repeat("a", 64)
 		observation := ha.MigrationResolution{
 			Version: "v1", Stage: "backup", RequestID: id, Decision: "ObserveExternalResult",
-			EvidenceRef: &ha.MigrationEvidenceReference{APIVersion: "v1", Kind: "ConfigMap", Name: "evidence", UID: "uid", Key: "result"},
+			EvidenceRef: &ha.MigrationEvidenceReference{APIVersion: "v1", Kind: "ConfigMap", Name: strings.Repeat("a", 64), UID: "uid", Key: "result"},
 		}
 		operation := &ha.HomeAssistantMigration{
 			ObjectMeta: metav1.ObjectMeta{GenerateName: "cel-observation-", Namespace: "default"},

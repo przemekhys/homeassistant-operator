@@ -3,10 +3,12 @@
 package migration
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"sort"
 	"strings"
@@ -110,10 +112,47 @@ func containsSensitiveKey(value json.RawMessage) bool {
 		return false
 	}
 	var decoded any
-	if json.Unmarshal(value, &decoded) != nil {
+	decoder := json.NewDecoder(bytes.NewReader(value))
+	if err := rejectDuplicateJSON(decoder); err != nil {
+		return true
+	}
+	if _, err := decoder.Token(); err != io.EOF || json.Unmarshal(value, &decoded) != nil {
 		return true
 	}
 	return containsSensitiveValue(decoded)
+}
+
+func rejectDuplicateJSON(decoder *json.Decoder) error {
+	token, err := decoder.Token()
+	if err != nil {
+		return err
+	}
+	delim, compound := token.(json.Delim)
+	if !compound {
+		return nil
+	}
+	if delim != '{' && delim != '[' {
+		return fmt.Errorf("invalid JSON delimiter")
+	}
+	seen := map[string]bool{}
+	for decoder.More() {
+		if delim == '{' {
+			key, err := decoder.Token()
+			if err != nil {
+				return err
+			}
+			name, ok := key.(string)
+			if !ok || seen[name] {
+				return fmt.Errorf("duplicate or invalid JSON key")
+			}
+			seen[name] = true
+		}
+		if err := rejectDuplicateJSON(decoder); err != nil {
+			return err
+		}
+	}
+	_, err = decoder.Token()
+	return err
 }
 
 func containsSensitiveValue(value any) bool {

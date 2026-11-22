@@ -73,14 +73,16 @@ func TestImportedDashboardObservationUsesOnlyReadCommands(t *testing.T) {
 		reason       string
 		calls        int
 	}{
-		{"matching", `{"views":[]}`, false, "Adopted", 2},
+		{"matching", `{"views":[]}`, false, "Adopted", 3},
 		{"conflict", `{"views":[{"title":"private-value"}]}`, false, "DashboardDefinitionConflict", 2},
 		{"duplicate identity", `{"views":[]}`, true, "DashboardIdentityUnverified", 1},
+		{"metadata changes", `{"views":[]}`, false, "DashboardMetadataChanged", 3},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var mu sync.Mutex
 			var commands []string
 			var state atomic.Int32
+			var metadataChanged atomic.Bool
 			upgrader := websocket.Upgrader{}
 			server := httptest.NewServer(
 				http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -121,11 +123,17 @@ func TestImportedDashboardObservationUsesOnlyReadCommands(t *testing.T) {
 						if tc.duplicate {
 							items = append(items, items[0])
 						}
+						if metadataChanged.Load() {
+							items[0]["title"] = "Changed"
+						}
 						if state.Load() == 2 {
 							items = []map[string]any{}
 						}
 						result = items
 					case "lovelace/config":
+						if tc.name == "metadata changes" {
+							metadataChanged.Store(true)
+						}
 						result = json.RawMessage(tc.config)
 						if state.Load() == 1 {
 							result = json.RawMessage(`{"views":[{"title":"changed"}]}`)

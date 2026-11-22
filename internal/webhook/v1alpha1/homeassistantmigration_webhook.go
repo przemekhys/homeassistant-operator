@@ -100,7 +100,7 @@ func (v *HomeAssistantMigrationCustomValidator) ValidateUpdate(
 			}
 		}
 	}
-	if len(old.Spec.ExecutionRequests) > 0 && !reflect.DeepEqual(old.Spec.Verification, current.Spec.Verification) {
+	if len(old.Spec.ExecutionRequests) > 0 && !sameVerificationSet(old.Spec.Verification, current.Spec.Verification) {
 		return nil, fmt.Errorf("accepted verification set is immutable")
 	}
 	for _, r := range current.Spec.ExecutionRequests {
@@ -135,10 +135,41 @@ func (v *HomeAssistantMigrationCustomValidator) ValidateUpdate(
 	if old.Spec.ReportID != current.Spec.ReportID || old.Spec.BackupScopeDigest != current.Spec.BackupScopeDigest {
 		return nil, fmt.Errorf("migration report and backup scope are immutable")
 	}
-	if len(current.Spec.Resolutions) < len(old.Spec.Resolutions) || (len(old.Spec.Resolutions) > 0 && !reflect.DeepEqual(old.Spec.Resolutions, current.Spec.Resolutions[:len(old.Spec.Resolutions)])) {
-		return nil, fmt.Errorf("migration resolutions are append-only")
+	for _, previous := range old.Spec.Resolutions {
+		found := false
+		for _, resolution := range current.Spec.Resolutions {
+			if reflect.DeepEqual(previous, resolution) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("migration resolutions are append-only")
+		}
 	}
 	return nil, validateHomeAssistantMigration(current)
+}
+
+func sameVerificationSet(a, b []hav1alpha1.MigrationVerificationItem) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	values := make(map[string]hav1alpha1.MigrationVerificationItem, len(a))
+	for _, item := range a {
+		key := item.Kind + "\x00" + item.ID
+		if _, duplicate := values[key]; duplicate {
+			return false
+		}
+		values[key] = item
+	}
+	for _, item := range b {
+		key := item.Kind + "\x00" + item.ID
+		if old, ok := values[key]; !ok || old != item {
+			return false
+		}
+		delete(values, key)
+	}
+	return len(values) == 0
 }
 
 func (v *HomeAssistantMigrationCustomValidator) ValidateDelete(

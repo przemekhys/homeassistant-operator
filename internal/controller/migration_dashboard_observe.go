@@ -175,6 +175,18 @@ func (r *HomeAssistantDashboardReconciler) compareImportedDashboard(
 		}
 		return "DashboardDefinitionConflict", digest
 	}
+	latestRaw, err := haClient.SendWebSocketCommand(ctx, token, "lovelace/dashboards/list", nil)
+	if err != nil {
+		return "DashboardUnavailable", ""
+	}
+	latest, err := migrationDashboardList(latestRaw)
+	if err != nil {
+		return "DashboardMetadataIncomplete", ""
+	}
+	current := findMigrationDashboardID(latest, identity.SourceID)
+	if current == nil || *current != *existing {
+		return "DashboardMetadataChanged", ""
+	}
 	return "Adopted", ""
 }
 

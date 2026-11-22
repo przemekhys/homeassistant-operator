@@ -27,15 +27,19 @@ func TestMigrationIsolationValidatorProtectsCredentialMounts(t *testing.T) {
 		{"foreign configmap create", "alice", "", "ConfigMap", `{"metadata":{"name":"migration-proxy-x-claim"}}`, false},
 		{"foreign pod volume", "alice", "", "Pod", `{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-x"}}],"containers":[{}]}}`, false},
 		{"foreign pod projected", "alice", "", "Pod", `{"spec":{"volumes":[{"projected":{"sources":[{"secret":{"name":"migration-proxy-x"}}]}}],"containers":[{}]}}`, false},
-		{"foreign pod environment", "alice", "", "Pod", `{"spec":{"containers":[{"env":[{"valueFrom":{"secretKeyRef":{"name":"migration-proxy-x"}}]}]}}`, false},
+		{"foreign pod environment", "alice", "", "Pod", `{"spec":{"containers":[{"env":[{"valueFrom":{"secretKeyRef":{"name":"migration-proxy-x"}}}]}]}}`, false},
 		{"foreign job", "alice", "batch", "Job", `{"spec":{"template":{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-x"}}],"containers":[{}]}}}}`, false},
 		{"operator job", v.OperatorUsername, "batch", "Job", `{"spec":{"template":{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-x"}}],"containers":[{}]}}}}`, true},
 		{"job controller pod", "system:serviceaccount:kube-system:job-controller", "", "Pod", `{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-x"}}],"containers":[{}]}}`, true},
 		{"shared controller manager pod", "system:kube-controller-manager", "", "Pod", `{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-x"}}],"containers":[{}]}}`, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := v.Handle(context.Background(), request(tc.user, tc.group, tc.kind, tc.body)).Allowed; got != tc.allowed {
-				t.Fatalf("allowed=%v, want %v", got, tc.allowed)
+			response := v.Handle(context.Background(), request(tc.user, tc.group, tc.kind, tc.body))
+			if response.Result != nil && response.Result.Code == 400 {
+				t.Fatalf("fixture failed to decode: %#v", response.Result)
+			}
+			if response.Allowed != tc.allowed {
+				t.Fatalf("allowed=%v, want %v", response.Allowed, tc.allowed)
 			}
 		})
 	}

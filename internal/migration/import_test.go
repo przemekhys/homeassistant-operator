@@ -86,6 +86,27 @@ func TestImportFloorIsPausedOwnedCreateOnlyAndRetryable(t *testing.T) {
 	}
 }
 
+func TestImportEmptyReportAndMissingSecretScheme(t *testing.T) {
+	report := &Report{SourceID: "source", Target: Target{Namespace: "default", Name: "target", UID: "target-uid"}, Objects: []ReportObject{}}
+	if err := report.Finalize(); err != nil {
+		t.Fatal(err)
+	}
+	scheme := importTestScheme(t)
+	target := &hav1.HomeAssistant{ObjectMeta: metav1.ObjectMeta{Name: "target", Namespace: "default", UID: "target-uid"}}
+	kube := fake.NewClientBuilder().WithScheme(scheme).WithObjects(target).Build()
+	req := ImportRequest{Report: report, ReportID: report.ID, Namespace: "default", Name: "migration", Confirmed: true, SecretData: map[string][]byte{"key": []byte("value")}}
+	if _, err := Import(context.Background(), kube, req); err == nil {
+		t.Fatal("missing scheme accepted")
+	}
+	if err := kube.Get(context.Background(), types.NamespacedName{Namespace: "default", Name: "migration"}, &hav1alpha1.HomeAssistantMigration{}); err == nil {
+		t.Fatal("partial operation created")
+	}
+	req.SecretData = nil
+	if _, err := Import(context.Background(), kube, req); err != nil {
+		t.Fatalf("empty array import failed: %v", err)
+	}
+}
+
 func importTestReport(t *testing.T) *Report {
 	t.Helper()
 	report := &Report{

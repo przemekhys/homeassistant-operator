@@ -296,7 +296,7 @@ func TestMigrationRegistryApprovalBlocksUnsafeOverwrite(t *testing.T) {
 		`{"version":"v1","approved":true,"objectUID":"floor-uid","generation":2,"targetUID":"ha-uid","sourceID":"source-id","comparisonDigest":%q}`,
 		digest,
 	)
-	calls := 0
+	var calls atomic.Int32
 	upgrader := websocket.Upgrader{}
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -316,7 +316,7 @@ func TestMigrationRegistryApprovalBlocksUnsafeOverwrite(t *testing.T) {
 			if conn.ReadJSON(&command) != nil {
 				return
 			}
-			calls++
+			calls.Add(1)
 			if command["type"] != "config/floor_registry/list" {
 				t.Errorf("unexpected HA command %v", command["type"])
 				return
@@ -370,8 +370,8 @@ func TestMigrationRegistryApprovalBlocksUnsafeOverwrite(t *testing.T) {
 			}
 		}
 	}
-	if calls != 2 {
-		t.Fatalf("requests=%d", calls)
+	if calls.Load() != 2 {
+		t.Fatalf("requests=%d", calls.Load())
 	}
 }
 
@@ -435,7 +435,7 @@ func TestMigrationRegistryControllersOnlyReadAndReconstructStatus(t *testing.T) 
 			if err := corev1.AddToScheme(scheme); err != nil {
 				t.Fatal(err)
 			}
-			calls := 0
+			var calls atomic.Int32
 			upgrader := websocket.Upgrader{}
 			server := httptest.NewServer(
 				http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -455,7 +455,7 @@ func TestMigrationRegistryControllersOnlyReadAndReconstructStatus(t *testing.T) 
 					if conn.ReadJSON(&command) != nil {
 						return
 					}
-					calls++
+					calls.Add(1)
 					if command["type"] != "config/"+kind+"_registry/list" {
 						t.Errorf("unexpected HA operation %v", command["type"])
 						return
@@ -577,14 +577,14 @@ func TestMigrationRegistryControllersOnlyReadAndReconstructStatus(t *testing.T) 
 					id = v.Status.LabelID
 				}
 				condition := meta.FindStatusCondition(conditions, "MigrationAdoption")
-				if calls != iteration+1 || id != "source-id" || condition == nil ||
+				if calls.Load() != int32(iteration+1) || id != "source-id" || condition == nil ||
 					condition.Reason != "Adopted" ||
 					condition.Status != metav1.ConditionTrue ||
 					condition.ObservedGeneration != 3 {
 					t.Fatalf(
 						"iteration=%d calls=%d id=%q condition=%#v",
 						iteration,
-						calls,
+						calls.Load(),
 						id,
 						condition,
 					)
@@ -677,7 +677,7 @@ func TestMigrationRegistryRestartReobservesDurableIdentityWithoutHAWrites(t *tes
 			if err := corev1.AddToScheme(scheme); err != nil {
 				t.Fatal(err)
 			}
-			calls := 0
+			var calls atomic.Int32
 			upgrader := websocket.Upgrader{}
 			server := httptest.NewServer(
 				http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -697,7 +697,7 @@ func TestMigrationRegistryRestartReobservesDurableIdentityWithoutHAWrites(t *tes
 					if conn.ReadJSON(&command) != nil {
 						return
 					}
-					calls++
+					calls.Add(1)
 					if command["type"] != "config/"+tc.kind+"_registry/list" {
 						t.Errorf("unexpected HA operation %v", command["type"])
 						return
@@ -819,8 +819,8 @@ func TestMigrationRegistryRestartReobservesDurableIdentityWithoutHAWrites(t *tes
 					}
 				}
 			}
-			if calls != 2 {
-				t.Fatalf("HA requests=%d, want two reads", calls)
+			if calls.Load() != 2 {
+				t.Fatalf("HA requests=%d, want two reads", calls.Load())
 			}
 		})
 	}

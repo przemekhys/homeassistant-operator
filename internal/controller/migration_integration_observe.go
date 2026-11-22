@@ -18,16 +18,41 @@ func (r *HomeAssistantIntegrationReconciler) observeImportedIntegration(
 	ctx context.Context,
 	integration *hav1.HomeAssistantIntegration,
 ) (ctrl.Result, error) {
-	if integration.Annotations[migrationPausedAnnotation] == "true" {
-		return ctrl.Result{}, nil
-	}
+	paused := integration.Annotations[migrationPausedAnnotation] == "true"
 	identity, err := migrationObjectIdentity(integration)
-	if err != nil || integration.Spec.HomeAssistantRef.Name == "" {
+	reason := "IncompleteIdentity"
+	if paused {
+		reason = "MigrationPaused"
+	} else if err == nil && integration.Spec.HomeAssistantRef.Name != "" {
+		reason = r.observeIntegrationTarget(ctx, integration, identity)
+	}
+	changed := meta.SetStatusCondition(&integration.Status.Conditions, metav1.Condition{
+		Type: "MigrationAdoption", Status: metav1.ConditionFalse, Reason: reason,
+		Message:            "Integration adoption is blocked until its complete configuration can be verified",
+		ObservedGeneration: integration.Generation,
+	})
+	if meta.SetStatusCondition(&integration.Status.Conditions, metav1.Condition{
+		Type: conditionTypeReady, Status: metav1.ConditionFalse, Reason: reason,
+		Message:            "Imported integration is read-only; normal synchronisation is disabled",
+		ObservedGeneration: integration.Generation,
+	}) {
+		changed = true
+	}
+	if changed {
+		if err := r.Status().Update(ctx, integration); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+	if paused {
 		return ctrl.Result{}, nil
 	}
+	return ctrl.Result{RequeueAfter: time.Minute}, nil
+}
+
+func (r *HomeAssistantIntegrationReconciler) observeIntegrationTarget(ctx context.Context, integration *hav1.HomeAssistantIntegration, identity migrationIdentity) string {
 	reason := "TargetUnavailable"
 	ha := &hav1.HomeAssistant{}
-	err = r.Get(
+	err := r.Get(
 		ctx,
 		client.ObjectKey{
 			Namespace: integration.Namespace,
@@ -46,19 +71,5 @@ func (r *HomeAssistantIntegrationReconciler) observeImportedIntegration(
 			}
 		}
 	}
-	if meta.SetStatusCondition(
-		&integration.Status.Conditions,
-		metav1.Condition{
-			Type:               "MigrationAdoption",
-			Status:             metav1.ConditionFalse,
-			Reason:             reason,
-			Message:            "Integration adoption is blocked until its complete configuration can be verified",
-			ObservedGeneration: integration.Generation,
-		},
-	) {
-		if err := r.Status().Update(ctx, integration); err != nil {
-			return ctrl.Result{}, err
-		}
-	}
-	return ctrl.Result{RequeueAfter: time.Minute}, nil
+	return reason
 }

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -32,6 +33,24 @@ func compareMigrationDefinition(
 	case *hav1.HomeAssistantScene:
 		id = v.Spec.ID
 		desired, err = (&HomeAssistantSceneReconciler{}).sceneToYaml(v)
+		if err == nil {
+			entities := desired["entities"].(map[string]interface{})
+			for _, entity := range v.Spec.Entities {
+				if len(entity.Attributes.Raw) == 0 {
+					continue
+				}
+				var attrs map[string]interface{}
+				decoder := json.NewDecoder(bytes.NewReader(entity.Attributes.Raw))
+				decoder.UseNumber()
+				if err = decoder.Decode(&attrs); err != nil {
+					break
+				}
+				data := entities[entity.EntityID].(map[string]interface{})
+				for key, value := range attrs {
+					data[key] = value
+				}
+			}
+		}
 	case *hav1.HomeAssistantScript:
 		id = v.Spec.ID
 		desired, err = (&HomeAssistantScriptReconciler{}).scriptToYaml(v)
@@ -88,7 +107,7 @@ func normalizeMigrationAutomationFields(raw json.RawMessage) (json.RawMessage, e
 	if err := json.Unmarshal(raw, &fields); err != nil || fields == nil {
 		return nil, fmt.Errorf("invalid automation definition")
 	}
-	for _, pair := range [][2]string{{"trigger", "triggers"}, {"action", "actions"}} {
+	for _, pair := range [][2]string{{"trigger", "triggers"}, {"action", "actions"}, {"condition", "conditions"}} {
 		plural, exists := fields[pair[1]]
 		if !exists {
 			continue
