@@ -70,6 +70,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-ha-homeassistant-io-v1alpha1-homeassistantmigration
+  failurePolicy: Fail
+  name: vhomeassistantmigration-v1alpha1.kb.io
+  rules:
+  - apiGroups:
+    - ha.homeassistant.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - homeassistantmigrations
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-ha-homeassistant-io-v1-homeassistantscene
   failurePolicy: Ignore
   name: vhomeassistantscene-v1.kb.io

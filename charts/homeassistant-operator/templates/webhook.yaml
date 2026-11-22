@@ -73,6 +73,22 @@ webhooks:
     admissionReviewVersions: ["v1"]
     sideEffects: None
     failurePolicy: Fail
+    matchConditions:
+      - name: references-migration-credentials
+        expression: >-
+          (has(object.spec.imagePullSecrets) && object.spec.imagePullSecrets.exists(s, s.name.startsWith('migration-proxy-'))) ||
+          (has(object.spec.volumes) && object.spec.volumes.exists(v,
+            (has(v.secret) && v.secret.secretName.startsWith('migration-proxy-')) ||
+            (has(v.projected) && has(v.projected.sources) && v.projected.sources.exists(s, has(s.secret) && s.secret.name.startsWith('migration-proxy-'))))) ||
+          object.spec.containers.exists(c,
+            (has(c.envFrom) && c.envFrom.exists(e, has(e.secretRef) && e.secretRef.name.startsWith('migration-proxy-'))) ||
+            (has(c.env) && c.env.exists(e, has(e.valueFrom) && has(e.valueFrom.secretKeyRef) && e.valueFrom.secretKeyRef.name.startsWith('migration-proxy-')))) ||
+          (has(object.spec.initContainers) && object.spec.initContainers.exists(c,
+            (has(c.envFrom) && c.envFrom.exists(e, has(e.secretRef) && e.secretRef.name.startsWith('migration-proxy-'))) ||
+            (has(c.env) && c.env.exists(e, has(e.valueFrom) && has(e.valueFrom.secretKeyRef) && e.valueFrom.secretKeyRef.name.startsWith('migration-proxy-'))))) ||
+          (has(object.spec.ephemeralContainers) && object.spec.ephemeralContainers.exists(c,
+            (has(c.envFrom) && c.envFrom.exists(e, has(e.secretRef) && e.secretRef.name.startsWith('migration-proxy-'))) ||
+            (has(c.env) && c.env.exists(e, has(e.valueFrom) && has(e.valueFrom.secretKeyRef) && e.valueFrom.secretKeyRef.name.startsWith('migration-proxy-')))))
     clientConfig:
       service:
         name: {{ $svcName }}
@@ -83,10 +99,17 @@ webhooks:
         apiVersions: ["v1"]
         operations: ["CREATE", "UPDATE"]
         resources: ["pods"]
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["UPDATE"]
+        resources: ["pods/ephemeralcontainers"]
   - name: vmigrationisolationcredentials.ha.homeassistant.io
     admissionReviewVersions: ["v1"]
     sideEffects: None
     failurePolicy: Fail
+    matchConditions:
+      - name: reserved-credential-name
+        expression: "(request.operation == 'DELETE' ? oldObject.metadata.name : object.metadata.name).startsWith('migration-proxy-')"
     clientConfig:
       service:
         name: {{ $svcName }}
@@ -115,6 +138,20 @@ webhooks:
         apiVersions: ["v1"]
         operations: ["CREATE", "UPDATE"]
         resources: ["statefulsets"]
+  - name: vhomeassistantmigration-v1alpha1.kb.io
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: Fail
+    clientConfig:
+      service:
+        name: {{ $svcName }}
+        namespace: {{ $ns }}
+        path: /validate-ha-homeassistant-io-v1alpha1-homeassistantmigration
+    rules:
+      - apiGroups: ["ha.homeassistant.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["homeassistantmigrations"]
   - name: vhomeassistant-v1.kb.io
     admissionReviewVersions: ["v1"]
     sideEffects: None

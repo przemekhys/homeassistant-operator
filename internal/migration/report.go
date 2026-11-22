@@ -52,12 +52,15 @@ type Report struct {
 // BackupPreflight contains only the observable scope and key availability,
 // never the recovery key or other credentials.
 type BackupPreflight struct {
-	Status          string   `json:"status"`
-	Reason          string   `json:"reason,omitempty"`
-	IncludeDatabase *bool    `json:"includeDatabase,omitempty"`
-	AgentIDs        []string `json:"agentIDs,omitempty"`
-	Protected       bool     `json:"protected"`
-	Limitations     []string `json:"limitations"`
+	Status           string          `json:"status"`
+	Reason           string          `json:"reason,omitempty"`
+	IncludeDatabase  *bool           `json:"includeDatabase,omitempty"`
+	AgentIDs         []string        `json:"agentIDs,omitempty"`
+	Protected        bool            `json:"protected"`
+	Limitations      []string        `json:"limitations"`
+	IncludeAddons    json.RawMessage `json:"includeAddons,omitempty"`
+	IncludeAllAddons *bool           `json:"includeAllAddons,omitempty"`
+	IncludeFolders   json.RawMessage `json:"includeFolders,omitempty"`
 }
 
 // Finalize validates the public report shape, applies deterministic ordering,

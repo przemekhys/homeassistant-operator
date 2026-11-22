@@ -6,8 +6,67 @@ import (
 	"testing"
 
 	hav1alpha1 "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
+	"github.com/przemekhys/homeassistant-operator/internal/migrationprotocol"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func TestDispatchAfterAbort(t *testing.T) {
+	digest := "sha256:" + strings.Repeat("a", 64)
+	items := []hav1alpha1.MigrationVerificationItem{{Kind: "TodoItems", ID: "todo.test", ExpectedDigest: digest}}
+	verification, err := migrationprotocol.VerificationDigest(items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := hav1alpha1.MigrationExecutionRequest{Version: "v1", Stage: "upload", OperationUID: "op", SourceID: "source", Target: hav1alpha1.MigrationTarget{Name: "target", UID: "target"}, ReportID: "report", ScopeDigest: digest, VerificationDigest: verification, ArchiveRef: &hav1alpha1.MigrationObjectReference{Name: "archive", UID: "archive"}, ArchiveDigest: digest, ArchivePVCUID: "pvc"}
+	r.RequestID, err = migrationprotocol.RequestID(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attempt := hav1alpha1.MigrationExecutionAttempt{Stage: r.Stage, RequestID: r.RequestID}
+	old := &hav1alpha1.HomeAssistantMigration{ObjectMeta: metav1.ObjectMeta{UID: "op"}, Spec: hav1alpha1.HomeAssistantMigrationSpec{ExecutionProtocol: "v1", SourceID: r.SourceID, Target: r.Target, ReportID: r.ReportID, Verification: items, ExecutionRequests: []hav1alpha1.MigrationExecutionRequest{r}, ExecutionAttempts: []hav1alpha1.MigrationExecutionAttempt{attempt}, Resolutions: []hav1alpha1.MigrationResolution{{Version: "v1", Stage: r.Stage, RequestID: r.RequestID, Decision: "Abort"}}}}
+	v := &HomeAssistantMigrationCustomValidator{}
+	current := old.DeepCopy()
+	current.Spec.ExecutionDispatches = []hav1alpha1.MigrationExecutionAttempt{attempt}
+	if _, err := v.ValidateUpdate(context.Background(), old, current); err == nil || !strings.Contains(err.Error(), "after abort") {
+		t.Fatalf("new dispatch after abort: %v", err)
+	}
+	old.Spec.ExecutionDispatches = []hav1alpha1.MigrationExecutionAttempt{attempt}
+	current = old.DeepCopy()
+	if _, err := v.ValidateUpdate(context.Background(), old, current); err != nil {
+		t.Fatalf("existing dispatch rejected: %v", err)
+	}
+}
+
+func TestCreateRejectsExecutionHistory(t *testing.T) {
+	base := &hav1alpha1.HomeAssistantMigration{Spec: hav1alpha1.HomeAssistantMigrationSpec{
+		SourceID: "source", Target: hav1alpha1.MigrationTarget{Name: "target", UID: "target"},
+	}}
+	v := &HomeAssistantMigrationCustomValidator{}
+	if _, err := v.ValidateCreate(context.Background(), base); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*hav1alpha1.HomeAssistantMigration){
+		func(m *hav1alpha1.HomeAssistantMigration) {
+			m.Spec.ExecutionRequests = []hav1alpha1.MigrationExecutionRequest{{}}
+		},
+		func(m *hav1alpha1.HomeAssistantMigration) {
+			m.Spec.ExecutionAttempts = []hav1alpha1.MigrationExecutionAttempt{{}}
+		},
+		func(m *hav1alpha1.HomeAssistantMigration) {
+			m.Spec.ExecutionDispatches = []hav1alpha1.MigrationExecutionAttempt{{}}
+		},
+		func(m *hav1alpha1.HomeAssistantMigration) {
+			m.Spec.ProxyCredentialBinding = &hav1alpha1.MigrationProxyCredentialBinding{}
+		},
+	} {
+		current := base.DeepCopy()
+		mutate(current)
+		if _, err := v.ValidateCreate(context.Background(), current); err == nil || !strings.Contains(err.Error(), "new migration cannot contain execution records") {
+			t.Fatalf("expected execution history rejection, got %v", err)
+		}
+	}
+}
 
 func TestProxyCredentialBindingIsImmutableAndCancellationAware(t *testing.T) {
 	validator := &HomeAssistantMigrationCustomValidator{}

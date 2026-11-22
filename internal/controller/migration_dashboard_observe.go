@@ -190,9 +190,9 @@ func migrationDashboardList(raw json.RawMessage) ([]haclient.Dashboard, error) {
 	}
 	result := make([]haclient.Dashboard, 0, len(entries))
 	for _, entry := range entries {
-		for _, key := range []string{"id", "url_path", "mode", "title", "icon", "show_in_sidebar", "require_admin"} {
+		for _, key := range []string{"id", "url_path", "mode", "title", "show_in_sidebar", "require_admin"} {
 			v, ok := entry[key]
-			if !ok || (key != "icon" && string(v) == "null") {
+			if !ok || string(v) == "null" {
 				return nil, fmt.Errorf("incomplete dashboard metadata")
 			}
 		}

@@ -56,8 +56,21 @@ tests:
           path: webhooks[0].failurePolicy
           value: Fail
       - equal:
+          path: webhooks[0].matchConditions[0].name
+          value: references-migration-credentials
+      - equal:
+          path: webhooks[0].rules[1]
+          value:
+            apiGroups: [""]
+            apiVersions: ["v1"]
+            operations: ["UPDATE"]
+            resources: ["pods/ephemeralcontainers"]
+      - equal:
           path: webhooks[1].failurePolicy
           value: Fail
+      - equal:
+          path: webhooks[1].matchConditions[0].name
+          value: reserved-credential-name
       - equal:
           path: webhooks[2].failurePolicy
           value: Fail

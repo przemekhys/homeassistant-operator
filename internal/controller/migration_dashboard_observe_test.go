@@ -49,6 +49,8 @@ func TestMigrationDashboardListRequiresCompleteUnambiguousMetadata(t *testing.T)
 		valid     bool
 	}{
 		{"complete", valid, true},
+		{"missing optional icon", strings.Replace(valid, `,"icon":null`, "", 1), true},
+		{"invalid icon", strings.Replace(valid, `"icon":null`, `"icon":false`, 1), false},
 		{"missing field", strings.Replace(valid, `,"require_admin":false`, "", 1), false},
 		{"null boolean", strings.Replace(valid, `"require_admin":false`, `"require_admin":null`, 1), false},
 		{"wrong type", strings.Replace(valid, `"require_admin":false`, `"require_admin":"false"`, 1), false},

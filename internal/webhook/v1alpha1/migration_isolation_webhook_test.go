@@ -31,10 +31,33 @@ func TestMigrationIsolationValidatorProtectsCredentialMounts(t *testing.T) {
 		{"foreign job", "alice", "batch", "Job", `{"spec":{"template":{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-x"}}],"containers":[{}]}}}}`, false},
 		{"operator job", v.OperatorUsername, "batch", "Job", `{"spec":{"template":{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-x"}}],"containers":[{}]}}}}`, true},
 		{"job controller pod", "system:serviceaccount:kube-system:job-controller", "", "Pod", `{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-x"}}],"containers":[{}]}}`, true},
+		{"shared controller manager pod", "system:kube-controller-manager", "", "Pod", `{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-x"}}],"containers":[{}]}}`, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := v.Handle(context.Background(), request(tc.user, tc.group, tc.kind, tc.body)).Allowed; got != tc.allowed {
 				t.Fatalf("allowed=%v, want %v", got, tc.allowed)
+			}
+		})
+	}
+}
+
+func TestMigrationIsolationEphemeralContainerUpdates(t *testing.T) {
+	v := &MigrationIsolationValidator{OperatorUsername: "system:serviceaccount:operator:manager"}
+	for _, tc := range []struct {
+		name, body string
+		allowed    bool
+	}{
+		{"protected reference", `{"spec":{"ephemeralContainers":[{"env":[{"name":"KEY","valueFrom":{"secretKeyRef":{"name":"migration-proxy-x","key":"key"}}}]}]}}`, false},
+		{"unrelated reference", `{"spec":{"ephemeralContainers":[{"env":[{"name":"KEY","valueFrom":{"secretKeyRef":{"name":"unrelated","key":"key"}}}]}]}}`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{
+				Operation: admissionv1.Update, Kind: metav1.GroupVersionKind{Version: "v1", Kind: "Pod"},
+				SubResource: "ephemeralcontainers", UserInfo: authentication("alice"), Object: runtimeRaw(tc.body),
+			}}
+			response := v.Handle(context.Background(), req)
+			if response.Allowed != tc.allowed || response.Result == nil || response.Result.Code == 400 {
+				t.Fatalf("response=%+v, want allowed=%t and a policy decision", response, tc.allowed)
 			}
 		})
 	}

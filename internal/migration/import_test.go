@@ -267,7 +267,7 @@ func TestImportPersistsSourceTokenReferenceAndRejectsChangedRetry(t *testing.T) 
 func TestImportPersistsApprovedBackupScopeDigest(t *testing.T) {
 	report := importTestReport(t)
 	include := true
-	report.Backup = &BackupPreflight{Status: "Ready", Protected: true, IncludeDatabase: &include,
+	report.Backup = &BackupPreflight{Status: "Ready", Protected: true, IncludeDatabase: &include, IncludeAllAddons: &include, IncludeAddons: json.RawMessage(`null`), IncludeFolders: json.RawMessage(`null`),
 		AgentIDs: []string{"backup.local"}}
 	if err := report.Finalize(); err != nil {
 		t.Fatal(err)

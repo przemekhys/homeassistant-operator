@@ -22,7 +22,8 @@ func SetupHomeAssistantMigrationWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/validate-ha-homeassistant-io-v1alpha1-homeassistantmigration,mutating=false,failurePolicy=ignore,sideEffects=None,groups=ha.homeassistant.io,resources=homeassistantmigrations,verbs=create;update,versions=v1alpha1,name=vhomeassistantmigration-v1alpha1.kb.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/validate-ha-homeassistant-io-v1alpha1-homeassistantmigration,mutating=false,failurePolicy=fail,sideEffects=None,groups=ha.homeassistant.io,resources=homeassistantmigrations,verbs=create;update,versions=v1alpha1,name=vhomeassistantmigration-v1alpha1.kb.io,admissionReviewVersions=v1
+
 type HomeAssistantMigrationCustomValidator struct{}
 
 var _ admission.Validator[*hav1alpha1.HomeAssistantMigration] = &HomeAssistantMigrationCustomValidator{}
@@ -31,6 +32,10 @@ func (v *HomeAssistantMigrationCustomValidator) ValidateCreate(
 	_ context.Context,
 	migration *hav1alpha1.HomeAssistantMigration,
 ) (admission.Warnings, error) {
+	if len(migration.Spec.ExecutionRequests) > 0 || len(migration.Spec.ExecutionAttempts) > 0 ||
+		len(migration.Spec.ExecutionDispatches) > 0 || migration.Spec.ProxyCredentialBinding != nil {
+		return nil, fmt.Errorf("new migration cannot contain execution records")
+	}
 	return nil, validateHomeAssistantMigration(migration)
 }
 
@@ -79,6 +84,20 @@ func (v *HomeAssistantMigrationCustomValidator) ValidateUpdate(
 		}
 		if !found {
 			return nil, fmt.Errorf("execution dispatches are append-only")
+		}
+	}
+	if migrationprotocol.AbortRequested(current) {
+		for _, dispatch := range current.Spec.ExecutionDispatches {
+			found := false
+			for _, previous := range old.Spec.ExecutionDispatches {
+				if dispatch == previous {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("new dispatches cannot be claimed after abort")
+			}
 		}
 	}
 	if len(old.Spec.ExecutionRequests) > 0 && !reflect.DeepEqual(old.Spec.Verification, current.Spec.Verification) {

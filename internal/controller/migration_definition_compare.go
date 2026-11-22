@@ -35,6 +35,15 @@ func compareMigrationDefinition(
 	case *hav1.HomeAssistantScript:
 		id = v.Spec.ID
 		desired, err = (&HomeAssistantScriptReconciler{}).scriptToYaml(v)
+		if err == nil {
+			if _, present := desired["mode"]; !present {
+				desired["mode"] = "single"
+			}
+			observed, err = normalizeMigrationScriptMode(observed)
+			if err != nil {
+				return migrationAdoptionResult{State: migrationAdoptionBlocked, Reason: "InvalidObservedDefinition"}
+			}
+		}
 	default:
 		return migrationAdoptionResult{State: migrationAdoptionBlocked, Reason: "UnsupportedKind"}
 	}
@@ -52,6 +61,20 @@ func compareMigrationDefinition(
 		}
 	}
 	return evaluateMigrationAdoption(true, false, sourceID, id, encoded, observed)
+}
+
+func normalizeMigrationScriptMode(raw json.RawMessage) (json.RawMessage, error) {
+	if err := validateMigrationJSON(raw); err != nil {
+		return nil, err
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil || fields == nil {
+		return nil, fmt.Errorf("invalid script definition")
+	}
+	if _, present := fields["mode"]; !present {
+		fields["mode"] = json.RawMessage(`"single"`)
+	}
+	return json.Marshal(fields)
 }
 
 // normalizeMigrationAutomationFields maps HA's returned plural keys onto the

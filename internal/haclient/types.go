@@ -187,16 +187,25 @@ type BackupRetention struct {
 
 // BackupCreateConfig represents the create_backup section of HA backup config
 type BackupCreateConfig struct {
-	IncludeDatabase *bool    `json:"include_database,omitempty"`
-	AgentIDs        []string `json:"agent_ids,omitempty"`
-	Password        *string  `json:"password,omitempty"`
+	IncludeDatabase  *bool           `json:"include_database,omitempty"`
+	AgentIDs         []string        `json:"agent_ids,omitempty"`
+	Password         *string         `json:"password,omitempty"`
+	IncludeAddons    json.RawMessage `json:"include_addons,omitempty"`
+	IncludeAllAddons *bool           `json:"include_all_addons,omitempty"`
+	IncludeFolders   json.RawMessage `json:"include_folders,omitempty"`
 }
 
 // BackupConfig represents the full HA backup configuration
 type BackupConfig struct {
-	Schedule     BackupSchedule     `json:"schedule"`
-	Retention    BackupRetention    `json:"retention"`
-	CreateBackup BackupCreateConfig `json:"create_backup"`
+	Schedule     BackupSchedule               `json:"schedule"`
+	Retention    BackupRetention              `json:"retention"`
+	CreateBackup BackupCreateConfig           `json:"create_backup"`
+	Agents       map[string]BackupAgentConfig `json:"agents"`
+}
+
+// BackupAgentConfig represents the independently configured protection of an agent.
+type BackupAgentConfig struct {
+	Protected *bool `json:"protected"`
 }
 
 // BackupAgent is a destination advertised by Home Assistant. Its presence only

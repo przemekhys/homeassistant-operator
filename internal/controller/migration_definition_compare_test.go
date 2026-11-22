@@ -64,3 +64,47 @@ func TestNormalizeMigrationAutomationFields(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeMigrationScriptMode(t *testing.T) {
+	for _, tc := range []struct {
+		name, input, want string
+		invalid           bool
+	}{
+		{"implicit default", `{"alias":"example"}`, `{"alias":"example","mode":"single"}`, false},
+		{"explicit default", `{"mode":"single"}`, `{"mode":"single"}`, false},
+		{"explicit different mode", `{"mode":"queued"}`, `{"mode":"queued"}`, false},
+		{"duplicate mode", `{"mode":"single","mode":"queued"}`, "", true},
+		{"invalid", `null`, "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := normalizeMigrationScriptMode(json.RawMessage(tc.input))
+			if tc.invalid {
+				if err == nil {
+					t.Fatal("invalid input accepted")
+				}
+				return
+			}
+			if err != nil || string(got) != tc.want {
+				t.Fatalf("normalized = %s, %v", got, err)
+			}
+		})
+	}
+}
+
+func TestCompareMigrationScriptDefaultMode(t *testing.T) {
+	script := &hav1.HomeAssistantScript{Spec: hav1.HomeAssistantScriptSpec{ID: "script-id", Alias: "Example", Mode: hav1.ScriptModeSingle}}
+	for _, tc := range []struct {
+		name, observed string
+		want           migrationAdoptionState
+	}{
+		{"implicit default", `{"alias":"Example","sequence":null}`, migrationAdoptionAdopted},
+		{"different mode", `{"alias":"Example","sequence":null,"mode":"queued"}`, migrationAdoptionConflict},
+		{"invalid definition", `null`, migrationAdoptionBlocked},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := compareMigrationDefinition(script, "script-id", json.RawMessage(tc.observed)); got.State != tc.want {
+				t.Fatalf("state = %s, want %s", got.State, tc.want)
+			}
+		})
+	}
+}
