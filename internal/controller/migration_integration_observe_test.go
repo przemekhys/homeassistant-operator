@@ -143,4 +143,31 @@ func TestImportedIntegrationObservationDoesNotStartFlowOrDelete(t *testing.T) {
 			}
 		})
 	}
+	t.Run("deletion preserves HA and unrelated finalizer", func(t *testing.T) {
+		now := metav1.Now()
+		deleting := integration.DeepCopy()
+		deleting.DeletionTimestamp = &now
+		deleting.Finalizers = []string{integrationFinalizerName, "example.test/keep"}
+		deleting.Status.EntryID = "wanted"
+		store := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(deleting).
+			WithObjects(deleting, ha, secret).Build()
+		reconciler := &HomeAssistantIntegrationReconciler{
+			Client: store, NewHAClient: func(string) *haclient.Client { return haclient.NewClient(server.URL) },
+		}
+		before := calls.Load()
+		key := client.ObjectKeyFromObject(deleting)
+		if _, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: key}); err != nil {
+			t.Fatal(err)
+		}
+		got := &hav1.HomeAssistantIntegration{}
+		if err := store.Get(context.Background(), key, got); err != nil {
+			t.Fatal(err)
+		}
+		if len(got.Finalizers) != 1 || got.Finalizers[0] != "example.test/keep" {
+			t.Fatalf("unexpected finalizers: %v", got.Finalizers)
+		}
+		if calls.Load() != before {
+			t.Fatal("deleting imported integration contacted HA")
+		}
+	})
 }
