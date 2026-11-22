@@ -9,5 +9,6 @@
 | [Events](events.md) | Every Kubernetes Event the operator emits | The controller source |
 | [Helm chart values](helm-values.md) | Every chart installation value | Generated from the chart's `values.yaml` |
 | [Compatibility](compatibility.md) | Supported Kubernetes, Home Assistant and Go versions | Chart metadata and CI configuration |
+| [Existing-instance migration](migration.md) | Migration phases, approvals and terminal actions | `HomeAssistantMigration` API and controller source |
 | [FAQ](faq.md) | Recurring questions with short answers | Hand-maintained |
 | [Changelog](changelog.md) | Released versions and what changed | The repository's changelog |

@@ -1,50 +1,20 @@
-# Migrowanie istniejącej instancji Home Assistant
+# How to migrate an existing Home Assistant instance
 
-> Migracja jest eksperymentalna i nie jest gotowa do użycia produkcyjnego. Pełny, izolowany przebieg backupu i restore został zweryfikowany wyłącznie na HA Container 2026.11.0 oraz jednorazowym workerze w k3d. Nie ma SLO czasu przerwy ani automatycznego przełączenia ruchu. Operator nigdy nie zatrzymuje starej instancji ani nie zmienia Service, Ingress lub Gateway w jej imieniu.
+*How-to — move an existing instance through the experimental, operator-managed migration workflow.*
 
-## Ręczna checklista cutoveru
+> [!WARNING]
+> This workflow is experimental. It has been verified only with Home Assistant Container 2026.11.0 and a one-shot worker in k3d. It has no downtime SLO and does not switch traffic automatically. The operator never stops the source or changes a Service, Ingress, or Gateway for you.
 
-1. Zapisz namespace, nazwę i UID **nowego** `HomeAssistant` oraz lokalizację starego workloadu. Sprawdź, że nowy PVC jest pusty i nie jest współdzielony ze źródłem.
-2. Wykonaj wyłącznie odczytowy skan i sprawdź raport. Nie kopiuj raportu do Git: raporty, archiwum i klucze mogą wskazywać dane operacyjne. Obiekty `Unsupported` i `Incomplete` nie są importowane.
-3. Przed backupem potwierdź zakres (zwłaszcza bazę), agenta, miejsce na archiwum i bezpieczne miejsce dla klucza. Klucz i token przekazuj przez Secret/referencję, nigdy przez URL, manifest, status ani log.
-4. Zatwierdź osobno backup i stabilność jego ustawień. Worker zapisuje chronione archiwum na niezależnym PVC należącym do `HomeAssistantMigration`; deskryptor wiąże UID PVC, rozmiar, digest, wersję klucza i źródłowy wynik. Zapisz identyfikator backupu, agenta i skrót archiwum; utrata odpowiedzi oznacza `Unknown`, nie zgodę na ślepe ponowienie.
-5. **Ręcznie zatrzymaj źródło**, a potem potwierdź brak procesu i połączeń. Sama niedostępność sieci nie jest dowodem zatrzymania. Nie uruchamiaj obu instancji z tymi samymi integracjami produkcyjnymi.
-6. Tryb `spec.alpha.migrationRestore.enabled: true` jest domyślnie wyłączony i blokuje bootstrap, synchronizację konfiguracji, init-containery oraz projekcje plików do `/config`. Cel może wystartować wyłącznie po związanych zgodach `source-stop` i `restore` oraz przygotowaniu egzekwowanej izolacji onboardingu.
-7. Zatwierdź restore powiązany z UID celu, digestem i zakresem archiwum. Worker przesyła archiwum i sprawdza onboarding info przed pojedynczym restore. Błędny klucz, uszkodzone archiwum, brak miejsca, utrata odpowiedzi lub rozbieżność wyniku zatrzymują procedurę. Nie publikuj odpowiedzi endpointu.
-8. Po restarcie zweryfikuj tożsamość administratora/operatora, token, MFA, integracje i zatwierdzone dane. Gotowość Poda ani HTTP 2xx nie są dowodem poprawnego restore. Dopiero związana zgoda `resume` zwalnia następną bramkę.
-9. Ręcznie przełącz Service/Ingress/Gateway dopiero po osobnej zgodzie `manual-cutover`. Zachowaj źródło wyłączone podczas obserwacji. Powrót może utracić zmiany wykonane po restore i wymaga osobnej ręcznej procedury.
-10. Po akceptacji celu wyłącz `migrationRestore.enabled` świadomą zmianą specyfikacji; tylko wtedy zwykły bootstrap i projekcje mogą wrócić do pracy.
+## Before you begin
 
-Jeśli źródło to Kubernetes `Deployment` lub `StatefulSet` w tym samym namespace,
-podaj w `HomeAssistantMigration.spec.sourceWorkload` jego `kind`, `name` i `uid`,
-a w zgodzie `source-stop` ten sam `sourceUID` oraz niepusty `digest`. Operator
-odczyta aktualne `replicas=0`, zaobserwowaną generację i Pody dopasowane do
-selektora; nie zmienia źródła. Zgoda restore musi osobno wskazywać `targetUID`,
-`archiveDigest` i `scopeDigest` zgodne z operacją. Dla źródła zewnętrznego nie
-ma technicznego potwierdzenia w Kubernetes: administrator pozostaje odpowiedzialny
-za jego sprawdzenie i ręczną zgodę. Odczyt jest migawką, nie blokadą ponownego
-uruchomienia źródła — nie uruchamiaj go ponownie podczas migracji.
+- Create a **new**, empty `HomeAssistant` target in the destination namespace. Record its name and UID; do not reuse or share the source PVC.
+- Ensure that the operator can create Jobs and an independent archive PVC in that namespace.
+- Store the source token and recovery key in separate Kubernetes Secrets. Do not put either value in a URL, manifest, status, report, or log.
+- Plan a manual traffic cutover and rollback. Keep the source stopped throughout validation of the restored target.
 
-## Zgody, nieznany wynik i anulowanie
+For fields, phases, and exact approval bindings, use the [migration reference](../reference/migration.md). For the rationale behind the gates, see [why migration has safety gates](../explanation/migration-safety.md).
 
-Zgoda obowiązuje do atomowego przyjęcia konkretnego żądania. Jej wycofanie przed
-przyjęciem blokuje etap; po przyjęciu nie cofa już zewnętrznego żądania HA i nie
-pozwala na drugi POST. `Unknown` oznacza, że wynik mutacji nie został bezpiecznie
-ustalony. Użyj tylko związanego rozstrzygnięcia `ObserveExternalResult` (odczyt
-tego samego dowodu) albo `Abort`; nie usuwaj receiptów ani nie twórz nowej zgody
-w celu ponowienia operacji.
-
-Ustawienie `spec.cancelRequested: true`, rozstrzygnięcie `Abort` lub usunięcie
-operacji blokuje nowe etapy. Kontroler kończy lokalne Joby i czeka na zniknięcie
-ich Podów przed zwolnieniem finalizera. Nie deklaruje cofnięcia zadania już
-przyjętego przez HA. PVC archiwum, deskryptor, receipty oraz zasoby workera są
-własnością migracji i są usuwane przez garbage collection dopiero po bezpiecznym
-zakończeniu lokalnej pracy; nie usuwaj ich ręcznie podczas `Unknown` lub anulowania.
-
-## Skan i zatwierdzony import
-
-Token źródła umieść w Secret w docelowym namespace. URL źródła musi używać
-HTTP(S) i nie może zawierać użytkownika, tokenu, parametrów query ani fragmentu.
+## 1. Scan the source
 
 ```sh
 ha-operator-migrate scan \
@@ -54,17 +24,13 @@ ha-operator-migrate scan \
   --target ha-new > migration-report.json
 ```
 
-Skan nie zapisuje do Home Assistant ani Kubernetes. Sprawdź `id` raportu i
-klasyfikacje: `Importable` wymaga zweryfikowanego mappera, `Incomplete` oznacza
-brak danych, `Unsupported` oznacza brak bezpiecznego eksportu, a `Conflict`
-oznacza kolizję wymagającą ręcznej decyzji. Nie dodawaj raportu do Git.
-Sekcja `backup` przedstawia odczytany zakres bazy, dostępność wskazanych
-agentów, informację o ochronie kluczem oraz ograniczenia zewnętrznych danych.
-`Ready` w tej sekcji oznacza wyłącznie pozytywny preflight, nie wykonany backup
-ani potwierdzoną możliwość restore. Klucz nie jest umieszczany w raporcie.
+The scan is read-only: it does not write to Home Assistant or Kubernetes. Inspect the report ID and every classification before proceeding. `Importable` has a verified mapper; `Incomplete`, `Unsupported`, and `Conflict` entries need manual handling. Do not commit the report to Git.
 
-Po ręcznym sprawdzeniu identyfikatora treści utwórz operację tylko z jawnym
-potwierdzeniem:
+`backup: Ready` means that the preflight succeeded. It does not mean a backup exists or that a restore has been verified.
+
+## 2. Create the paused migration operation
+
+After checking the content ID manually, create the operation with an explicit confirmation:
 
 ```sh
 ha-operator-migrate import \
@@ -77,75 +43,37 @@ ha-operator-migrate import \
   --confirm
 ```
 
-Stan operacji odczytaj bez serializowania Secretów:
+Inspect its status without serialising Secrets:
 
 ```sh
 kubectl -n home get homeassistantmigration ha-existing-migration -o yaml
 ```
 
-CLI wymaga odczytu wskazanego Secretu tokenu źródła i celu oraz
-tworzenia/odczytu `HomeAssistantMigration` i `HomeAssistantFloor` w wybranym namespace.
-Gdy importowane są dostępne dane uwierzytelniające, wymagane jest także
-tworzenie/odczyt wynikowego Secretu. Nie ma
-domyślnej komendy mutującej ani domyślnego potwierdzenia.
-Opcjonalna flaga `--source-token-secret` zapisuje nazwę i klucz Secretu w operacji,
-nie wartość tokenu; klucz można zmienić przez `--source-token-key`. Wykonawca
-migracji odczytuje wyłącznie przypiętą referencję w zaakceptowanym żądaniu.
-Opcjonalne `--recovery-key-secret` i `--recovery-key-key` wskazują osobno Secret
-z kluczem odzyskiwania w tym samym namespace. Przechowuj go oddzielnie od
-archiwum. Referencja nie potwierdza poprawności klucza ani nie uruchamia restore.
-Po zatwierdzeniu backupu powód `SourceTokenReferenceMissing` oznacza brak
-poprawnej referencji, `SourceTokenUnavailable` — brak Secretu lub wartości, a
-`BackupExecutorUnavailable` — brak zaimplementowanego wykonawcy. Żaden z tych
-stanów nie potwierdza utworzenia kopii.
-Zgoda `backup` musi zawierać `approved: true`, `digest` równy `spec.reportID`,
-`scopeDigest` równy `spec.backupScopeDigest` oraz `targetUID` równy
-`spec.target.uid`. Niezgodne lub brakujące powiązanie
-daje `BackupApprovalNotBound`. Raport obejmuje zaobserwowany zakres backupu,
-ale jego zatwierdzenie nie zastępuje ponownej kontroli zakresu przed wykonaniem.
+The command stores Secret *references*, never values. The operation and every imported resource start paused. Removing an imported resource does not delete the corresponding object in Home Assistant.
 
-## Pauza i późniejsza adopcja
+## 3. Review imported resources
 
-Importowany CR zaczyna w trwałej pauzie. Usunięcie takiego CR nie usuwa obiektu
-w Home Assistant. Zdjęcie pauzy **nie** jest zgodą na zapis: rozpoczyna tylko
-sprawdzenie tożsamości i kanonicznych pól na aktualnym celu.
+Remove a resource's pause only when its declaration matches the source object. The operator then performs a read-only identity and canonical-field comparison. `MigrationAdoption=True` with reason `Adopted` confirms that comparison; it does not enable normal synchronisation or deletion.
 
-- Warunek `MigrationAdoption=True` z powodem `Adopted` potwierdza jedynie
-  zgodny odczyt **bez mutacji**. Nie włącza zwykłej synchronizacji ani usuwania
-  obiektu HA. Każdy kolejny reconcile ponawia porównanie; zmiana daje konflikt,
-  a brak obiektu blokuje adopcję bez ponownego tworzenia.
-- Dla konfliktu popraw deklarację, aby odpowiadała HA, albo zachowaj ręczne
-  zarządzanie. Zgoda na nadpisanie jest adnotacją CR-a
-  `ha.homeassistant.io/migration-overwrite-approval`: JSON ma pola `version`
-  (`v1`), `approved` (`true`), `objectUID`, `generation`, `targetUID`,
-  `sourceID` i `comparisonDigest` pokazany w warunku. Musi odpowiadać bieżącej
-  tożsamości i porównaniu; zmiana wiązania lub usunięcie adnotacji ją unieważnia.
-  Zgodę cofniesz poleceniem `kubectl annotate <kind> <name> -n <namespace> ha.homeassistant.io/migration-overwrite-approval-`.
-- Nawet ważna zgoda daje `UnsafeOverwriteUnsupported`, ponieważ brak dowodu
-  atomowego bezpiecznego zapisu. Usunięcie importowanego CR-a, również przez
-  garbage collection po usunięciu migracji, pozostawia obiekt HA i usuwa własny
-  finalizer operatora. Nie jest to pełne zarządzanie cyklem życia obiektu HA.
+If a comparison conflicts, correct the declaration or keep the resource under manual management. Do not try to force an overwrite: the operator deliberately reports `UnsafeOverwriteUnsupported` rather than making an unprovable write.
 
-Przykład ustawienia zgody (zastąp wszystkie wartości danymi aktualnego CR-a,
-celu i warunku porównania):
+## 4. Run the controlled backup and restore
 
-```sh
-kubectl annotate <kind> <name> -n <namespace> --overwrite \
-  'ha.homeassistant.io/migration-overwrite-approval={"version":"v1","approved":true,"objectUID":"<uid-cr>","generation":1,"targetUID":"<uid-ha>","sourceID":"<id-ha>","comparisonDigest":"sha256:<digest>"}'
-```
+1. Set the archive PVC and descriptor names, recovery-key reference, source workload identity (when the source is in the cluster), and non-secret verification set on the `HomeAssistantMigration`. See the [`HomeAssistantMigration` API](../reference/api.md#homeassistantmigrationspec).
+2. Review the reported backup scope, selected agent, archive storage, and target UID. Add the bound `backup` and `backup-settings-stable` approvals.
+3. Wait for the backup to complete, then record the backup ID, agent ID, and archive digest from the operation. An `Unknown` result is not permission to submit another request.
+4. Stop the source **yourself** and confirm that it has no process or active connections. Network unreachability alone is not evidence of a stopped source. Add the bound `source-stop` approval.
+5. Enable `spec.alpha.migrationRestore.enabled` on the empty target. Add the bound `restore` approval for the observed archive and restore scope.
+6. Wait for post-restore verification. Pod readiness or HTTP 2xx is not a successful restore. Verify the administrator identity, token, MFA, integrations, and selected data before adding the `resume` approval.
+7. After the operation reaches `AwaitingManualCutover`, add the `manual-cutover` approval and switch Service, Ingress, or Gateway routing yourself. Keep the source stopped while observing the target.
+8. When the target is accepted, explicitly set `spec.alpha.migrationRestore.enabled: false` to re-enable its normal bootstrap and configuration projections.
 
-Ten przykład nie włącza nadpisywania; służy do powiązania decyzji z konkretnym
-porównaniem. Usuń adnotację, aby wycofać zgodę.
+## 5. Cancel safely
 
-Skan i import Floor przeszły test E2E na HA Container 2026.11.0. Adopcję bez
-zapisu, restart, konflikt, zniknięcie obiektu i bezpieczne usunięcie ręcznie
-przygotowanych Floor, Area, Label, Scene, Script i Dashboard przetestowano także
-na tej wersji; import pozostałych Kindów nie jest tym potwierdzony. Automation oraz Integration pozostają
-zablokowane, gdy nie można odczytać całej zarządzanej konfiguracji. Testy te nie
-potwierdzają kompletnej migracji ani zgodności wszystkich wersji HA.
+Set `spec.cancelRequested: true` to prevent new stages. The controller stops local Jobs and waits for their Pods to disappear before releasing its finaliser. It cannot undo a request already accepted by Home Assistant.
 
-## Zakres i bezpieczeństwo
+If the outcome of an accepted request is unknown, append either an `ObserveExternalResult` resolution with the matching evidence or an `Abort` resolution. Do not delete receipts, archives, or worker resources to make the operation retry; wait for garbage collection after local work has ended.
 
-- Importowane CR-y są wstrzymane, a ich usunięcie nie usuwa obiektu w Home Assistant.
-- Nie ma automatycznej synchronizacji Secretów ani eksportu danych nieudostępnianych przez API HA.
-- `spec.alpha.migrationRestore.enabled` jest w cyklu promocji: alpha opt-in (obecnie), stabilne domyślnie `false`, stabilne domyślnie `true`, następnie obowiązkowe. Każda promocja wymaga E2E i udokumentowanych ograniczeń.
+## Check the result
+
+The migration is ready for manual cutover only when its phase is `AwaitingManualCutover`. It is complete after the bound `manual-cutover` approval is accepted. A completed operation does not prove that traffic has been switched; verify routing separately.

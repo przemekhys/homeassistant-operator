@@ -116,6 +116,7 @@ nav:
     - Model your house structure: how-to/model-house-structure.md
     - Install HACS-compatible extensions: how-to/install-community-repositories.md
     - Configure backups: how-to/configure-backups.md
+    - Migrate an existing instance (experimental): how-to/migrate-existing-instance.md
     - Expose with TLS: how-to/expose-with-tls.md
     - Enforce Pod Security Standards: how-to/enforce-pod-security.md
     - Verify signed releases: how-to/verify-signed-releases.md
@@ -127,6 +128,7 @@ nav:
     - Events: reference/events.md
     - Helm chart values: reference/helm-values.md
     - Compatibility: reference/compatibility.md
+    - Existing-instance migration: reference/migration.md
     - FAQ: reference/faq.md
     - Changelog: reference/changelog.md
   - Explanation:
@@ -136,6 +138,7 @@ nav:
     - Who owns the generated resources: explanation/resource-ownership.md
     - What spec.alpha means: explanation/alpha-lifecycle.md
     - The security model: explanation/security-model.md
+    - Why migration has safety gates: explanation/migration-safety.md
   - Ecosystem Guides:
     - Overview: ecosystem/index.md
     - Flux CD: ecosystem/flux.md

@@ -16,3 +16,5 @@ of them is required to complete any [how-to guide](../how-to/index.md).
   experimental prefix, and what you are signing up for by using one.
 - **[The security model](security-model.md)** — what the operator is allowed to
   do, and where the boundary between operator and workload runs.
+- **[Why migration has safety gates](migration-safety.md)** — why an existing
+  instance migration requires explicit evidence and separate approvals.
