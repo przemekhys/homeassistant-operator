@@ -12,7 +12,7 @@
 - Store the source token and recovery key in separate Kubernetes Secrets. Do not put either value in a URL, manifest, status, report, or log.
 - Plan a manual traffic cutover and rollback. Keep the source stopped throughout validation of the restored target.
 
-For fields, phases, and exact approval bindings, use the [migration reference](../reference/migration.md). For the rationale behind the gates, see [why migration has safety gates](../explanation/migration-safety.md).
+For fields, phases, and exact approval bindings, use the generated [`HomeAssistantMigration` API reference](../reference/api.md#homeassistantmigrationspec).
 
 ## 1. Scan the source
 
