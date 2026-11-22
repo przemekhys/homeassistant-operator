@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.7.2] - 2026-11-22
+
+### Fixed
+
+- **HACS plugins with build output in `dist/` now install correctly.** When a
+  plugin's `hacs.json` names only its JavaScript filename, the operator now
+  prefers the matching built bundle in `dist/` and falls back to a root-level
+  file when no bundle exists.
+
 ## [v1.7.1] - 2026-11-13
 
 ### Security
@@ -628,7 +637,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Primary: k3s on Raspberry Pi 4/5 (ARM64)
 - Also supported: Any Kubernetes cluster (AMD64/ARM64)
 
-[Unreleased]: https://github.com/przemekhys/homeassistant-operator/compare/v1.7.1...HEAD
+[Unreleased]: https://github.com/przemekhys/homeassistant-operator/compare/v1.7.2...HEAD
+[v1.7.2]: https://github.com/przemekhys/homeassistant-operator/compare/v1.7.1...v1.7.2
 [v1.7.1]: https://github.com/przemekhys/homeassistant-operator/compare/v1.7.0...v1.7.1
 [v1.7.0]: https://github.com/przemekhys/homeassistant-operator/compare/v1.6.1...v1.7.0
 [v1.6.1]: https://github.com/przemekhys/homeassistant-operator/compare/v1.6.0...v1.6.1
