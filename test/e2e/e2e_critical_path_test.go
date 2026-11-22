@@ -237,6 +237,26 @@ spec:
 
 	})
 
+	It("adopts a matching imported floor without changing HA", Label("migration"), func() {
+		runMigrationAdoptionScenario(namespace, haName)
+	})
+
+	It("imports a paused floor without changing HA", Label("migration-import"), func() {
+		runMigrationImportScenario(namespace, haName)
+	})
+
+	It("adopts related imported registries without changing HA", Label("migration-matrix"), func() {
+		runMigrationRegistryMatrixScenario(namespace, haName)
+	})
+
+	It("adopts imported definitions without changing HA", Label("migration-definitions"), func() {
+		runMigrationDefinitionMatrixScenario(namespace, haName)
+	})
+
+	It("adopts an imported dashboard without changing HA", Label("migration-dashboard"), func() {
+		runMigrationDashboardScenario(namespace, haName)
+	})
+
 	It("creates Local To-do recovery control data outside operator CRs", Label("backup"), func() {
 		endpoint, cleanup := criticalPathHAEndpoint(namespace, haName)
 		defer cleanup()

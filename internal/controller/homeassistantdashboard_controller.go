@@ -53,6 +53,13 @@ func (r *HomeAssistantDashboardReconciler) Reconcile(ctx context.Context, req ct
 	if err := r.Get(ctx, req.NamespacedName, dashboard); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+	if handled, err := removeBlockedMigrationFinalizer(ctx, r.Client, dashboard, dashboardFinalizer); handled ||
+		err != nil {
+		return ctrl.Result{}, err
+	}
+	if migrationWritesBlocked(dashboard) {
+		return r.observeImportedDashboard(ctx, dashboard)
+	}
 	if !dashboard.DeletionTimestamp.IsZero() {
 		return r.reconcileDeletion(ctx, dashboard)
 	}
@@ -241,7 +248,12 @@ func (r *HomeAssistantDashboardReconciler) reconcileDeletion(
 		if apierrors.IsNotFound(err) {
 			return r.failed(ctx, dashboard, "HomeAssistantNotFound", "referenced HomeAssistant was not found")
 		}
-		return r.failed(ctx, dashboard, "HomeAssistantLookupFailed", fmt.Sprintf("failed to get HomeAssistant: %v", err))
+		return r.failed(
+			ctx,
+			dashboard,
+			"HomeAssistantLookupFailed",
+			fmt.Sprintf("failed to get HomeAssistant: %v", err),
+		)
 	}
 	token, err := getAPIToken(ctx, r.Client, ha)
 	if err != nil {

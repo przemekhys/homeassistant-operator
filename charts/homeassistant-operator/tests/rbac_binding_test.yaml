@@ -28,6 +28,40 @@ tests:
       - isKind:
           of: ClusterRoleBinding
 
+  - it: grants migration operations only the required namespaced resource verbs
+    templates:
+      - clusterrole.yaml
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["ha.homeassistant.io"]
+            resources: ["homeassistantmigrations"]
+            verbs: ["get", "list", "patch", "update", "watch"]
+      - contains:
+          path: rules[12].resources
+          content: homeassistantmigrations/status
+
+  - it: fails closed for protected migration credential mounts
+    templates:
+      - webhook.yaml
+    documentSelector:
+      path: kind
+      value: ValidatingWebhookConfiguration
+    asserts:
+      - equal:
+          path: webhooks[0].name
+          value: vmigrationisolationpods.ha.homeassistant.io
+      - equal:
+          path: webhooks[0].failurePolicy
+          value: Fail
+      - equal:
+          path: webhooks[1].failurePolicy
+          value: Fail
+      - equal:
+          path: webhooks[2].failurePolicy
+          value: Fail
+
   - it: creates no ClusterRoleBinding when watchNamespaces is set
     templates:
       - clusterrolebinding.yaml

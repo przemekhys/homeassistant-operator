@@ -53,6 +53,7 @@ import (
 	"github.com/przemekhys/homeassistant-operator/internal/controller"
 	"github.com/przemekhys/homeassistant-operator/internal/version"
 	webhookhav1 "github.com/przemekhys/homeassistant-operator/internal/webhook/v1"
+	webhookhav1alpha1 "github.com/przemekhys/homeassistant-operator/internal/webhook/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -487,6 +488,16 @@ func main() {
 			}
 			if err := webhookhav1.SetupHomeAssistantConfigurationWebhookWithManager(mgr); err != nil {
 				setupLog.Error(err, "unable to create webhook", "webhook", "HomeAssistantConfiguration")
+				os.Exit(1)
+			}
+			if err := webhookhav1alpha1.SetupHomeAssistantMigrationWebhookWithManager(mgr); err != nil {
+				setupLog.Error(err, "unable to create webhook", "webhook", "HomeAssistantMigration")
+				os.Exit(1)
+			}
+			operatorServiceAccount := getenvOr("OPERATOR_SERVICE_ACCOUNT", "controller-manager")
+			operatorUsername := fmt.Sprintf("system:serviceaccount:%s:%s", operatorNamespace, operatorServiceAccount)
+			if err := webhookhav1alpha1.SetupMigrationIsolationWebhookWithManager(mgr, operatorUsername); err != nil {
+				setupLog.Error(err, "unable to create webhook", "webhook", "MigrationIsolation")
 				os.Exit(1)
 			}
 			setupLog.Info("validating webhooks registered")
