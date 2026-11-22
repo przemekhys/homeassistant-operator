@@ -44,15 +44,16 @@ func NewOnboardingProxy(upstream string, clientCertificate *x509.Certificate) (h
 			http.Error(w, "client authentication required", http.StatusForbidden)
 			return
 		}
-		if r.URL.RawPath != "" || !allowedOnboardingProxyRequest(r.Method, r.URL.Path) {
+		route, allowed := onboardingProxyRoute(r.Method, r.URL.Path)
+		if r.URL.RawPath != "" || !allowed {
 			http.Error(w, "onboarding route unavailable", http.StatusNotFound)
 			return
 		}
-		// Emit only the closed route identity. Method and path are already
-		// constrained to non-secret onboarding routes; headers and bodies are
-		// never logged. This lets an operator prove how many mutating POSTs
-		// reached the target without relying on HA readiness or a 2xx receipt.
-		log.Printf("onboarding proxy request %s %s", r.Method, r.URL.Path)
+		// The route name is selected exclusively from constants rather than copied
+		// from a request. Headers and bodies are never logged. This lets an
+		// operator prove how many mutating POSTs reached the target without
+		// relying on HA readiness or a 2xx receipt.
+		log.Printf("onboarding proxy request: %s", route)
 		// Forwarded headers are not identity evidence and must not be supplied by
 		// an untrusted client to the HA upstream.
 		r.Header.Del("Forwarded")
@@ -68,9 +69,19 @@ func NewOnboardingProxy(upstream string, clientCertificate *x509.Certificate) (h
 	}), nil
 }
 
-func allowedOnboardingProxyRequest(method, path string) bool {
-	return method == http.MethodGet && (path == "/api/onboarding" || path == "/api/onboarding/backup/info") ||
-		method == http.MethodPost && (path == "/api/onboarding/backup/upload" || path == "/api/onboarding/backup/restore")
+func onboardingProxyRoute(method, path string) (string, bool) {
+	switch {
+	case method == http.MethodGet && path == "/api/onboarding":
+		return "onboarding status", true
+	case method == http.MethodGet && path == "/api/onboarding/backup/info":
+		return "backup information", true
+	case method == http.MethodPost && path == "/api/onboarding/backup/upload":
+		return "backup upload", true
+	case method == http.MethodPost && path == "/api/onboarding/backup/restore":
+		return "backup restore", true
+	default:
+		return "", false
+	}
 }
 
 // OnboardingProxyTLSConfig requires CA verification before the handler pins

@@ -219,3 +219,25 @@ func TestOnboardingProxyRequiresVerifiedPinnedClient(t *testing.T) {
 		t.Fatalf("ambiguous restore was retried: status=%d calls=%d", response.StatusCode, attempted.Load())
 	}
 }
+
+func TestOnboardingProxyRoute(t *testing.T) {
+	for _, tc := range []struct {
+		method, path string
+		want         string
+		allowed      bool
+	}{
+		{http.MethodGet, "/api/onboarding", "onboarding status", true},
+		{http.MethodGet, "/api/onboarding/backup/info", "backup information", true},
+		{http.MethodPost, "/api/onboarding/backup/upload", "backup upload", true},
+		{http.MethodPost, "/api/onboarding/backup/restore", "backup restore", true},
+		{http.MethodGet, "/api/config", "", false},
+		{http.MethodDelete, "/api/onboarding", "", false},
+	} {
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			got, allowed := onboardingProxyRoute(tc.method, tc.path)
+			if got != tc.want || allowed != tc.allowed {
+				t.Fatalf("onboardingProxyRoute(%q, %q) = (%q, %t), want (%q, %t)", tc.method, tc.path, got, allowed, tc.want, tc.allowed)
+			}
+		})
+	}
+}
