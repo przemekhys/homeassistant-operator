@@ -67,6 +67,31 @@ func TestMigrationIsolationEphemeralContainerUpdates(t *testing.T) {
 	}
 }
 
+func TestMigrationIsolationUsesKustomizeOperatorIdentity(t *testing.T) {
+	operator := "system:serviceaccount:homeassistant-operator-system:homeassistant-operator-controller-manager"
+	v := &MigrationIsolationValidator{OperatorUsername: operator}
+	for _, tc := range []struct {
+		name, group, kind, body string
+	}{
+		{"secret", "", "Secret", `{"metadata":{"name":"migration-proxy-key"}}`},
+		{"configmap", "", "ConfigMap", `{"metadata":{"name":"migration-proxy-claim"}}`},
+		{"job", "batch", "Job", `{"spec":{"template":{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-key"}}]}}}}`},
+		{"statefulset", "apps", "StatefulSet", `{"spec":{"template":{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-key"}}]}}}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{Operation: admissionv1.Create,
+				Kind: metav1.GroupVersionKind{Group: tc.group, Version: "v1", Kind: tc.kind}, UserInfo: authentication(operator), Object: runtimeRaw(tc.body)}}
+			if response := v.Handle(context.Background(), request); !response.Allowed {
+				t.Fatalf("operator denied: %#v", response.Result)
+			}
+			request.UserInfo = authentication("system:serviceaccount:homeassistant-operator-system:unrelated")
+			if response := v.Handle(context.Background(), request); response.Allowed || response.Result == nil || response.Result.Code != 403 {
+				t.Fatalf("non-operator not denied by policy: %#v", response.Result)
+			}
+		})
+	}
+}
+
 func authentication(username string) authenticationv1.UserInfo {
 	return authenticationv1.UserInfo{Username: username}
 }

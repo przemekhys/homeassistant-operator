@@ -3,6 +3,7 @@ package controller
 import (
 	"bytes"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,8 @@ import (
 	. "github.com/onsi/gomega"
 	ha "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kyaml "k8s.io/apimachinery/pkg/util/yaml"
@@ -19,6 +22,148 @@ import (
 )
 
 var _ = Describe("Migration CEL admission", func() {
+	It("applies Kustomize isolation filters when the webhook is unavailable", func() {
+		kustomization, err := os.ReadFile(filepath.Join("..", "..", "config", "default", "kustomization.yaml"))
+		Expect(err).NotTo(HaveOccurred())
+		var wiring struct {
+			Patches []struct {
+				Path   string `json:"path"`
+				Target struct {
+					Kind string `json:"kind"`
+					Name string `json:"name"`
+				} `json:"target"`
+			} `json:"patches"`
+		}
+		Expect(yaml.Unmarshal(kustomization, &wiring)).To(Succeed())
+		foundPatch := false
+		for _, patch := range wiring.Patches {
+			if patch.Path == "migration-isolation-patch.yaml" {
+				foundPatch = true
+				Expect(patch.Target.Kind).To(Equal("ValidatingWebhookConfiguration"))
+				Expect(patch.Target.Name).To(Equal("validating-webhook-configuration"))
+			}
+		}
+		Expect(foundPatch).To(BeTrue())
+		manager, err := os.ReadFile(filepath.Join("..", "..", "config", "manager", "manager.yaml"))
+		Expect(err).NotTo(HaveOccurred())
+		managerDocs := kyaml.NewYAMLOrJSONDecoder(bytes.NewReader(manager), 4096)
+		var deployment appsv1.Deployment
+		for {
+			var document map[string]interface{}
+			err = managerDocs.Decode(&document)
+			if err == io.EOF {
+				break
+			}
+			Expect(err).NotTo(HaveOccurred())
+			if document["kind"] == "Deployment" {
+				data, marshalErr := yaml.Marshal(document)
+				Expect(marshalErr).NotTo(HaveOccurred())
+				Expect(yaml.Unmarshal(data, &deployment)).To(Succeed())
+				break
+			}
+		}
+		var operatorServiceAccount *corev1.EnvVar
+		for i := range deployment.Spec.Template.Spec.Containers[0].Env {
+			entry := &deployment.Spec.Template.Spec.Containers[0].Env[i]
+			if entry.Name == "OPERATOR_SERVICE_ACCOUNT" {
+				operatorServiceAccount = entry
+			}
+		}
+		Expect(operatorServiceAccount).NotTo(BeNil())
+		Expect(operatorServiceAccount.ValueFrom).NotTo(BeNil())
+		Expect(operatorServiceAccount.ValueFrom.FieldRef).NotTo(BeNil())
+		Expect(operatorServiceAccount.ValueFrom.FieldRef.FieldPath).To(Equal("spec.serviceAccountName"))
+		data, err := os.ReadFile(filepath.Join("..", "..", "config", "default", "migration-isolation-patch.yaml"))
+		Expect(err).NotTo(HaveOccurred())
+		var patches []struct {
+			Operation string                        `json:"op"`
+			Path      string                        `json:"path"`
+			Value     admissionv1.ValidatingWebhook `json:"value"`
+		}
+		Expect(yaml.Unmarshal(data, &patches)).To(Succeed())
+		Expect(patches).To(HaveLen(3))
+		config := &admissionv1.ValidatingWebhookConfiguration{ObjectMeta: metav1.ObjectMeta{Name: "migration-kustomize-isolation-test"}}
+		endpoint, timeout := "https://127.0.0.1:1/validate", int32(1)
+		for _, patch := range patches {
+			Expect(patch.Operation).To(Equal("add"))
+			Expect(patch.Path).To(Equal("/webhooks/-"))
+			Expect(patch.Value.FailurePolicy).NotTo(BeNil())
+			Expect(*patch.Value.FailurePolicy).To(Equal(admissionv1.Fail))
+			Expect(patch.Value.ClientConfig.Service).NotTo(BeNil())
+			Expect(patch.Value.ClientConfig.Service.Path).NotTo(BeNil())
+			Expect(*patch.Value.ClientConfig.Service.Path).To(Equal("/validate-migration-isolation"))
+			patch.Value.ClientConfig.Service = nil
+			patch.Value.ClientConfig.URL = &endpoint
+			patch.Value.TimeoutSeconds = &timeout
+			config.Webhooks = append(config.Webhooks, patch.Value)
+		}
+		existingSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "migration-proxy-kustomize-delete", Namespace: "default"}}
+		existingConfigMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "migration-proxy-kustomize-delete", Namespace: "default"}}
+		Expect(k8sClient.Create(ctx, existingSecret)).To(Succeed())
+		Expect(k8sClient.Create(ctx, existingConfigMap)).To(Succeed())
+		defer func() {
+			_ = k8sClient.Delete(ctx, existingSecret)
+			_ = k8sClient.Delete(ctx, existingConfigMap)
+		}()
+		Expect(k8sClient.Create(ctx, config)).To(Succeed())
+		defer func() { _ = k8sClient.Delete(ctx, config) }()
+		protected := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "migration-proxy-kustomize", Namespace: "default"}}
+		Eventually(func() string {
+			if createErr := k8sClient.Create(ctx, protected.DeepCopy(), client.DryRunAll); createErr != nil {
+				return createErr.Error()
+			}
+			return ""
+		}).Should(ContainSubstring("failed calling webhook"))
+		unrelated := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{GenerateName: "unrelated-kustomize-", Namespace: "default"}}
+		Expect(k8sClient.Create(ctx, unrelated, client.DryRunAll)).To(Succeed())
+		for _, object := range []client.Object{existingSecret, existingConfigMap} {
+			err := k8sClient.Delete(ctx, object, client.DryRunAll)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("failed calling webhook"))
+		}
+		plainPod := corev1.PodSpec{Containers: []corev1.Container{{Name: "test", Image: "example.invalid/test", Env: []corev1.EnvVar{{Name: "OPERATOR_SERVICE_ACCOUNT", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.serviceAccountName"}}}}}}}
+		protectedPod := *plainPod.DeepCopy()
+		protectedPod.Containers[0].EnvFrom = []corev1.EnvFromSource{{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "migration-proxy-kustomize"}}}}
+		protectedVolume := *plainPod.DeepCopy()
+		protectedVolume.Volumes = []corev1.Volume{{Name: "credential", VolumeSource: corev1.VolumeSource{Projected: &corev1.ProjectedVolumeSource{Sources: []corev1.VolumeProjection{{Secret: &corev1.SecretProjection{LocalObjectReference: corev1.LocalObjectReference{Name: "migration-proxy-kustomize"}}}}}}}}
+		protectedInit := *plainPod.DeepCopy()
+		protectedInit.InitContainers = []corev1.Container{{Name: "init", Image: "example.invalid/test", Env: []corev1.EnvVar{{Name: "KEY", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "migration-proxy-kustomize"}, Key: "key"}}}}}}
+		protectedPull := *plainPod.DeepCopy()
+		protectedPull.ImagePullSecrets = []corev1.LocalObjectReference{{Name: "migration-proxy-kustomize"}}
+		for _, tc := range []struct {
+			name    string
+			spec    corev1.PodSpec
+			allowed bool
+		}{
+			{"ordinary", plainPod, true}, {"protected envFrom", protectedPod, false},
+			{"protected projection", protectedVolume, false}, {"protected init container", protectedInit, false},
+			{"protected image pull secret", protectedPull, false},
+		} {
+			By(tc.name + " pod, Job and StatefulSet")
+			pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{GenerateName: "isolation-pod-", Namespace: "default"}, Spec: *tc.spec.DeepCopy()}
+			job := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{GenerateName: "isolation-job-", Namespace: "default"}, Spec: batchv1.JobSpec{Template: corev1.PodTemplateSpec{Spec: *tc.spec.DeepCopy()}}}
+			job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
+			sts := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{GenerateName: "isolation-sts-", Namespace: "default"}, Spec: appsv1.StatefulSetSpec{ServiceName: "example", Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "test"}}, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "test"}}, Spec: *tc.spec.DeepCopy()}}}
+			for _, object := range []client.Object{pod, job, sts} {
+				err := k8sClient.Create(ctx, object, client.DryRunAll)
+				if tc.allowed {
+					Expect(err).NotTo(HaveOccurred())
+				} else {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("failed calling webhook"))
+				}
+			}
+		}
+		ephemeralPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{GenerateName: "isolation-ephemeral-", Namespace: "default"}, Spec: plainPod}
+		Expect(k8sClient.Create(ctx, ephemeralPod)).To(Succeed())
+		defer func() { _ = k8sClient.Delete(ctx, ephemeralPod) }()
+		ephemeralPod.Spec.EphemeralContainers = []corev1.EphemeralContainer{{EphemeralContainerCommon: corev1.EphemeralContainerCommon{
+			Name: "debug", Image: "example.invalid/test", EnvFrom: []corev1.EnvFromSource{{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "migration-proxy-kustomize"}}}},
+		}}}
+		err = k8sClient.SubResource("ephemeralcontainers").Update(ctx, ephemeralPod)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("failed calling webhook"))
+	})
 	It("rejects execution records at creation", func() {
 		digest := "sha256:" + strings.Repeat("d", 64)
 		request := ha.MigrationExecutionRequest{Version: "v1", Stage: "upload", RequestID: digest, OperationUID: "op", SourceID: "source", Target: ha.MigrationTarget{Name: "target", UID: "uid"}, ReportID: "report", ScopeDigest: digest, VerificationDigest: digest, ArchiveRef: &ha.MigrationObjectReference{Name: "archive", UID: "uid"}, ArchiveDigest: digest, ArchivePVCUID: "pvc"}
