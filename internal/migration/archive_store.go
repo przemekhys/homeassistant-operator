@@ -27,6 +27,8 @@ type ArchiveReceipt struct {
 
 // PublishArchiveDescriptor records byte identity after a complete transfer.
 // The immutable ConfigMap is not a proof of backup protection or key validity.
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func PublishArchiveDescriptor(ctx context.Context, kube client.Client, scheme *runtime.Scheme, op *ha.HomeAssistantMigration, pvc *corev1.PersistentVolumeClaim, dir, name string, d ArchiveDescriptor) (*corev1.ConfigMap, error) {
 	if ctx == nil || kube == nil || scheme == nil || op == nil || pvc == nil || op.UID == "" || op.Namespace == "" || pvc.Namespace != op.Namespace || string(op.UID) != d.OperationUID || string(pvc.UID) != d.PVCUID || op.Spec.SourceID != d.SourceID || op.Spec.ArchiveStorage == nil || op.Spec.ArchiveStorage.PVCName != pvc.Name || op.Spec.ArchiveStorage.DescriptorName != name {
 		return nil, fmt.Errorf("archive identity is invalid")
@@ -63,6 +65,8 @@ func PublishArchiveDescriptor(ctx context.Context, kube client.Client, scheme *r
 }
 
 // ReadArchiveDescriptor revalidates the descriptor and stored bytes after a restart.
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func ReadArchiveDescriptor(ctx context.Context, reader client.Reader, op *ha.HomeAssistantMigration, pvc *corev1.PersistentVolumeClaim, dir, name, uid string) (*ArchiveDescriptor, error) {
 	if ctx == nil || reader == nil || op == nil || pvc == nil || op.UID == "" || uid == "" || pvc.Namespace != op.Namespace || op.Spec.ArchiveStorage == nil || op.Spec.ArchiveStorage.PVCName != pvc.Name || op.Spec.ArchiveStorage.DescriptorName != name {
 		return nil, fmt.Errorf("archive identity is invalid")

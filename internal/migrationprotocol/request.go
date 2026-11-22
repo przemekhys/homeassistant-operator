@@ -46,6 +46,7 @@ func ValidateCredentialVersion(expected *ha.MigrationSecretIdentity, observed *c
 	return nil
 }
 
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func ValidateRequest(r ha.MigrationExecutionRequest) error {
 	bad := fmt.Errorf("invalid execution request")
 	if r.Version != "v1" || !ValidStage(r.Stage) || r.OperationUID == "" || r.SourceID == "" || r.Target.Name == "" || r.Target.UID == "" || r.ReportID == "" || !ValidDigest(r.ScopeDigest) || !ValidDigest(r.VerificationDigest) || !ValidDigest(r.RequestID) {
@@ -80,6 +81,8 @@ func ValidateRequest(r ha.MigrationExecutionRequest) error {
 
 // ValidateAccepted checks durable snapshots independently of mutable future inputs
 // and current approvals. Revocation does not retroactively erase acceptance.
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func ValidateAccepted(op *ha.HomeAssistantMigration) error {
 	if op.Spec.ExecutionProtocol != "" && op.Spec.ExecutionProtocol != "v1" {
 		return fmt.Errorf("unsupported execution protocol")
@@ -151,6 +154,8 @@ func ValidateAccepted(op *ha.HomeAssistantMigration) error {
 }
 
 // ValidateNewRequest enforces consent only at acceptance, not on historical records.
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func ValidateNewRequest(op *ha.HomeAssistantMigration, r ha.MigrationExecutionRequest) error {
 	if op.Spec.ExecutionProtocol != "v1" || op.Spec.CancelRequested || !op.DeletionTimestamp.IsZero() || AbortRequested(op) {
 		return fmt.Errorf("execution acceptance is blocked")

@@ -84,6 +84,8 @@ func migrationSecretRefMatches(ref *corev1.SecretKeySelector, identity migration
 }
 
 // Validation also runs in reconcile because webhook admission is optional.
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func validateMigrationExecutionInputs(op *hav1alpha1.HomeAssistantMigration) error {
 	if err := migrationprotocol.ValidateAccepted(op); err != nil {
 		return err

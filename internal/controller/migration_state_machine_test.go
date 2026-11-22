@@ -288,7 +288,7 @@ func TestMigrationModelCompleteWorkflow(t *testing.T) {
 		if request.RequestID == "" {
 			t.Fatalf("%s not accepted", stage)
 		}
-		current = reconcile()
+		reconcile()
 		executor.observations[stage] = migrationStageObservation{Phase: "Verified", Verified: true, JobID: "job", OperationUID: string(op.UID), RequestID: request.RequestID, Stage: stage, SourceID: op.Spec.SourceID, TargetUID: op.Spec.Target.UID, ArchiveDigest: archive, ScopeDigest: scope, VerificationDigest: vd, ResultDigest: result, AccessVerified: true}
 	}
 	current = reconcile()

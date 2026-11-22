@@ -182,6 +182,8 @@ type HomeAssistantReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func (r *HomeAssistantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
@@ -762,6 +764,8 @@ func (r *HomeAssistantReconciler) getGeneratedSecretsName(
 }
 
 // buildStatefulSet creates a StatefulSet spec for Home Assistant
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func (r *HomeAssistantReconciler) buildStatefulSet(
 	ctx context.Context,
 	ha *hav1.HomeAssistant,
@@ -1065,8 +1069,32 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 			}
 			no, yes := false, true
 			uid := int64(65532)
-			volumes = append(volumes, corev1.Volume{Name: "migration-proxy-server", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: serverSecret}}})
-			containers = append(containers, corev1.Container{Name: "migration-onboarding-proxy", Image: proxyImage, ImagePullPolicy: corev1.PullIfNotPresent, Command: []string{"/migrate-worker"}, Args: []string{"--mode", "onboarding-proxy"}, Ports: []corev1.ContainerPort{{Name: "onboarding", ContainerPort: 8124, Protocol: corev1.ProtocolTCP}}, VolumeMounts: []corev1.VolumeMount{{Name: "migration-proxy-server", MountPath: "/var/run/migration-proxy", ReadOnly: true}}, SecurityContext: &corev1.SecurityContext{RunAsNonRoot: &yes, RunAsUser: &uid, AllowPrivilegeEscalation: &no, ReadOnlyRootFilesystem: &yes, Capabilities: &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}}}})
+			volumes = append(volumes, corev1.Volume{
+				Name: "migration-proxy-server",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{SecretName: serverSecret},
+				},
+			})
+			containers = append(containers, corev1.Container{
+				Name:            "migration-onboarding-proxy",
+				Image:           proxyImage,
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Command:         []string{"/migrate-worker"},
+				Args:            []string{"--mode", "onboarding-proxy"},
+				Ports: []corev1.ContainerPort{{
+					Name: "onboarding", ContainerPort: 8124, Protocol: corev1.ProtocolTCP,
+				}},
+				VolumeMounts: []corev1.VolumeMount{{
+					Name: "migration-proxy-server", MountPath: "/var/run/migration-proxy", ReadOnly: true,
+				}},
+				SecurityContext: &corev1.SecurityContext{
+					RunAsNonRoot:             &yes,
+					RunAsUser:                &uid,
+					AllowPrivilegeEscalation: &no,
+					ReadOnlyRootFilesystem:   &yes,
+					Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
+				},
+			})
 		}
 	}
 

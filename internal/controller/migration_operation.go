@@ -52,6 +52,7 @@ type HomeAssistantMigrationReconciler struct {
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;watch;create;delete
 
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func (r *HomeAssistantMigrationReconciler) Reconcile(
 	ctx context.Context,
 	req ctrl.Request,

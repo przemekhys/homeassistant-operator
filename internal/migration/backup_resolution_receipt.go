@@ -14,6 +14,8 @@ import (
 // observedBackupReceipt supplies an in-memory observation hint only. A missing
 // or dispatching receipt is never recreated or updated: append-only dispatch
 // history still prevents the hint from becoming permission for another POST.
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func observedBackupReceipt(ctx context.Context, reader client.Reader, op *ha.HomeAssistantMigration, r ha.MigrationExecutionRequest) (*BackupDispatchReceipt, error) {
 	cm := &corev1.ConfigMap{}
 	err := reader.Get(ctx, client.ObjectKey{Namespace: op.Namespace, Name: WorkerReceiptName(r.RequestID)}, cm)

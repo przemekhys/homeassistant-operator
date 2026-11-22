@@ -364,8 +364,8 @@ func (o *migrationBackupQualification) verifyRestoreAccessAndData(ctx context.Co
 			return newHAClientForHA(target, nil)
 		}
 	}
-	client := haClient(target).WithTimeout(30 * time.Second)
-	if err := client.CheckHealthWithToken(ctx, token); err != nil {
+	targetClient := haClient(target).WithTimeout(30 * time.Second)
+	if err := targetClient.CheckHealthWithToken(ctx, token); err != nil {
 		return false, "", fmt.Errorf("restore target access unavailable with operator token")
 	}
 	// Read each approved projection and compare it with the frozen expectation.
@@ -373,7 +373,7 @@ func (o *migrationBackupQualification) verifyRestoreAccessAndData(ctx context.Co
 	// expectations, so resume consent cannot be satisfied by copying the set digest.
 	results := make([]migrationprotocol.VerificationResult, 0, len(op.Spec.Verification))
 	for _, item := range op.Spec.Verification {
-		data, err := client.ReadMigrationVerification(ctx, token, item.Kind, item.ID)
+		data, err := targetClient.ReadMigrationVerification(ctx, token, item.Kind, item.ID)
 		if err != nil {
 			return false, "", fmt.Errorf("restore verification data unavailable for %s/%s", item.Kind, item.ID)
 		}

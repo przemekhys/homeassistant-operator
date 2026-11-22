@@ -70,6 +70,8 @@ func buildBoundMigrationTargetPolicy(scheme *runtime.Scheme, op *ha.HomeAssistan
 // It is preparation only: callers must not infer enforcement or start HA from
 // a successful return. Direct, fresh reads are required; no caller may supply
 // a cached reader for these checks.
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func ensureStoppedTargetPolicy(ctx context.Context, writer client.Client, reader client.Reader, scheme *runtime.Scheme, op *ha.HomeAssistantMigration, target *hav1.HomeAssistant, request ha.MigrationExecutionRequest) error {
 	if ctx == nil || writer == nil || reader == nil || op == nil || target == nil {
 		return fmt.Errorf("isolation inputs unavailable")

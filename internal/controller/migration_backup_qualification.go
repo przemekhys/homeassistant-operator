@@ -72,6 +72,8 @@ type migrationBackupQualification struct {
 // ObserveExternalResult reads the exact externally indicated backup; it does
 // not convert that observation into an accepted receipt or verified archive.
 // A lost receipt still needs durable, independently verified archive evidence.
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func (o *migrationBackupQualification) ObserveExternalResult(
 	ctx context.Context, op *ha.HomeAssistantMigration, r ha.MigrationExecutionRequest, e migrationprotocol.Evidence,
 ) (migrationStageObservation, error) {

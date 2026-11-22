@@ -405,8 +405,8 @@ func verificationResultDigest(t *testing.T, qualification *migrationBackupQualif
 }
 
 // addVerificationApproval reloads the operation, replaces or appends a consent
-// bound to the restore request, and returns the refreshed operation.
-func addVerificationApproval(t *testing.T, fixture *onboardingStageFixture, id, digest string) *hav1alpha1.HomeAssistantMigration {
+// bound to the restore request.
+func addVerificationApproval(t *testing.T, fixture *onboardingStageFixture, id, digest string) {
 	t.Helper()
 	op := reloadVerificationOperation(t, fixture)
 	restore := verificationRequestForStage(t, op, "restore")
@@ -428,7 +428,6 @@ func addVerificationApproval(t *testing.T, fixture *onboardingStageFixture, id, 
 	if err := fixture.kube.Update(context.Background(), op); err != nil {
 		t.Fatal(err)
 	}
-	return reloadVerificationOperation(t, fixture)
 }
 
 // TestMigrationVerificationRequiresResumeAndManualCutoverApprovals proves that
@@ -502,8 +501,8 @@ func TestMigrationVerificationRequiresResumeAndManualCutoverApprovals(t *testing
 // durable operation, requests, receipts and consents instead of stale state.
 func TestMigrationVerificationRestartStatusLossReproducesPhase(t *testing.T) {
 	ctx := context.Background()
-	fake := newFakeVerificationHomeAssistant(t)
-	fixture, qualification := newVerificationFixture(t, fake)
+	haServer := newFakeVerificationHomeAssistant(t)
+	fixture, qualification := newVerificationFixture(t, haServer)
 	backup := verificationRequestForStage(t, fixture.op, "backup")
 	upload := verificationRequestForStage(t, fixture.op, "upload")
 	observer := verificationObserver(qualification, fixture.op, &backup, &upload)

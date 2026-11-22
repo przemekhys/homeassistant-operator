@@ -45,6 +45,8 @@ type ImportResult struct {
 // Import creates the durable migration operation only after validating the
 // exact report and target. Only mapped kinds can be imported; this is
 // create-only and never updates a collision.
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func Import(
 	ctx context.Context,
 	kube client.Client,

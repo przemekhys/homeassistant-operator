@@ -24,6 +24,8 @@ import (
 // protected against deletion before this primitive can be used in production.
 // The bundle contains both private keys and must never be mounted; immutable,
 // least-privilege server and worker projections are created separately.
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func createProxyCredentialBundle(ctx context.Context, writer client.Client, reader client.Reader, scheme *runtime.Scheme, op *ha.HomeAssistantMigration, request ha.MigrationExecutionRequest, now time.Time) (*ha.MigrationProxyCredentialBinding, error) {
 	if ctx == nil || writer == nil || reader == nil || scheme == nil || op == nil || op.UID == "" || op.Namespace == "" || op.ResourceVersion == "" || request.Stage != "upload" {
 		return nil, fmt.Errorf("proxy credential prerequisites unavailable")
@@ -91,6 +93,8 @@ func proxyWorkerCredentialName(bundle string) string { return bundle + "-worker"
 
 // bindProxyCredentialBundle records only a confirmed, UID-bound result. It
 // does not authorize the proxy, mount secrets, or prove isolation.
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func bindProxyCredentialBundle(ctx context.Context, writer client.Client, reader client.Reader, op *ha.HomeAssistantMigration, binding ha.MigrationProxyCredentialBinding, now time.Time) error {
 	if ctx == nil || writer == nil || reader == nil || op == nil || op.UID == "" || now.IsZero() {
 		return fmt.Errorf("proxy credential binding unavailable")

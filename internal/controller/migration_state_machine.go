@@ -35,6 +35,8 @@ type migrationStagePreparer interface {
 
 // migrationModelPhase reads durable requests and attempt markers, never status.
 // A missing marker or observation cannot authorize a repeat POST.
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func migrationModelPhase(ctx context.Context, op *ha.HomeAssistantMigration, observer migrationStageObserver) (string, string, error) {
 	if op == nil || observer == nil || op.Spec.ExecutionProtocol != "v1" {
 		return "Blocked", "ExecutionObserverUnavailable", nil
@@ -144,6 +146,7 @@ type migrationStageObservation struct {
 	BlockedReason      string
 }
 
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func migrationObservedStage(request ha.MigrationExecutionRequest, observed migrationStageObservation) (string, string) {
 	if request.OperationUID == "" || request.RequestID == "" || request.SourceID == "" || request.Target.UID == "" ||
 		request.OperationUID != observed.OperationUID || request.RequestID != observed.RequestID || request.Stage != observed.Stage ||

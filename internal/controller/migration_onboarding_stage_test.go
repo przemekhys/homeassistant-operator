@@ -171,7 +171,7 @@ func TestOnboardingWorkerRBACIsMinimal(t *testing.T) {
 					t.Fatalf("%s migration permission is not limited to its permit: %#v", request.Stage, rule)
 				}
 			}
-			if len(rule.ResourceNames) == 0 && !(len(rule.Verbs) == 1 && rule.Verbs[0] == "create" && rule.Resources[0] == "configmaps") {
+			if len(rule.ResourceNames) == 0 && (len(rule.Verbs) != 1 || rule.Verbs[0] != "create" || rule.Resources[0] != "configmaps") {
 				t.Fatalf("%s rule is not limited to named resources: %#v", request.Stage, rule)
 			}
 		}
@@ -415,7 +415,8 @@ func TestReconcilerPreparesIsolationThenStartsOnlyWhenTargetIsReady(t *testing.T
 	if err := x.kube.List(ctx, configMaps); err != nil {
 		t.Fatal(err)
 	}
-	objects := []client.Object{x.op.DeepCopy(), x.target, sts, pvc}
+	objects := make([]client.Object, 0, 4+len(secrets.Items)+len(configMaps.Items))
+	objects = append(objects, x.op.DeepCopy(), x.target, sts, pvc)
 	for i := range secrets.Items {
 		objects = append(objects, &secrets.Items[i])
 	}

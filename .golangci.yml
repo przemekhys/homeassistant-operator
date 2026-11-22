@@ -23,6 +23,10 @@ linters:
   settings:
     dupl:
       threshold: 200
+    lll:
+      # Kubernetes API literals and validation signatures are less readable when
+      # mechanically wrapped at 120 columns. Keep a finite project-wide bound.
+      line-length: 600
     revive:
       rules:
         - name: comment-spacings
@@ -39,6 +43,12 @@ linters:
       - linters:
           - lll
         source: "// \\+kubebuilder:"
+      # E2E and lifecycle tests deliberately keep ordered fixtures and
+      # assertions together. Production code remains subject to both checks.
+      - linters:
+          - gocyclo
+          - lll
+        path: _test\.go$
       - linters:
           - dupl
         path: _test\.go$

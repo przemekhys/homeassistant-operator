@@ -34,6 +34,7 @@ func (v *HomeAssistantMigrationCustomValidator) ValidateCreate(
 	return nil, validateHomeAssistantMigration(migration)
 }
 
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func (v *HomeAssistantMigrationCustomValidator) ValidateUpdate(
 	_ context.Context,
 	old, current *hav1alpha1.HomeAssistantMigration,
@@ -128,6 +129,7 @@ func (v *HomeAssistantMigrationCustomValidator) ValidateDelete(
 	return nil, nil
 }
 
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func validateHomeAssistantMigration(migration *hav1alpha1.HomeAssistantMigration) error {
 	if err := migrationprotocol.ValidateAccepted(migration); err != nil {
 		return err

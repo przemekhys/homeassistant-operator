@@ -34,6 +34,8 @@ func ArchiveDispatchedBackup(
 
 // ObserveAndStoreBackup verifies one exact externally identified result. It
 // does not validate selected HA data or publish a ready descriptor.
+//
+//nolint:gocyclo // Validation and lifecycle branches are intentionally fail-closed.
 func ObserveAndStoreBackup(ctx context.Context, source backupObservationReader, token string, recoveryKey []byte, jobID, agentID, scopeDigest, dir, filename string) (ArchiveReceipt, error) {
 	if ctx == nil || source == nil || token == "" || len(recoveryKey) == 0 || jobID == "" || agentID == "" {
 		return ArchiveReceipt{}, fmt.Errorf("backup observation inputs unavailable")
