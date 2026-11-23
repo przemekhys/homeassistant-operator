@@ -46,6 +46,16 @@ func TestReconcileServiceReconcilesOnboardingPortByName(t *testing.T) {
 	if len(current.Spec.Ports) != 2 || current.Spec.Ports[0].NodePort != 30123 || current.Spec.Ports[1].Name != "migration-onboarding" || current.Spec.Ports[1].Port != 8124 {
 		t.Fatalf("unexpected opt-in ports: %#v", current.Spec.Ports)
 	}
+	ha.Spec.Service.NodePort = 30124
+	if err := r.reconcileService(ctx, ha); err != nil {
+		t.Fatal(err)
+	}
+	if err := kube.Get(ctx, client.ObjectKeyFromObject(svc), current); err != nil {
+		t.Fatal(err)
+	}
+	if current.Spec.Ports[0].NodePort != 30124 {
+		t.Fatalf("explicit NodePort change ignored: %#v", current.Spec.Ports)
+	}
 
 	ha.Spec.Alpha.MigrationRestore.Enabled = false
 	if err := r.reconcileService(ctx, ha); err != nil {
@@ -54,7 +64,7 @@ func TestReconcileServiceReconcilesOnboardingPortByName(t *testing.T) {
 	if err := kube.Get(ctx, client.ObjectKeyFromObject(svc), current); err != nil {
 		t.Fatal(err)
 	}
-	if len(current.Spec.Ports) != 1 || current.Spec.Ports[0].Name != "http" || current.Spec.Ports[0].NodePort != 30123 {
+	if len(current.Spec.Ports) != 1 || current.Spec.Ports[0].Name != "http" || current.Spec.Ports[0].NodePort != 30124 {
 		t.Fatalf("unexpected opt-out ports: %#v", current.Spec.Ports)
 	}
 }

@@ -122,7 +122,7 @@ func (s *workerReceiptStore) SaveAccepted(ctx context.Context, receipt BackupDis
 	if err := retry.OnError(retry.DefaultBackoff, retryable, func() error {
 		cm := &corev1.ConfigMap{}
 		if err := s.kube.Get(ctx, client.ObjectKey{Namespace: s.operation.Namespace, Name: s.name()}, cm); err != nil {
-			return fmt.Errorf("receipt unavailable")
+			return err
 		}
 		owner := metav1.GetControllerOf(cm)
 		var previous BackupDispatchReceipt

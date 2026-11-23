@@ -1242,7 +1242,7 @@ func (r *HomeAssistantReconciler) reconcileService(ctx context.Context, ha *hav1
 			currentPorts[port.Name] = port
 		}
 		for i := range desired.Spec.Ports {
-			if current, ok := currentPorts[desired.Spec.Ports[i].Name]; ok && current.NodePort != 0 {
+			if current, ok := currentPorts[desired.Spec.Ports[i].Name]; ok && current.NodePort != 0 && desired.Spec.Ports[i].NodePort == 0 {
 				desired.Spec.Ports[i].NodePort = current.NodePort
 			}
 		}
