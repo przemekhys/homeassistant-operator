@@ -1236,10 +1236,18 @@ func (r *HomeAssistantReconciler) reconcileService(ctx context.Context, ha *hav1
 
 	// Update Service if needed
 	desired := r.buildService(ha)
-	if svc.Spec.Type != desired.Spec.Type ||
-		len(svc.Spec.Ports) == 0 ||
-		len(desired.Spec.Ports) == 0 ||
-		svc.Spec.Ports[0].Port != desired.Spec.Ports[0].Port {
+	if desired.Spec.Type == corev1.ServiceTypeNodePort || desired.Spec.Type == corev1.ServiceTypeLoadBalancer {
+		currentPorts := make(map[string]corev1.ServicePort, len(svc.Spec.Ports))
+		for _, port := range svc.Spec.Ports {
+			currentPorts[port.Name] = port
+		}
+		for i := range desired.Spec.Ports {
+			if current, ok := currentPorts[desired.Spec.Ports[i].Name]; ok && current.NodePort != 0 {
+				desired.Spec.Ports[i].NodePort = current.NodePort
+			}
+		}
+	}
+	if svc.Spec.Type != desired.Spec.Type || !servicePortsEqualByName(svc.Spec.Ports, desired.Spec.Ports) {
 		svc.Spec.Type = desired.Spec.Type
 		svc.Spec.Ports = desired.Spec.Ports
 		log.Info("Updating Service", "Service.Name", svc.Name)
@@ -1247,6 +1255,22 @@ func (r *HomeAssistantReconciler) reconcileService(ctx context.Context, ha *hav1
 	}
 
 	return nil
+}
+
+func servicePortsEqualByName(current, desired []corev1.ServicePort) bool {
+	if len(current) != len(desired) {
+		return false
+	}
+	currentByName := make(map[string]corev1.ServicePort, len(current))
+	for _, port := range current {
+		currentByName[port.Name] = port
+	}
+	for _, port := range desired {
+		if current, ok := currentByName[port.Name]; !ok || !reflect.DeepEqual(current, port) {
+			return false
+		}
+	}
+	return true
 }
 
 // buildService creates a Service spec for Home Assistant

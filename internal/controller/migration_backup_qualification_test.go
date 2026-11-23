@@ -168,6 +168,27 @@ func TestBackupQualificationContinuationSerializesWithoutDispatch(t *testing.T) 
 	if err := kube.List(ctx, jobs); err != nil || len(jobs.Items) != 5 {
 		t.Fatal("resolution did not create exactly one read-only job", err)
 	}
+	// An earlier resolution Job without a descriptor proof is historical data,
+	// not a reason to suppress the bounded fresh validation required for
+	// BackupReady.
+	if _, err := o.startResolutionObservation(ctx, op, *r, e, jobs.Items, observed); err != nil {
+		t.Fatal(err)
+	}
+	if err := kube.List(ctx, jobs); err != nil || len(jobs.Items) != 6 {
+		t.Fatal("missing fresh resolution validation", err)
+	}
+	for i := 0; i < 2; i++ {
+		if _, err := o.startResolutionObservation(ctx, op, *r, e, jobs.Items, observed); err != nil {
+			t.Fatal(err)
+		}
+		if err := kube.List(ctx, jobs); err != nil {
+			t.Fatal(err)
+		}
+	}
+	blocked, err := o.startResolutionObservation(ctx, op, *r, e, jobs.Items, observed)
+	if err != nil || blocked.BlockedReason != "BackupObservationRetryExhausted" {
+		t.Fatal("resolution validation retry limit not enforced", err)
+	}
 	for _, j := range jobs.Items {
 		if strings.HasPrefix(j.Name, "migration-resolve-") && !strings.Contains(strings.Join(j.Spec.Template.Spec.Containers[0].Args, " "), "--mode observe-backup") {
 			t.Fatal("manual observation can mutate HA")

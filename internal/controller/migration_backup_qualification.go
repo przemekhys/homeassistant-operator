@@ -120,6 +120,20 @@ func (o *migrationBackupQualification) ObserveExternalResult(
 			}
 		}
 	}
+	// Once the worker has persisted its immutable source observation, use that
+	// binding and the operator-provided ID only to re-run local validation. Do
+	// not require HA to retain the historical backup result just to recreate a
+	// lost descriptor or Pod proof.
+	source, sourceErr := migration.ReadBackupSourceEvidence(ctx, o.reader, op, r)
+	if sourceErr == nil {
+		if source.JobID != jobID || source.BackupID != jobID {
+			return unknown, fmt.Errorf("external result differs from source evidence")
+		}
+		return o.startResolutionObservation(ctx, op, r, e, jobs, base)
+	}
+	if !apierrors.IsNotFound(sourceErr) {
+		return unknown, fmt.Errorf("source evidence unavailable")
+	}
 	token, err := migration.ReadPinnedCredential(ctx, o.reader, op.Namespace, r.SourceToken)
 	if err != nil {
 		return unknown, err
@@ -159,11 +173,17 @@ func (o *migrationBackupQualification) startResolutionObservation(
 	if err != nil {
 		return observed, fmt.Errorf("resolution evidence invalid")
 	}
-	name := "migration-resolve-" + strings.TrimPrefix(digest, "sha256:")[:40]
+	prefix := "migration-resolve-" + strings.TrimPrefix(digest, "sha256:")[:40]
+	attempts := 0
 	for _, job := range jobs {
-		if job.Name == name {
-			return observed, nil
+		if strings.HasPrefix(job.Name, prefix) {
+			attempts++
 		}
+	}
+	if attempts >= 3 {
+		observed.Phase = "Blocked"
+		observed.BlockedReason = "BackupObservationRetryExhausted"
+		return observed, nil
 	}
 	if o.options.VerifyIsolation(ctx, op) != nil {
 		return observed, fmt.Errorf("backup observation isolation unavailable")
@@ -180,7 +200,7 @@ func (o *migrationBackupQualification) startResolutionObservation(
 	if err != nil {
 		return observed, err
 	}
-	job.Name = name
+	job.Name = fmt.Sprintf("%s-%d", prefix, attempts+1)
 	job.Spec.Template.Spec.Containers[0].Args = append(job.Spec.Template.Spec.Containers[0].Args, "--mode", "observe-backup")
 	if err := o.kube.Create(ctx, job); err != nil && !apierrors.IsAlreadyExists(err) {
 		return observed, fmt.Errorf("resolution job creation unavailable")
@@ -417,7 +437,8 @@ func (o *migrationBackupQualification) boundWorkerJob(
 				validName = true
 			}
 		}
-		if strings.HasPrefix(j.Name, "migration-resolve-") && len(j.Name) == len("migration-resolve-")+40 {
+		if strings.HasPrefix(j.Name, "migration-resolve-") &&
+			(len(j.Name) == len("migration-resolve-")+40 || len(j.Name) == len("migration-resolve-")+42) {
 			validName = true
 		}
 		if !validName {

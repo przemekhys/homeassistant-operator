@@ -134,6 +134,23 @@ func readSourceEvidence(
 	return &e, nil
 }
 
+// ReadBackupSourceEvidence returns only immutable evidence bound to this
+// operation. Callers must still validate it against their specific receipt and
+// storage bindings before treating it as archive provenance.
+func ReadBackupSourceEvidence(
+	ctx context.Context, reader client.Reader, op *ha.HomeAssistantMigration, r ha.MigrationExecutionRequest,
+) (*BackupSourceEvidence, error) {
+	e, err := readSourceEvidence(ctx, reader, op, r)
+	if err != nil {
+		return nil, err
+	}
+	if e.Version != "v1" || e.OperationUID != string(op.UID) || e.RequestID != r.RequestID ||
+		e.SourceID != r.SourceID || e.TargetUID != r.Target.UID {
+		return nil, fmt.Errorf("ArchiveProvenanceUnavailable")
+	}
+	return e, nil
+}
+
 func ownedImmutableEvidence(cm *corev1.ConfigMap, op *ha.HomeAssistantMigration) bool {
 	owner := metav1.GetControllerOf(cm)
 	return owner != nil && owner.UID == op.UID && owner.Name == op.Name && owner.Kind == "HomeAssistantMigration" &&
