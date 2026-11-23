@@ -91,7 +91,7 @@ func (s *ConfigMapBackupDispatchStore) SaveAccepted(ctx context.Context, receipt
 	owner := metav1.GetControllerOf(cm)
 	var claimed BackupDispatchReceipt
 	if owner == nil || owner.UID != s.Operation.UID || json.Unmarshal([]byte(cm.Data[backupDispatchReceiptKey]), &claimed) != nil ||
-		claimed.OperationUID != receipt.OperationUID || claimed.TargetUID != receipt.TargetUID ||
+		claimed.RequestID != receipt.RequestID || claimed.OperationUID != receipt.OperationUID || claimed.TargetUID != receipt.TargetUID ||
 		claimed.ReportID != receipt.ReportID || claimed.ScopeDigest != receipt.ScopeDigest ||
 		claimed.Phase != "Dispatching" || claimed.JobID != "" {
 		return fmt.Errorf("dispatch claim does not match")

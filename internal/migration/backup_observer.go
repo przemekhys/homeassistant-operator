@@ -26,7 +26,7 @@ func ArchiveDispatchedBackup(
 	namespace, name, requestID, dir string, poll time.Duration,
 ) error {
 	err := observeDispatchedBackup(ctx, kube, source, namespace, name, requestID, dir, poll)
-	if err != nil {
+	if err != nil && ctx != nil && kube != nil {
 		recordBackupObservationError(ctx, kube, namespace, name, requestID, err)
 	}
 	return err

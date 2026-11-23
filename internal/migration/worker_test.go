@@ -106,7 +106,7 @@ func TestWorkerRejectsUnacceptedOrUnattemptedRequest(t *testing.T) {
 	}
 	op := &ha.HomeAssistantMigration{ObjectMeta: metav1.ObjectMeta{Name: "operation", Namespace: "default", UID: "uid"}, Spec: ha.HomeAssistantMigrationSpec{ExecutionProtocol: "v1"}}
 	kube := fake.NewClientBuilder().WithScheme(s).WithObjects(op).Build()
-	if _, err := ReadWorkerRequest(context.Background(), kube, "default", "operation", "backup", "sha256:unaccepted"); err == nil {
+	if _, err := ReadWorkerRequest(context.Background(), kube, "default", "operation", "backup", "sha256:"+strings.Repeat("a", 64)); err == nil {
 		t.Fatal("accepted unbound request")
 	}
 }

@@ -39,7 +39,7 @@ func PublishArchiveDescriptor(ctx context.Context, kube client.Client, scheme *r
 	}
 	currentOp := &ha.HomeAssistantMigration{}
 	currentPVC := &corev1.PersistentVolumeClaim{}
-	if err := kube.Get(ctx, client.ObjectKeyFromObject(op), currentOp); err != nil || currentOp.UID != op.UID || !currentOp.DeletionTimestamp.IsZero() || currentOp.Spec.CancelRequested {
+	if err := kube.Get(ctx, client.ObjectKeyFromObject(op), currentOp); err != nil || currentOp.UID != op.UID || !currentOp.DeletionTimestamp.IsZero() || currentOp.Spec.CancelRequested || migrationprotocol.AbortRequested(currentOp) {
 		return nil, fmt.Errorf("archive operation unavailable")
 	}
 	if err := kube.Get(ctx, client.ObjectKeyFromObject(pvc), currentPVC); err != nil || currentPVC.UID != pvc.UID {
