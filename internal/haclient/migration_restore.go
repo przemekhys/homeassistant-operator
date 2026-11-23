@@ -112,6 +112,9 @@ func (c *Client) UploadMigrationBackup(
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		if resp.StatusCode == http.StatusBadGateway {
+			return &Error{Type: ErrorTypeOutcomeUnknown, Message: "migration upload outcome unknown", StatusCode: resp.StatusCode}
+		}
 		return &Error{
 			Type:       ErrorTypeHTTP,
 			Message:    fmt.Sprintf("migration upload rejected: HTTP %d", resp.StatusCode),
@@ -222,6 +225,9 @@ func (c *Client) RestoreMigrationOnboardingBackup(
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		if resp.StatusCode == http.StatusBadGateway {
+			return &Error{Type: ErrorTypeOutcomeUnknown, Message: "migration restore outcome unknown", StatusCode: resp.StatusCode}
+		}
 		return &Error{
 			Type:       ErrorTypeHTTP,
 			Message:    fmt.Sprintf("migration restore rejected: HTTP %d", resp.StatusCode),

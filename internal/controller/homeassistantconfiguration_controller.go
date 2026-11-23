@@ -175,7 +175,7 @@ func (r *HomeAssistantConfigurationReconciler) Reconcile(ctx context.Context, re
 			return ctrl.Result{}, err
 		}
 		if !passed {
-			return ctrl.Result{}, nil
+			return ctrl.Result{RequeueAfter: time.Minute}, nil
 		}
 	}
 

@@ -95,7 +95,8 @@ func startMigrationWorker(ctx context.Context, kube client.Client, scheme *runti
 		return err
 	}
 	pvc := &corev1.PersistentVolumeClaim{}
-	if err := kube.Get(ctx, client.ObjectKey{Namespace: op.Namespace, Name: pvcName}, pvc); err != nil || pvc.UID == "" {
+	if err := kube.Get(ctx, client.ObjectKey{Namespace: op.Namespace, Name: pvcName}, pvc); err != nil || pvc.UID == "" ||
+		!pvc.DeletionTimestamp.IsZero() || pvc.Status.Phase == corev1.ClaimLost {
 		return fmt.Errorf("archive PVC is unavailable")
 	}
 	owner := metav1.GetControllerOf(pvc)

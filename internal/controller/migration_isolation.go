@@ -210,6 +210,9 @@ func MigrationPolicySetExclusive(want *networkingv1.NetworkPolicy, policies []ne
 		if !selector.Matches(labels.Set(podLabels)) {
 			continue
 		}
+		if len(policy.Spec.Ingress) == 0 {
+			continue
+		}
 		ingress := len(policy.Spec.PolicyTypes) == 0
 		for _, typ := range policy.Spec.PolicyTypes {
 			if typ == networkingv1.PolicyTypeIngress {

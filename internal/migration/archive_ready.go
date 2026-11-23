@@ -87,7 +87,7 @@ func validatedDescriptorMatches(d ArchiveDescriptor, e BackupSourceEvidence, r h
 	if err != nil || d.Version != "v1" || d.OperationUID != e.OperationUID || d.RequestID != r.RequestID ||
 		d.SourceID != r.SourceID || d.PVCUID != e.PVCUID || d.JobID != e.JobID || d.BackupID != e.BackupID ||
 		d.AgentID != e.AgentID || d.ScopeDigest != r.ScopeDigest || d.Size != e.Size || d.Filename != "backup.tar" ||
-		!d.Protected || !migrationprotocol.ValidDigest(d.Digest) || d.Validation == nil {
+		d.DatabaseIncluded != e.IncludeDatabase || !d.Protected || !migrationprotocol.ValidDigest(d.Digest) || d.Validation == nil {
 		return false
 	}
 	want := ArchiveValidation{

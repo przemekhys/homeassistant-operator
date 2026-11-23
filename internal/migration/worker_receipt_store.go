@@ -95,7 +95,7 @@ func (s *workerReceiptStore) Claim(ctx context.Context, receipt BackupDispatchRe
 		return false, fmt.Errorf("cannot encode receipt")
 	}
 	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: s.name(), Namespace: s.operation.Namespace}, Data: map[string]string{backupDispatchReceiptKey: string(data)}}
-	if err := controllerutil.SetControllerReference(s.operation, cm, s.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(s.operation, cm, s.scheme, controllerutil.WithBlockOwnerDeletion(false)); err != nil {
 		return false, fmt.Errorf("cannot set receipt owner")
 	}
 	if err := s.kube.Create(ctx, cm); err != nil {
@@ -111,21 +111,33 @@ func (s *workerReceiptStore) SaveAccepted(ctx context.Context, receipt BackupDis
 	if receipt.RequestID != s.request.RequestID || receipt.OperationUID != string(s.operation.UID) || receipt.TargetUID != s.request.Target.UID || receipt.ReportID != s.request.ReportID || receipt.ScopeDigest != s.request.ScopeDigest || receipt.Phase != "Accepted" || !nativeBackupIDPattern.MatchString(receipt.JobID) {
 		return fmt.Errorf("accepted receipt binding invalid")
 	}
-	cm := &corev1.ConfigMap{}
-	if err := s.kube.Get(ctx, client.ObjectKey{Namespace: s.operation.Namespace, Name: s.name()}, cm); err != nil {
-		return fmt.Errorf("receipt unavailable")
-	}
-	owner := metav1.GetControllerOf(cm)
-	var previous BackupDispatchReceipt
-	if owner == nil || owner.UID != s.operation.UID || json.Unmarshal([]byte(cm.Data[backupDispatchReceiptKey]), &previous) != nil || previous.RequestID != receipt.RequestID || previous.OperationUID != receipt.OperationUID || previous.TargetUID != receipt.TargetUID || previous.ReportID != receipt.ReportID || previous.ScopeDigest != receipt.ScopeDigest || previous.Phase != "Dispatching" || previous.JobID != "" {
-		return fmt.Errorf("receipt binding invalid")
-	}
 	data, err := json.Marshal(receipt)
 	if err != nil {
 		return fmt.Errorf("cannot encode receipt")
 	}
-	cm.Data[backupDispatchReceiptKey] = string(data)
-	if err := s.kube.Update(ctx, cm); err != nil {
+	retryable := func(err error) bool {
+		return apierrors.IsConflict(err) || apierrors.IsServerTimeout(err) || apierrors.IsTimeout(err) ||
+			apierrors.IsTooManyRequests(err) || apierrors.IsServiceUnavailable(err)
+	}
+	if err := retry.OnError(retry.DefaultBackoff, retryable, func() error {
+		cm := &corev1.ConfigMap{}
+		if err := s.kube.Get(ctx, client.ObjectKey{Namespace: s.operation.Namespace, Name: s.name()}, cm); err != nil {
+			return fmt.Errorf("receipt unavailable")
+		}
+		owner := metav1.GetControllerOf(cm)
+		var previous BackupDispatchReceipt
+		if owner == nil || owner.UID != s.operation.UID || json.Unmarshal([]byte(cm.Data[backupDispatchReceiptKey]), &previous) != nil || previous.RequestID != receipt.RequestID || previous.OperationUID != receipt.OperationUID || previous.TargetUID != receipt.TargetUID || previous.ReportID != receipt.ReportID || previous.ScopeDigest != receipt.ScopeDigest {
+			return fmt.Errorf("receipt binding invalid")
+		}
+		if previous.Phase == "Accepted" && previous.JobID == receipt.JobID {
+			return nil
+		}
+		if previous.Phase != "Dispatching" || previous.JobID != "" {
+			return fmt.Errorf("receipt binding invalid")
+		}
+		cm.Data[backupDispatchReceiptKey] = string(data)
+		return s.kube.Update(ctx, cm)
+	}); err != nil {
 		return fmt.Errorf("cannot persist accepted receipt")
 	}
 	return nil

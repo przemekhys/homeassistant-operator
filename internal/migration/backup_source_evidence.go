@@ -93,6 +93,9 @@ func finalBackupEvidence(
 		len(details.AgentErrors) != 0 || !backupResultScopeMatches(details.Backup, preflight) {
 		return e, fmt.Errorf("BackupResultMismatch")
 	}
+	if digest, err := BackupScopeDigest(preflight); err != nil || digest != r.ScopeDigest {
+		return e, fmt.Errorf("BackupResultMismatch")
+	}
 	for _, id := range preflight.AgentIDs {
 		a, ok := details.Backup.Agents[id]
 		if !ok || !a.Protected || a.Size <= 0 {
