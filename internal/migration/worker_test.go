@@ -419,6 +419,13 @@ func TestBackupWorkerClaimsOnceAndPinsSecrets(t *testing.T) {
 	if err := RunBackupWorker(ctx, lost, s, "default", "operation", r.RequestID, source); err == nil || source.calls != 1 {
 		t.Fatal("uncertain marker authorized POST")
 	}
+	if !lost.lost {
+		t.Fatal("lost-response fixture did not commit the dispatch marker")
+	}
+	claimed := &ha.HomeAssistantMigration{}
+	if err := kube2.Get(ctx, client.ObjectKeyFromObject(other), claimed); err != nil || len(claimed.Spec.ExecutionDispatches) != 1 || claimed.Spec.ExecutionDispatches[0] != (ha.MigrationExecutionAttempt{Stage: "backup", RequestID: r.RequestID}) {
+		t.Fatal("lost response did not persist the expected dispatch marker", err)
+	}
 	if err := RunBackupWorker(ctx, kube2, s, "default", "operation", r.RequestID, source); err == nil || source.calls != 1 {
 		t.Fatal("lost marker response reopened POST")
 	}

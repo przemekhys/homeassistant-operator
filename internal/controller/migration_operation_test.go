@@ -618,6 +618,7 @@ func TestMigrationReconcileBlocksUnprotectedOnboardingAndKeepsUnknownReceipt(t *
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "migration",
 			Namespace:  "default",
+			UID:        "operation",
 			Finalizers: []string{migrationOperationFinalizer},
 			Generation: 1,
 		},
@@ -678,7 +679,7 @@ func TestMigrationReconcileBlocksUnprotectedOnboardingAndKeepsUnknownReceipt(t *
 	if err := kube.Get(context.Background(), client.ObjectKey{Namespace: "default", Name: "target-data"}, pvc); err != nil {
 		t.Fatal(err)
 	}
-	if len(pvc.OwnerReferences) != 1 || pvc.OwnerReferences[0].UID != migration.UID {
+	if len(pvc.OwnerReferences) != 1 || pvc.OwnerReferences[0].UID != migration.UID || pvc.OwnerReferences[0].Kind != "HomeAssistantMigration" {
 		t.Fatal("restore PVC is not owned by migration")
 	}
 	// A receipt persisted by a previous executor is still ambiguous after a

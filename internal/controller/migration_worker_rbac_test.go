@@ -41,8 +41,11 @@ func TestBackupWorkerRBACBindsAcceptedRequest(t *testing.T) {
 			if resource == "secrets" && (!reflect.DeepEqual(rule.Verbs, []string{"get"}) || len(rule.ResourceNames) == 0) {
 				t.Fatal("unscoped secret access")
 			}
-			if resource == "secrets" && (!containsName(rule.ResourceNames, r.SourceToken.Name) || !containsName(rule.ResourceNames, r.RecoveryKey.Name)) {
-				t.Fatal("missing pinned secrets")
+			if resource == "secrets" && !reflect.DeepEqual(map[string]struct{}{
+				r.SourceToken.Name: {},
+				r.RecoveryKey.Name: {},
+			}, stringSet(rule.ResourceNames)) {
+				t.Fatal("secret access is not exactly pinned")
 			}
 			if resource == "configmaps" && containsName(rule.Verbs, "update") && !reflect.DeepEqual(rule.ResourceNames, []string{migration.WorkerReceiptName(r.RequestID)}) {
 				t.Fatal("worker can update other configmaps")
@@ -68,4 +71,12 @@ func containsName(names []string, name string) bool {
 		}
 	}
 	return false
+}
+
+func stringSet(values []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		set[value] = struct{}{}
+	}
+	return set
 }

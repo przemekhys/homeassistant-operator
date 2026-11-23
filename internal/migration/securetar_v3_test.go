@@ -19,6 +19,10 @@ func secureTarFixture(t *testing.T, password []byte) []byte {
 }
 
 func encryptSecureTarFixture(t *testing.T, password, plaintext []byte) []byte {
+	return encryptSecureTarFixtureWithFinalTag(t, password, plaintext, secretstream.TagFinal)
+}
+
+func encryptSecureTarFixtureWithFinalTag(t *testing.T, password, plaintext []byte, finalTag byte) []byte {
 	t.Helper()
 	header := make([]byte, 136)
 	copy(header, "SecureTar\x03")
@@ -46,7 +50,7 @@ func encryptSecureTarFixture(t *testing.T, password, plaintext []byte) []byte {
 		n := min(len(plaintext), 1<<20)
 		tag := byte(secretstream.TagMessage)
 		if n == len(plaintext) {
-			tag = secretstream.TagFinal
+			tag = finalTag
 		}
 		chunk, err := stream.Push(plaintext[:n], tag)
 		if err != nil {
@@ -76,19 +80,23 @@ func TestSecureTarV3Authentication(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
-		name string
-		data []byte
-		key  []byte
+		name            string
+		data            []byte
+		key             []byte
+		missingFinalTag bool
 	}{
-		{"wrong key", fixture, []byte("wrong")},
-		{"truncated", fixture[:len(fixture)/2], password},
-		{"header", append([]byte(nil), fixture...), password},
-		{"first chunk", append([]byte(nil), fixture...), password},
-		{"last chunk", append([]byte(nil), fixture...), password},
-		{"reserved header", append([]byte(nil), fixture...), password},
-		{"missing final tag", append([]byte(nil), fixture...), password},
+		{name: "wrong key", data: fixture, key: []byte("wrong")},
+		{name: "truncated", data: fixture[:len(fixture)/2], key: password},
+		{name: "header", data: append([]byte(nil), fixture...), key: password},
+		{name: "first chunk", data: append([]byte(nil), fixture...), key: password},
+		{name: "last chunk", data: append([]byte(nil), fixture...), key: password},
+		{name: "reserved header", data: append([]byte(nil), fixture...), key: password},
+		{name: "missing final tag", key: password, missingFinalTag: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.missingFinalTag {
+				tc.data = encryptSecureTarFixtureWithFinalTag(t, password, make([]byte, (1<<20)+10), secretstream.TagMessage)
+			}
 			switch tc.name {
 			case "header":
 				tc.data[512] ^= 1
@@ -98,10 +106,6 @@ func TestSecureTarV3Authentication(t *testing.T) {
 				tc.data[512+136+(1<<20)+17+5] ^= 1
 			case "reserved header":
 				tc.data[512+24] ^= 1
-			case "missing final tag":
-				for i := 512 + 136 + (1 << 20) + 17 + 10; i < 512+136+(1<<20)+17+27; i++ {
-					tc.data[i] = 0
-				}
 			}
 			err := authenticateSecureTarV3(bytes.NewReader(tc.data), tc.key)
 			if err == nil || strings.Contains(err.Error(), string(password)) {
