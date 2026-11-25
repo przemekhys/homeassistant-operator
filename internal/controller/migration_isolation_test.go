@@ -182,6 +182,7 @@ func TestTargetPolicyBindsAcceptedUploadAndOwner(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("MIGRATION_WORKER_IMAGE", "operator:test")
+	t.Setenv(migrationWorkerImagePullSecretsEnv, `[{"name":"private-registry"}]`)
 	workload := &HomeAssistantReconciler{Client: kube, APIReader: kube, Scheme: kube.Scheme()}
 	secured, err := workload.buildStatefulSet(ctx, target)
 	if err != nil {
@@ -195,6 +196,9 @@ func TestTargetPolicyBindsAcceptedUploadAndOwner(t *testing.T) {
 	}
 	if !proxyFound {
 		t.Fatal("target did not receive server-only onboarding proxy")
+	}
+	if len(secured.Spec.Template.Spec.ImagePullSecrets) != 1 || secured.Spec.Template.Spec.ImagePullSecrets[0].Name != "private-registry" {
+		t.Fatal("target proxy image pull secret missing")
 	}
 	if err := ensureStoppedTargetPolicy(ctx, kube, nil, kube.Scheme(), op, target, *r); err == nil {
 		t.Fatal("missing direct reader accepted")

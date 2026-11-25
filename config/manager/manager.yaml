@@ -124,6 +124,8 @@ spec:
         # kustomize distribution with a custom image override.
         - name: MIGRATION_WORKER_IMAGE
           value: controller:latest
+        - name: MIGRATION_WORKER_IMAGE_PULL_SECRETS
+          value: "[]"
         resources:
           limits:
             cpu: 500m

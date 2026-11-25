@@ -29,7 +29,7 @@ func TestMigrationIsolationValidatorProtectsCredentialMounts(t *testing.T) {
 		{"foreign pod projected", "alice", "", "Pod", `{"spec":{"volumes":[{"projected":{"sources":[{"secret":{"name":"migration-proxy-x"}}]}}],"containers":[{}]}}`, false},
 		{"foreign pod environment", "alice", "", "Pod", `{"spec":{"containers":[{"env":[{"valueFrom":{"secretKeyRef":{"name":"migration-proxy-x"}}}]}]}}`, false},
 		{"foreign job", "alice", "batch", "Job", `{"spec":{"template":{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-x"}}],"containers":[{}]}}}}`, false},
-		{"operator job", v.OperatorUsername, "batch", "Job", `{"spec":{"template":{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-x"}}],"containers":[{}]}}}}`, true},
+		{"operator job with registry pull secret", v.OperatorUsername, "batch", "Job", `{"spec":{"template":{"spec":{"imagePullSecrets":[{"name":"private-registry"}],"volumes":[{"secret":{"secretName":"migration-proxy-x"}}],"containers":[{}]}}}}`, true},
 		{"job controller pod", "system:serviceaccount:kube-system:job-controller", "", "Pod", `{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-x"}}],"containers":[{}]}}`, true},
 		{"shared controller manager pod", "system:kube-controller-manager", "", "Pod", `{"spec":{"volumes":[{"secret":{"secretName":"migration-proxy-x"}}],"containers":[{}]}}`, false},
 	} {

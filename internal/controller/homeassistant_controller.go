@@ -838,6 +838,7 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 			},
 		},
 	}
+	var migrationProxyImagePullSecrets []corev1.LocalObjectReference
 
 	if !restorePreparation && ha.Spec.AdditionalVolumes != nil && ha.Spec.AdditionalVolumes.Volumes != nil {
 		volumes = append(volumes, ha.Spec.AdditionalVolumes.Volumes...)
@@ -1067,6 +1068,10 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 			if proxyImage == "" {
 				return nil, fmt.Errorf("migration proxy image unavailable")
 			}
+			imagePullSecrets, err := migrationWorkerImagePullSecrets()
+			if err != nil {
+				return nil, err
+			}
 			no, yes := false, true
 			uid := int64(65532)
 			volumes = append(volumes, corev1.Volume{
@@ -1095,6 +1100,7 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 					Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
 				},
 			})
+			migrationProxyImagePullSecrets = imagePullSecrets
 		}
 	}
 
@@ -1131,6 +1137,7 @@ func (r *HomeAssistantReconciler) buildStatefulSet(
 					InitContainers:               initContainers,
 					Containers:                   containers,
 					Volumes:                      volumes,
+					ImagePullSecrets:             migrationProxyImagePullSecrets,
 				},
 			},
 		},

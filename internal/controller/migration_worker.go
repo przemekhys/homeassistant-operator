@@ -135,6 +135,10 @@ func buildMigrationWorkerJob(scheme *runtime.Scheme, op *ha.HomeAssistantMigrati
 			return nil, fmt.Errorf("worker proxy credentials are not bound")
 		}
 	}
+	imagePullSecrets, err := migrationWorkerImagePullSecrets()
+	if err != nil {
+		return nil, err
+	}
 	name := migrationWorkerJobName(request.RequestID)
 	zero, deadline := int32(0), int64(3300)
 	no, yes := false, true
@@ -152,7 +156,8 @@ func buildMigrationWorkerJob(scheme *runtime.Scheme, op *ha.HomeAssistantMigrati
 		BackoffLimit: &zero, ActiveDeadlineSeconds: &deadline, PodReplacementPolicy: &replaceFailed,
 		Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: labels}, Spec: corev1.PodSpec{
 			ServiceAccountName: serviceAccount, RestartPolicy: corev1.RestartPolicyNever,
-			SecurityContext: &corev1.PodSecurityContext{RunAsNonRoot: &yes, RunAsUser: &uid, RunAsGroup: &gid, FSGroup: &gid, SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault}},
+			ImagePullSecrets: imagePullSecrets,
+			SecurityContext:  &corev1.PodSecurityContext{RunAsNonRoot: &yes, RunAsUser: &uid, RunAsGroup: &gid, FSGroup: &gid, SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault}},
 			Containers: []corev1.Container{{Name: "worker", Image: image, Command: []string{"/migrate-worker"}, Args: []string{"--namespace", op.Namespace, "--migration", op.Name, "--stage", request.Stage, "--request-id", request.RequestID},
 				SecurityContext: &corev1.SecurityContext{AllowPrivilegeEscalation: &no, ReadOnlyRootFilesystem: &yes, Capabilities: &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}}},
 				Resources:       corev1.ResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("50m"), corev1.ResourceMemory: resource.MustParse("64Mi")}, Limits: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("256Mi")}},

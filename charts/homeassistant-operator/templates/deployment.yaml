@@ -58,6 +58,10 @@ spec:
             # image, which contains both manager and migrate-worker binaries.
             - name: MIGRATION_WORKER_IMAGE
               value: {{ include "homeassistant-operator.image" . | quote }}
+            # Worker Jobs and target-side onboarding proxies must pull the same
+            # image in every migration namespace.
+            - name: MIGRATION_WORKER_IMAGE_PULL_SECRETS
+              value: {{ .Values.imagePullSecrets | toJson | quote }}
             {{- if .Values.webhook.enabled }}
             - name: MIGRATION_ISOLATION_ADMISSION_ENABLED
               value: "true"

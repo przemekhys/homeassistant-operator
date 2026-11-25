@@ -31,6 +31,7 @@ func TestMigrationWorkerJobIsBoundAndDoesNotRetry(t *testing.T) {
 	if err := kube.Get(context.Background(), client.ObjectKeyFromObject(op), op); err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv(migrationWorkerImagePullSecretsEnv, `[{"name":"private-registry"}]`)
 	job, err := buildMigrationWorkerJob(scheme, op, *r, "operator:test", "worker-sa", "archive")
 	if err != nil {
 		t.Fatal(err)
@@ -43,6 +44,9 @@ func TestMigrationWorkerJobIsBoundAndDoesNotRetry(t *testing.T) {
 	}
 	if job.Spec.Template.Spec.ServiceAccountName != "worker-sa" || len(job.Spec.Template.Spec.Containers) != 1 {
 		t.Fatal("worker identity missing")
+	}
+	if len(job.Spec.Template.Spec.ImagePullSecrets) != 1 || job.Spec.Template.Spec.ImagePullSecrets[0].Name != "private-registry" {
+		t.Fatal("worker image pull secret missing")
 	}
 	container := job.Spec.Template.Spec.Containers[0]
 	if len(container.Resources.Requests) == 0 || len(container.Resources.Limits) == 0 || container.SecurityContext == nil || container.SecurityContext.ReadOnlyRootFilesystem == nil || !*container.SecurityContext.ReadOnlyRootFilesystem {
