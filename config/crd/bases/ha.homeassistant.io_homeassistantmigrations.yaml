@@ -209,7 +209,7 @@ spec:
                         name:
                           maxLength: 253
                           minLength: 1
-                          pattern: ^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?(\.[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?)*$
+                          pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                           type: string
                         uid:
                           maxLength: 128
@@ -408,7 +408,7 @@ spec:
                       name:
                         maxLength: 253
                         minLength: 1
-                        pattern: ^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?(\.[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?)*$
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                         type: string
                       uid:
                         maxLength: 128
@@ -429,7 +429,7 @@ spec:
                       name:
                         maxLength: 253
                         minLength: 1
-                        pattern: ^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?(\.[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?)*$
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                         type: string
                       uid:
                         maxLength: 128
@@ -512,7 +512,7 @@ spec:
                         name:
                           maxLength: 253
                           minLength: 1
-                          pattern: ^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?(\.[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?)*$
+                          pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                           type: string
                         uid:
                           maxLength: 128
@@ -526,6 +526,7 @@ spec:
                       - uid
                       type: object
                     requestID:
+                      maxLength: 71
                       pattern: ^sha256:[a-f0-9]{64}$
                       type: string
                     stage:
@@ -731,6 +732,12 @@ spec:
         x-kubernetes-validations:
         - message: spec.sourceID is immutable
           rule: '!has(oldSelf.spec) || self.spec.sourceID == oldSelf.spec.sourceID'
+        - message: new migration cannot contain execution records
+          optionalOldSelf: true
+          rule: oldSelf.hasValue() || ((!has(self.spec.executionRequests) || size(self.spec.executionRequests)
+            == 0) && (!has(self.spec.executionAttempts) || size(self.spec.executionAttempts)
+            == 0) && (!has(self.spec.executionDispatches) || size(self.spec.executionDispatches)
+            == 0) && !has(self.spec.proxyCredentialBinding))
         - message: spec.target is immutable
           rule: '!has(oldSelf.spec) || self.spec.target == oldSelf.spec.target'
         - message: spec.reportID is immutable
@@ -795,6 +802,11 @@ spec:
           rule: '!has(self.spec.executionDispatches) || self.spec.executionDispatches.all(d,
             (has(oldSelf.spec.executionDispatches) && oldSelf.spec.executionDispatches.exists(o,
             o == d)) || !has(self.spec.cancelRequested) || !self.spec.cancelRequested)'
+        - message: new dispatches cannot be claimed after abort
+          rule: '!has(self.spec.executionDispatches) || self.spec.executionDispatches.all(d,
+            (has(oldSelf.spec.executionDispatches) && oldSelf.spec.executionDispatches.exists(o,
+            o == d)) || !has(self.spec.resolutions) || !self.spec.resolutions.exists(r,
+            r.decision == ''Abort''))'
         - message: new requests require current bound approval and must not be cancelled
           rule: '!has(self.spec.executionRequests) || self.spec.executionRequests.all(r,
             (has(oldSelf.spec.executionRequests) && oldSelf.spec.executionRequests.exists(o,
@@ -821,7 +833,8 @@ spec:
             r.stage != ''restore'' || self.spec.executionRequests.exists(u, u.stage
             == ''upload'' && u.requestID == r.uploadRequestID && u.archiveRef == r.archiveRef
             && u.archiveDigest == r.archiveDigest && u.archivePVCUID == r.archivePVCUID
-            && u.scopeDigest == r.scopeDigest))'
+            && u.scopeDigest == r.scopeDigest && has(u.sourceWorkload) == has(r.sourceWorkload)
+            && (!has(u.sourceWorkload) || u.sourceWorkload == r.sourceWorkload)))'
         - message: new request must bind current scope and archive inputs
           rule: '!has(self.spec.executionRequests) || self.spec.executionRequests.all(r,
             (has(oldSelf.spec.executionRequests) && oldSelf.spec.executionRequests.exists(o,
@@ -859,6 +872,11 @@ spec:
             != ''v1'' || !has(self.spec.resolutions) || self.spec.resolutions.all(x,
             has(self.spec.executionRequests) && self.spec.executionRequests.exists(r,
             r.stage == x.stage && r.requestID == x.requestID))'
+        - message: observation resolution must be unique per request
+          rule: '!has(self.spec.resolutions) || self.spec.resolutions.all(x, x.decision
+            != ''ObserveExternalResult'' || self.spec.resolutions.filter(y, y.decision
+            == ''ObserveExternalResult'' && y.stage == x.stage && y.requestID == x.requestID).size()
+            == 1)'
     served: true
     storage: true
     subresources:

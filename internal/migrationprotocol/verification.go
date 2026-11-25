@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	ha "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
 )
@@ -157,7 +158,7 @@ func VerificationDigest(items []ha.MigrationVerificationItem) (string, error) {
 		return items[i].Kind < items[j].Kind
 	})
 	for i, item := range items {
-		if !VerificationKind(item.Kind) || strings.TrimSpace(item.ID) == "" || len(item.ID) > 256 || !ValidDigest(item.ExpectedDigest) || (i > 0 && items[i-1].Kind == item.Kind && items[i-1].ID == item.ID) {
+		if !VerificationKind(item.Kind) || strings.TrimSpace(item.ID) == "" || utf8.RuneCountInString(item.ID) > 256 || !ValidDigest(item.ExpectedDigest) || (i > 0 && items[i-1].Kind == item.Kind && items[i-1].ID == item.ID) {
 			return "", fmt.Errorf("invalid verification set")
 		}
 	}

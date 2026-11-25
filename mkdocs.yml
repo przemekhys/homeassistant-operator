@@ -146,6 +146,7 @@ nav:
     - Branching & releases: development/branching.md
     - Architecture: development/architecture.md
     - Testing: development/testing.md
+    - Controller logging: development/logging.md
     - Writing documentation: development/documentation-style.md
 
 extra:

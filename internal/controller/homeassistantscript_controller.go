@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -76,7 +77,7 @@ func (r *HomeAssistantScriptReconciler) haClientFor(ha *hav1.HomeAssistant) *hac
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *HomeAssistantScriptReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	ctx, log := reconcileLogger(ctx, "HomeAssistantScript", "HomeAssistantScript", req)
 
 	// Fetch the HomeAssistantScript instance
 	script := &hav1.HomeAssistantScript{}
@@ -88,6 +89,11 @@ func (r *HomeAssistantScriptReconciler) Reconcile(ctx context.Context, req ctrl.
 		log.Error(err, "Failed to get HomeAssistantScript")
 		return ctrl.Result{}, err
 	}
+	haRef := types.NamespacedName{
+		Name:      script.Spec.HomeAssistantRef.Name,
+		Namespace: script.Namespace,
+	}
+	ctx, log = withHomeAssistant(ctx, haRef.Name)
 	if handled, err := removeBlockedMigrationFinalizer(ctx, r.Client, script, scriptFinalizerName); handled ||
 		err != nil {
 		return ctrl.Result{}, err
@@ -111,10 +117,6 @@ func (r *HomeAssistantScriptReconciler) Reconcile(ctx context.Context, req ctrl.
 			log.Info("Handling deletion - deleting script via HA REST API")
 
 			// Delete script via HA REST API (best effort — proceed even if HA is unavailable)
-			haRef := types.NamespacedName{
-				Name:      script.Spec.HomeAssistantRef.Name,
-				Namespace: script.Namespace,
-			}
 			if ha, haErr := r.validateHomeAssistantRef(ctx, haRef, script); haErr == nil {
 				if token, tokenErr := getAPIToken(ctx, r.Client, ha); tokenErr == nil {
 					haClient := r.haClientFor(ha)
@@ -158,10 +160,6 @@ func (r *HomeAssistantScriptReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 
 	// Validate HomeAssistant reference exists
-	haRef := types.NamespacedName{
-		Name:      script.Spec.HomeAssistantRef.Name,
-		Namespace: script.Namespace,
-	}
 	ha, err := r.validateHomeAssistantRef(ctx, haRef, script)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
@@ -299,7 +297,9 @@ func (r *HomeAssistantScriptReconciler) scriptToYaml(
 		fields := make(map[string]interface{})
 		for fieldName, fieldSpec := range script.Spec.Fields {
 			var fieldData map[string]interface{}
-			if err := json.Unmarshal(fieldSpec.Raw, &fieldData); err != nil {
+			decoder := json.NewDecoder(bytes.NewReader(fieldSpec.Raw))
+			decoder.UseNumber()
+			if err := decoder.Decode(&fieldData); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal field %s: %w", fieldName, err)
 			}
 			fields[fieldName] = fieldData
@@ -311,7 +311,9 @@ func (r *HomeAssistantScriptReconciler) scriptToYaml(
 	var sequence []interface{}
 	for i, action := range script.Spec.Sequence {
 		var actionData map[string]interface{}
-		if err := json.Unmarshal(action.Raw, &actionData); err != nil {
+		decoder := json.NewDecoder(bytes.NewReader(action.Raw))
+		decoder.UseNumber()
+		if err := decoder.Decode(&actionData); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal action %d: %w", i, err)
 		}
 		sequence = append(sequence, actionData)
@@ -452,7 +454,7 @@ func (r *HomeAssistantScriptReconciler) validateHomeAssistantRef(
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Error(err, "Referenced HomeAssistant not found",
-				"name", haRef.Name)
+				"homeAssistantName", haRef.Name)
 			meta.SetStatusCondition(&script.Status.Conditions,
 				metav1.Condition{
 					Type:   conditionTypeReady,

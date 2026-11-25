@@ -1,11 +1,13 @@
 package migration
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"strings"
 	"testing"
 
+	"github.com/przemekhys/homeassistant-operator/internal/haclient"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -54,21 +56,22 @@ func TestReportRejectsSensitiveProposalKeysWithoutSerializingValues(t *testing.T
 }
 
 func TestReportJSONNeverContainsScanToken(t *testing.T) {
-	// ScanRequest.Token is deliberately not a Report field. This direct report
-	// check makes that contract visible even if request handling changes.
-	report := &Report{
-		SourceID: "source",
-		Target:   Target{Namespace: "ns", Name: "target", UID: "uid"},
-	}
-	if err := report.Finalize(); err != nil {
+	const token = "unique-scan-token-must-not-escape"
+	reader := &scanReader{entries: []haclient.ConfigEntry{{EntryID: "entry", Domain: "mqtt"}}}
+	report, err := Scan(context.Background(), reader, ScanRequest{
+		SourceID: "source", Token: token, Target: Target{Namespace: "ns", Name: "target", UID: "uid"},
+	})
+	if err != nil {
 		t.Fatal(err)
+	}
+	if reader.calls != 1 || len(report.Objects) == 0 {
+		t.Fatal("scan did not read the integration entry")
 	}
 	encoded, err := json.Marshal(report)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(encoded), "scan-token") ||
-		strings.Contains(string(encoded), "password") {
-		t.Fatalf("report exposed sensitive request data: %s", encoded)
+	if strings.Contains(string(encoded), token) || strings.Contains(string(encoded), base64.StdEncoding.EncodeToString([]byte(token))) {
+		t.Fatal("report exposed the scan token")
 	}
 }

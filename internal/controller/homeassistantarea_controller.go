@@ -60,7 +60,7 @@ type HomeAssistantAreaReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 
 func (r *HomeAssistantAreaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	ctx, _ = reconcileLogger(ctx, "HomeAssistantArea", "HomeAssistantArea", req)
 
 	area := &hav1.HomeAssistantArea{}
 	if err := r.Get(ctx, req.NamespacedName, area); err != nil {
@@ -102,9 +102,10 @@ func (r *HomeAssistantAreaReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		Name:      area.Spec.HomeAssistantRef.Name,
 		Namespace: area.Namespace,
 	}
+	ctx, log := withHomeAssistant(ctx, haRef.Name)
 	ha, err := getHomeAssistant(ctx, r.Client, haRef)
 	if err != nil {
-		log.Info("HomeAssistant not found, requeueing", "name", haRef.Name)
+		log.Info("HomeAssistant not found, requeueing", "homeAssistantName", haRef.Name)
 		return r.setCondition(ctx, area, metav1.ConditionFalse, reasonAreaHANotReady,
 			fmt.Sprintf("HomeAssistant %s not found", haRef.Name), 30*time.Second)
 	}
@@ -170,7 +171,7 @@ func (r *HomeAssistantAreaReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		existingArea = findAreaByID(existingAreas, area.Status.AreaID)
 		if existingArea == nil {
 			// Area was deleted externally — clear stale ID and re-create
-			log.Info("Area was deleted externally, re-creating", "name", area.Spec.Name)
+			log.Info("Area was deleted externally, re-creating", "areaName", area.Spec.Name)
 			area.Status.AreaID = ""
 		} else {
 			if r.needsAreaUpdate(area, existingArea, floorID, labelIDs) {
@@ -179,7 +180,7 @@ func (r *HomeAssistantAreaReconciler) Reconcile(ctx context.Context, req ctrl.Re
 					return r.setCondition(ctx, area, metav1.ConditionFalse, reasonAreaFailed,
 						fmt.Sprintf("Failed to update area: %v", err), 30*time.Second)
 				}
-				log.Info("Area updated in HA", "name", area.Spec.Name)
+				log.Info("Area updated in HA", "areaName", area.Spec.Name)
 			}
 			return r.setCondition(ctx, area, metav1.ConditionTrue, reasonAreaReady,
 				"Area configured in Home Assistant", 0)
@@ -192,7 +193,7 @@ func (r *HomeAssistantAreaReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 	if existingArea != nil {
 		area.Status.AreaID = existingArea.AreaID
-		log.Info("Adopted existing area", "name", area.Spec.Name, "areaID", area.Status.AreaID)
+		log.Info("Adopted existing area", "areaName", area.Spec.Name, "areaID", area.Status.AreaID)
 		if r.needsAreaUpdate(area, existingArea, floorID, labelIDs) {
 			if err := r.updateArea(ctx, haClient, token, area, floorID, labelIDs); err != nil {
 				log.Error(err, "Failed to update adopted area")
@@ -213,7 +214,7 @@ func (r *HomeAssistantAreaReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	area.Status.AreaID = areaID
-	log.Info("Area created in HA", "name", area.Spec.Name, "areaID", areaID)
+	log.Info("Area created in HA", "areaName", area.Spec.Name, "areaID", areaID)
 
 	return r.setCondition(ctx, area, metav1.ConditionTrue, reasonAreaReady,
 		"Area configured in Home Assistant", 0)

@@ -59,7 +59,9 @@ func Import(
 		)
 	}
 	report := *request.Report
-	report.Objects = append([]ReportObject(nil), request.Report.Objects...)
+	if request.Report.Objects != nil {
+		report.Objects = append(make([]ReportObject, 0, len(request.Report.Objects)), request.Report.Objects...)
+	}
 	if err := report.Finalize(); err != nil {
 		return nil, err
 	}
@@ -81,6 +83,9 @@ func Import(
 	}
 	if err := ConvertReport(&report); err != nil {
 		return nil, err
+	}
+	if len(request.SecretData) > 0 && request.Scheme == nil {
+		return nil, fmt.Errorf("migration import requires a scheme for owned resources")
 	}
 	for _, object := range report.Objects {
 		if object.Classification == ClassificationImportable && request.Scheme == nil {

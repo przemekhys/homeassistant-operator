@@ -49,6 +49,16 @@ rules:
     - update
     - watch
 - apiGroups:
+    - ""
+  resources:
+    - serviceaccounts
+  verbs:
+    - create
+    - delete
+    - get
+    - list
+    - watch
+- apiGroups:
     - admissionregistration.k8s.io
   resources:
     - validatingwebhookconfigurations
@@ -69,6 +79,16 @@ rules:
     - list
     - patch
     - update
+    - watch
+- apiGroups:
+    - batch
+  resources:
+    - jobs
+  verbs:
+    - create
+    - delete
+    - get
+    - list
     - watch
 - apiGroups:
     - cert-manager.io
@@ -200,6 +220,17 @@ rules:
     - list
     - patch
     - update
+    - watch
+- apiGroups:
+    - rbac.authorization.k8s.io
+  resources:
+    - rolebindings
+    - roles
+  verbs:
+    - create
+    - delete
+    - get
+    - list
     - watch
 - apiGroups:
     - scheduling.k8s.io

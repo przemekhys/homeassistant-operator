@@ -16,7 +16,7 @@ VERSION=1.4.0
 
 ## Prerequisites
 
-- Kubernetes cluster v1.24+
+- Kubernetes cluster v1.30+
 - `kubectl` configured to access your cluster
 
 ## Install via Helm (recommended)

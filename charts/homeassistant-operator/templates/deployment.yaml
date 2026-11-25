@@ -53,9 +53,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: OPERATOR_SERVICE_ACCOUNT
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.serviceAccountName
+              value: {{ include "homeassistant-operator.serviceAccountName" . | quote }}
             # The short-lived worker and target-side mTLS proxy use the same
             # image, which contains both manager and migrate-worker binaries.
             - name: MIGRATION_WORKER_IMAGE

@@ -70,6 +70,11 @@ func (r *HomeAssistantDashboardReconciler) observeImportedDashboard(
 		dashboard.Status.ObservedGeneration = dashboard.Generation
 		changed = true
 	}
+	if reason != "Adopted" && (dashboard.Status.DashboardID != "" || dashboard.Status.ObservedGeneration != 0) {
+		dashboard.Status.DashboardID = ""
+		dashboard.Status.ObservedGeneration = 0
+		changed = true
+	}
 	if meta.SetStatusCondition(
 		&dashboard.Status.Conditions,
 		metav1.Condition{
@@ -175,6 +180,30 @@ func (r *HomeAssistantDashboardReconciler) compareImportedDashboard(
 		}
 		return "DashboardDefinitionConflict", digest
 	}
+	latestRaw, err := haClient.SendWebSocketCommand(ctx, token, "lovelace/dashboards/list", nil)
+	if err != nil {
+		return "DashboardUnavailable", ""
+	}
+	latest, err := migrationDashboardList(latestRaw)
+	if err != nil {
+		return "DashboardMetadataIncomplete", ""
+	}
+	current := findMigrationDashboardID(latest, identity.SourceID)
+	if current == nil || *current != *existing {
+		return "DashboardMetadataChanged", ""
+	}
+	// Sequential reads narrow the race window but cannot provide an atomic snapshot.
+	actual, err = haClient.GetDashboardConfig(ctx, token, current.URLPath)
+	if err != nil {
+		return "DefinitionUnavailable", ""
+	}
+	observed, err = canonicalMigrationJSON(actual)
+	if err != nil {
+		return "DefinitionUnavailable", ""
+	}
+	if !bytes.Equal(wanted, observed) {
+		return "DashboardDefinitionChanged", ""
+	}
 	return "Adopted", ""
 }
 
@@ -190,9 +219,9 @@ func migrationDashboardList(raw json.RawMessage) ([]haclient.Dashboard, error) {
 	}
 	result := make([]haclient.Dashboard, 0, len(entries))
 	for _, entry := range entries {
-		for _, key := range []string{"id", "url_path", "mode", "title", "icon", "show_in_sidebar", "require_admin"} {
+		for _, key := range []string{"id", "url_path", "mode", "title", "show_in_sidebar", "require_admin"} {
 			v, ok := entry[key]
-			if !ok || (key != "icon" && string(v) == "null") {
+			if !ok || string(v) == "null" {
 				return nil, fmt.Errorf("incomplete dashboard metadata")
 			}
 		}

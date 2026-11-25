@@ -125,7 +125,7 @@ type HomeAssistantCommunityRepositoryReconciler struct {
 func (r *HomeAssistantCommunityRepositoryReconciler) Reconcile(
 	ctx context.Context, req ctrl.Request,
 ) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	ctx, _ = reconcileLogger(ctx, "HomeAssistantCommunityRepository", "HomeAssistantCommunityRepository", req)
 
 	repo := &hav1.HomeAssistantCommunityRepository{}
 	if err := r.Get(ctx, req.NamespacedName, repo); err != nil {
@@ -171,9 +171,10 @@ func (r *HomeAssistantCommunityRepositoryReconciler) Reconcile(
 
 	// --- FETCH HomeAssistant CR ---
 	haRef := types.NamespacedName{Name: repo.Spec.HomeAssistantRef.Name, Namespace: repo.Namespace}
+	ctx, log := withHomeAssistant(ctx, haRef.Name)
 	ha, err := getHomeAssistant(ctx, r.Client, haRef)
 	if err != nil {
-		log.Info("HomeAssistant not found, requeueing", "name", haRef.Name)
+		log.Info("HomeAssistant not found, requeueing", "homeAssistantName", haRef.Name)
 		return r.setPhase(ctx, repo, hav1.CommunityRepositoryPhasePending, reasonRepoHomeAssistantNotReady,
 			fmt.Sprintf("HomeAssistant %s not found", haRef.Name), 5*time.Second)
 	}

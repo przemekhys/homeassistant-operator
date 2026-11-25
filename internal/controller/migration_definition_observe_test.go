@@ -164,10 +164,10 @@ func TestImportedSceneOverwriteApprovalRemainsBlockedAndCanBeRevoked(t *testing.
 		`{"version":"v1","approved":true,"objectUID":"scene-uid","generation":3,"targetUID":"ha-uid","sourceID":"source-id","comparisonDigest":%q}`,
 		comparison.ComparisonDigest,
 	)
-	calls := 0
+	var calls atomic.Int32
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			calls++
+			calls.Add(1)
 			if r.Method != http.MethodGet {
 				t.Errorf("unexpected HA write: %s", r.Method)
 				w.WriteHeader(http.StatusBadRequest)
@@ -215,8 +215,8 @@ func TestImportedSceneOverwriteApprovalRemainsBlockedAndCanBeRevoked(t *testing.
 			}
 		}
 	}
-	if calls != 2 {
-		t.Fatalf("requests=%d, want 2", calls)
+	if calls.Load() != 2 {
+		t.Fatalf("requests=%d, want 2", calls.Load())
 	}
 }
 
@@ -456,10 +456,10 @@ func TestImportedDefinitionControllersReadOnlyOnConflictAndUnavailable(t *testin
 					if err := corev1.AddToScheme(scheme); err != nil {
 						t.Fatal(err)
 					}
-					calls := 0
+					var calls atomic.Int32
 					server := httptest.NewServer(
 						http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-							calls++
+							calls.Add(1)
 							if r.Method != http.MethodGet ||
 								r.URL.Path != "/api/config/"+kind+"/config/source-id" {
 								t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
@@ -556,8 +556,8 @@ func TestImportedDefinitionControllersReadOnlyOnConflictAndUnavailable(t *testin
 							req,
 						)
 					}
-					if err != nil || calls != 1 {
-						t.Fatalf("reconcile error=%v, HA requests=%d", err, calls)
+					if err != nil || calls.Load() != 1 {
+						t.Fatalf("reconcile error=%v, HA requests=%d", err, calls.Load())
 					}
 					stored := object.DeepCopyObject().(client.Object)
 					if err := kube.Get(context.Background(), req.NamespacedName, stored); err != nil {

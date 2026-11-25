@@ -2052,6 +2052,8 @@ hardware the maintainers do not have.
 ### Resource Types
 - [HomeAssistantDashboard](#homeassistantdashboard)
 - [HomeAssistantDashboardList](#homeassistantdashboardlist)
+- [HomeAssistantMigration](#homeassistantmigration)
+- [HomeAssistantMigrationList](#homeassistantmigrationlist)
 
 
 
@@ -2157,6 +2159,97 @@ _Appears in:_
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the dashboard state. |  | Optional: \{\} <br /> |
 
 
+#### HomeAssistantMigration
+
+
+
+
+
+
+
+_Appears in:_
+- [HomeAssistantMigrationList](#homeassistantmigrationlist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `ha.homeassistant.io/v1alpha1` | | |
+| `kind` _string_ | `HomeAssistantMigration` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[HomeAssistantMigrationSpec](#homeassistantmigrationspec)_ |  |  |  |
+| `status` _[HomeAssistantMigrationStatus](#homeassistantmigrationstatus)_ |  |  |  |
+
+
+#### HomeAssistantMigrationList
+
+
+
+
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `ha.homeassistant.io/v1alpha1` | | |
+| `kind` _string_ | `HomeAssistantMigrationList` | | |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[HomeAssistantMigration](#homeassistantmigration) array_ |  |  |  |
+
+
+#### HomeAssistantMigrationSpec
+
+
+
+HomeAssistantMigrationSpec is durable intent for one migration. It never stores
+tokens, recovery keys, archive contents, or a decision only in status.
+
+
+
+_Appears in:_
+- [HomeAssistantMigration](#homeassistantmigration)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `executionProtocol` _string_ | ExecutionProtocol has no default: legacy operations cannot be upgraded implicitly. |  | Enum: [v1] <br /> |
+| `executionRequests` _[MigrationExecutionRequest](#migrationexecutionrequest) array_ |  |  | MaxItems: 3 <br /> |
+| `executionAttempts` _[MigrationExecutionAttempt](#migrationexecutionattempt) array_ |  |  | MaxItems: 3 <br /> |
+| `executionDispatches` _[MigrationExecutionAttempt](#migrationexecutionattempt) array_ | ExecutionDispatches prevents a lost receipt from reopening a POST permit. |  | MaxItems: 3 <br /> |
+| `proxyCredentialBinding` _[MigrationProxyCredentialBinding](#migrationproxycredentialbinding)_ | ProxyCredentialBinding pins operational TLS material without its values. |  | Optional: \{\} <br /> |
+| `sourceID` _string_ |  |  | MaxLength: 2048 <br /> |
+| `sourceEndpoint` _string_ | SourceEndpoint is the endpoint observed in the approved scan, without credentials. |  |  |
+| `target` _[MigrationTarget](#migrationtarget)_ |  |  |  |
+| `reportID` _string_ |  |  | MaxLength: 128 <br /> |
+| `backupScopeDigest` _string_ | BackupScopeDigest is the redacted scope observed in the approved report.<br />It must be rechecked against the source before any backup is submitted. |  | Optional: \{\} <br /> |
+| `sourceTokenSecretRef` _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#secretkeyselector-v1-core)_ | SourceTokenSecretRef identifies the source API token without storing its<br />value in the migration operation. The Secret is in this namespace. |  | Optional: \{\} <br /> |
+| `recoveryKeySecretRef` _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#secretkeyselector-v1-core)_ | RecoveryKeySecretRef identifies the separately stored backup recovery key.<br />The value is never copied to the migration object or its status. |  | Optional: \{\} <br /> |
+| `sourceWorkload` _[MigrationSourceWorkload](#migrationsourceworkload)_ | SourceWorkload is optional for external sources. When present, it must be<br />stopped and have no running or terminating selected Pods before cutover. |  | Optional: \{\} <br /> |
+| `archive` _[MigrationArchive](#migrationarchive)_ | Archive and RestoreScopeDigest bind the destructive restore approval to<br />one exact archive and declared restore scope. |  | Optional: \{\} <br /> |
+| `restoreScopeDigest` _string_ |  |  | Optional: \{\} <br /> |
+| `approvals` _[MigrationApproval](#migrationapproval) array_ |  |  | MaxItems: 16 <br /> |
+| `archiveStorage` _[MigrationArchiveStorage](#migrationarchivestorage)_ |  |  |  |
+| `verification` _[MigrationVerificationItem](#migrationverificationitem) array_ |  |  | MaxItems: 256 <br /> |
+| `resolutions` _[MigrationResolution](#migrationresolution) array_ |  |  | MaxItems: 64 <br /> |
+| `cancelRequested` _boolean_ |  |  |  |
+
+
+#### HomeAssistantMigrationStatus
+
+
+
+HomeAssistantMigrationStatus contains only observations that can be rebuilt.
+
+
+
+_Appears in:_
+- [HomeAssistantMigration](#homeassistantmigration)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `phase` _string_ |  |  |  |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ |  |  | Optional: \{\} <br /> |
+
+
 #### HomeAssistantReference
 
 
@@ -2171,3 +2264,267 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `name` _string_ | Name of the HomeAssistant resource. |  | MinLength: 1 <br />Required: \{\} <br /> |
+
+
+#### MigrationApproval
+
+
+
+MigrationApproval binds a user decision to the exact observed operation inputs.
+
+
+
+_Appears in:_
+- [HomeAssistantMigrationSpec](#homeassistantmigrationspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `id` _string_ |  |  | MaxLength: 64 <br /> |
+| `digest` _string_ |  |  | MaxLength: 128 <br /> |
+| `targetUID` _string_ |  |  | MaxLength: 128 <br /> |
+| `archiveDigest` _string_ |  |  | MaxLength: 128 <br /> |
+| `verificationDigest` _string_ | VerificationDigest binds the approved non-secret verification set. |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `scopeDigest` _string_ |  |  | MaxLength: 128 <br /> |
+| `sourceUID` _string_ |  |  | MaxLength: 128 <br /> |
+| `approved` _boolean_ |  |  |  |
+
+
+#### MigrationArchive
+
+
+
+MigrationArchive identifies an encrypted native backup without serializing
+its contents or recovery key.
+
+
+
+_Appears in:_
+- [HomeAssistantMigrationSpec](#homeassistantmigrationspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `backupID` _string_ |  |  |  |
+| `agentID` _string_ |  |  |  |
+| `digest` _string_ |  |  |  |
+
+
+#### MigrationArchiveStorage
+
+
+
+MigrationArchiveStorage names the independent archive volume and descriptor.
+
+
+
+_Appears in:_
+- [HomeAssistantMigrationSpec](#homeassistantmigrationspec)
+- [MigrationExecutionRequest](#migrationexecutionrequest)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `pvcName` _string_ |  |  | MaxLength: 253 <br />MinLength: 1 <br /> |
+| `descriptorName` _string_ |  |  | MaxLength: 253 <br />MinLength: 1 <br /> |
+
+
+#### MigrationEvidenceReference
+
+
+
+MigrationEvidenceReference only permits a data key of a ConfigMap in this namespace.
+
+
+
+_Appears in:_
+- [MigrationResolution](#migrationresolution)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ |  |  | Enum: [v1] <br /> |
+| `kind` _string_ |  |  | Enum: [ConfigMap] <br /> |
+| `name` _string_ |  |  | MaxLength: 253 <br />MinLength: 1 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$` <br /> |
+| `uid` _string_ |  |  | MaxLength: 128 <br />MinLength: 1 <br /> |
+| `key` _string_ |  |  | MaxLength: 253 <br />MinLength: 1 <br />Pattern: `^[-._a-zA-Z0-9]+$` <br /> |
+
+
+#### MigrationExecutionAttempt
+
+
+
+MigrationExecutionAttempt prevents lost Jobs or receipts from permitting another POST.
+
+
+
+_Appears in:_
+- [HomeAssistantMigrationSpec](#homeassistantmigrationspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `stage` _string_ |  |  | Enum: [backup upload restore] <br /> |
+| `requestID` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+
+
+#### MigrationExecutionRequest
+
+
+
+MigrationExecutionRequest is an accepted immutable snapshot, not proof of execution.
+
+
+
+_Appears in:_
+- [HomeAssistantMigrationSpec](#homeassistantmigrationspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `version` _string_ |  |  | Enum: [v1] <br /> |
+| `stage` _string_ |  |  | Enum: [backup upload restore] <br /> |
+| `operationUID` _string_ |  |  | MaxLength: 128 <br />MinLength: 1 <br /> |
+| `requestID` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `sourceID` _string_ |  |  | MaxLength: 2048 <br />MinLength: 1 <br /> |
+| `sourceEndpoint` _string_ |  |  | MaxLength: 2048 <br /> |
+| `reportID` _string_ |  |  | MaxLength: 128 <br />MinLength: 1 <br /> |
+| `target` _[MigrationTarget](#migrationtarget)_ |  |  |  |
+| `scopeDigest` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `verificationDigest` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `archiveStorage` _[MigrationArchiveStorage](#migrationarchivestorage)_ |  |  |  |
+| `sourceToken` _[MigrationSecretIdentity](#migrationsecretidentity)_ |  |  |  |
+| `recoveryKey` _[MigrationSecretIdentity](#migrationsecretidentity)_ |  |  |  |
+| `archiveRef` _[MigrationObjectReference](#migrationobjectreference)_ |  |  |  |
+| `archiveDigest` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `archivePVCUID` _string_ |  |  | MaxLength: 128 <br />MinLength: 1 <br /> |
+| `sourceWorkload` _[MigrationSourceWorkload](#migrationsourceworkload)_ |  |  |  |
+| `uploadRequestID` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+
+
+#### MigrationObjectReference
+
+
+
+MigrationObjectReference identifies one particular namespaced object.
+
+
+
+_Appears in:_
+- [MigrationExecutionRequest](#migrationexecutionrequest)
+- [MigrationProxyCredentialBinding](#migrationproxycredentialbinding)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ |  |  | MaxLength: 253 <br />MinLength: 1 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$` <br /> |
+| `uid` _string_ |  |  | MaxLength: 128 <br />MinLength: 1 <br /> |
+
+
+#### MigrationProxyCredentialBinding
+
+
+
+MigrationProxyCredentialBinding identifies immutable operational credentials
+without including private material. It is not proof of network isolation.
+
+
+
+_Appears in:_
+- [HomeAssistantMigrationSpec](#homeassistantmigrationspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `version` _string_ |  |  | Enum: [v1] <br /> |
+| `requestID` _string_ |  |  | Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `bundle` _[MigrationObjectReference](#migrationobjectreference)_ |  |  |  |
+| `bundleResourceVersion` _string_ |  |  | MaxLength: 128 <br />MinLength: 1 <br /> |
+| `claim` _[MigrationObjectReference](#migrationobjectreference)_ |  |  |  |
+
+
+#### MigrationResolution
+
+
+
+MigrationResolution records an administrator's decision about an ambiguous request.
+
+
+
+_Appears in:_
+- [HomeAssistantMigrationSpec](#homeassistantmigrationspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `version` _string_ |  |  | Enum: [v1] <br /> |
+| `requestID` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `stage` _string_ |  |  | Enum: [backup upload restore] <br /> |
+| `decision` _string_ |  |  | Enum: [ObserveExternalResult Abort] <br /> |
+| `evidenceRef` _[MigrationEvidenceReference](#migrationevidencereference)_ |  |  |  |
+
+
+#### MigrationSecretIdentity
+
+
+
+MigrationSecretIdentity pins credentials without storing their values.
+
+
+
+_Appears in:_
+- [MigrationExecutionRequest](#migrationexecutionrequest)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ |  |  | MaxLength: 253 <br />MinLength: 1 <br /> |
+| `key` _string_ |  |  | MaxLength: 253 <br />MinLength: 1 <br /> |
+| `uid` _string_ |  |  | MaxLength: 128 <br />MinLength: 1 <br /> |
+| `resourceVersion` _string_ |  |  | MaxLength: 128 <br />MinLength: 1 <br /> |
+
+
+#### MigrationSourceWorkload
+
+
+
+MigrationSourceWorkload identifies a source workload in the migration's
+namespace. The operator observes it but never modifies it.
+
+
+
+_Appears in:_
+- [HomeAssistantMigrationSpec](#homeassistantmigrationspec)
+- [MigrationExecutionRequest](#migrationexecutionrequest)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `kind` _string_ |  |  | Enum: [Deployment StatefulSet] <br /> |
+| `name` _string_ |  |  | MaxLength: 253 <br />MinLength: 1 <br /> |
+| `uid` _string_ |  |  | MaxLength: 128 <br />MinLength: 1 <br /> |
+
+
+#### MigrationTarget
+
+
+
+MigrationTarget identifies an immutable HomeAssistant target by name and UID.
+
+
+
+_Appears in:_
+- [HomeAssistantMigrationSpec](#homeassistantmigrationspec)
+- [MigrationExecutionRequest](#migrationexecutionrequest)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ |  |  | MaxLength: 253 <br />MinLength: 1 <br /> |
+| `uid` _string_ |  |  | MaxLength: 128 <br />MinLength: 1 <br /> |
+
+
+#### MigrationVerificationItem
+
+
+
+MigrationVerificationItem identifies a non-secret datum to verify after restore.
+
+
+
+_Appears in:_
+- [HomeAssistantMigrationSpec](#homeassistantmigrationspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `kind` _string_ |  |  | Enum: [EntityRegistryIdentity IntegrationEntryIdentity TodoItems] <br /> |
+| `id` _string_ |  |  | MaxLength: 256 <br />MinLength: 1 <br /> |
+| `expectedDigest` _string_ | ExpectedDigest identifies the approved non-secret data to compare. |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |

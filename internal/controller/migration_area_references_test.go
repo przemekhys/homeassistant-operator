@@ -238,8 +238,15 @@ func TestMigrationAreaControllerVerifiesReferencedRegistriesReadOnly(t *testing.
 			}
 			mu.Lock()
 			defer mu.Unlock()
-			if len(commands) != 3 {
-				t.Fatalf("commands=%v, want 3 reads", commands)
+			wantReads := 2
+			if scenario.want == "Adopted" {
+				wantReads++
+			}
+			if len(commands) != wantReads {
+				t.Fatalf("commands=%v, want %d reads", commands, wantReads)
+			}
+			if scenario.want == "Adopted" && commands[len(commands)-1] != "config/area_registry/list" {
+				t.Fatalf("area read must follow reference verification: %v", commands)
 			}
 		})
 	}

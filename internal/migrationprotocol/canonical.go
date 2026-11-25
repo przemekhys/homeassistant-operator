@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"unicode/utf8"
 )
 
@@ -20,7 +21,7 @@ func ValidDigest(s string) bool { return digestPattern.MatchString(s) }
 // CanonicalJSON sorts object keys, preserves Unicode, and rejects duplicate keys.
 // Protocol inputs contain no fractional numbers; unknown fields are rejected by Decode.
 func CanonicalJSON(raw []byte) ([]byte, error) {
-	if !utf8.Valid(raw) {
+	if !utf8.Valid(raw) || !validJSONSurrogates(raw) {
 		return nil, fmt.Errorf("invalid protocol JSON")
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
@@ -39,6 +40,51 @@ func CanonicalJSON(raw []byte) ([]byte, error) {
 		return nil, fmt.Errorf("invalid protocol JSON")
 	}
 	return bytes.TrimSuffix(b.Bytes(), []byte{'\n'}), nil
+}
+
+// validJSONSurrogates prevents encoding/json from silently replacing invalid
+// UTF-16 escape sequences with the same replacement character before hashing.
+func validJSONSurrogates(raw []byte) bool {
+	inString := false
+	for i := 0; i < len(raw); i++ {
+		if raw[i] == '"' {
+			inString = !inString
+			continue
+		}
+		if !inString || raw[i] != '\\' {
+			continue
+		}
+		i++
+		if i >= len(raw) {
+			return false
+		}
+		if raw[i] != 'u' {
+			continue
+		}
+		if i+4 >= len(raw) {
+			return false
+		}
+		value, err := strconv.ParseUint(string(raw[i+1:i+5]), 16, 16)
+		if err != nil {
+			return false
+		}
+		i += 4
+		if value >= 0xdc00 && value <= 0xdfff {
+			return false
+		}
+		if value < 0xd800 || value > 0xdbff {
+			continue
+		}
+		if i+6 >= len(raw) || raw[i+1] != '\\' || raw[i+2] != 'u' {
+			return false
+		}
+		low, err := strconv.ParseUint(string(raw[i+3:i+7]), 16, 16)
+		if err != nil || low < 0xdc00 || low > 0xdfff {
+			return false
+		}
+		i += 6
+	}
+	return true
 }
 
 func value(d *json.Decoder, depth int) (any, error) {

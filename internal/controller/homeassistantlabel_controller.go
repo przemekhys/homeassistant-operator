@@ -59,7 +59,7 @@ type HomeAssistantLabelReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 
 func (r *HomeAssistantLabelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	ctx, _ = reconcileLogger(ctx, "HomeAssistantLabel", "HomeAssistantLabel", req)
 
 	label := &hav1.HomeAssistantLabel{}
 	if err := r.Get(ctx, req.NamespacedName, label); err != nil {
@@ -74,6 +74,12 @@ func (r *HomeAssistantLabelReconciler) Reconcile(ctx context.Context, req ctrl.R
 	if migrationWritesBlocked(label) {
 		return observeMigrationRegistry(ctx, r.Client, label, "label", label.Spec.HomeAssistantRef.Name, r.haClientFor)
 	}
+
+	haRef := types.NamespacedName{
+		Name:      label.Spec.HomeAssistantRef.Name,
+		Namespace: label.Namespace,
+	}
+	ctx, log := withHomeAssistant(ctx, haRef.Name)
 
 	// --- DELETION ---
 	if !label.DeletionTimestamp.IsZero() {
@@ -97,13 +103,9 @@ func (r *HomeAssistantLabelReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// --- FETCH HomeAssistant CR ---
-	haRef := types.NamespacedName{
-		Name:      label.Spec.HomeAssistantRef.Name,
-		Namespace: label.Namespace,
-	}
 	ha, err := getHomeAssistant(ctx, r.Client, haRef)
 	if err != nil {
-		log.Info("HomeAssistant not found, requeueing", "name", haRef.Name)
+		log.Info("HomeAssistant not found, requeueing", "homeAssistantName", haRef.Name)
 		return r.setCondition(ctx, label, metav1.ConditionFalse, reasonLabelHANotReady,
 			fmt.Sprintf("HomeAssistant %s not found", haRef.Name), 30*time.Second)
 	}
@@ -132,7 +134,7 @@ func (r *HomeAssistantLabelReconciler) Reconcile(ctx context.Context, req ctrl.R
 		existingLabel = findLabelByID(existingLabels, label.Status.LabelID)
 		if existingLabel == nil {
 			// Label was deleted externally — clear stale ID and re-create
-			log.Info("Label was deleted externally, re-creating", "name", label.Spec.Name)
+			log.Info("Label was deleted externally, re-creating", "labelName", label.Spec.Name)
 			label.Status.LabelID = ""
 		} else {
 			if r.needsLabelUpdate(label, existingLabel) {
@@ -141,7 +143,7 @@ func (r *HomeAssistantLabelReconciler) Reconcile(ctx context.Context, req ctrl.R
 					return r.setCondition(ctx, label, metav1.ConditionFalse, reasonLabelFailed,
 						fmt.Sprintf("Failed to update label: %v", err), 30*time.Second)
 				}
-				log.Info("Label updated in HA", "name", label.Spec.Name)
+				log.Info("Label updated in HA", "labelName", label.Spec.Name)
 			}
 			return r.setCondition(ctx, label, metav1.ConditionTrue, reasonLabelReady,
 				"Label configured in Home Assistant", 0)
@@ -154,7 +156,7 @@ func (r *HomeAssistantLabelReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 	if existingLabel != nil {
 		label.Status.LabelID = existingLabel.LabelID
-		log.Info("Adopted existing label", "name", label.Spec.Name, "labelID", label.Status.LabelID)
+		log.Info("Adopted existing label", "labelName", label.Spec.Name, "labelID", label.Status.LabelID)
 		if r.needsLabelUpdate(label, existingLabel) {
 			if err := r.updateLabel(ctx, haClient, token, label); err != nil {
 				log.Error(err, "Failed to update adopted label")
@@ -175,7 +177,7 @@ func (r *HomeAssistantLabelReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	label.Status.LabelID = labelID
-	log.Info("Label created in HA", "name", label.Spec.Name, "labelID", labelID)
+	log.Info("Label created in HA", "labelName", label.Spec.Name, "labelID", labelID)
 
 	return r.setCondition(ctx, label, metav1.ConditionTrue, reasonLabelReady,
 		"Label configured in Home Assistant", 0)

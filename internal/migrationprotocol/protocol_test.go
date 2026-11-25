@@ -90,7 +90,7 @@ func TestVerificationProjections(t *testing.T) {
 	if err != nil || x != y {
 		t.Fatal("item order changed digest", err)
 	}
-	for _, raw := range []string{`{"entityId":"todo.test"}`, `{"entityId":"todo.test","items":null}`, strings.Replace(string(a), `"uid":"b"`, `"uid":"a"`, 1), strings.Replace(string(a), `"summary":"B"`, `"password":"secret"`, 1)} {
+	for _, raw := range []string{`{"entityId":"todo.test"}`, `{"entityId":"todo.test","items":null}`, strings.Replace(string(a), `"uid":"b"`, `"uid":"a"`, 1), strings.Replace(string(a), `"summary":"B"`, `"summary":"B","password":"secret"`, 1)} {
 		if _, err := ProjectionDigest("TodoItems", "todo.test", []byte(raw)); err == nil {
 			t.Fatal("accepted incomplete/unknown projection")
 		}
@@ -109,7 +109,7 @@ func TestEvidenceParser(t *testing.T) {
 	if _, err := ParseEvidence(raw); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ParseEvidence([]byte(strings.Replace(string(raw), `"jobID":"01J/HA:JOB"`, `"password":"secret"`, 1))); err == nil {
+	if _, err := ParseEvidence([]byte(strings.Replace(string(raw), `"jobID":"01J/HA:JOB"`, `"jobID":"01J/HA:JOB","password":"secret"`, 1))); err == nil {
 		t.Fatal("accepted unknown evidence")
 	}
 	ref := &ha.MigrationEvidenceReference{APIVersion: "v1", Kind: "ConfigMap", Name: "evidence", UID: "uid", Key: "result.json"}

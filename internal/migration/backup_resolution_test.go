@@ -42,7 +42,7 @@ func TestReadBackupResolutionUsesOnlyReadTransport(t *testing.T) {
 		var result any
 		switch cmd["type"] {
 		case "backup/config/info":
-			result = map[string]any{"schedule": map[string]any{"recurrence": "daily"}, "create_backup": map[string]any{"include_database": true, "agent_ids": []string{"backup.local"}, "password": "synthetic-key"}}
+			result = map[string]any{"schedule": map[string]any{"recurrence": "daily"}, "agents": map[string]any{"backup.local": map[string]any{"protected": true}}, "create_backup": map[string]any{"include_database": true, "agent_ids": []string{"backup.local"}, "password": "synthetic-key", "include_addons": nil, "include_all_addons": false, "include_folders": nil}}
 		case "backup/agents/info":
 			result = map[string]any{"agents": []any{map[string]any{"agent_id": "backup.local"}}}
 		case "backup/details":

@@ -41,7 +41,11 @@ func observeMigrationRegistry(
 			if token, tokenErr := getAPIToken(ctx, kube, ha); tokenErr == nil {
 				reason = "RegistryUnavailable"
 				haClient := makeClient(ha)
-				raw, readErr := haClient.SendWebSocketCommand(ctx, token, "config/"+kind+"_registry/list", nil)
+				var raw json.RawMessage
+				var readErr error
+				if kind != "area" {
+					raw, readErr = haClient.SendWebSocketCommand(ctx, token, "config/"+kind+"_registry/list", nil)
+				}
 				if readErr == nil {
 					if area, ok := obj.(*hav1.HomeAssistantArea); ok {
 						floorID, labelIDs, resolveErr := resolveMigrationAreaReferences(ctx, kube, area, identity.TargetUID)
@@ -51,7 +55,10 @@ func observeMigrationRegistry(
 							reason = "RegistryReferencesUnverified"
 						} else {
 							referenceFloor, referenceLabels = floorID, labelIDs
-							reason = compareMigrationRegistryArea(area, identity.SourceID, raw, floorID, labelIDs)
+							raw, readErr = haClient.SendWebSocketCommand(ctx, token, "config/area_registry/list", nil)
+							if readErr == nil {
+								reason = compareMigrationRegistryArea(area, identity.SourceID, raw, floorID, labelIDs)
+							}
 						}
 					} else {
 						reason = compareMigrationRegistry(obj, kind, identity.SourceID, raw)

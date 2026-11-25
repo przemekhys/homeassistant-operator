@@ -22,7 +22,8 @@ func SetupHomeAssistantMigrationWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/validate-ha-homeassistant-io-v1alpha1-homeassistantmigration,mutating=false,failurePolicy=ignore,sideEffects=None,groups=ha.homeassistant.io,resources=homeassistantmigrations,verbs=create;update,versions=v1alpha1,name=vhomeassistantmigration-v1alpha1.kb.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/validate-ha-homeassistant-io-v1alpha1-homeassistantmigration,mutating=false,failurePolicy=fail,sideEffects=None,groups=ha.homeassistant.io,resources=homeassistantmigrations,verbs=create;update,versions=v1alpha1,name=vhomeassistantmigration-v1alpha1.kb.io,admissionReviewVersions=v1
+
 type HomeAssistantMigrationCustomValidator struct{}
 
 var _ admission.Validator[*hav1alpha1.HomeAssistantMigration] = &HomeAssistantMigrationCustomValidator{}
@@ -31,6 +32,10 @@ func (v *HomeAssistantMigrationCustomValidator) ValidateCreate(
 	_ context.Context,
 	migration *hav1alpha1.HomeAssistantMigration,
 ) (admission.Warnings, error) {
+	if len(migration.Spec.ExecutionRequests) > 0 || len(migration.Spec.ExecutionAttempts) > 0 ||
+		len(migration.Spec.ExecutionDispatches) > 0 || migration.Spec.ProxyCredentialBinding != nil {
+		return nil, fmt.Errorf("new migration cannot contain execution records")
+	}
 	return nil, validateHomeAssistantMigration(migration)
 }
 
@@ -81,7 +86,21 @@ func (v *HomeAssistantMigrationCustomValidator) ValidateUpdate(
 			return nil, fmt.Errorf("execution dispatches are append-only")
 		}
 	}
-	if len(old.Spec.ExecutionRequests) > 0 && !reflect.DeepEqual(old.Spec.Verification, current.Spec.Verification) {
+	if migrationprotocol.AbortRequested(current) {
+		for _, dispatch := range current.Spec.ExecutionDispatches {
+			found := false
+			for _, previous := range old.Spec.ExecutionDispatches {
+				if dispatch == previous {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("new dispatches cannot be claimed after abort")
+			}
+		}
+	}
+	if len(old.Spec.ExecutionRequests) > 0 && !sameVerificationSet(old.Spec.Verification, current.Spec.Verification) {
 		return nil, fmt.Errorf("accepted verification set is immutable")
 	}
 	for _, r := range current.Spec.ExecutionRequests {
@@ -116,10 +135,41 @@ func (v *HomeAssistantMigrationCustomValidator) ValidateUpdate(
 	if old.Spec.ReportID != current.Spec.ReportID || old.Spec.BackupScopeDigest != current.Spec.BackupScopeDigest {
 		return nil, fmt.Errorf("migration report and backup scope are immutable")
 	}
-	if len(current.Spec.Resolutions) < len(old.Spec.Resolutions) || (len(old.Spec.Resolutions) > 0 && !reflect.DeepEqual(old.Spec.Resolutions, current.Spec.Resolutions[:len(old.Spec.Resolutions)])) {
-		return nil, fmt.Errorf("migration resolutions are append-only")
+	for _, previous := range old.Spec.Resolutions {
+		found := false
+		for _, resolution := range current.Spec.Resolutions {
+			if reflect.DeepEqual(previous, resolution) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("migration resolutions are append-only")
+		}
 	}
 	return nil, validateHomeAssistantMigration(current)
+}
+
+func sameVerificationSet(a, b []hav1alpha1.MigrationVerificationItem) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	values := make(map[string]hav1alpha1.MigrationVerificationItem, len(a))
+	for _, item := range a {
+		key := item.Kind + "\x00" + item.ID
+		if _, duplicate := values[key]; duplicate {
+			return false
+		}
+		values[key] = item
+	}
+	for _, item := range b {
+		key := item.Kind + "\x00" + item.ID
+		if old, ok := values[key]; !ok || old != item {
+			return false
+		}
+		delete(values, key)
+	}
+	return len(values) == 0
 }
 
 func (v *HomeAssistantMigrationCustomValidator) ValidateDelete(

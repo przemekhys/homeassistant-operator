@@ -2,7 +2,9 @@ package migration
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"reflect"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -27,7 +29,7 @@ func CreateImportedSecret(
 	values map[string][]byte,
 ) (*corev1.Secret, error) {
 	if kube == nil || scheme == nil || migration == nil ||
-		strings.TrimSpace(migration.Name) == "" ||
+		strings.TrimSpace(migration.Name) == "" || migration.UID == "" ||
 		len(values) == 0 {
 		return nil, fmt.Errorf("imported Secret requires a migration and available values")
 	}
@@ -39,20 +41,37 @@ func CreateImportedSecret(
 		}
 		data[key] = append([]byte(nil), value...)
 	}
+	name := migration.Name + "-import"
+	if len(name) > 253 {
+		hash := sha256.Sum256([]byte(migration.Name))
+		suffix := fmt.Sprintf("-%x-import", hash[:6])
+		name = strings.TrimRight(migration.Name[:253-len(suffix)], ".-") + suffix
+	}
+	immutable := true
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      migration.Name + "-import",
+			Name:      name,
 			Namespace: migration.Namespace,
 		},
-		Type: corev1.SecretTypeOpaque,
-		Data: data,
+		Type:      corev1.SecretTypeOpaque,
+		Data:      data,
+		Immutable: &immutable,
 	}
 	if err := controllerutil.SetControllerReference(migration, secret, scheme); err != nil {
 		return nil, fmt.Errorf("set imported Secret owner: %w", err)
 	}
 	if err := kube.Create(ctx, secret); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return nil, fmt.Errorf("imported Secret name already exists")
+			existing := &corev1.Secret{}
+			if err := kube.Get(ctx, client.ObjectKeyFromObject(secret), existing); err != nil {
+				return nil, fmt.Errorf("read imported Secret: %w", err)
+			}
+			owner := metav1.GetControllerOf(existing)
+			if owner == nil || owner.UID != migration.UID || owner.Kind != "HomeAssistantMigration" || owner.APIVersion != hav1alpha1.GroupVersion.String() ||
+				existing.Type != secret.Type || existing.Immutable == nil || !*existing.Immutable || !reflect.DeepEqual(existing.Data, secret.Data) {
+				return nil, fmt.Errorf("imported Secret name already exists")
+			}
+			return existing, nil
 		}
 		return nil, fmt.Errorf("create imported Secret: %w", err)
 	}

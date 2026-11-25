@@ -133,12 +133,18 @@ func ValidateAccepted(op *ha.HomeAssistantMigration) error {
 		}
 		dispatches[d.Stage] = true
 	}
+	observations := map[string]bool{}
 	for _, resolution := range op.Spec.Resolutions {
 		if resolution.Version != "v1" || !ValidStage(resolution.Stage) || !ValidDigest(resolution.RequestID) || (op.Spec.ExecutionProtocol == "v1" && seen[resolution.Stage].RequestID != resolution.RequestID) {
 			return fmt.Errorf("invalid migration resolution binding")
 		}
 		switch resolution.Decision {
 		case "ObserveExternalResult":
+			key := resolution.Stage + "\x00" + resolution.RequestID
+			if observations[key] {
+				return fmt.Errorf("duplicate observation resolution")
+			}
+			observations[key] = true
 			if err := ValidateEvidenceRef(resolution.EvidenceRef); err != nil {
 				return err
 			}

@@ -6,9 +6,21 @@
 
 | | |
 |---|---|
-| Minimum | **1.24** — declared as the chart's `kubeVersion` constraint, so Helm refuses to install on anything older |
+| Minimum | **1.30** — declared as the chart's `kubeVersion` constraint, so Helm refuses to install on anything older |
 | Tested in CI | k3s **v1.36.4** (end-to-end suite, on k3d) |
 | Distributions | Any conformant distribution. The project targets k3s on Raspberry Pi first, but nothing in it is k3s-specific. |
+
+On Kubernetes 1.30–1.32, the migration CRD requires the default-enabled
+`CRDValidationRatcheting` feature gate for `optionalOldSelf` validation. It is
+stable in Kubernetes 1.33. Clusters with that feature gate disabled cannot
+install the migration CRD.
+
+Migration workloads that use reserved proxy credentials require the Kubernetes
+Job and StatefulSet controllers to authenticate with their individual service
+accounts (`--use-service-account-credentials` on kube-controller-manager).
+The isolation webhook rejects credential-bound Pods created under a shared
+controller-manager identity. This requirement applies to migration execution,
+not to the operator's normal reconciliation.
 
 ## Home Assistant
 

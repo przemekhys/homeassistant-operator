@@ -6,22 +6,113 @@ import (
 	"testing"
 
 	hav1alpha1 "github.com/przemekhys/homeassistant-operator/api/v1alpha1"
+	"github.com/przemekhys/homeassistant-operator/internal/migrationprotocol"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func TestDispatchAfterAbort(t *testing.T) {
+	digest := "sha256:" + strings.Repeat("a", 64)
+	items := []hav1alpha1.MigrationVerificationItem{{Kind: "TodoItems", ID: "todo.test", ExpectedDigest: digest}}
+	verification, err := migrationprotocol.VerificationDigest(items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := hav1alpha1.MigrationExecutionRequest{Version: "v1", Stage: "upload", OperationUID: "op", SourceID: "source", Target: hav1alpha1.MigrationTarget{Name: "target", UID: "target"}, ReportID: "report", ScopeDigest: digest, VerificationDigest: verification, ArchiveRef: &hav1alpha1.MigrationObjectReference{Name: "archive", UID: "archive"}, ArchiveDigest: digest, ArchivePVCUID: "pvc"}
+	r.RequestID, err = migrationprotocol.RequestID(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attempt := hav1alpha1.MigrationExecutionAttempt{Stage: r.Stage, RequestID: r.RequestID}
+	old := &hav1alpha1.HomeAssistantMigration{ObjectMeta: metav1.ObjectMeta{UID: "op"}, Spec: hav1alpha1.HomeAssistantMigrationSpec{ExecutionProtocol: "v1", SourceID: r.SourceID, Target: r.Target, ReportID: r.ReportID, Verification: items, ExecutionRequests: []hav1alpha1.MigrationExecutionRequest{r}, ExecutionAttempts: []hav1alpha1.MigrationExecutionAttempt{attempt}, Resolutions: []hav1alpha1.MigrationResolution{{Version: "v1", Stage: r.Stage, RequestID: r.RequestID, Decision: "Abort"}}}}
+	v := &HomeAssistantMigrationCustomValidator{}
+	current := old.DeepCopy()
+	current.Spec.ExecutionDispatches = []hav1alpha1.MigrationExecutionAttempt{attempt}
+	if _, err := v.ValidateUpdate(context.Background(), old, current); err == nil || !strings.Contains(err.Error(), "after abort") {
+		t.Fatalf("new dispatch after abort: %v", err)
+	}
+	old.Spec.ExecutionDispatches = []hav1alpha1.MigrationExecutionAttempt{attempt}
+	current = old.DeepCopy()
+	if _, err := v.ValidateUpdate(context.Background(), old, current); err != nil {
+		t.Fatalf("existing dispatch rejected: %v", err)
+	}
+}
+
+func TestCreateRejectsExecutionHistory(t *testing.T) {
+	base := &hav1alpha1.HomeAssistantMigration{Spec: hav1alpha1.HomeAssistantMigrationSpec{
+		SourceID: "source", Target: hav1alpha1.MigrationTarget{Name: "target", UID: "target"},
+	}}
+	v := &HomeAssistantMigrationCustomValidator{}
+	if _, err := v.ValidateCreate(context.Background(), base); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*hav1alpha1.HomeAssistantMigration){
+		func(m *hav1alpha1.HomeAssistantMigration) {
+			m.Spec.ExecutionRequests = []hav1alpha1.MigrationExecutionRequest{{}}
+		},
+		func(m *hav1alpha1.HomeAssistantMigration) {
+			m.Spec.ExecutionAttempts = []hav1alpha1.MigrationExecutionAttempt{{}}
+		},
+		func(m *hav1alpha1.HomeAssistantMigration) {
+			m.Spec.ExecutionDispatches = []hav1alpha1.MigrationExecutionAttempt{{}}
+		},
+		func(m *hav1alpha1.HomeAssistantMigration) {
+			m.Spec.ProxyCredentialBinding = &hav1alpha1.MigrationProxyCredentialBinding{}
+		},
+	} {
+		current := base.DeepCopy()
+		mutate(current)
+		if _, err := v.ValidateCreate(context.Background(), current); err == nil || !strings.Contains(err.Error(), "new migration cannot contain execution records") {
+			t.Fatalf("expected execution history rejection, got %v", err)
+		}
+	}
+}
+
+func TestVerificationSetComparisonIgnoresOrderOnly(t *testing.T) {
+	a := []hav1alpha1.MigrationVerificationItem{{Kind: "TodoItems", ID: "a", ExpectedDigest: "one"}, {Kind: "TodoItems", ID: "b", ExpectedDigest: "two"}}
+	b := []hav1alpha1.MigrationVerificationItem{a[1], a[0]}
+	if !sameVerificationSet(a, b) {
+		t.Fatal("reordered set rejected")
+	}
+	b[0].ExpectedDigest = "changed"
+	if sameVerificationSet(a, b) {
+		t.Fatal("changed verification accepted")
+	}
+	b[0] = b[1]
+	if sameVerificationSet(a, b) {
+		t.Fatal("duplicate verification accepted")
+	}
+}
 
 func TestProxyCredentialBindingIsImmutableAndCancellationAware(t *testing.T) {
 	validator := &HomeAssistantMigrationCustomValidator{}
-	old := &hav1alpha1.HomeAssistantMigration{Spec: hav1alpha1.HomeAssistantMigrationSpec{ProxyCredentialBinding: &hav1alpha1.MigrationProxyCredentialBinding{Version: "v1"}}}
+	digest := "sha256:" + strings.Repeat("a", 64)
+	items := []hav1alpha1.MigrationVerificationItem{{Kind: "TodoItems", ID: "todo.test", ExpectedDigest: digest}}
+	verification, err := migrationprotocol.VerificationDigest(items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := hav1alpha1.MigrationExecutionRequest{Version: "v1", Stage: "upload", OperationUID: "op", SourceID: "source", Target: hav1alpha1.MigrationTarget{Name: "target", UID: "target"}, ReportID: "report", ScopeDigest: digest, VerificationDigest: verification, ArchiveRef: &hav1alpha1.MigrationObjectReference{Name: "archive", UID: "archive"}, ArchiveDigest: digest, ArchivePVCUID: "pvc"}
+	r.RequestID, err = migrationprotocol.RequestID(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := &hav1alpha1.HomeAssistantMigration{ObjectMeta: metav1.ObjectMeta{UID: "op"}, Spec: hav1alpha1.HomeAssistantMigrationSpec{ExecutionProtocol: "v1", SourceID: r.SourceID, Target: r.Target, ReportID: r.ReportID, Verification: items, ExecutionRequests: []hav1alpha1.MigrationExecutionRequest{r}}}
 	changed := old.DeepCopy()
+	changed.Spec.ProxyCredentialBinding = &hav1alpha1.MigrationProxyCredentialBinding{Version: "v1", RequestID: r.RequestID, Bundle: hav1alpha1.MigrationObjectReference{Name: "bundle", UID: "uid"}, BundleResourceVersion: "1", Claim: hav1alpha1.MigrationObjectReference{Name: "claim", UID: "uid"}}
+	if _, err := validator.ValidateUpdate(context.Background(), old, changed); err != nil {
+		t.Fatalf("valid binding rejected: %v", err)
+	}
+	cancelled := changed.DeepCopy()
+	cancelled.Spec.CancelRequested = true
+	if _, err := validator.ValidateUpdate(context.Background(), old, cancelled); err == nil || !strings.Contains(err.Error(), "binding is blocked") {
+		t.Fatalf("binding after cancellation: %v", err)
+	}
+	old = changed.DeepCopy()
+	changed = old.DeepCopy()
 	changed.Spec.ProxyCredentialBinding = nil
 	if _, err := validator.ValidateUpdate(context.Background(), old, changed); err == nil {
 		t.Fatal("removed proxy binding accepted")
-	}
-	old.Spec.ProxyCredentialBinding = nil
-	changed.Spec.ProxyCredentialBinding = &hav1alpha1.MigrationProxyCredentialBinding{Version: "v1"}
-	changed.Spec.CancelRequested = true
-	if _, err := validator.ValidateUpdate(context.Background(), old, changed); err == nil {
-		t.Fatal("proxy binding after cancellation accepted")
 	}
 }
 
@@ -181,7 +272,8 @@ func TestResolutionValidationAndAppendOnly(t *testing.T) {
 	}
 	changed := old.DeepCopy()
 	changed.Spec.Resolutions[0].Decision = "ObserveExternalResult"
-	if _, err := validator.ValidateUpdate(context.Background(), old, changed); err == nil {
+	changed.Spec.Resolutions[0].EvidenceRef = &hav1alpha1.MigrationEvidenceReference{APIVersion: "v1", Kind: "ConfigMap", Name: "evidence", UID: "uid", Key: "result"}
+	if _, err := validator.ValidateUpdate(context.Background(), old, changed); err == nil || !strings.Contains(err.Error(), "append-only") {
 		t.Fatal("accepted changed resolution")
 	}
 	changed = old.DeepCopy()
@@ -190,20 +282,26 @@ func TestResolutionValidationAndAppendOnly(t *testing.T) {
 		t.Fatal("accepted removed resolution")
 	}
 	changed = old.DeepCopy()
-	changed.Spec.Resolutions = append(changed.Spec.Resolutions, hav1alpha1.MigrationResolution{Version: "v1", RequestID: "other", Stage: "restore", Decision: "Retry"})
+	changed.Spec.Resolutions = append(changed.Spec.Resolutions, hav1alpha1.MigrationResolution{Version: "v1", RequestID: "sha256:" + strings.Repeat("b", 64), Stage: "restore", Decision: "Retry"})
 	if _, err := validator.ValidateUpdate(context.Background(), old, changed); err == nil {
 		t.Fatal("accepted retry")
 	}
 	changed = old.DeepCopy()
-	changed.Spec.Resolutions = append(changed.Spec.Resolutions, hav1alpha1.MigrationResolution{Version: "v1", RequestID: "other", Stage: "restore", Decision: "ObserveExternalResult", EvidenceRef: &hav1alpha1.MigrationEvidenceReference{Name: "https://user:password@example.test"}})
+	changed.Spec.Resolutions = append(changed.Spec.Resolutions, hav1alpha1.MigrationResolution{Version: "v1", RequestID: "sha256:" + strings.Repeat("b", 64), Stage: "restore", Decision: "ObserveExternalResult", EvidenceRef: &hav1alpha1.MigrationEvidenceReference{APIVersion: "v1", Kind: "ConfigMap", Name: "https://user:password@example.test", UID: "uid", Key: "result"}})
 	if _, err := validator.ValidateUpdate(context.Background(), old, changed); err == nil {
 		t.Fatal("accepted credential-bearing evidence reference")
+	}
+	old.Spec.Resolutions = append(old.Spec.Resolutions, hav1alpha1.MigrationResolution{Version: "v1", RequestID: "sha256:" + strings.Repeat("b", 64), Stage: "restore", Decision: "Abort"})
+	changed = old.DeepCopy()
+	changed.Spec.Resolutions[0], changed.Spec.Resolutions[1] = changed.Spec.Resolutions[1], changed.Spec.Resolutions[0]
+	if _, err := validator.ValidateUpdate(context.Background(), old, changed); err != nil {
+		t.Fatalf("reordered set rejected: %v", err)
 	}
 }
 
 func TestSourceEndpointRejectsCredentials(t *testing.T) {
 	for _, endpoint := range []string{"https://user:password@example.test", "https://example.test/?token=secret", "https://example.test/#secret", "file:///tmp/source"} {
-		m := &hav1alpha1.HomeAssistantMigration{Spec: hav1alpha1.HomeAssistantMigrationSpec{SourceID: "source", Target: hav1alpha1.MigrationTarget{Name: "target", UID: "uid"}, SourceEndpoint: endpoint}}
+		m := &hav1alpha1.HomeAssistantMigration{Spec: hav1alpha1.HomeAssistantMigrationSpec{SourceID: endpoint, Target: hav1alpha1.MigrationTarget{Name: "target", UID: "uid"}, SourceEndpoint: endpoint}}
 		if err := validateHomeAssistantMigration(m); err == nil {
 			t.Fatalf("accepted unsafe source endpoint %q", endpoint)
 		}

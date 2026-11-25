@@ -61,4 +61,8 @@ func TestMigrationRegistryReceiptRejectsChangedIntentOrObservation(t *testing.T)
 	) {
 		t.Fatal("changed HA state accepted")
 	}
+	changedDefinition := json.RawMessage(`{"name":"changed","level":1}`)
+	if migrationRegistryReceiptMatches(receipt, object, identity, changedDefinition, changedDefinition) {
+		t.Fatal("old receipt accepted for matching but changed definitions")
+	}
 }
