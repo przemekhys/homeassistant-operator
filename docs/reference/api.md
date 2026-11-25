@@ -69,6 +69,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
+| `migrationRestore` _[MigrationRestoreAlphaSpec](#migrationrestorealphaspec)_ | MigrationRestore enables the experimental, guarded preparation of this<br />otherwise new Home Assistant instance for a migration restore. It defaults<br />to false and cannot start the workload until a matching migration records<br />both restore and source-stop approvals. |  | Optional: \{\} <br /> |
 | `networkPolicy` _[NetworkPolicyAlphaSpec](#networkpolicyalphaspec)_ | NetworkPolicy controls whether the operator creates a NetworkPolicy<br />restricting ingress to the Home Assistant pod. |  | Optional: \{\} <br /> |
 | `devices` _[DevicePassthroughEntry](#devicepassthroughentry) array_ | Devices declares host device nodes (e.g. /dev/ttyACM0 for a Zigbee/<br />Z-Wave USB coordinator) to mount into the Home Assistant container.<br />Each entry is mounted via a hostPath volume typed as a character<br />device; the container is never granted `privileged: true` for this.<br />Declaring at least one entry changes the pod's security context, so<br />this starts in spec.alpha until it stabilizes. This does not affect<br />where the pod is scheduled — the declared device(s) must already<br />exist on whichever node the pod lands on (see node pinning, a<br />separate capability) for this to be useful. |  | Optional: \{\} <br /> |
 | `tls` _[RemovedNativeTLSSpec](#removednativetlsspec)_ | TLS is retained only so removed native TLS declarations produce an<br />actionable validation error instead of being silently pruned. |  | Optional: \{\} <br /> |
@@ -1768,6 +1769,22 @@ _Appears in:_
 | `passwordRef` _[SecretKeySelector](#secretkeyselector)_ | PasswordRef references a Secret containing the MQTT password<br />The Secret should have a "password" key |  | Optional: \{\} <br /> |
 | `clientID` _string_ | ClientID for MQTT connection |  | Optional: \{\} <br /> |
 | `keepAlive` _integer_ | KeepAlive defines MQTT keep-alive interval in seconds | 60 | Optional: \{\} <br /> |
+
+
+#### MigrationRestoreAlphaSpec
+
+
+
+MigrationRestoreAlphaSpec controls the experimental migration-restore gate.
+
+
+
+_Appears in:_
+- [AlphaSpec](#alphaspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Enabled opts into the experimental restore workload preparation. | false | Optional: \{\} <br /> |
 
 
 #### NetworkPolicyAlphaSpec

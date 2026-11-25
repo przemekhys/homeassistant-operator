@@ -13,6 +13,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const migrationRegistryObservationInterval = 15 * time.Second
+
 // observeMigrationRegistry adopts only by fresh observation, without ever
 // allowing imported objects to reach the ordinary mutation paths.
 func observeMigrationRegistry(
@@ -85,7 +87,7 @@ func observeMigrationRegistry(
 	if paused {
 		return ctrl.Result{}, nil
 	}
-	return ctrl.Result{RequeueAfter: time.Minute}, nil
+	return ctrl.Result{RequeueAfter: migrationRegistryObservationInterval}, nil
 }
 
 func updateMigrationRegistryStatus(obj client.Object, identity migrationIdentity, reason, digest string) (bool, bool) {
