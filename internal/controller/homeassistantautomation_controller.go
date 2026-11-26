@@ -98,6 +98,21 @@ func (r *HomeAssistantAutomationReconciler) Reconcile(ctx context.Context, req c
 		log.Error(err, "Failed to get HomeAssistantAutomation")
 		return ctrl.Result{}, err
 	}
+	if handled, err := removeBlockedMigrationFinalizer(ctx, r.Client, automation, automationFinalizerName); handled ||
+		err != nil {
+		return ctrl.Result{}, err
+	}
+	if migrationWritesBlocked(automation) {
+		return observeImportedDefinition(
+			ctx,
+			r.Client,
+			automation,
+			"automation",
+			automation.Spec.HomeAssistantRef.Name,
+			automation.Spec.ID,
+			r.haClientFor,
+		)
+	}
 
 	// Handle finalizer for proper cleanup
 	if !automation.DeletionTimestamp.IsZero() {
@@ -118,7 +133,11 @@ func (r *HomeAssistantAutomationReconciler) Reconcile(ctx context.Context, req c
 						id = automation.Name
 					}
 					if delErr := haClient.DeleteAutomation(ctx, token, id); delErr != nil {
-						log.Info("Failed to delete automation via HA API (proceeding with finalizer removal)", "error", delErr)
+						log.Info(
+							"Failed to delete automation via HA API (proceeding with finalizer removal)",
+							"error",
+							delErr,
+						)
 					}
 				} else {
 					log.Info("API token not available during deletion, proceeding with finalizer removal")

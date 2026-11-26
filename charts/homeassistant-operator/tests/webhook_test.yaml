@@ -67,6 +67,39 @@ tests:
           path: webhooks[0].failurePolicy
           value: Fail
 
+  - it: routes migration creates and updates to the migration validator
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: webhooks[3].name
+          value: vhomeassistantmigration-v1alpha1.kb.io
+      - equal:
+          path: webhooks[3].failurePolicy
+          value: Fail
+      - equal:
+          path: webhooks[3].clientConfig.service.path
+          value: /validate-ha-homeassistant-io-v1alpha1-homeassistantmigration
+      - equal:
+          path: webhooks[3].rules[0]
+          value:
+            apiGroups: ["ha.homeassistant.io"]
+            apiVersions: ["v1alpha1"]
+            operations: ["CREATE", "UPDATE"]
+            resources: ["homeassistantmigrations"]
+
+  - it: filters migration isolation workloads to protected credential references
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: webhooks[2].failurePolicy
+          value: Fail
+      - equal:
+          path: webhooks[2].matchConditions[0].name
+          value: references-migration-credentials
+      - matchRegex:
+          path: webhooks[2].matchConditions[0].expression
+          pattern: "object\\.spec\\.template\\.spec\\.containers"
+
   - it: webhook Service name stays within the 63-char DNS-label limit for long release names
     release:
       name: a-very-long-release-name-for-testing-long-names

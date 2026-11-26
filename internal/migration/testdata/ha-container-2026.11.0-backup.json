@@ -1,0 +1,17 @@
+{
+  "compressed": true,
+  "date": "2026-11-15T22:18:00Z",
+  "extra": {
+    "instance_id": "sanitized-disposable-instance",
+    "with_automatic_settings": true
+  },
+  "homeassistant": {
+    "exclude_database": false,
+    "version": "2026.11.0"
+  },
+  "name": "Sanitized automatic backup",
+  "protected": true,
+  "slug": "backup-id",
+  "type": "partial",
+  "version": 2
+}

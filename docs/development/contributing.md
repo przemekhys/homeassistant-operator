@@ -36,6 +36,7 @@ Every submission helps shape the project.
 - Go 1.27+
 - Docker or Podman
 - `kubectl`
+- Helm 3 (required by `make test` to render the admission webhook chart)
 - `k3d` (for local cluster testing)
 - `pre-commit` (for commit hooks)
 

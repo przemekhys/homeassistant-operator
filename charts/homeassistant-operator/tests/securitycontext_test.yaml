@@ -2,6 +2,30 @@ suite: operator security context
 templates:
   - deployment.yaml
 tests:
+  - it: passes the default operator service account to the isolation webhook
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: RELEASE-NAME-homeassistant-operator
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OPERATOR_SERVICE_ACCOUNT
+            value: RELEASE-NAME-homeassistant-operator
+
+  - it: passes a custom operator service account to the isolation webhook
+    set:
+      serviceAccount.name: custom-operator
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: custom-operator
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OPERATOR_SERVICE_ACCOUNT
+            value: custom-operator
+
   - it: pod runs as non-root with a seccomp profile
     asserts:
       - equal:

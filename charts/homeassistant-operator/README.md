@@ -18,7 +18,7 @@ A Kubernetes operator for deploying and managing Home Assistant instances with d
 
 ## Requirements
 
-Kubernetes: `>=1.24-0`
+Kubernetes: `>=1.30-0`
 
 ## Values
 
@@ -29,7 +29,7 @@ Kubernetes: `>=1.24-0`
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for the operator container. |
 | image.repository | string | `"ghcr.io/przemekhys/homeassistant-operator"` | Operator container image repository. |
 | image.tag | string | `"1.1.0"` | Image tag. Defaults to the chart's appVersion when empty. |
-| imagePullSecrets | list | `[]` | Image pull secrets for a private registry mirror. |
+| imagePullSecrets | list | `[]` | Image pull secrets for a private registry mirror. The same references are propagated to migration worker Jobs and target-side onboarding proxies; create each Secret in every namespace where a migration can run. |
 | metricsNetworkPolicy.enabled | bool | `false` | Restrict ingress to the operator pod: its `/metrics` endpoint to namespaces labeled `metrics: enabled`, and — when `webhook.enabled` is also true — its admission webhook to namespaces labeled `webhook: enabled`. That label governs pod-to-pod callers only: on most clusters the API server's AdmissionReview calls do not originate from the pod network, so the rule neither reaches nor blocks them. Where they are evaluated by the policy, an unlabelled caller is denied — with `webhook.failurePolicy: Ignore` (the default) writes are then admitted unvalidated, and with `Fail` they are rejected outright. Egress is deliberately not restricted, because there is no portable way to address the Kubernetes API server across cluster types and CNIs from a generic chart. Unrelated to `spec.alpha.networkPolicy.enabled` on a HomeAssistant resource, which protects the Home Assistant pod instead. |
 | nameOverride | string | `""` | Override the chart name used in resource names. |
 | namespace.create | bool | `false` | Render the release Namespace and label it to enforce the "restricted" Pod Security Standard (version latest). Helm stores its release state in the target namespace, so that namespace must exist before the chart is applied: pass `--create-namespace` (or create it yourself) on the first install. When false (the default), no Pod Security Admission labels are added at all — the operator pod is restricted-compliant either way, see `securityContext`, but the namespace does not enforce it. |

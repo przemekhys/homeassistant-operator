@@ -15,7 +15,7 @@ to start.
 
 You need:
 
-- a Kubernetes cluster, v1.24 or newer, that you can reach with `kubectl`;
+- a Kubernetes cluster, v1.30 or newer, that you can reach with `kubectl`;
 - a default StorageClass in that cluster (`kubectl get storageclass` should list
   one marked `(default)`) — Home Assistant keeps its state on a persistent volume;
 - `kubectl` and `helm` on your machine.

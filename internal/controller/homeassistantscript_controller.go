@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -93,6 +94,21 @@ func (r *HomeAssistantScriptReconciler) Reconcile(ctx context.Context, req ctrl.
 		Namespace: script.Namespace,
 	}
 	ctx, log = withHomeAssistant(ctx, haRef.Name)
+	if handled, err := removeBlockedMigrationFinalizer(ctx, r.Client, script, scriptFinalizerName); handled ||
+		err != nil {
+		return ctrl.Result{}, err
+	}
+	if migrationWritesBlocked(script) {
+		return observeImportedDefinition(
+			ctx,
+			r.Client,
+			script,
+			"script",
+			script.Spec.HomeAssistantRef.Name,
+			script.Spec.ID,
+			r.haClientFor,
+		)
+	}
 
 	// Handle finalizer for proper cleanup
 	if !script.DeletionTimestamp.IsZero() {
@@ -109,7 +125,11 @@ func (r *HomeAssistantScriptReconciler) Reconcile(ctx context.Context, req ctrl.
 						id = script.Name
 					}
 					if delErr := haClient.DeleteScript(ctx, token, id); delErr != nil {
-						log.Info("Failed to delete script via HA API (proceeding with finalizer removal)", "error", delErr)
+						log.Info(
+							"Failed to delete script via HA API (proceeding with finalizer removal)",
+							"error",
+							delErr,
+						)
 					}
 				} else {
 					log.Info("API token not available during deletion, proceeding with finalizer removal")
@@ -277,7 +297,9 @@ func (r *HomeAssistantScriptReconciler) scriptToYaml(
 		fields := make(map[string]interface{})
 		for fieldName, fieldSpec := range script.Spec.Fields {
 			var fieldData map[string]interface{}
-			if err := json.Unmarshal(fieldSpec.Raw, &fieldData); err != nil {
+			decoder := json.NewDecoder(bytes.NewReader(fieldSpec.Raw))
+			decoder.UseNumber()
+			if err := decoder.Decode(&fieldData); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal field %s: %w", fieldName, err)
 			}
 			fields[fieldName] = fieldData
@@ -289,7 +311,9 @@ func (r *HomeAssistantScriptReconciler) scriptToYaml(
 	var sequence []interface{}
 	for i, action := range script.Spec.Sequence {
 		var actionData map[string]interface{}
-		if err := json.Unmarshal(action.Raw, &actionData); err != nil {
+		decoder := json.NewDecoder(bytes.NewReader(action.Raw))
+		decoder.UseNumber()
+		if err := decoder.Decode(&actionData); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal action %d: %w", i, err)
 		}
 		sequence = append(sequence, actionData)

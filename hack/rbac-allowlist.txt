@@ -111,3 +111,36 @@ ha.homeassistant.io/homeassistantdashboards/status/update
 # against real PriorityClass objects at admission time, since Kubernetes
 # itself only rejects a nonexistent one later, at pod creation.
 scheduling.k8s.io/priorityclasses/get
+
+# Experimental HomeAssistantMigration execution. The controller persists the
+# operation state, creates and cleans up one-shot worker Jobs with per-request
+# ServiceAccounts, Roles and RoleBindings, and updates its own status/finalizer.
+/serviceaccounts/create
+/serviceaccounts/delete
+/serviceaccounts/get
+/serviceaccounts/list
+/serviceaccounts/watch
+batch/jobs/create
+batch/jobs/delete
+batch/jobs/get
+batch/jobs/list
+batch/jobs/watch
+ha.homeassistant.io/homeassistantmigrations/get
+ha.homeassistant.io/homeassistantmigrations/list
+ha.homeassistant.io/homeassistantmigrations/patch
+ha.homeassistant.io/homeassistantmigrations/update
+ha.homeassistant.io/homeassistantmigrations/watch
+ha.homeassistant.io/homeassistantmigrations/finalizers/update
+ha.homeassistant.io/homeassistantmigrations/status/get
+ha.homeassistant.io/homeassistantmigrations/status/patch
+ha.homeassistant.io/homeassistantmigrations/status/update
+rbac.authorization.k8s.io/rolebindings/create
+rbac.authorization.k8s.io/rolebindings/delete
+rbac.authorization.k8s.io/rolebindings/get
+rbac.authorization.k8s.io/rolebindings/list
+rbac.authorization.k8s.io/rolebindings/watch
+rbac.authorization.k8s.io/roles/create
+rbac.authorization.k8s.io/roles/delete
+rbac.authorization.k8s.io/roles/get
+rbac.authorization.k8s.io/roles/list
+rbac.authorization.k8s.io/roles/watch

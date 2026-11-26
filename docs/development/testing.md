@@ -2,6 +2,8 @@
 
 *For contributors — how this project is tested and how to run the suites. Not needed to use the operator.*
 
+`make test` requires Helm 3 on `PATH` to render the chart for admission tests.
+
 ## Philosophy
 
 **Test behavior, not implementation.** Focus on what the code does, not how it does it.

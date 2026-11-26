@@ -69,6 +69,12 @@ func (r *HomeAssistantAreaReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 		return ctrl.Result{}, err
 	}
+	if handled, err := removeBlockedMigrationFinalizer(ctx, r.Client, area, areaFinalizerName); handled || err != nil {
+		return ctrl.Result{}, err
+	}
+	if migrationWritesBlocked(area) {
+		return observeMigrationRegistry(ctx, r.Client, area, "area", area.Spec.HomeAssistantRef.Name, r.haClientFor)
+	}
 
 	// --- DELETION ---
 	if !area.DeletionTimestamp.IsZero() {

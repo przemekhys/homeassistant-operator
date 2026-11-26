@@ -52,6 +52,20 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: OPERATOR_SERVICE_ACCOUNT
+              value: {{ include "homeassistant-operator.serviceAccountName" . | quote }}
+            # The short-lived worker and target-side mTLS proxy use the same
+            # image, which contains both manager and migrate-worker binaries.
+            - name: MIGRATION_WORKER_IMAGE
+              value: {{ include "homeassistant-operator.image" . | quote }}
+            # Worker Jobs and target-side onboarding proxies must pull the same
+            # image in every migration namespace.
+            - name: MIGRATION_WORKER_IMAGE_PULL_SECRETS
+              value: {{ .Values.imagePullSecrets | toJson | quote }}
+            {{- if .Values.webhook.enabled }}
+            - name: MIGRATION_ISOLATION_ADMISSION_ENABLED
+              value: "true"
+            {{- end }}
             {{- if not (empty .Values.watchNamespaces) }}
             - name: WATCH_NAMESPACES
               value: {{ .Values.watchNamespaces | join "," | quote }}

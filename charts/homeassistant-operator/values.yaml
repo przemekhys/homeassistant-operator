@@ -6,7 +6,9 @@ image:
   # -- Image pull policy for the operator container.
   pullPolicy: IfNotPresent
 
-# -- Image pull secrets for a private registry mirror.
+# -- Image pull secrets for a private registry mirror. The same references are
+# propagated to migration worker Jobs and target-side onboarding proxies; create
+# each Secret in every namespace where a migration can run.
 imagePullSecrets: []
 
 # -- Number of operator replicas. The operator has no leader election across

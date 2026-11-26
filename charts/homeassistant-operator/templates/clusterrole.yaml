@@ -49,6 +49,16 @@ rules:
     - update
     - watch
 - apiGroups:
+    - ""
+  resources:
+    - serviceaccounts
+  verbs:
+    - create
+    - delete
+    - get
+    - list
+    - watch
+- apiGroups:
     - admissionregistration.k8s.io
   resources:
     - validatingwebhookconfigurations
@@ -69,6 +79,16 @@ rules:
     - list
     - patch
     - update
+    - watch
+- apiGroups:
+    - batch
+  resources:
+    - jobs
+  verbs:
+    - create
+    - delete
+    - get
+    - list
     - watch
 - apiGroups:
     - cert-manager.io
@@ -143,6 +163,7 @@ rules:
     - homeassistantfloors/finalizers
     - homeassistantintegrations/finalizers
     - homeassistantlabels/finalizers
+    - homeassistantmigrations/finalizers
     - homeassistants/finalizers
     - homeassistantscenes/finalizers
     - homeassistantscripts/finalizers
@@ -160,6 +181,7 @@ rules:
     - homeassistantfloors/status
     - homeassistantintegrations/status
     - homeassistantlabels/status
+    - homeassistantmigrations/status
     - homeassistants/status
     - homeassistantscenes/status
     - homeassistantscripts/status
@@ -168,6 +190,16 @@ rules:
     - get
     - patch
     - update
+- apiGroups:
+    - ha.homeassistant.io
+  resources:
+    - homeassistantmigrations
+  verbs:
+    - get
+    - list
+    - patch
+    - update
+    - watch
 - apiGroups:
     - ha.homeassistant.io
   resources:
@@ -188,6 +220,17 @@ rules:
     - list
     - patch
     - update
+    - watch
+- apiGroups:
+    - rbac.authorization.k8s.io
+  resources:
+    - rolebindings
+    - roles
+  verbs:
+    - create
+    - delete
+    - get
+    - list
     - watch
 - apiGroups:
     - scheduling.k8s.io

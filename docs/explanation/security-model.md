@@ -68,6 +68,20 @@ advance where Home Assistant will live. The trade-off is real, so the install
 warns about it rather than staying quiet — see
 [install the operator](../how-to/install-operator.md).
 
+### The operator namespace is a trust boundary
+
+The operator ServiceAccount can read Secrets in its watched namespaces. Anyone
+who can create or modify a Pod or a workload that creates Pods in the operator
+namespace can choose that ServiceAccount and obtain its Kubernetes API
+permissions. Direct Secret-read restrictions alone do not prevent this.
+
+Run the operator in a dedicated namespace. Grant Pod and workload creation or
+modification there only to trusted administrators, and restrict access to
+ServiceAccount token issuance and operator workload changes. The migration
+credential isolation webhook does not enforce this namespace trust boundary.
+Use `watchNamespaces` to limit the reach of the operator's permissions; it does
+not replace the namespace access restriction.
+
 One permission the operator deliberately does **not** hold is `pods/exec`. It
 would be the obvious way to fix things inside a running Home Assistant container,
 and it is also a permission that lets its holder run anything, as anyone, in any
@@ -128,15 +142,17 @@ volume. They are as protected as that volume is, not more.
 
 ## The admission webhook
 
-The operator ships a validating admission webhook that rejects incoherent
-resources at `kubectl apply` time rather than letting them fail later. It runs
-with `failurePolicy: Ignore` by default, meaning that if the webhook is
-unavailable — during an operator rollout, say — resources are admitted
-unvalidated instead of being blocked.
+The operator ships validating admission webhooks that reject incoherent
+resources at `kubectl apply` time rather than letting them fail later. Most use
+`failurePolicy: Ignore` by default, so ordinary resources are admitted without
+that validation when the webhook is unavailable.
 
-That is the deliberate choice: this webhook exists to catch mistakes, not to be a
-security control, and an unavailable webhook that blocks every change would take
-your smart home down to prevent a typo.
+Migration validation and credential isolation are different: they use
+`failurePolicy: Fail` because they protect migration safety boundaries. An
+unavailable webhook blocks matching migration operations and protected
+credential references. For Pods, Secrets and ConfigMaps, API-server match
+conditions exclude unrelated resources, including the operator's normal Pod
+and serving certificate, from the isolation webhook.
 
 ## See also
 

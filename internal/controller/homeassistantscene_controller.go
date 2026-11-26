@@ -91,6 +91,21 @@ func (r *HomeAssistantSceneReconciler) Reconcile(ctx context.Context, req ctrl.R
 		Namespace: scene.Namespace,
 	}
 	ctx, log = withHomeAssistant(ctx, haRef.Name)
+	if handled, err := removeBlockedMigrationFinalizer(ctx, r.Client, scene, sceneFinalizerName); handled ||
+		err != nil {
+		return ctrl.Result{}, err
+	}
+	if migrationWritesBlocked(scene) {
+		return observeImportedDefinition(
+			ctx,
+			r.Client,
+			scene,
+			"scene",
+			scene.Spec.HomeAssistantRef.Name,
+			scene.Spec.ID,
+			r.haClientFor,
+		)
+	}
 
 	// Handle finalizer for proper cleanup
 	if !scene.DeletionTimestamp.IsZero() {
@@ -107,7 +122,11 @@ func (r *HomeAssistantSceneReconciler) Reconcile(ctx context.Context, req ctrl.R
 						id = scene.Name
 					}
 					if delErr := haClient.DeleteScene(ctx, token, id); delErr != nil {
-						log.Info("Failed to delete scene via HA API (proceeding with finalizer removal)", "error", delErr)
+						log.Info(
+							"Failed to delete scene via HA API (proceeding with finalizer removal)",
+							"error",
+							delErr,
+						)
 					}
 				} else {
 					log.Info("API token not available during deletion, proceeding with finalizer removal")

@@ -68,6 +68,12 @@ func (r *HomeAssistantFloorReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 		return ctrl.Result{}, err
 	}
+	if handled, err := removeBlockedMigrationFinalizer(ctx, r.Client, floor, floorFinalizerName); handled || err != nil {
+		return ctrl.Result{}, err
+	}
+	if migrationWritesBlocked(floor) {
+		return observeMigrationRegistry(ctx, r.Client, floor, "floor", floor.Spec.HomeAssistantRef.Name, r.haClientFor)
+	}
 
 	haRef := types.NamespacedName{
 		Name:      floor.Spec.HomeAssistantRef.Name,
