@@ -73,10 +73,13 @@ particular mounts host paths and alters the container's security context — but
 deliberately never grants `privileged: true`, because that would be a far larger
 concession than the feature needs.
 
-`migrationRestore` defaults to disabled. When enabled, it prevents the target
-workload from starting until the matching migration records both restore and
-source-stop approvals. Follow the [migration guide](../how-to/migrate-existing-instance.md)
-for the required manual steps and limitations.
+`migrationRestore` defaults to disabled. When enabled, it keeps the target
+workload stopped until the matching migration has a bound restore approval,
+verified source stop, and isolated proxy credentials. After restore, normal
+bootstrap and configuration projections remain gated until post-restore
+verification and a bound `resume` approval. Follow the
+[migration guide](../how-to/migrate-existing-instance.md) for the required
+manual steps and limitations.
 
 The current list of fields, with their types, is in the
 [API reference](../reference/api.md#alphaspec).

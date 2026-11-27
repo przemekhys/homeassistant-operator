@@ -9,7 +9,7 @@
 
 - Create a **new**, empty `HomeAssistant` target in the destination namespace. Record its name and UID; do not reuse or share the source PVC.
 - Ensure that the operator can create Jobs and an independent archive PVC in that namespace.
-- Store the source token and recovery key in separate Kubernetes Secrets. Do not put either value in a URL, manifest, status, report, or log.
+- Store the source token and recovery key in separate Kubernetes Secrets. Do not put either value in a URL, manifest, status, report, or log. Pass the recovery-key Secret to `import` with `--recovery-key-secret` when creating the operation.
 - Plan a manual traffic cutover and rollback. Keep the source stopped throughout validation of the restored target.
 
 For fields, phases, and exact approval bindings, use the generated [`HomeAssistantMigration` API reference](../reference/api.md#homeassistantmigrationspec).
