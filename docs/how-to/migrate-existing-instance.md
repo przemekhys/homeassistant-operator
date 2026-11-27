@@ -72,8 +72,8 @@ kubectl -n home get homeassistantmigration ha-existing-migration -o yaml
 Imported resources start paused. To resume an imported floor, first find it:
 
 ```sh
-kubectl -n home get homeassistantfloors \
-  -l ha.homeassistant.io/migration-imported=true
+kubectl -n home get homeassistantfloors -o json | \
+  jq -r '.items[] | select(.metadata.annotations["ha.homeassistant.io/migration-imported"] == "true") | .metadata.name'
 ```
 
 After its declaration matches the source object, remove only the

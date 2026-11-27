@@ -243,7 +243,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled controls whether automatic backups are configured in HA | false | Optional: \{\} <br /> |
 | `recurrence` _string_ | Recurrence defines how often to create a backup | daily | Enum: [daily mon tue wed thu fri sat sun never] <br />Optional: \{\} <br /> |
-| `time` _string_ | Time is the time of day to create the backup in HH:MM:SS 24-hour format (e.g. "03:00:00").<br />If empty, Home Assistant picks automatically. |  | Pattern: `^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$` <br />Optional: \{\} <br /> |
+| `time` _string_ | Time is the time of day to create the backup in HH:MM:SS 24-hour format (e.g. "03:00:00").<br />If empty, Home Assistant picks automatically. |  | Pattern: `^([01]\d\|2[0-3]):[0-5]\d:[0-5]\d$` <br />Optional: \{\} <br /> |
 | `retentionCopies` _integer_ | RetentionCopies is the number of backup copies to keep. Nil means unlimited. |  | Minimum: 1 <br />Optional: \{\} <br /> |
 | `retentionDays` _integer_ | RetentionDays is the number of days to keep backups. Nil means unlimited. |  | Minimum: 1 <br />Optional: \{\} <br /> |
 | `includeDatabase` _boolean_ | IncludeDatabase controls whether the database is included in the backup. | true | Optional: \{\} <br /> |
@@ -525,7 +525,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name of the header. |  | MinLength: 1 <br />Pattern: `^[A-Za-z0-9!#$%&'*+\-.^_\x60|~]+$` <br />Required: \{\} <br /> |
+| `name` _string_ | Name of the header. |  | MinLength: 1 <br />Pattern: `^[A-Za-z0-9!#$%&'*+\-.^_\x60\|~]+$` <br />Required: \{\} <br /> |
 | `value` _string_ | Value of the header. |  | MinLength: 1 <br />Required: \{\} <br /> |
 
 
@@ -1725,8 +1725,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `name` _string_ | Name is the location name (e.g., "Home", "Warsaw") |  | Optional: \{\} <br /> |
-| `latitude` _string_ | Latitude in decimal degrees (e.g., "52.2297") |  | Pattern: `^-?([0-8]?[0-9](\.[0-9]+)?|90(\.0+)?)$` <br />Optional: \{\} <br /> |
-| `longitude` _string_ | Longitude in decimal degrees (e.g., "21.0122") |  | Pattern: `^-?(1[0-7][0-9](\.[0-9]+)?|[0-9]{1,2}(\.[0-9]+)?|180(\.0+)?)$` <br />Optional: \{\} <br /> |
+| `latitude` _string_ | Latitude in decimal degrees (e.g., "52.2297") |  | Pattern: `^-?([0-8]?[0-9](\.[0-9]+)?\|90(\.0+)?)$` <br />Optional: \{\} <br /> |
+| `longitude` _string_ | Longitude in decimal degrees (e.g., "21.0122") |  | Pattern: `^-?(1[0-7][0-9](\.[0-9]+)?\|[0-9]{1,2}(\.[0-9]+)?\|180(\.0+)?)$` <br />Optional: \{\} <br /> |
 | `elevation` _integer_ | Elevation in meters |  | Optional: \{\} <br /> |
 | `unitSystem` _string_ | UnitSystem defines the unit system ("metric" or "us_customary") | metric | Enum: [metric us_customary] <br />Optional: \{\} <br /> |
 | `currency` _string_ | Currency is the ISO 4217 currency code (e.g., "USD", "EUR", "PLN") |  | Optional: \{\} <br /> |

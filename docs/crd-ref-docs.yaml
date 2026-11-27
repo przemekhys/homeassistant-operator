@@ -5,3 +5,13 @@ processor:
     - "Conditions$"
 render:
   kubernetesVersion: "1.37"
+  knownTypes:
+    - name: RawExtension
+      package: k8s.io/apimachinery/pkg/runtime
+      link: https://pkg.go.dev/k8s.io/apimachinery/pkg/runtime#RawExtension
+    - name: ServiceType
+      package: k8s.io/api/core/v1
+      link: https://pkg.go.dev/k8s.io/api/core/v1#ServiceType
+    - name: PersistentVolumeAccessMode
+      package: k8s.io/api/core/v1
+      link: https://pkg.go.dev/k8s.io/api/core/v1#PersistentVolumeAccessMode
