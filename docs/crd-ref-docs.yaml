@@ -4,4 +4,4 @@ processor:
     - "ObjectMeta"
     - "Conditions$"
 render:
-  kubernetesVersion: "1.30"
+  kubernetesVersion: "1.37"

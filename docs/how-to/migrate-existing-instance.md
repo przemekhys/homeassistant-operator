@@ -18,14 +18,25 @@
   wait for deletion before proceeding; if it contains data, create a new target
   instead.
 - Store the source token and recovery key in separate Kubernetes Secrets. Do
-  not put either value in a URL, manifest, status, report, or log.
+  not put either value in a URL, manifest, status, report, or log. The source
+  Secret key is `token`; the recovery-key Secret key is `key`.
 - Plan manual traffic cutover and rollback. Keep the source stopped while
   validating a restored target.
+
+Helm and manifest installations do not include `ha-operator-migrate`. Build it
+from a repository checkout, then verify it before continuing:
+
+```sh
+go build -o ./bin/ha-operator-migrate ./cmd/migrate
+./bin/ha-operator-migrate scan --help
+```
+
+The remaining commands use `./bin/ha-operator-migrate`.
 
 ## 1. Scan the source
 
 ```sh
-ha-operator-migrate scan \
+./bin/ha-operator-migrate scan \
   --source-url https://ha-source.example \
   --source-token-secret ha-source-token \
   --namespace home \
@@ -38,7 +49,7 @@ Inspect the report ID and every classification before proceeding.
 ## 2. Create the paused migration operation
 
 ```sh
-ha-operator-migrate import \
+./bin/ha-operator-migrate import \
   --report migration-report.json \
   --report-id sha256:... \
   --namespace home \
@@ -58,10 +69,24 @@ kubectl -n home get homeassistantmigration ha-existing-migration -o yaml
 
 ## 3. Review imported resources
 
-Imported resources start paused. Remove a resource's pause only after its
-declaration matches the source object. The operator performs a read-only
-identity and canonical-field comparison; it does not enable normal
-synchronisation or deletion.
+Imported resources start paused. To resume an imported floor, first find it:
+
+```sh
+kubectl -n home get homeassistantfloors \
+  -l ha.homeassistant.io/migration-imported=true
+```
+
+After its declaration matches the source object, remove only the
+`ha.homeassistant.io/migration-paused` annotation; retain its other migration
+identity annotations:
+
+```sh
+kubectl -n home annotate homeassistantfloor <floor-name> \
+  ha.homeassistant.io/migration-paused-
+```
+
+The operator then performs a read-only identity and canonical-field comparison;
+it does not enable normal synchronisation or deletion.
 
 Conflicts and unsupported objects need manual handling. Removing an imported
 resource does not delete the corresponding object in Home Assistant.
@@ -86,4 +111,6 @@ It cannot undo a request already accepted by Home Assistant.
 
 Do not delete receipts, archives, or worker resources to force a retry. If an
 accepted request has an unknown outcome, resolve it with bound evidence or
-explicitly abort it, then wait for garbage collection after local work ends.
+explicitly abort it. After local work ends, delete the migration operation to
+start cleanup; its owned resources are then garbage-collected. Setting
+`spec.cancelRequested: true` alone does not start garbage collection.
