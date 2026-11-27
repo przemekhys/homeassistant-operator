@@ -3,3 +3,5 @@ processor:
     - "TypeMeta"
     - "ObjectMeta"
     - "Conditions$"
+render:
+  kubernetesVersion: "1.30"

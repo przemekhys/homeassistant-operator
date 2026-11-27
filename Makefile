@@ -304,6 +304,9 @@ docs-api: crd-ref-docs ## Regenerate docs/reference/api.md from Go types
 	   tail -n +2 ./docs/reference/api.md; } > ./docs/reference/api.md.tmp
 	@printf '%s\n' "$$(cat ./docs/reference/api.md.tmp)" > ./docs/reference/api.md
 	@rm -f ./docs/reference/api.md.tmp
+	@# controller-tools preserves regex quantifiers, while crd-ref-docs escapes
+	@# their braces inside Markdown code spans. Restore the literal form.
+	@sed -i -E 's/\\\{([0-9]+(,[0-9]*)?)\\\}/\{\1\}/g' ./docs/reference/api.md
 
 ##@ Security
 
