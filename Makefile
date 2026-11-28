@@ -253,6 +253,7 @@ lint-config: golangci-lint ## Verify golangci-lint linter configuration
 ##@ Documentation
 
 DOCS_VENV ?= .venv
+CRD_REF_DOCS_MAX_DEPTH ?= 20
 
 .PHONY: docs-setup
 docs-setup: ## Create Python venv and install documentation dependencies
@@ -290,6 +291,7 @@ docs-api: crd-ref-docs ## Regenerate docs/reference/api.md from Go types
 	$(CRD_REF_DOCS) \
 		--source-path=./api \
 		--config=./docs/crd-ref-docs.yaml \
+		--max-depth=$(CRD_REF_DOCS_MAX_DEPTH) \
 		--renderer=markdown \
 		--output-path=./docs/reference/api.md
 	@# Stamp in the type line every published page carries — crd-ref-docs has no
@@ -302,6 +304,9 @@ docs-api: crd-ref-docs ## Regenerate docs/reference/api.md from Go types
 	   tail -n +2 ./docs/reference/api.md; } > ./docs/reference/api.md.tmp
 	@printf '%s\n' "$$(cat ./docs/reference/api.md.tmp)" > ./docs/reference/api.md
 	@rm -f ./docs/reference/api.md.tmp
+	@# controller-tools preserves regex quantifiers, while crd-ref-docs escapes
+	@# their braces inside Markdown code spans. Restore the literal form.
+	@sed -E 's/\\\{([0-9]+(,[0-9]*)?)\\\}/\{\1\}/g; s|#quantity-resource-api|#quantity-resource-core|g' ./docs/reference/api.md > ./docs/reference/api.md.tmp && mv ./docs/reference/api.md.tmp ./docs/reference/api.md
 
 ##@ Security
 

@@ -50,8 +50,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#volume-v1-core) array_ | Volumes defines Kubernetes volumes to attach to the Home Assistant pod. |  | Optional: \{\} <br /> |
-| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#volumemount-v1-core) array_ | VolumeMounts defines mounts for the main Home Assistant container. Each<br />name must match an entry in Volumes. |  | Optional: \{\} <br /> |
+| `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#volume-v1-core) array_ | Volumes defines Kubernetes volumes to attach to the Home Assistant pod. |  | Optional: \{\} <br /> |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#volumemount-v1-core) array_ | VolumeMounts defines mounts for the main Home Assistant container. Each<br />name must match an entry in Volumes. |  | Optional: \{\} <br /> |
 
 
 #### AlphaSpec
@@ -171,7 +171,7 @@ _Appears in:_
 | `requestID` _string_ |  |  |  |
 | `backupID` _string_ |  |  |  |
 | `outcome` _string_ |  |  |  |
-| `completedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ |  |  |  |
+| `completedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ |  |  |  |
 | `locations` _[BackupLocationStatus](#backuplocationstatus) array_ |  |  |  |
 
 
@@ -208,7 +208,7 @@ _Appears in:_
 | `id` _string_ |  |  |  |
 | `phase` _string_ |  |  |  |
 | `backupID` _string_ |  |  |  |
-| `claimedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ |  |  |  |
+| `claimedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ |  |  |  |
 
 
 #### BackupSecretKeyReference
@@ -263,10 +263,10 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `observedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | ObservedAt is when Home Assistant backup information was last read. |  | Optional: \{\} <br /> |
+| `observedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | ObservedAt is when Home Assistant backup information was last read. |  | Optional: \{\} <br /> |
 | `agents` _[BackupAgentStatus](#backupagentstatus) array_ | Agents are destinations last advertised by Home Assistant. |  | Optional: \{\} <br /> |
 | `lastAttempt` _[BackupAttemptStatus](#backupattemptstatus)_ | LastAttempt is bounded evidence, not a full backup history. |  | Optional: \{\} <br /> |
-| `lastSuccessfulBackupTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastSuccessfulBackupTime is the native archive date of the last fully<br />confirmed success, when that evidence is available. |  | Optional: \{\} <br /> |
+| `lastSuccessfulBackupTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | LastSuccessfulBackupTime is the native archive date of the last fully<br />confirmed success, when that evidence is available. |  | Optional: \{\} <br /> |
 | `request` _[BackupRequestStatus](#backuprequeststatus)_ | Request is the current durable one-shot request projection. |  | Optional: \{\} <br /> |
 | `keySecretRef` _[BackupSecretKeyReference](#backupsecretkeyreference)_ | KeySecretRef identifies the protected current observed encryption key.<br />It never contains the key value. |  | Optional: \{\} <br /> |
 
@@ -328,9 +328,9 @@ _Appears in:_
 | `completed` _boolean_ | Completed indicates whether the bootstrap process has finished successfully |  | Optional: \{\} <br /> |
 | `apiTokenReady` _boolean_ | APITokenReady indicates whether the API token has been created and stored |  | Optional: \{\} <br /> |
 | `apiTokenSecretName` _string_ | APITokenSecretName is the name of the Secret containing the API token |  | Optional: \{\} <br /> |
-| `lastAttempt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastAttempt is the timestamp of the last bootstrap attempt |  | Optional: \{\} <br /> |
+| `lastAttempt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | LastAttempt is the timestamp of the last bootstrap attempt |  | Optional: \{\} <br /> |
 | `message` _string_ | Message provides additional information about the bootstrap status |  | Optional: \{\} <br /> |
-| `onboardingDoneFirstSeen` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | OnboardingDoneFirstSeen is the timestamp when /api/onboarding first returned 404.<br />Used to implement confirmation delay without relying on condition LastTransitionTime<br />(which does not update when only the Reason changes). |  | Optional: \{\} <br /> |
+| `onboardingDoneFirstSeen` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | OnboardingDoneFirstSeen is the timestamp when /api/onboarding first returned 404.<br />Used to implement confirmation delay without relying on condition LastTransitionTime<br />(which does not update when only the Reason changes). |  | Optional: \{\} <br /> |
 | `loginRecoveryAttempts` _integer_ | LoginRecoveryAttempts tracks how many times login recovery was attempted.<br />Reset to zero when onboarding is confirmed fresh or bootstrap succeeds. |  | Optional: \{\} <br /> |
 
 
@@ -647,7 +647,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistant` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[HomeAssistantSpec](#homeassistantspec)_ |  |  |  |
 | `status` _[HomeAssistantStatus](#homeassistantstatus)_ |  |  |  |
 
@@ -667,7 +667,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantArea` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  | Optional: \{\} <br /> |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  | Optional: \{\} <br /> |
 | `spec` _[HomeAssistantAreaSpec](#homeassistantareaspec)_ |  |  | Required: \{\} <br /> |
 | `status` _[HomeAssistantAreaStatus](#homeassistantareastatus)_ |  |  | Optional: \{\} <br /> |
 
@@ -686,7 +686,7 @@ HomeAssistantAreaList contains a list of HomeAssistantArea
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantAreaList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[HomeAssistantArea](#homeassistantarea) array_ |  |  |  |
 
 
@@ -726,7 +726,7 @@ _Appears in:_
 | `areaID` _string_ | areaID is the ID assigned by Home Assistant after creation |  | Optional: \{\} <br /> |
 | `observedGeneration` _integer_ | observedGeneration is the most recent generation observed |  | Optional: \{\} <br /> |
 | `lastError` _string_ | lastError contains the error message from the last failed operation<br />Cleared when operation succeeds |  | Optional: \{\} <br /> |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | conditions represent the current state of the HomeAssistantArea resource |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#condition-v1-meta) array_ | conditions represent the current state of the HomeAssistantArea resource |  | Optional: \{\} <br /> |
 
 
 #### HomeAssistantAutomation
@@ -744,7 +744,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantAutomation` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[HomeAssistantAutomationSpec](#homeassistantautomationspec)_ |  |  |  |
 | `status` _[HomeAssistantAutomationStatus](#homeassistantautomationstatus)_ |  |  |  |
 
@@ -763,7 +763,7 @@ HomeAssistantAutomationList contains a list of HomeAssistantAutomation
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantAutomationList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[HomeAssistantAutomation](#homeassistantautomation) array_ |  |  |  |
 
 
@@ -808,10 +808,10 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the HomeAssistantAutomation state |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#condition-v1-meta) array_ | Conditions represent the latest available observations of the HomeAssistantAutomation state |  | Optional: \{\} <br /> |
 | `automationHash` _string_ | AutomationHash is the SHA256 hash of the current automation configuration<br />Used to detect changes and determine if reload is needed |  | Optional: \{\} <br /> |
-| `lastReloadTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastReloadTime is the timestamp of the last successful reload |  | Optional: \{\} <br /> |
-| `lastTriggeredTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastTriggeredTime is the timestamp when the automation was last triggered (if available from HA) |  | Optional: \{\} <br /> |
+| `lastReloadTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | LastReloadTime is the timestamp of the last successful reload |  | Optional: \{\} <br /> |
+| `lastTriggeredTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | LastTriggeredTime is the timestamp when the automation was last triggered (if available from HA) |  | Optional: \{\} <br /> |
 | `lastError` _string_ | LastError contains the error message from the last failed operation<br />Cleared when operation succeeds |  | Optional: \{\} <br /> |
 | `lastReloadMethod` _string_ | LastReloadMethod indicates how the last reload was performed<br />Possible values: "hot-reload", "restart", "none" |  | Optional: \{\} <br /> |
 | `observedGeneration` _integer_ | ObservedGeneration reflects the generation of the most recently observed HomeAssistantAutomation |  | Optional: \{\} <br /> |
@@ -833,7 +833,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantCommunityRepository` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[HomeAssistantCommunityRepositorySpec](#homeassistantcommunityrepositoryspec)_ |  |  |  |
 | `status` _[HomeAssistantCommunityRepositoryStatus](#homeassistantcommunityrepositorystatus)_ |  |  |  |
 
@@ -852,7 +852,7 @@ HomeAssistantCommunityRepositoryList contains a list of community repositories.
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantCommunityRepositoryList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[HomeAssistantCommunityRepository](#homeassistantcommunityrepository) array_ |  |  |  |
 
 
@@ -894,9 +894,9 @@ _Appears in:_
 | `installedVersion` _string_ | InstalledVersion is the last ref that was successfully validated and activated. |  | Optional: \{\} <br /> |
 | `resolvedTarget` _string_ | ResolvedTarget is the source-manifest install target used for conflict detection. |  | Optional: \{\} <br /> |
 | `lastError` _string_ | LastError contains a human-readable error message from the last failed operation. |  | Optional: \{\} <br /> |
-| `installingSince` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | InstallingSince records when the resource most recently entered Installing. |  | Optional: \{\} <br /> |
+| `installingSince` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | InstallingSince records when the resource most recently entered Installing. |  | Optional: \{\} <br /> |
 | `observedGeneration` _integer_ | ObservedGeneration reflects the generation most recently observed by the controller. |  | Optional: \{\} <br /> |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of repository state. |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#condition-v1-meta) array_ | Conditions represent the latest available observations of repository state. |  | Optional: \{\} <br /> |
 
 
 #### HomeAssistantConfiguration
@@ -914,7 +914,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantConfiguration` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[HomeAssistantConfigurationSpec](#homeassistantconfigurationspec)_ |  |  |  |
 | `status` _[HomeAssistantConfigurationStatus](#homeassistantconfigurationstatus)_ |  |  |  |
 
@@ -933,7 +933,7 @@ HomeAssistantConfigurationList contains a list of HomeAssistantConfiguration.
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantConfigurationList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[HomeAssistantConfiguration](#homeassistantconfiguration) array_ |  |  |  |
 
 
@@ -973,9 +973,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the HomeAssistantConfiguration state |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#condition-v1-meta) array_ | Conditions represent the latest available observations of the HomeAssistantConfiguration state |  | Optional: \{\} <br /> |
 | `configHash` _string_ | ConfigHash is the SHA256 hash of the current configuration<br />Used to detect changes and determine if reload is needed |  | Optional: \{\} <br /> |
-| `lastReloadTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastReloadTime is the timestamp of the last successful reload/restart |  | Optional: \{\} <br /> |
+| `lastReloadTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | LastReloadTime is the timestamp of the last successful reload/restart |  | Optional: \{\} <br /> |
 | `lastReloadMethod` _string_ | LastReloadMethod indicates how the last reload was performed (hot-reload or restart) |  | Optional: \{\} <br /> |
 | `lastError` _string_ | LastError contains the error message from the last failed reload attempt<br />Cleared when reload succeeds |  | Optional: \{\} <br /> |
 | `observedGeneration` _integer_ | Generation tracks the generation of the spec that the status reflects |  | Optional: \{\} <br /> |
@@ -998,7 +998,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantFloor` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  | Optional: \{\} <br /> |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  | Optional: \{\} <br /> |
 | `spec` _[HomeAssistantFloorSpec](#homeassistantfloorspec)_ |  |  | Required: \{\} <br /> |
 | `status` _[HomeAssistantFloorStatus](#homeassistantfloorstatus)_ |  |  | Optional: \{\} <br /> |
 
@@ -1017,7 +1017,7 @@ HomeAssistantFloorList contains a list of HomeAssistantFloor
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantFloorList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[HomeAssistantFloor](#homeassistantfloor) array_ |  |  |  |
 
 
@@ -1056,7 +1056,7 @@ _Appears in:_
 | `floorID` _string_ | floorID is the ID assigned by Home Assistant after creation |  | Optional: \{\} <br /> |
 | `observedGeneration` _integer_ | observedGeneration is the most recent generation observed |  | Optional: \{\} <br /> |
 | `lastError` _string_ | lastError contains the error message from the last failed operation<br />Cleared when operation succeeds |  | Optional: \{\} <br /> |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | conditions represent the current state of the HomeAssistantFloor resource |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#condition-v1-meta) array_ | conditions represent the current state of the HomeAssistantFloor resource |  | Optional: \{\} <br /> |
 
 
 #### HomeAssistantIntegration
@@ -1077,7 +1077,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantIntegration` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[HomeAssistantIntegrationSpec](#homeassistantintegrationspec)_ |  |  |  |
 | `status` _[HomeAssistantIntegrationStatus](#homeassistantintegrationstatus)_ |  |  |  |
 
@@ -1096,7 +1096,7 @@ HomeAssistantIntegrationList contains a list of HomeAssistantIntegration
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantIntegrationList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[HomeAssistantIntegration](#homeassistantintegration) array_ |  |  |  |
 
 
@@ -1133,7 +1133,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `entryID` _string_ | EntryID is the Home Assistant config entry ID created or adopted by the Config Flow |  | Optional: \{\} <br /> |
 | `configHash` _string_ | ConfigHash is the SHA256 hash of the resolved configuration values.<br />Used to detect spec changes and trigger reconfiguration (delete + re-create). |  | Optional: \{\} <br /> |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the integration state |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#condition-v1-meta) array_ | Conditions represent the latest available observations of the integration state |  | Optional: \{\} <br /> |
 | `lastError` _string_ | LastError contains the error message from the last failed operation<br />Cleared when operation succeeds |  | Optional: \{\} <br /> |
 | `observedGeneration` _integer_ | ObservedGeneration reflects the generation of the most recently observed CR |  | Optional: \{\} <br /> |
 
@@ -1153,7 +1153,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantLabel` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  | Optional: \{\} <br /> |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  | Optional: \{\} <br /> |
 | `spec` _[HomeAssistantLabelSpec](#homeassistantlabelspec)_ |  |  | Required: \{\} <br /> |
 | `status` _[HomeAssistantLabelStatus](#homeassistantlabelstatus)_ |  |  | Optional: \{\} <br /> |
 
@@ -1172,7 +1172,7 @@ HomeAssistantLabelList contains a list of HomeAssistantLabel
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantLabelList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[HomeAssistantLabel](#homeassistantlabel) array_ |  |  |  |
 
 
@@ -1211,7 +1211,7 @@ _Appears in:_
 | `labelID` _string_ | labelID is the ID assigned by Home Assistant after creation |  | Optional: \{\} <br /> |
 | `observedGeneration` _integer_ | observedGeneration is the most recent generation observed |  | Optional: \{\} <br /> |
 | `lastError` _string_ | lastError contains the error message from the last failed operation<br />Cleared when operation succeeds |  | Optional: \{\} <br /> |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | conditions represent the current state of the HomeAssistantLabel resource |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#condition-v1-meta) array_ | conditions represent the current state of the HomeAssistantLabel resource |  | Optional: \{\} <br /> |
 
 
 #### HomeAssistantList
@@ -1228,7 +1228,7 @@ HomeAssistantList contains a list of HomeAssistant.
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[HomeAssistant](#homeassistant) array_ |  |  |  |
 
 
@@ -1292,7 +1292,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantScene` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[HomeAssistantSceneSpec](#homeassistantscenespec)_ |  |  |  |
 | `status` _[HomeAssistantSceneStatus](#homeassistantscenestatus)_ |  |  |  |
 
@@ -1311,7 +1311,7 @@ HomeAssistantSceneList contains a list of HomeAssistantScene
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantSceneList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[HomeAssistantScene](#homeassistantscene) array_ |  |  |  |
 
 
@@ -1349,10 +1349,10 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the HomeAssistantScene state |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#condition-v1-meta) array_ | Conditions represent the latest available observations of the HomeAssistantScene state |  | Optional: \{\} <br /> |
 | `sceneHash` _string_ | SceneHash is the SHA256 hash of the current scene configuration<br />Used to detect changes and determine if reload is needed |  | Optional: \{\} <br /> |
-| `lastReloadTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastReloadTime is the timestamp of the last successful reload |  | Optional: \{\} <br /> |
-| `lastActivated` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastActivated is the timestamp when the scene was last activated (if available from HA) |  | Optional: \{\} <br /> |
+| `lastReloadTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | LastReloadTime is the timestamp of the last successful reload |  | Optional: \{\} <br /> |
+| `lastActivated` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | LastActivated is the timestamp when the scene was last activated (if available from HA) |  | Optional: \{\} <br /> |
 | `lastError` _string_ | LastError contains the error message from the last failed operation<br />Cleared when operation succeeds |  | Optional: \{\} <br /> |
 | `entityCount` _integer_ | EntityCount is the number of entities defined in the scene<br />Updated by the controller for display in kubectl output |  | Optional: \{\} <br /> |
 | `observedGeneration` _integer_ | ObservedGeneration reflects the generation of the most recently observed HomeAssistantScene |  | Optional: \{\} <br /> |
@@ -1373,7 +1373,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantScript` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[HomeAssistantScriptSpec](#homeassistantscriptspec)_ |  |  |  |
 | `status` _[HomeAssistantScriptStatus](#homeassistantscriptstatus)_ |  |  |  |
 
@@ -1392,7 +1392,7 @@ HomeAssistantScriptList contains a list of HomeAssistantScript
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantScriptList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[HomeAssistantScript](#homeassistantscript) array_ |  |  |  |
 
 
@@ -1435,10 +1435,10 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the HomeAssistantScript state |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#condition-v1-meta) array_ | Conditions represent the latest available observations of the HomeAssistantScript state |  | Optional: \{\} <br /> |
 | `scriptHash` _string_ | ScriptHash is the SHA256 hash of the current script configuration<br />Used to detect changes and determine if reload is needed |  | Optional: \{\} <br /> |
-| `lastReloadTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastReloadTime is the timestamp of the last successful reload |  | Optional: \{\} <br /> |
-| `lastRunTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastRunTime is the timestamp when the script was last executed (if available from HA) |  | Optional: \{\} <br /> |
+| `lastReloadTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | LastReloadTime is the timestamp of the last successful reload |  | Optional: \{\} <br /> |
+| `lastRunTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | LastRunTime is the timestamp when the script was last executed (if available from HA) |  | Optional: \{\} <br /> |
 | `lastError` _string_ | LastError contains the error message from the last failed operation<br />Cleared when operation succeeds |  | Optional: \{\} <br /> |
 | `lastReloadMethod` _string_ | LastReloadMethod indicates how the last reload was performed<br />Possible values: "hot-reload" (success), "failed" (all retries exhausted), "none" (skipped/initial) |  | Optional: \{\} <br /> |
 | `observedGeneration` _integer_ | ObservedGeneration reflects the generation of the most recently observed HomeAssistantScript |  | Optional: \{\} <br /> |
@@ -1459,7 +1459,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantSecrets` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[HomeAssistantSecretsSpec](#homeassistantsecretsspec)_ |  |  |  |
 | `status` _[HomeAssistantSecretsStatus](#homeassistantsecretsstatus)_ |  |  |  |
 
@@ -1478,7 +1478,7 @@ HomeAssistantSecretsList contains a list of HomeAssistantSecrets.
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1` | | |
 | `kind` _string_ | `HomeAssistantSecretsList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[HomeAssistantSecrets](#homeassistantsecrets) array_ |  |  |  |
 
 
@@ -1513,9 +1513,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the HomeAssistantSecrets state |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#condition-v1-meta) array_ | Conditions represent the latest available observations of the HomeAssistantSecrets state |  | Optional: \{\} <br /> |
 | `secretsHash` _string_ | SecretsHash is the SHA256 hash of the generated secrets.yaml content.<br />Used to detect changes and trigger pod restarts. |  | Optional: \{\} <br /> |
-| `lastUpdated` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastUpdated is the timestamp when the secrets were last updated |  | Optional: \{\} <br /> |
+| `lastUpdated` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | LastUpdated is the timestamp when the secrets were last updated |  | Optional: \{\} <br /> |
 | `observedGeneration` _integer_ | ObservedGeneration reflects the generation of the most recently observed HomeAssistantSecrets |  | Optional: \{\} <br /> |
 | `lastError` _string_ | LastError contains a human-readable description of the last error encountered |  | Optional: \{\} <br /> |
 
@@ -1539,7 +1539,7 @@ _Appears in:_
 | `annotations` _object (keys:string, values:string)_ | Additional annotations for the StatefulSet and Pod. Keys in the<br />ha.homeassistant.io domain are reserved by the operator. Keys must be valid<br />Kubernetes qualified names; annotation values may contain arbitrary text. |  | Optional: \{\} <br /> |
 | `storage` _[StorageSpec](#storagespec)_ | Storage configuration for Home Assistant data |  | Optional: \{\} <br /> |
 | `additionalVolumes` _[AdditionalVolumesSpec](#additionalvolumesspec)_ | Additional volumes and mounts for the main Home Assistant container.<br />Every mount name must reference a volume declared here. Names and mount<br />paths managed by the operator are reserved. |  | Optional: \{\} <br /> |
-| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#resourcerequirements-v1-core)_ | Resources defines CPU and memory requests/limits |  | Optional: \{\} <br /> |
+| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#resourcerequirements-v1-core)_ | Resources defines CPU and memory requests/limits |  | Optional: \{\} <br /> |
 | `service` _[ServiceSpec](#servicespec)_ | Service configuration for exposing Home Assistant |  | Optional: \{\} <br /> |
 | `ingress` _[IngressSpec](#ingressspec)_ | Ingress configuration for external access |  | Optional: \{\} <br /> |
 | `gateway` _[GatewaySpec](#gatewayspec)_ | Gateway configures operator-managed Gateway API exposure (HTTPRoute, and<br />optionally a Gateway) for Home Assistant, with optional cert-manager TLS. |  | Optional: \{\} <br /> |
@@ -1567,15 +1567,15 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `phase` _[HomeAssistantPhase](#homeassistantphase)_ | Phase represents the current lifecycle phase of the HomeAssistant instance |  | Enum: [Pending Running Failed Unknown] <br />Optional: \{\} <br /> |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the HomeAssistant state |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#condition-v1-meta) array_ | Conditions represent the latest available observations of the HomeAssistant state |  | Optional: \{\} <br /> |
 | `version` _string_ | Version is the currently deployed Home Assistant version |  | Optional: \{\} <br /> |
 | `url` _string_ | URL is the access URL for Home Assistant (if Ingress is enabled) |  | Optional: \{\} <br /> |
 | `ready` _boolean_ | Ready indicates if the Home Assistant instance is ready to serve traffic |  | Optional: \{\} <br /> |
 | `observedGeneration` _integer_ | ObservedGeneration reflects the generation of the most recently observed HomeAssistant |  | Optional: \{\} <br /> |
 | `bootstrap` _[BootstrapStatus](#bootstrapstatus)_ | BootstrapStatus contains the status of the automatic bootstrap process |  | Optional: \{\} <br /> |
 | `selfUnbanCount` _integer_ | SelfUnbanCount is the total number of ban-recovery pod restarts. Kept for<br />backwards compatibility; prefer BanRestartWindowCount for limit enforcement. |  | Optional: \{\} <br /> |
-| `lastSelfUnban` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | LastSelfUnban is the timestamp of the most recent ban-recovery pod restart. |  | Optional: \{\} <br /> |
-| `banRestartWindowStart` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#time-v1-meta)_ | BanRestartWindowStart is the start of the current ban-recovery sliding window.<br />Nil means no window is active (no ban seen or window has expired). |  | Optional: \{\} <br /> |
+| `lastSelfUnban` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | LastSelfUnban is the timestamp of the most recent ban-recovery pod restart. |  | Optional: \{\} <br /> |
+| `banRestartWindowStart` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#time-v1-meta)_ | BanRestartWindowStart is the start of the current ban-recovery sliding window.<br />Nil means no window is active (no ban seen or window has expired). |  | Optional: \{\} <br /> |
 | `banRestartWindowCount` _integer_ | BanRestartWindowCount is the number of ban-recovery pod restarts within the<br />current sliding window. When it reaches banRestartMaxCount the operator stops<br />restarting and sets condition BanRecoveryFailed=True. |  | Optional: \{\} <br /> |
 | `backup` _[BackupStatus](#backupstatus)_ | Backup contains the latest bounded backup observations. It never contains<br />credentials, backup encryption keys, or a complete operation history. |  | Optional: \{\} <br /> |
 
@@ -1726,7 +1726,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `name` _string_ | Name is the location name (e.g., "Home", "Warsaw") |  | Optional: \{\} <br /> |
 | `latitude` _string_ | Latitude in decimal degrees (e.g., "52.2297") |  | Pattern: `^-?([0-8]?[0-9](\.[0-9]+)?\|90(\.0+)?)$` <br />Optional: \{\} <br /> |
-| `longitude` _string_ | Longitude in decimal degrees (e.g., "21.0122") |  | Pattern: `^-?(1[0-7][0-9](\.[0-9]+)?\|[0-9]\{1,2\}(\.[0-9]+)?\|180(\.0+)?)$` <br />Optional: \{\} <br /> |
+| `longitude` _string_ | Longitude in decimal degrees (e.g., "21.0122") |  | Pattern: `^-?(1[0-7][0-9](\.[0-9]+)?\|[0-9]{1,2}(\.[0-9]+)?\|180(\.0+)?)$` <br />Optional: \{\} <br /> |
 | `elevation` _integer_ | Elevation in meters |  | Optional: \{\} <br /> |
 | `unitSystem` _string_ | UnitSystem defines the unit system ("metric" or "us_customary") | metric | Enum: [metric us_customary] <br />Optional: \{\} <br /> |
 | `currency` _string_ | Currency is the ISO 4217 currency code (e.g., "USD", "EUR", "PLN") |  | Optional: \{\} <br /> |
@@ -1894,7 +1894,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `entity_id` _string_ | EntityID is the Home Assistant entity identifier in format domain.object_id<br />Examples: light.living_room, switch.fan, climate.bedroom |  | Pattern: `^[a-z_]+\.[a-z0-9_]+$` <br />Required: \{\} <br /> |
 | `state` _string_ | State is the desired state for this entity<br />Examples: "on", "off", numeric values |  | Required: \{\} <br /> |
-| `attributes` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#rawextension-runtime-pkg)_ | Attributes contains additional entity-specific attributes<br />Examples: brightness, color_temp, rgb_color for lights<br />This is a flexible structure that accepts any valid Home Assistant entity attributes |  | Type: object <br />Optional: \{\} <br /> |
+| `attributes` _[RawExtension](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#rawextension-runtime-pkg)_ | Attributes contains additional entity-specific attributes<br />Examples: brightness, color_temp, rgb_color for lights<br />This is a flexible structure that accepts any valid Home Assistant entity attributes |  | Type: object <br />Optional: \{\} <br /> |
 
 
 #### SchedulingSpec
@@ -1914,8 +1914,8 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `nodeSelector` _object (keys:string, values:string)_ | NodeSelector restricts the pod to nodes matching all of these labels. |  | Optional: \{\} <br /> |
-| `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#affinity-v1-core)_ | Affinity declares node affinity/anti-affinity and pod<br />affinity/anti-affinity rules, using Kubernetes' own Affinity semantics<br />unchanged. Both node-level placement (e.g. "prefer nodes with local<br />NVMe storage") and pod-level positioning relative to other workloads<br />(e.g. "never share a node with this other deployment") are expressed<br />through this single field, matching how corev1.Affinity itself groups<br />NodeAffinity/PodAffinity/PodAntiAffinity together. |  | Optional: \{\} <br /> |
-| `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#toleration-v1-core) array_ | Tolerations allows the pod to be scheduled onto nodes with matching<br />taints that would otherwise repel it. |  | Optional: \{\} <br /> |
+| `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#affinity-v1-core)_ | Affinity declares node affinity/anti-affinity and pod<br />affinity/anti-affinity rules, using Kubernetes' own Affinity semantics<br />unchanged. Both node-level placement (e.g. "prefer nodes with local<br />NVMe storage") and pod-level positioning relative to other workloads<br />(e.g. "never share a node with this other deployment") are expressed<br />through this single field, matching how corev1.Affinity itself groups<br />NodeAffinity/PodAffinity/PodAntiAffinity together. |  | Optional: \{\} <br /> |
+| `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#toleration-v1-core) array_ | Tolerations allows the pod to be scheduled onto nodes with matching<br />taints that would otherwise repel it. |  | Optional: \{\} <br /> |
 | `priorityClassName` _string_ | PriorityClassName assigns a PriorityClass to the pod, influencing<br />scheduling preemption and eviction order under resource contention.<br />Must name an existing PriorityClass — validated at admission time. |  | Optional: \{\} <br /> |
 
 
@@ -2031,7 +2031,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `type` _[ServiceType](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#servicetype-v1-core)_ | Type of Kubernetes Service (ClusterIP, NodePort, LoadBalancer) | ClusterIP | Enum: [ClusterIP NodePort LoadBalancer] <br />Optional: \{\} <br /> |
+| `type` _[ServiceType](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#servicetype-v1-core)_ | Type of Kubernetes Service (ClusterIP, NodePort, LoadBalancer) | ClusterIP | Enum: [ClusterIP NodePort LoadBalancer] <br />Optional: \{\} <br /> |
 | `port` _integer_ | Port for the Home Assistant web UI | 8123 | Optional: \{\} <br /> |
 | `nodePort` _integer_ | NodePort for NodePort service type (optional, auto-assigned if not set) |  | Optional: \{\} <br /> |
 
@@ -2049,9 +2049,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `size` _[Quantity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#quantity-resource-api)_ | Size of the persistent volume (e.g., "5Gi", "10Gi") | 5Gi | Optional: \{\} <br /> |
+| `size` _[Quantity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#quantity-resource-core)_ | Size of the persistent volume (e.g., "5Gi", "10Gi") | 5Gi | Optional: \{\} <br /> |
 | `storageClassName` _string_ | StorageClassName for the PVC. If empty, uses cluster default. |  | Optional: \{\} <br /> |
-| `accessMode` _[PersistentVolumeAccessMode](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#persistentvolumeaccessmode-v1-core)_ | AccessMode for the PVC | ReadWriteOnce | Optional: \{\} <br /> |
+| `accessMode` _[PersistentVolumeAccessMode](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#persistentvolumeaccessmode-v1-core)_ | AccessMode for the PVC | ReadWriteOnce | Optional: \{\} <br /> |
 | `retainPVC` _boolean_ | RetainPVC controls whether the PVC survives deletion of the HomeAssistant CR.<br />When true, no ownerReference is set on the PVC — it will not be garbage-collected<br />when the CR is deleted (e.g. by FluxCD reconciliation), preventing accidental data loss.<br />When false (default), the PVC is owned by the CR and deleted together with it. | false | Optional: \{\} <br /> |
 | `initContainer` _[InitContainerSpec](#initcontainerspec)_ | InitContainer configures the init container that pre-creates required YAML files<br />(automations.yaml, scenes.yaml, scripts.yaml) on the PVC before Home Assistant starts.<br />This prevents HA from entering recovery mode when the !include directives are present<br />but the files do not yet exist. |  | Optional: \{\} <br /> |
 
@@ -2107,7 +2107,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1alpha1` | | |
 | `kind` _string_ | `HomeAssistantDashboard` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[HomeAssistantDashboardSpec](#homeassistantdashboardspec)_ |  |  |  |
 | `status` _[HomeAssistantDashboardStatus](#homeassistantdashboardstatus)_ |  |  |  |
 
@@ -2126,7 +2126,7 @@ HomeAssistantDashboardList contains a list of HomeAssistantDashboard.
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1alpha1` | | |
 | `kind` _string_ | `HomeAssistantDashboardList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[HomeAssistantDashboard](#homeassistantdashboard) array_ |  |  |  |
 
 
@@ -2173,7 +2173,7 @@ _Appears in:_
 | `sourceHash` _string_ | SourceHash is the hash of the dashboard definition and metadata last saved to Home Assistant. |  | Optional: \{\} <br /> |
 | `lastError` _string_ | LastError contains the most recent reconciliation error and is cleared after success. |  | Optional: \{\} <br /> |
 | `observedGeneration` _integer_ | ObservedGeneration reflects the generation most recently reconciled. |  | Optional: \{\} <br /> |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ | Conditions represent the latest available observations of the dashboard state. |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#condition-v1-meta) array_ | Conditions represent the latest available observations of the dashboard state. |  | Optional: \{\} <br /> |
 
 
 #### HomeAssistantMigration
@@ -2191,7 +2191,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1alpha1` | | |
 | `kind` _string_ | `HomeAssistantMigration` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[HomeAssistantMigrationSpec](#homeassistantmigrationspec)_ |  |  |  |
 | `status` _[HomeAssistantMigrationStatus](#homeassistantmigrationstatus)_ |  |  |  |
 
@@ -2210,7 +2210,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `apiVersion` _string_ | `ha.homeassistant.io/v1alpha1` | | |
 | `kind` _string_ | `HomeAssistantMigrationList` | | |
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `items` _[HomeAssistantMigration](#homeassistantmigration) array_ |  |  |  |
 
 
@@ -2238,8 +2238,8 @@ _Appears in:_
 | `target` _[MigrationTarget](#migrationtarget)_ |  |  |  |
 | `reportID` _string_ |  |  | MaxLength: 128 <br /> |
 | `backupScopeDigest` _string_ | BackupScopeDigest is the redacted scope observed in the approved report.<br />It must be rechecked against the source before any backup is submitted. |  | Optional: \{\} <br /> |
-| `sourceTokenSecretRef` _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#secretkeyselector-v1-core)_ | SourceTokenSecretRef identifies the source API token without storing its<br />value in the migration operation. The Secret is in this namespace. |  | Optional: \{\} <br /> |
-| `recoveryKeySecretRef` _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#secretkeyselector-v1-core)_ | RecoveryKeySecretRef identifies the separately stored backup recovery key.<br />The value is never copied to the migration object or its status. |  | Optional: \{\} <br /> |
+| `sourceTokenSecretRef` _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#secretkeyselector-v1-core)_ | SourceTokenSecretRef identifies the source API token without storing its<br />value in the migration operation. The Secret is in this namespace. |  | Optional: \{\} <br /> |
+| `recoveryKeySecretRef` _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#secretkeyselector-v1-core)_ | RecoveryKeySecretRef identifies the separately stored backup recovery key.<br />The value is never copied to the migration object or its status. |  | Optional: \{\} <br /> |
 | `sourceWorkload` _[MigrationSourceWorkload](#migrationsourceworkload)_ | SourceWorkload is optional for external sources. When present, it must be<br />stopped and have no running or terminating selected Pods before cutover. |  | Optional: \{\} <br /> |
 | `archive` _[MigrationArchive](#migrationarchive)_ | Archive and RestoreScopeDigest bind the destructive restore approval to<br />one exact archive and declared restore scope. |  | Optional: \{\} <br /> |
 | `restoreScopeDigest` _string_ |  |  | Optional: \{\} <br /> |
@@ -2264,7 +2264,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `phase` _string_ |  |  |  |
-| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v/#condition-v1-meta) array_ |  |  | Optional: \{\} <br /> |
+| `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.37/#condition-v1-meta) array_ |  |  | Optional: \{\} <br /> |
 
 
 #### HomeAssistantReference
@@ -2300,7 +2300,7 @@ _Appears in:_
 | `digest` _string_ |  |  | MaxLength: 128 <br /> |
 | `targetUID` _string_ |  |  | MaxLength: 128 <br /> |
 | `archiveDigest` _string_ |  |  | MaxLength: 128 <br /> |
-| `verificationDigest` _string_ | VerificationDigest binds the approved non-secret verification set. |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `verificationDigest` _string_ | VerificationDigest binds the approved non-secret verification set. |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]{64}$` <br /> |
 | `scopeDigest` _string_ |  |  | MaxLength: 128 <br /> |
 | `sourceUID` _string_ |  |  | MaxLength: 128 <br /> |
 | `approved` _boolean_ |  |  |  |
@@ -2377,7 +2377,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `stage` _string_ |  |  | Enum: [backup upload restore] <br /> |
-| `requestID` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `requestID` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]{64}$` <br /> |
 
 
 #### MigrationExecutionRequest
@@ -2396,21 +2396,21 @@ _Appears in:_
 | `version` _string_ |  |  | Enum: [v1] <br /> |
 | `stage` _string_ |  |  | Enum: [backup upload restore] <br /> |
 | `operationUID` _string_ |  |  | MaxLength: 128 <br />MinLength: 1 <br /> |
-| `requestID` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `requestID` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]{64}$` <br /> |
 | `sourceID` _string_ |  |  | MaxLength: 2048 <br />MinLength: 1 <br /> |
 | `sourceEndpoint` _string_ |  |  | MaxLength: 2048 <br /> |
 | `reportID` _string_ |  |  | MaxLength: 128 <br />MinLength: 1 <br /> |
 | `target` _[MigrationTarget](#migrationtarget)_ |  |  |  |
-| `scopeDigest` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
-| `verificationDigest` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `scopeDigest` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]{64}$` <br /> |
+| `verificationDigest` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]{64}$` <br /> |
 | `archiveStorage` _[MigrationArchiveStorage](#migrationarchivestorage)_ |  |  |  |
 | `sourceToken` _[MigrationSecretIdentity](#migrationsecretidentity)_ |  |  |  |
 | `recoveryKey` _[MigrationSecretIdentity](#migrationsecretidentity)_ |  |  |  |
 | `archiveRef` _[MigrationObjectReference](#migrationobjectreference)_ |  |  |  |
-| `archiveDigest` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `archiveDigest` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]{64}$` <br /> |
 | `archivePVCUID` _string_ |  |  | MaxLength: 128 <br />MinLength: 1 <br /> |
 | `sourceWorkload` _[MigrationSourceWorkload](#migrationsourceworkload)_ |  |  |  |
-| `uploadRequestID` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `uploadRequestID` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]{64}$` <br /> |
 
 
 #### MigrationObjectReference
@@ -2446,7 +2446,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `version` _string_ |  |  | Enum: [v1] <br /> |
-| `requestID` _string_ |  |  | Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `requestID` _string_ |  |  | Pattern: `^sha256:[a-f0-9]{64}$` <br /> |
 | `bundle` _[MigrationObjectReference](#migrationobjectreference)_ |  |  |  |
 | `bundleResourceVersion` _string_ |  |  | MaxLength: 128 <br />MinLength: 1 <br /> |
 | `claim` _[MigrationObjectReference](#migrationobjectreference)_ |  |  |  |
@@ -2466,7 +2466,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `version` _string_ |  |  | Enum: [v1] <br /> |
-| `requestID` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `requestID` _string_ |  |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]{64}$` <br /> |
 | `stage` _string_ |  |  | Enum: [backup upload restore] <br /> |
 | `decision` _string_ |  |  | Enum: [ObserveExternalResult Abort] <br /> |
 | `evidenceRef` _[MigrationEvidenceReference](#migrationevidencereference)_ |  |  |  |
@@ -2544,4 +2544,4 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `kind` _string_ |  |  | Enum: [EntityRegistryIdentity IntegrationEntryIdentity TodoItems] <br /> |
 | `id` _string_ |  |  | MaxLength: 256 <br />MinLength: 1 <br /> |
-| `expectedDigest` _string_ | ExpectedDigest identifies the approved non-secret data to compare. |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]\{64\}$` <br /> |
+| `expectedDigest` _string_ | ExpectedDigest identifies the approved non-secret data to compare. |  | MaxLength: 71 <br />Pattern: `^sha256:[a-f0-9]{64}$` <br /> |

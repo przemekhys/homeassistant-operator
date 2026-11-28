@@ -65,11 +65,21 @@ is exactly what `alpha` reserves the right to do.
 |-------|--------------|
 | `spec.alpha.networkPolicy.enabled` | Creates a NetworkPolicy restricting ingress to the Home Assistant pod |
 | `spec.alpha.devices` | Mounts host device nodes, such as a Zigbee or Z-Wave USB coordinator, into the container |
+| `spec.alpha.migrationRestore.enabled` | Opts a new instance into guarded preparation for an experimental migration restore |
 
-Both change the pod structurally, which is why they are here. `devices` in
+These features can change the workload or its lifecycle, which is why they are
+here. `devices` in
 particular mounts host paths and alters the container's security context — but
 deliberately never grants `privileged: true`, because that would be a far larger
 concession than the feature needs.
+
+`migrationRestore` defaults to disabled. When enabled, it keeps the target
+workload stopped until the matching migration has a bound restore approval,
+verified source stop, and isolated proxy credentials. After restore, normal
+bootstrap and configuration projections remain gated until post-restore
+verification and a bound `resume` approval. Follow the
+[migration guide](../how-to/migrate-existing-instance.md) for the required
+manual steps and limitations.
 
 The current list of fields, with their types, is in the
 [API reference](../reference/api.md#alphaspec).
